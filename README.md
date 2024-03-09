@@ -57,6 +57,14 @@ This library supports multiple NET versions:
 - .NET 4.7.2
   - System.Text.Json
 
+
+| Platform | Status                                                                                                                                                                                                 | Code Coverage                                                                                                                                                                                                                                           | .NET                                                                          |
+| -------- |--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Windows  | <a href="https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=30"><img src="https://dev.azure.com/evotecpl/DnsClientX/_apis/build/status%2FDnsClientX%20Windows?branchName=master?compact_message&label=Tests%20Windows"></a> | <a href="https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=30&view=ms.vss-pipelineanalytics-web.new-build-definition-pipeline-analytics-view-cardmetrics"><img src="https://img.shields.io/azure-devops/coverage/evotecpl/DnsClientX/30"></a> | .NET 4.7.2, NET 4.8, .NET 6.0, .NET 7.0, .NET 8.0, .NET Standard 2.0 |
+| Linux    | <a href="https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=31"><img src="https://dev.azure.com/evotecpl/DnsClientX/_apis/build/status%2FDnsClientX%20Linux?branchName=master?compact_message&label=Tests%20Linux"></a>   |  | .NET 6.0, .NET 7.0, .NET Standard 2.0, .NET 8.0    |
+| MacOs    | <a href="https://dev.azure.com/evotecpl/OfficeIMO/_build?definitionId=32"><img src="https://dev.azure.com/evotecpl/DnsClientX/_apis/build/status%2FDnsClientX%20macOs?branchName=master?compact_message&label=Tests%20MacOs"></a>   |  | .NET 6.0, .NET 7.0, .NET Standard 2.0, .NET 8.0   |
+
+
 ## Features
 
 - Supports multiple DNS Providers (Cloudflare, Google, Quad9, OpenDNS, etc.)
