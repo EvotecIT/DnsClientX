@@ -64,9 +64,4 @@
         <Reference Include="System.Net.Http" />
         <PackageReference Include="System.Text.Json" Version="8.0.2" />
     </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="ProtocolWireDoh\" />
-      <Folder Include="ProtocolJson\" />
-    </ItemGroup>
 </Project>
