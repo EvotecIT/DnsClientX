@@ -188,6 +188,9 @@ namespace DnsClientX {
         /// The nse c3 parameter
         /// </summary>
         NSEC3PARAM = 51,
+        /// <summary>
+        /// The tlsa
+        /// </summary>
         TLSA = 52,
         /// <summary>
         /// The smimea
