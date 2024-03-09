@@ -52,8 +52,10 @@ namespace DnsClientX.Tests {
         [InlineData("evotec.pl", DnsRecordType.SPF)]
         [InlineData("evotec.pl", DnsRecordType.TXT)]
         [InlineData("evotec.pl", DnsRecordType.SRV)]
-        [InlineData("evotec.pl", DnsRecordType.NSEC)]
-        [InlineData("cloudflare.com", DnsRecordType.NSEC)]
+        // NSEC by OpenDNSFamily returns less records than Cloudflare or any other vendor
+        [InlineData("evotec.pl", DnsRecordType.NSEC, new[] { DnsEndpoint.OpenDNSFamily })]
+        // NSEC by OpenDNSFamily returns less records than Cloudflare or any other vendor
+        [InlineData("cloudflare.com", DnsRecordType.NSEC, new[] { DnsEndpoint.OpenDNSFamily })]
         [InlineData("mail-db3pr0202cu00100.inbound.protection.outlook.com", DnsRecordType.PTR)]
         // lets try different sites
         [InlineData("reddit.com", DnsRecordType.A)]
