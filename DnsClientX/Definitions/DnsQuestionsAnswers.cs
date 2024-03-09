@@ -172,6 +172,20 @@ namespace DnsClientX {
                 } else {
                     return DataRaw;
                 }
+            } else if (Type == DnsRecordType.NSEC) {
+                // This is a NSEC record. Some providers may return non-standard (google) types.
+                // Check if the type is a non-standard type
+                var parts = DataRaw.Split(' ');
+                foreach (var part in parts) {
+                    if (part.StartsWith("TYPE")) {
+                        // This is a non-standard type. Try to convert it to a standard type.
+                        if (Enum.TryParse<DnsRecordType>(part.Substring(4), out var standardType)) {
+                            // The conversion was successful. Replace the non-standard type with the standard type.
+                            DataRaw = DataRaw.Replace(part, standardType.ToString());
+                        }
+                    }
+                }
+                return DataRaw;
             } else {
                 return DataRaw;
             }
