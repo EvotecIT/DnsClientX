@@ -73,7 +73,7 @@ namespace DnsClientX.Examples {
                 Console.WriteLine("\tAnswer: Null");
                 return;
             }
-            Console.WriteLine($"\tType: {answer.Value.Type}; TTL: {answer.Value.TTL}; Name: {answer.Value.Name} => {answer.Value.Data}");
+            Console.WriteLine($"\tType: {answer.Value.Type}; TTL: '{answer.Value.TTL}'; Name: '{answer.Value.Name}' => '{answer.Value.Data}'");
             if (answer.Value.DataStrings.Length > 1) {
                 Console.WriteLine($"\t\tDataStrings: ");
                 foreach (string dataString in answer.Value.DataStrings) {
