@@ -4,11 +4,20 @@ using System.IO;
 using System.Text;
 
 namespace DnsClientX {
+    /// <summary>
+    /// DnsMessage class
+    /// </summary>
     public class DnsMessage {
         private readonly string _name;
         private readonly DnsRecordType _type;
         private readonly bool _requestDnsSec;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DnsMessage"/> class.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="type">The type.</param>
+        /// <param name="requestDnsSec">if set to <c>true</c> [request DNS sec].</param>
         public DnsMessage(string name, DnsRecordType type, bool requestDnsSec) {
             _name = name;
             _type = type;
