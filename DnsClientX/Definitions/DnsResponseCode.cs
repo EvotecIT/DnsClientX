@@ -7,51 +7,57 @@ namespace DnsClientX {
         /// <summary>
         /// The DNS query completed successfully.
         /// </summary>
-        NoError,
+        NoError = 0,
         /// <summary>
         /// The DNS query was formatted incorrectly.
         /// </summary>
-        FormatError,
+        FormatError = 1,
         /// <summary>
         /// The server failed to complete the DNS query due to an internal error.
         /// </summary>
-        ServerFailure,
+        ServerFailure = 2,
         /// <summary>
         /// The queried domain name does not exist.
         /// </summary>
-        NXDomain,
+        NXDomain = 3,
         /// <summary>
         /// The server does not support the requested operation.
         /// </summary>
-        NotImplemented,
+        NotImplemented = 4,
         /// <summary>
         /// The server refused to respond to the DNS query.
         /// </summary>
-        Refused,
+        Refused = 5,
         /// <summary>
         /// A domain name that should not exist, does exist.
         /// </summary>
-        YXDomain,
+        YXDomain = 6,
         /// <summary>
         /// A resource record set exists when it should not.
         /// </summary>
-        YXRRSet,
+        YXRRSet = 7,
         /// <summary>
         /// A resource record set that should exist, does not.
         /// </summary>
-        NXRRSet,
+        NXRRSet = 8,
         /// <summary>
         /// The server is not authoritative for the queried zone, or the server is not authorized to give a response.
         /// </summary>
-        NotAuth,
+        NotAuth = 9,
         /// <summary>
         /// The queried name is not contained in the zone.
         /// </summary>
-        NotZone,
+        NotZone = 10,
+
+        // 11-15 are reserved for future use
+
         /// <summary>
         /// The DSO-TYPE is not implemented.
         /// </summary>
-        DSOTYPENotImplemented,
+        DSOTYPENotImplemented = 11,
+
+        // 12-15 are unassigned
+
         /// <summary>
         /// The OPT version is not supported.
         /// </summary>
@@ -59,34 +65,39 @@ namespace DnsClientX {
         /// <summary>
         /// The TSIG signature failed to validate.
         /// </summary>
-        BadSignature,
+        BadSignature = 17,
         /// <summary>
         /// The key used for the query was not recognized.
         /// </summary>
-        BadKey,
+        BadKey = 18,
         /// <summary>
         /// The signature is outside of the valid time window.
         /// </summary>
-        BadTime,
+        BadTime = 19,
         /// <summary>
         /// The TKEY mode is not valid.
         /// </summary>
-        BadMode,
+        BadMode = 20,
         /// <summary>
         /// The key name is duplicated.
         /// </summary>
-        BadName,
+        BadName = 21,
         /// <summary>
         /// The algorithm used for the query is not supported.
         /// </summary>
-        BadAlgorithm,
+        BadAlgorithm = 22,
         /// <summary>
         /// The message was truncated in a way that is not allowed.
         /// </summary>
-        BadTruncation,
+        BadTruncation = 23,
         /// <summary>
         /// The server cookie is either bad or missing.
         /// </summary>
-        BadCookie
+        BadCookie = 24
+
+        // 25-3840 are unassigned
+        // 3841-4095 are reserved for Private Use
+        // 4096-65534 are unassigned
+        // 65535 is reserved
     }
 }
