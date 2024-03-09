@@ -404,6 +404,7 @@ namespace DnsClientX {
         /// • MINIMUM: A 32-bit integer in network byte order.
         /// </summary>
         /// <param name="reader"></param>
+        /// <param name="dnsMessage"></param>
         /// <param name="rdLength"></param>
         /// <param name="messageStart"></param>
         /// <returns></returns>
@@ -418,6 +419,12 @@ namespace DnsClientX {
             return $"{mname} {rname} {serial} {refresh} {retry} {expire} {minimum}";
         }
 
+        /// <summary>
+        /// Decodes the dnskey record.
+        /// </summary>
+        /// <param name="reader">The reader.</param>
+        /// <param name="rdLength">Length of the rd.</param>
+        /// <returns></returns>
         private static string DecodeDNSKEYRecord(this BinaryReader reader, ushort rdLength) {
             // For DNSKEY records, decode the flags, protocol, algorithm, and public key from the record data
             ushort flags = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
@@ -478,6 +485,21 @@ namespace DnsClientX {
             return $"{nextDomainName} {string.Join(" ", types)}";
         }
 
+        /// <summary>
+        /// Processes the record data.
+        /// </summary>
+        /// <param name="dnsMessage">The DNS message.</param>
+        /// <param name="recordStart">The record start.</param>
+        /// <param name="type">The type.</param>
+        /// <param name="rdata">The rdata.</param>
+        /// <param name="rdLength">Length of the rd.</param>
+        /// <param name="messageStart">The message start.</param>
+        /// <returns></returns>
+        /// <exception cref="DnsClientException">
+        /// The record data for " + type + " is not long enough? " + ex.Message
+        /// or
+        /// Error processing record data for " + type + ": " + ex.Message
+        /// </exception>
         private static string ProcessRecordData(byte[] dnsMessage, int recordStart, DnsRecordType type, byte[] rdata, ushort rdLength, long messageStart) {
             using (BinaryReader reader = new BinaryReader(new MemoryStream(rdata))) {
                 try {
