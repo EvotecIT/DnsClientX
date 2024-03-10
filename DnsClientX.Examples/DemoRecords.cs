@@ -10,7 +10,7 @@ namespace DnsClientX.Examples {
         /// <param name="type">The type.</param>
         /// <param name="endpoint">The endpoint.</param>
         public static async Task Demo(string domainName, DnsRecordType type, DnsEndpoint endpoint) {
-            var Client = new DnsClientX(endpoint);
+            var Client = new ClientX(endpoint);
             Console.WriteLine($"> Resolving the {type} record on {domainName} using {endpoint}");
             var caaAnswer = await Client.ResolveAll(domainName, type);
             caaAnswer.DisplayToConsole();
