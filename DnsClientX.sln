@@ -6,8 +6,16 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DnsClientX", "DnsClientX\DnsClientX.csproj", "{25B1457B-3F86-42C4-86C6-D749054E5B52}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DnsClientX.Tests", "DnsClientX.Tests\DnsClientX.Tests.csproj", "{5FCEF517-6F66-44F3-AF4F-9C399207A966}"
+	ProjectSection(ProjectDependencies) = postProject
+		{6C259556-DF90-4EA2-B1C5-D87CFB5FF483} = {6C259556-DF90-4EA2-B1C5-D87CFB5FF483}
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DnsClientX.Examples", "DnsClientX.Examples\DnsClientX.Examples.csproj", "{7573BC93-FF47-495D-965B-449C40D8F416}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DnsClientX.Converter", "DnsClientX.Converter\DnsClientX.Converter.csproj", "{6C259556-DF90-4EA2-B1C5-D87CFB5FF483}"
+	ProjectSection(ProjectDependencies) = postProject
+		{25B1457B-3F86-42C4-86C6-D749054E5B52} = {25B1457B-3F86-42C4-86C6-D749054E5B52}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,6 +35,10 @@ Global
 		{7573BC93-FF47-495D-965B-449C40D8F416}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7573BC93-FF47-495D-965B-449C40D8F416}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7573BC93-FF47-495D-965B-449C40D8F416}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6C259556-DF90-4EA2-B1C5-D87CFB5FF483}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6C259556-DF90-4EA2-B1C5-D87CFB5FF483}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6C259556-DF90-4EA2-B1C5-D87CFB5FF483}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6C259556-DF90-4EA2-B1C5-D87CFB5FF483}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
