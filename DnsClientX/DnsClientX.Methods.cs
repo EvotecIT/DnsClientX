@@ -60,20 +60,32 @@ namespace DnsClientX {
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
-        public async Task<DnsResponse> Resolve(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false) {
+        public async Task<DnsResponse> Resolve(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
+            DnsResponse response;
             if (EndpointConfiguration.RequestFormat == DnsRequestFormat.JSON) {
-                return await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug);
+                response = await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.WireFormatGet) {
-                return await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug);
+                response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.WireFormatPost) {
-                return await Client.ResolveWireFormatPost(name, type, requestDnsSec, validateDnsSec, Debug);
+                response = await Client.ResolveWireFormatPost(name, type, requestDnsSec, validateDnsSec, Debug);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.WireFormatDot) {
-                return await DnsWireResolveDot.ResolveWireFormatDoT(name, type, requestDnsSec, validateDnsSec, Debug);
+                response = await DnsWireResolveDot.ResolveWireFormatDoT(name, type, requestDnsSec, validateDnsSec, Debug);
             } else {
                 throw new DnsClientException($"Invalid RequestFormat: {EndpointConfiguration.RequestFormat}");
             }
+
+            // Some DNS Providers return requested type, but also additional types for whatever reason
+            // https://dns.quad9.net:5053/dns-query?name=autodiscover.evotec.pl&type=CNAME
+            // We want to make sure the output is consistent
+            if (!returnAllTypes && response.Answers != null) {
+                response.Answers = response.Answers.Where(x => x.Type == type).ToArray();
+            } else if (response.Answers == null) {
+                response.Answers = Array.Empty<DnsAnswer>();
+            }
+
+            return response;
         }
 
         /// <summary>
