@@ -110,6 +110,105 @@ Please consider sharing a post about DnsClientX and the value it provides. It re
 
 ## Usage
 
+There are multiple ways to use DnsClientX. 
+
 ```csharp
 using DnsClientX;
+```
+
+Below are some examples.
+
+### Querying DNS over HTTPS via provided hostname that uses /dns-query endpoint and JSON format
+
+```csharp
+var data = await DnsClientX.QueryDns("evotec.pl", DnsRecordType.A, "1.1.1.1", DnsRequestFormat.JSON);
+data.Answers
+```
+
+### Querying DNS over HTTPS via defined endpoint using QueryDns
+
+```csharp
+var data = await DnsClientX.QueryDns("evotec.pl", DnsRecordType.A, DnsEndpoint.CloudflareWireFormat);
+data.Answers
+```
+
+### Querying DNS over HTTPS via full Uri using QueryDNS and JSON format
+
+```csharp
+var data = await DnsClientX.QueryDns("evotec.pl", DnsRecordType.A, new Uri("https://1.1.1.1/dns-query"), DnsRequestFormat.JSON);
+data.Answers
+```
+
+### Querying DNS over HTTPS via defined endpoint using ResolveAll
+
+```csharp
+var Client = new DnsClientX(DnsEndpoint.OpenDNS);
+var data = await Client.ResolveAll(domainName, type);
+data
+```
+
+### Querying DNS over HTTPS with single endpoint using ResolveAll
+
+```csharp
+var Client = new DnsClientX(DnsEndpoint.OpenDNS);
+var data = await Client.ResolveAll(domainName, type);
+data
+```
+
+### Querying DNS over HTTPS with multiple endpoints using Resolve
+
+```csharp
+var dnsEndpoints = new List<DnsEndpoint> {
+    DnsEndpoint.Cloudflare,
+    DnsEndpoint.CloudflareSecurity,
+    DnsEndpoint.CloudflareFamily,
+    DnsEndpoint.CloudflareWireFormat,
+    DnsEndpoint.Google,
+    DnsEndpoint.Quad9,
+    DnsEndpoint.Quad9ECS,
+    DnsEndpoint.Quad9Unsecure,
+    DnsEndpoint.OpenDNS,
+    DnsEndpoint.OpenDNSFamily
+};
+
+// List of endpoints to exclude
+var excludeEndpoints = new List<DnsEndpoint> {
+
+};
+
+var domains = new List<string> {
+    "github.com",
+    "microsoft.com",
+    "evotec.xyz"
+};
+
+// List of record types to query
+var recordTypes = new List<DnsRecordType> {
+    DnsRecordType.A,
+    DnsRecordType.TXT,
+    DnsRecordType.AAAA,
+    DnsRecordType.MX,
+    DnsRecordType.NS,
+    DnsRecordType.SOA,
+    DnsRecordType.DNSKEY,
+    DnsRecordType.NSEC
+};
+
+foreach (var endpoint in dnsEndpoints) {
+    if (excludeEndpoints.Contains(endpoint)) {
+        continue; // Skip this iteration if the endpoint is in the exclude list
+    }
+
+    // Create a new client for each endpoint
+    var client = new DnsClientX(endpoint) {
+        Debug = false
+    };
+
+    foreach (var domain in domains) {
+        foreach (var recordType in recordTypes) {
+            DnsResponse? response = await client.Resolve(domain, recordType);
+            response.DisplayToConsole();
+        }
+    }
+}
 ```

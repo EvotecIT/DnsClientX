@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
+        <Title>DnsClientX</Title>
         <Description>
             An Open Source cross-platform .NET library providing an easy way to work with
             DNS over HTTPS.
@@ -22,12 +23,11 @@
         <LangVersion>Latest</LangVersion>
 
         <PackageId>DnsClientX</PackageId>
-        <PackageIcon>DnsClientX.ico</PackageIcon>
+        <PackageIcon>DnsClientX.png</PackageIcon>
         <PackageTags>
             dns;https;dns-over-https;net472;net48;netstandard;netstandard2.0,netstandard2.1;net70;net80
         </PackageTags>
         <PackageProjectUrl>https://github.com/EvotecIT/DnsClientX</PackageProjectUrl>
-        <PackageLicenseUrl>https://github.com/EvotecIT/DnsClientX/blob/master/License.md</PackageLicenseUrl>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <RequireLicenseAcceptance>false</RequireLicenseAcceptance>
         <DelaySign>False</DelaySign>
@@ -38,7 +38,7 @@
         <DebugType>portable</DebugType>
         <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
         <ApplicationIcon>DnsClientX.ico</ApplicationIcon>
-        <PackageReadmeFile>README.MD</PackageReadmeFile>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
         <RepositoryType>git</RepositoryType>
         <SignAssembly>False</SignAssembly>
         <GenerateDocumentationFile>True</GenerateDocumentationFile>
@@ -63,5 +63,19 @@
     <ItemGroup Condition="'$(TargetFramework)'=='net472' OR '$(TargetFramework)'=='net48'">
         <Reference Include="System.Net.Http" />
         <PackageReference Include="System.Text.Json" Version="8.0.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Include="..\README.md">
+        <Pack>True</Pack>
+        <PackagePath>\</PackagePath>
+      </None>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="DnsClientX.png">
+            <Pack>True</Pack>
+            <PackagePath>\</PackagePath>
+        </None>
     </ItemGroup>
 </Project>
