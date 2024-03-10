@@ -57,6 +57,7 @@ namespace DnsClientX {
         /// <param name="type">The DNS resource type to resolve. By default, this is the <c>A</c> record.</param>
         /// <param name="requestDnsSec">Whether to request DNSSEC data in the response. When requested, it will be accessible under the <see cref="DnsAnswer"/> array.</param>
         /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="returnAllTypes">Whether to return all DNS record types in the response as returned by provider. When set to <c>true</c>, the <see cref="DnsResponse.Answers"/> array will contain all types.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
