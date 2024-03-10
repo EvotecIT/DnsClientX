@@ -4,17 +4,33 @@ using System.Linq;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 namespace DnsClientX {
     /// <summary>   
     /// DNS question sent by the client.
     /// </summary>
     public struct DnsQuestion {
+        private string _name;
+
+        /// <summary>
+        /// The FQDN record name requested.
+        /// Retains original name as set by the client.
+        /// </summary>
+        [JsonIgnore]
+        public string OriginalName;
+
         /// <summary>
         /// The FQDN record name requested.
         /// </summary>
         [JsonPropertyName("name")]
-        public string Name { get; set; }
+        public string Name {
+            get => _name;
+            set {
+                OriginalName = value;
+                _name = value.EndsWith(".") ? value.TrimEnd('.') : value;
+            }
+        }
 
         /// <summary>
         /// The type of DNS record requested.
@@ -28,18 +44,23 @@ namespace DnsClientX {
     /// </summary>
     public struct DnsAnswer {
         private string _name;
-        private string _originalName;
+        /// <summary>
+        /// This is the name of the record.
+        /// Retains original name as returned by the server.
+        /// </summary>
+        [JsonIgnore]
+        public string OriginalName;
         //private string[] _data;
 
         /// <summary>
-        /// The record owner. This is the name of the record.
+        /// This is the name of the record.
         /// Removes the trailing dot if it exists to make it easier to compare with other records across providers.
         /// </summary>
         [JsonPropertyName("name")]
         public string Name {
             get => _name;
             set {
-                _originalName = value;
+                OriginalName = value;
                 _name = value.EndsWith(".") ? value.TrimEnd('.') : value;
             }
         }
@@ -66,17 +87,20 @@ namespace DnsClientX {
         /// <summary>
         /// the value of the DNS record for the given name and type after being processed and converted to a string.
         /// </summary>
+        [JsonIgnore]
         public string Data => ConvertData();
 
         /// <summary>
         /// The value of the DNS record for the given name and type, split into multiple strings if necessary.
         /// Tries to preserve the original format of the data.
         /// </summary>
+        [JsonIgnore]
         public string[] DataStrings => ConvertToMultiString();
 
         /// <summary>
         /// The value of the DNS record for the given name and type, escaped if necessary removing the quotes completely. 
         /// </summary>
+        [JsonIgnore]
         public string[] DataStringsEscaped {
             get {
                 var data = new List<string>();
