@@ -5,13 +5,13 @@ using System.Collections.Generic;
 
 namespace DnsClientX.Converter {
     public static partial class DnsClientXExtensions {
-        public static List<DnsAnswer> ToDnsClientAnswerX(this IEnumerable<DnsResourceRecord> dnsResourceRecords) {
+        public static DnsAnswer[] ToDnsClientAnswerX(this IEnumerable<DnsResourceRecord> dnsResourceRecords) {
             var dnsAnswers = new List<DnsAnswer>();
             foreach (var dnsResourceRecord in dnsResourceRecords) {
                 var dnsAnswer = dnsResourceRecord.ToDnsClientAnswerX();
                 dnsAnswers.Add(dnsAnswer);
             }
-            return dnsAnswers;
+            return dnsAnswers.ToArray();
         }
 
 

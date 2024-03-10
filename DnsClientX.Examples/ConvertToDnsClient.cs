@@ -8,7 +8,7 @@ using DnsClientX;
 using DnsClientX.Converter;
 
 namespace DnsClientX.Examples {
-    internal class ConvertToDnsClient {
+    public class ConvertToDnsClient {
         public static async Task ExampleConvertToDnsClientFromX() {
             var data = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, DnsEndpoint.Cloudflare);
 
@@ -31,9 +31,7 @@ namespace DnsClientX.Examples {
             var dnsAnswers = result.Answers.ToDnsClientAnswerX();
 
             // lets display it
-            foreach (var answer in dnsAnswers) {
-                Console.WriteLine(answer);
-            }
+            dnsAnswers.DisplayToConsole();
         }
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using DnsClient;
 using DnsClient.Protocol;
 
