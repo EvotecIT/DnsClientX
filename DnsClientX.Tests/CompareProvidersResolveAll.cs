@@ -34,7 +34,7 @@ namespace DnsClientX.Tests {
 
             var primaryEndpoint = DnsEndpoint.Cloudflare;
 
-            var Client = new DnsClientX(primaryEndpoint);
+            var Client = new ClientX(primaryEndpoint);
             DnsAnswer[] aAnswersPrimary = await Client.ResolveAll(name, resourceRecordType);
 
             foreach (var endpointCompare in Enum.GetValues(typeof(DnsEndpoint)).Cast<DnsEndpoint>()) {
@@ -45,7 +45,7 @@ namespace DnsClientX.Tests {
                     continue;
                 }
                 output.WriteLine("Provider: " + endpointCompare.ToString());
-                var ClientToCompare = new DnsClientX(endpointCompare);
+                var ClientToCompare = new ClientX(endpointCompare);
                 DnsAnswer[] aAnswersToCompare = await ClientToCompare.ResolveAll(name, resourceRecordType);
 
                 var sortedAAnswers = aAnswersPrimary.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();
@@ -79,9 +79,9 @@ namespace DnsClientX.Tests {
         [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS)]
         [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNSFamily)]
         public async void CompareRecordTextMultiline(string name, DnsRecordType resourceRecordType, DnsEndpoint primaryEndpoint, DnsEndpoint endpointCompare) {
-            var Client = new DnsClientX(primaryEndpoint);
+            var Client = new ClientX(primaryEndpoint);
             DnsAnswer[] aAnswersPrimary = await Client.ResolveAll(name, resourceRecordType);
-            var ClientToCompare = new DnsClientX(endpointCompare);
+            var ClientToCompare = new ClientX(endpointCompare);
             DnsAnswer[] aAnswersToCompare = await ClientToCompare.ResolveAll(name, resourceRecordType);
 
             // we focus only on SPF1 TXT records

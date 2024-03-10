@@ -9,7 +9,7 @@ namespace DnsClientX.Tests {
         [InlineData("https://208.67.222.123/dns-query", DnsRequestFormat.WireFormatGet)]
         public async void ShouldWorkForTXT(string baseUri, DnsRequestFormat requestFormat) {
             Uri uri = new Uri(baseUri);
-            var response = await DnsClientX.QueryDns("github.com", DnsRecordType.TXT, uri, requestFormat);
+            var response = await ClientX.QueryDns("github.com", DnsRecordType.TXT, uri, requestFormat);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "github.com");
                 Assert.True(answer.Type == DnsRecordType.TXT);
@@ -25,7 +25,7 @@ namespace DnsClientX.Tests {
         [InlineData("https://dns.adguard.com/dns-query", DnsRequestFormat.WireFormatGet)]
         public async void ShouldWorkForA(string baseUri, DnsRequestFormat requestFormat) {
             Uri uri = new Uri(baseUri);
-            var response = await DnsClientX.QueryDns("evotec.pl", DnsRecordType.A, uri, requestFormat);
+            var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, uri, requestFormat);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "evotec.pl");
                 Assert.True(answer.Type == DnsRecordType.A);

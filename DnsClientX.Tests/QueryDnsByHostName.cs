@@ -7,7 +7,7 @@ namespace DnsClientX.Tests {
         // [InlineData("8.8.8.8", DnsRequestFormat.JSON)]
         [InlineData("208.67.222.222", DnsRequestFormat.WireFormatGet)]
         public async void ShouldWorkForTXT(string hostName, DnsRequestFormat requestFormat) {
-            var response = await DnsClientX.QueryDns("github.com", DnsRecordType.TXT, hostName, requestFormat);
+            var response = await ClientX.QueryDns("github.com", DnsRecordType.TXT, hostName, requestFormat);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "github.com");
                 Assert.True(answer.Type == DnsRecordType.TXT);
@@ -22,7 +22,7 @@ namespace DnsClientX.Tests {
         // [InlineData("8.8.8.8", DnsRequestFormat.JSON)]
         [InlineData("208.67.222.222", DnsRequestFormat.WireFormatGet)]
         public async void ShouldWorkForA(string hostName, DnsRequestFormat requestFormat) {
-            var response = await DnsClientX.QueryDns("evotec.pl", DnsRecordType.A, hostName, requestFormat);
+            var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, hostName, requestFormat);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "evotec.pl");
                 Assert.True(answer.Type == DnsRecordType.A);

@@ -35,7 +35,7 @@ namespace DnsClientX.Tests {
 
             var primaryEndpoint = DnsEndpoint.Cloudflare;
 
-            var Client = new DnsClientX(primaryEndpoint);
+            var Client = new ClientX(primaryEndpoint);
             DnsResponse aAnswersPrimary = await Client.Resolve(name, resourceRecordType);
 
             foreach (var endpointCompare in Enum.GetValues(typeof(DnsEndpoint)).Cast<DnsEndpoint>()) {
@@ -48,7 +48,7 @@ namespace DnsClientX.Tests {
 
                 output.WriteLine("Provider: " + endpointCompare.ToString());
 
-                var ClientToCompare = new DnsClientX(endpointCompare);
+                var ClientToCompare = new ClientX(endpointCompare);
                 DnsResponse aAnswersToCompare = await ClientToCompare.Resolve(name, resourceRecordType);
 
                 var sortedAAnswers = aAnswersPrimary.Answers.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();

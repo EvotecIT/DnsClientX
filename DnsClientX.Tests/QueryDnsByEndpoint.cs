@@ -12,7 +12,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async void ShouldWorkForTXT(DnsEndpoint endpoint) {
-            var response = await DnsClientX.QueryDns("github.com", DnsRecordType.TXT, endpoint);
+            var response = await ClientX.QueryDns("github.com", DnsRecordType.TXT, endpoint);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "github.com");
                 Assert.True(answer.Type == DnsRecordType.TXT);
@@ -32,8 +32,8 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async void ShouldWorkForA(DnsEndpoint endpoint) {
-            var Client = new DnsClientX(endpoint);
-            var response = await DnsClientX.QueryDns("evotec.pl", DnsRecordType.A, endpoint);
+            var Client = new ClientX(endpoint);
+            var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, endpoint);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "evotec.pl");
                 Assert.True(answer.Type == DnsRecordType.A);
