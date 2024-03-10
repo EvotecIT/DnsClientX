@@ -21,7 +21,7 @@ If you would like to contact me you can do so via Twitter or LinkedIn.
 It provides querying multiple DNS Providers.
 - [Cloudflare](https://developers.cloudflare.com/1.1.1.1/encryption/dns-over-https/)
 - Google
-- Quad9
+- [Quad9](https://www.quad9.net/news/blog/doh-with-quad9-dns-servers/)
 - OpenDNS
 - etc.
 
@@ -36,12 +36,27 @@ Additionally Wireformat can be queried using:
 - `GET` - by default
 - `POST` - currently not working
 
+For now only `GET` requests are supported for Wireformat, as `POST` requests are not working as expected.
+
 > [!WARNING]
 > We try to unify the responses as much as possible for common use cases by translating on the fly. If you find disprepencies please **open an issue** or better **pull request**.
 
 ## Credits
 
 This project general idea is based on [DnsOverHttps](https://github.com/actually-akac/DnsOverHttps) by [@akac](https://github.com/actually-akac) which was a starting point for **DnsClientX**. I've decided to take it a step further and make it more generic and more flexible. I've also added more providers and more options to the library, improving . I've also added tests to make sure everything works as expected.
+
+## TO DO
+
+> [!IMPORTANT]
+> This library is still in development and there are things that need to be done, tested and fixed.
+> If you would like to help, please do so by opening an issue or a pull request.
+> Things may and will change, as I'm not quite sure what I am doing :-)
+
+- [ ] Add DNS over TLS
+- [ ] [Add more providers](https://dnscrypt.info/public-servers/)
+- [ ] Fix POST requests for Wireformat
+- [ ] Add more tests
+- [ ] Go thru all additional parameters and make sure they have proper responses
 
 ## Supported .NET Versions
 
