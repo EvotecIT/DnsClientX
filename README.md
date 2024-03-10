@@ -110,7 +110,7 @@ Please consider sharing a post about DnsClientX and the value it provides. It re
 
 ## Usage
 
-There are multiple ways to use DnsClientX. 
+There are multiple ways to use DnsClientX.
 
 ```csharp
 using DnsClientX;
@@ -121,28 +121,28 @@ Below are some examples.
 ### Querying DNS over HTTPS via provided hostname that uses /dns-query endpoint and JSON format
 
 ```csharp
-var data = await DnsClientX.QueryDns("evotec.pl", DnsRecordType.A, "1.1.1.1", DnsRequestFormat.JSON);
+var data = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, "1.1.1.1", DnsRequestFormat.JSON);
 data.Answers
 ```
 
 ### Querying DNS over HTTPS via defined endpoint using QueryDns
 
 ```csharp
-var data = await DnsClientX.QueryDns("evotec.pl", DnsRecordType.A, DnsEndpoint.CloudflareWireFormat);
+var data = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, DnsEndpoint.CloudflareWireFormat);
 data.Answers
 ```
 
 ### Querying DNS over HTTPS via full Uri using QueryDNS and JSON format
 
 ```csharp
-var data = await DnsClientX.QueryDns("evotec.pl", DnsRecordType.A, new Uri("https://1.1.1.1/dns-query"), DnsRequestFormat.JSON);
+var data = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, new Uri("https://1.1.1.1/dns-query"), DnsRequestFormat.JSON);
 data.Answers
 ```
 
 ### Querying DNS over HTTPS via defined endpoint using ResolveAll
 
 ```csharp
-var Client = new DnsClientX(DnsEndpoint.OpenDNS);
+var Client = new ClientX(DnsEndpoint.OpenDNS);
 var data = await Client.ResolveAll(domainName, type);
 data
 ```
@@ -150,7 +150,7 @@ data
 ### Querying DNS over HTTPS with single endpoint using ResolveAll
 
 ```csharp
-var Client = new DnsClientX(DnsEndpoint.OpenDNS);
+var Client = new ClientX(DnsEndpoint.OpenDNS);
 var data = await Client.ResolveAll(domainName, type);
 data
 ```
@@ -200,7 +200,7 @@ foreach (var endpoint in dnsEndpoints) {
     }
 
     // Create a new client for each endpoint
-    var client = new DnsClientX(endpoint) {
+    var client = new ClientX(endpoint) {
         Debug = false
     };
 

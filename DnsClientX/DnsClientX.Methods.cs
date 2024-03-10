@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
-    public partial class DnsClientX {
+    public partial class ClientX {
         /// <summary>
         /// Sends a DNS query for a specific record type to a DNS server.
         /// This method allows you to specify the DNS endpoint from a predefined list of endpoints.
@@ -14,7 +14,7 @@ namespace DnsClientX {
         /// <param name="dnsEndpoint">The DNS endpoint to use for the query. Defaults to Cloudflare.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.Cloudflare) {
-            DnsClientX client = new DnsClientX(endpoint: dnsEndpoint);
+            ClientX client = new ClientX(endpoint: dnsEndpoint);
             var data = await client.Resolve(name, recordType);
             return data;
         }
@@ -29,7 +29,7 @@ namespace DnsClientX {
         /// <param name="requestFormat">The format of the DNS request.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, Uri dnsUri, DnsRequestFormat requestFormat) {
-            DnsClientX client = new DnsClientX(dnsUri, requestFormat);
+            ClientX client = new ClientX(dnsUri, requestFormat);
             var data = await client.Resolve(name, recordType);
             return data;
         }
@@ -44,7 +44,7 @@ namespace DnsClientX {
         /// <param name="requestFormat">The format of the DNS request.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat) {
-            DnsClientX client = new DnsClientX(hostName, requestFormat);
+            ClientX client = new ClientX(hostName, requestFormat);
             var data = await client.Resolve(name, recordType);
             return data;
         }

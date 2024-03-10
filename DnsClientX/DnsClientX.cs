@@ -8,7 +8,7 @@ namespace DnsClientX {
     /// <summary>
     /// The primary class for sending DNS over HTTPS queries.
     /// </summary>
-    public partial class DnsClientX {
+    public partial class ClientX {
         /// <summary>
         /// The client
         /// </summary>
@@ -23,7 +23,7 @@ namespace DnsClientX {
         public Configuration EndpointConfiguration { get; private set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether this <see cref="DnsClientX"/> is debug.
+        /// Gets or sets a value indicating whether this <see cref="ClientX"/> is debug.
         /// </summary>
         /// <value>
         ///   <c>true</c> if debug; otherwise, <c>false</c>.
@@ -69,30 +69,30 @@ namespace DnsClientX {
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="DnsClientX"/> class.
+        /// Initializes a new instance of the <see cref="ClientX"/> class.
         /// </summary>
         /// <param name="endpoint">The endpoint.</param>
-        public DnsClientX(DnsEndpoint endpoint = DnsEndpoint.Cloudflare) {
+        public ClientX(DnsEndpoint endpoint = DnsEndpoint.Cloudflare) {
             EndpointConfiguration = new Configuration(endpoint);
             ConfigureClient();
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="DnsClientX"/> class.
+        /// Initializes a new instance of the <see cref="ClientX"/> class.
         /// </summary>
         /// <param name="hostname">The hostname.</param>
         /// <param name="requestFormat">The request format.</param>
-        public DnsClientX(string hostname, DnsRequestFormat requestFormat) {
+        public ClientX(string hostname, DnsRequestFormat requestFormat) {
             EndpointConfiguration = new Configuration(hostname, requestFormat);
             ConfigureClient();
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="DnsClientX"/> class.
+        /// Initializes a new instance of the <see cref="ClientX"/> class.
         /// </summary>
         /// <param name="baseUri">The base URI.</param>
         /// <param name="requestFormat">The request format.</param>
-        public DnsClientX(Uri baseUri, DnsRequestFormat requestFormat) {
+        public ClientX(Uri baseUri, DnsRequestFormat requestFormat) {
             EndpointConfiguration = new Configuration(baseUri, requestFormat);
             ConfigureClient();
         }
