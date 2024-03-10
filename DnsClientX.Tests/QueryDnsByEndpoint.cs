@@ -1,5 +1,5 @@
 namespace DnsClientX.Tests {
-    public class ResolveFirst {
+    public class QueryDnsByEndpoint {
         [Theory]
         [InlineData(DnsEndpoint.Cloudflare)]
         [InlineData(DnsEndpoint.CloudflareFamily)]
@@ -12,12 +12,12 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async void ShouldWorkForTXT(DnsEndpoint endpoint) {
-            var Client = new DnsClientX(endpoint);
-            var answer = await Client.ResolveFirst("github.com", DnsRecordType.TXT);
-            Assert.True(answer != null);
-            Assert.True(answer.Value.Name == "github.com");
-            Assert.True(answer.Value.Type == DnsRecordType.TXT);
-            Assert.True(answer.Value.Data.Length > 0);
+            var response = await DnsClientX.QueryDns("github.com", DnsRecordType.TXT, endpoint);
+            foreach (DnsAnswer answer in response.Answers) {
+                Assert.True(answer.Name == "github.com");
+                Assert.True(answer.Type == DnsRecordType.TXT);
+                Assert.True(answer.Data.Length > 0);
+            }
         }
 
         [Theory]
@@ -33,10 +33,12 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async void ShouldWorkForA(DnsEndpoint endpoint) {
             var Client = new DnsClientX(endpoint);
-            var answer = await Client.ResolveFirst("evotec.pl", DnsRecordType.A);
-            Assert.True(answer != null);
-            Assert.True(answer.Value.Name == "evotec.pl");
-            Assert.True(answer.Value.Type == DnsRecordType.A);
+            var response = await DnsClientX.QueryDns("evotec.pl", DnsRecordType.A, endpoint);
+            foreach (DnsAnswer answer in response.Answers) {
+                Assert.True(answer.Name == "evotec.pl");
+                Assert.True(answer.Type == DnsRecordType.A);
+                Assert.True(answer.Data.Length > 0);
+            }
         }
     }
 }

@@ -2,44 +2,7 @@ using Xunit.Abstractions;
 
 namespace DnsClientX.Tests {
     public class CompareProviders(ITestOutputHelper output) {
-        //public static IEnumerable<object[]> TestData {
-        //    get {
-        //        // endpoints to exclude from testing temporary because of not yet fixed WireFormat
-        //        var excludeEndpoints = new HashSet<DnsEndpoint> {
-        //            // DnsEndpoint.OpenDNS,
-        //            // DnsEndpoint.OpenDNSFamily,
-        //            // DnsEndpoint.CloudflareWireFormat
-        //        };
-
-        //        var excludeEndpointsWithGoogle = new HashSet<DnsEndpoint> {
-        //            //DnsEndpoint.OpenDNS,
-        //            //DnsEndpoint.OpenDNSFamily,
-        //            //DnsEndpoint.CloudflareWireFormat,
-        //            DnsEndpoint.Google
-        //        };
-
-        //        var list = new List<object[]> {
-        //            new object[] { "evotec.pl", ResourceRecordType.A, excludeEndpoints},
-        //            new object[] { "evotec.pl", ResourceRecordType.CAA, excludeEndpoints },
-        //            new object[] { "evotec.pl", ResourceRecordType.AAAA, excludeEndpoints },
-        //            new object[] { "evotec.pl", ResourceRecordType.MX, excludeEndpoints },
-        //            new object[] { "evotec.pl", ResourceRecordType.NS, excludeEndpoints },
-        //            new object[] { "evotec.pl", ResourceRecordType.SPF, excludeEndpoints },
-        //            new object[] { "evotec.pl", ResourceRecordType.TXT, excludeEndpoints },
-        //            // lets try different sites
-        //            new object[] {"reddit.com", ResourceRecordType.A, excludeEndpoints },
-        //            new object[] {"reddit.com", ResourceRecordType.CAA, excludeEndpoints },
-        //            // github.com has a lot of TXT records, including multiline
-        //            // however google dns doesn't do multiline TXT records
-        //            new object[] {"github.com", ResourceRecordType.TXT, excludeEndpointsWithGoogle },
-        //        };
-        //        return list;
-        //    }
-        //}
-
-
         [Theory]
-        //[MemberData(nameof(TestData))]
         [InlineData("evotec.pl", DnsRecordType.A)]
         [InlineData("evotec.pl", DnsRecordType.SOA)]
         [InlineData("evotec.pl", DnsRecordType.DNSKEY)]
@@ -52,10 +15,8 @@ namespace DnsClientX.Tests {
         [InlineData("evotec.pl", DnsRecordType.SPF)]
         [InlineData("evotec.pl", DnsRecordType.TXT)]
         [InlineData("evotec.pl", DnsRecordType.SRV)]
-        // NSEC by OpenDNSFamily returns less records than Cloudflare or any other vendor
-        [InlineData("evotec.pl", DnsRecordType.NSEC, new[] { DnsEndpoint.OpenDNSFamily })]
-        // NSEC by OpenDNSFamily returns less records than Cloudflare or any other vendor
-        [InlineData("cloudflare.com", DnsRecordType.NSEC, new[] { DnsEndpoint.OpenDNSFamily })]
+        [InlineData("evotec.pl", DnsRecordType.NSEC)]
+        [InlineData("cloudflare.com", DnsRecordType.NSEC)]
         [InlineData("mail-db3pr0202cu00100.inbound.protection.outlook.com", DnsRecordType.PTR)]
         // lets try different sites
         [InlineData("reddit.com", DnsRecordType.A)]
@@ -83,6 +44,7 @@ namespace DnsClientX.Tests {
                 if (excludedEndpoints != null && excludedEndpoints.Contains(endpointCompare)) {
                     continue;
                 }
+                output.WriteLine("Provider: " + endpointCompare.ToString());
                 var ClientToCompare = new DnsClientX(endpointCompare);
                 DnsAnswer[] aAnswersToCompare = await ClientToCompare.ResolveAll(name, resourceRecordType);
 
@@ -94,7 +56,6 @@ namespace DnsClientX.Tests {
 
                 // Check that the arrays have the same elements in the same order
                 for (int i = 0; i < sortedAAnswers.Length; i++) {
-                    output.WriteLine("Provider: " + endpointCompare.ToString());
                     output.WriteLine($"Record {i} should equal: {sortedAAnswers[i].Data} == {sortedAAnswersCompared[i].Data}");
                     Assert.True((bool)(sortedAAnswers[i].Name == sortedAAnswersCompared[i].Name), $"Provider {endpointCompare}. There is a name mismatch for " + sortedAAnswers[i].Data);
                     Assert.True((bool)(sortedAAnswers[i].Type == sortedAAnswersCompared[i].Type), $"Provider {endpointCompare}. There is a type mismatch for " + sortedAAnswers[i].Data);
