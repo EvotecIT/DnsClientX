@@ -7,7 +7,7 @@
           <CodeCoverage>
             <ModulePaths>
               <Include>
-                <ModulePath>.*OfficeIMO*\.dll$</ModulePath>
+                <ModulePath>.*DnsClientX\.dll$</ModulePath>
               </Include>
               <Exclude>
                 <ModulePath>.*CPPUnitTestFramework.*</ModulePath>
