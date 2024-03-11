@@ -10,28 +10,41 @@ using DnsClientX.Converter;
 namespace DnsClientX.Examples {
     public class ConvertToDnsClient {
         public static async Task ExampleConvertToDnsClientFromX() {
-            var data = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, DnsEndpoint.Cloudflare);
+            var recordTypes = new DnsRecordType[] { DnsRecordType.A, DnsRecordType.AAAA, DnsRecordType.CNAME, DnsRecordType.MX, DnsRecordType.TXT };
+            foreach (var recordType in recordTypes) {
+                // Query DNS using DnsClientX library
+                Console.WriteLine($"Querying DNS for record type {recordType} using DnsClientX");
 
-            // lets convert it to DnsClient format
-            var dnsClientAnswers = data.Answers.ToDnsClientAnswer();
+                var data = await ClientX.QueryDns("evotec.pl", recordType, DnsEndpoint.Cloudflare);
+                foreach (var answer in data.Answers) {
+                    Console.WriteLine("before> " + answer.Data);
+                }
 
-            // lets display it
-            foreach (var answer in dnsClientAnswers) {
-                Console.WriteLine(answer);
+                var dnsClientAnswers = data.Answers.ToDnsClientAnswer();
+
+                // lets display it
+                foreach (var answer in dnsClientAnswers) {
+                    Console.WriteLine("after > " + answer);
+                }
             }
         }
 
-
         public static async Task ExampleConvertFromDnsClientToX() {
-            // Query DNS using DnsClient library
-            var lookup = new LookupClient();
-            var result = await lookup.QueryAsync("evotec.pl", QueryType.A);
 
-            // lets convert it to DnsClientX format
-            var dnsAnswers = result.Answers.ToDnsClientAnswerX();
+            var recordTypes = new QueryType[] { QueryType.A, QueryType.AAAA, QueryType.MX, QueryType.TXT };
 
-            // lets display it
-            dnsAnswers.DisplayToConsole();
+            foreach (var recordType in recordTypes) {
+                Console.WriteLine($"Querying DNS for record type {recordType} using DnsClient");
+                // Query DNS using DnsClient library
+                var lookup = new LookupClient();
+                var result = await lookup.QueryAsync("evotec.pl", recordType);
+
+                // lets convert it to DnsClientX format
+                var dnsAnswers = result.Answers.ToDnsClientAnswerX();
+
+                // lets display it
+                dnsAnswers.DisplayToConsole();
+            }
         }
     }
 }
