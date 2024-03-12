@@ -3,10 +3,16 @@ using System.Threading.Tasks;
 namespace DnsClientX.Examples {
     public static class Program {
         public static async Task Main() {
-            await ConvertToDnsClient.ExampleConvertToDnsClientFromX();
-            await ConvertToDnsClient.ExampleConvertFromDnsClientToX();
+            // await ConvertToDnsClient.ExampleConvertToDnsClientFromX();
+            // await ConvertToDnsClient.ExampleConvertFromDnsClientToX();
+            //await DemoQuery.ExampleTesting();
+            //await DemoByManualUrl.ExampleTesting();
 
-            return;
+            await DemoQuery.Example1();
+
+            await DemoQuery.Example2();
+
+            await DemoResolve.Example();
 
             await DemoRecords.Demo("evotec.pl", DnsRecordType.A, DnsEndpoint.CloudflareFamily);
 
@@ -15,12 +21,6 @@ namespace DnsClientX.Examples {
             await DemoQuery.Example2();
 
             await DemoQuery.Example3();
-
-            //await DemoQuery.ExampleTesting();
-
-            //await DemoByManualUrl.ExampleTesting();
-
-            return;
 
             await DemoRecords.Demo("evotec.pl", DnsRecordType.A, DnsEndpoint.CloudflareFamily);
 
@@ -42,8 +42,6 @@ namespace DnsClientX.Examples {
             await DemoByManualUrl.Example();
 
             await DemoByManualUrl.Example2();
-
-            await DemoResolve.Example();
 
             await DemoResolveAll.Example();
 
