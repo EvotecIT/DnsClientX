@@ -52,8 +52,11 @@ namespace DnsClientX.Examples {
                 };
 
                 foreach (var domain in domains) {
-                    var response = await client.ResolveFirst(domain);
-                    response.DisplayToConsole();
+                    foreach (var recordType in recordTypes) {
+                        HelpersSpectre.AddLine("ResolveFirst", domain, recordType, endpoint);
+                        var response = await client.ResolveFirst(domain);
+                        response?.DisplayTable();
+                    }
                 }
             }
         }
