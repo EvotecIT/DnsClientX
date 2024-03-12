@@ -50,6 +50,20 @@ namespace DnsClientX {
         }
 
         /// <summary>
+        /// Sends a DNS query to multiple domains and multiple record types to a DNS server.
+        /// This method allows you to specify the DNS endpoint by providing a hostname and request format (JSON, WireFormatGet).
+        /// </summary>
+        /// <param name="name">Multiple domain names to check for given type</param>
+        /// <param name="recordType">Multiple types to check for given name.</param>
+        /// <param name="dnsEndpoint">The DNS endpoint. Default endpoint is Cloudflare</param>
+        /// <returns></returns>
+        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.Cloudflare) {
+            ClientX client = new ClientX(endpoint: dnsEndpoint);
+            var data = await client.Resolve(name, recordType);
+            return data;
+        }
+
+        /// <summary>
         /// Resolves a domain name using DNS over HTTPS. This method provides full control over the output.
         /// Alternatively, <see cref="ResolveFirst"/> and <see cref="ResolveAll"/> may be used for a more streamlined experience.
         /// </summary>
