@@ -18,15 +18,6 @@ namespace DnsClientX {
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         /// <exception cref="DnsClientException">Thrown when the HTTP request fails or the server returns an error.</exception>
         internal static async Task<DnsResponse> ResolveJsonFormat(this HttpClient client, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug) {
-            //var uriBuilder = new UriBuilder(client.BaseAddress);
-            //var query = HttpUtility.ParseQueryString(uriBuilder.Query);
-            //query["name"] = name;
-            //if (type != DnsRecordType.A) query["type"] = type.ToString();
-            //if (requestDnsSec) query["do"] = "1";
-            //if (validateDnsSec) query["cd"] = "1";
-            //uriBuilder.Query = query.ToString();
-            //string url = uriBuilder.ToString();
-
             string url = string.Concat($"?name={name.UrlEncode()}", type == DnsRecordType.A ? "" : $"&type={type.ToString().UrlEncode()}", requestDnsSec == false ? "" : $"&do=1", validateDnsSec == false ? "" : $"&cd=1");
 
             using HttpRequestMessage req = new(HttpMethod.Get, url);
@@ -34,15 +25,6 @@ namespace DnsClientX {
                 using HttpResponseMessage res = await client.SendAsync(req);
 
                 DnsResponse response = await res.Deserialize<DnsResponse>(debug);
-
-                if (res.StatusCode != HttpStatusCode.OK || !string.IsNullOrEmpty(response.Error)) {
-                    string message = $"Failed to query type {type} of \"{name}\", received HTTP status code {res.StatusCode}.";
-                    if (!string.IsNullOrEmpty(response.Error)) message += $"\nError: {response.Error}";
-                    if (response.Comments != null) message += $"\nComments: {string.Join(", ", response.Comments)}";
-
-                    throw new DnsClientException(message, response);
-                }
-
                 return response;
             } catch (HttpRequestException ex) {
                 string message = $"Failed to send HTTP request for type {type} of '{name}'.";
