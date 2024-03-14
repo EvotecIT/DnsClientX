@@ -84,5 +84,36 @@ namespace DnsClientX {
         /// </summary>
         [JsonPropertyName("Comment")]
         public string Comments { get; set; }
+
+        /// <summary>
+        /// Extended DNS error information provided by the DNS server.
+        /// </summary>
+        [JsonPropertyName("extended_dns_errors")]
+        public ExtendedDnsError[] ExtendedDnsErrors { get; set; }
+
+
+        /// <summary>
+        /// The client subnet information that the DNS server used to generate the response.
+        /// </summary>
+        [JsonPropertyName("edns_client_subnet")]
+        public string EdnsClientSubnet { get; set; }
+    }
+
+    /// <summary>
+    /// Extended DNS error information provided by the DNS server.
+    /// Googles documentation: https://developers.google.com/speed/public-dns/docs/dns-over-https#extended_dns_errors
+    /// </summary>
+    public struct ExtendedDnsError {
+        /// <summary>
+        /// The extended DNS error information code.
+        /// </summary>
+        [JsonPropertyName("info_code")]
+        public int InfoCode { get; set; }
+
+        /// <summary>
+        /// Additional text providing more details about the error.
+        /// </summary>
+        [JsonPropertyName("extra_text")]
+        public string ExtraText { get; set; }
     }
 }
