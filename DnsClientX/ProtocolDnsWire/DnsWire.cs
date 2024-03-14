@@ -32,24 +32,6 @@ namespace DnsClientX {
                     // Ensure the stream's position is at the start
                     stream.Position = 0;
 
-
-                    // option 1 - works
-                    //List<byte> dnsWireFormatBytesList = new List<byte>();
-                    //byte[] buffer = new byte[8096];
-                    //int bytesRead;
-                    //while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0) {
-                    //    dnsWireFormatBytesList.AddRange(new ArraySegment<byte>(buffer, 0, bytesRead));
-                    //}
-                    //byte[] dnsWireFormatBytes = dnsWireFormatBytesList.ToArray();
-
-                    // option 2 - works
-                    //byte[] dnsWireFormatBytes = new byte[stream.Length];
-                    //int bytesRead = 0;
-                    //while (bytesRead < stream.Length) {
-                    //    bytesRead += await stream.ReadAsync(dnsWireFormatBytes, bytesRead, (int)stream.Length - bytesRead);
-                    //}
-
-                    // option 3 - works
                     dnsWireFormatBytes = new byte[stream.Length];
                     await stream.ReadAsync(dnsWireFormatBytes, 0, dnsWireFormatBytes.Length);
                 }
@@ -97,7 +79,7 @@ namespace DnsClientX {
                         throw new DnsClientException("Not enough data in the stream to read the question.");
                     }
                     // Read the question name, type, and class from the reader and create a new Question object
-                    string name = reader.ReadDnsName(messageStart);
+                    string name = reader.ReadDnsName(dnsWireFormatBytes, 0, messageStart);
 
                     //ResourceRecordType type = (ResourceRecordType)DebuggingHelpers.TroubleshootingDnsWire2(reader, "QuestionType", true);
                     DnsRecordType type = (DnsRecordType)BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
@@ -121,7 +103,7 @@ namespace DnsClientX {
                     }
 
                     // Read the answer name
-                    string name = reader.ReadDnsName(messageStart);
+                    string name = reader.ReadDnsName(dnsWireFormatBytes, 0, messageStart);
 
                     // Read the answer type, class, TTL, and data length
                     //ResourceRecordType type = (ResourceRecordType)TroubleshootingDnsWire2(reader, "AnswerType", true);
@@ -173,7 +155,7 @@ namespace DnsClientX {
                         throw new DnsClientException("Not enough data in the stream to read the authority.");
 
                     // Read the authority record
-                    authorities[i] = reader.ReadDnsRecord(messageStart);
+                    authorities[i] = reader.ReadDnsRecord(dnsWireFormatBytes, messageStart);
                 }
 
                 // Read the additional section
@@ -183,7 +165,7 @@ namespace DnsClientX {
                         throw new DnsClientException("Not enough data in the stream to read the additional.");
 
                     // Read the additional record
-                    additional[i] = reader.ReadDnsRecord(messageStart);
+                    additional[i] = reader.ReadDnsRecord(dnsWireFormatBytes, messageStart);
                 }
 
                 // Create a new Response object and fill in the properties based on the DNS wire format bytes
@@ -203,45 +185,6 @@ namespace DnsClientX {
             } catch (Exception ex) {
                 throw new DnsClientException(ex.Message);
             }
-        }
-
-        private static string ReadDnsName(this BinaryReader reader, long messageStart) {
-            var labels = new List<string>();
-
-            while (true) {
-                byte length = reader.ReadByte();
-
-                if (length == 0) {
-                    // This is the end of the name
-                    break;
-                }
-
-                // Check if this is a pointer
-                if ((length & 0xC0) == 0xC0) {
-                    // The next byte combined with the last 6 bits of this byte form a pointer to the rest of the name
-                    byte secondByte = reader.ReadByte();
-                    ushort pointer = (ushort)(((length & 0x3F) << 8) | secondByte);
-
-                    // Save the current position
-                    long currentPosition = reader.BaseStream.Position;
-
-                    // Jump to the pointer position
-                    reader.BaseStream.Position = messageStart + pointer;
-
-                    // Read the rest of the name
-                    labels.Add(reader.ReadDnsName(messageStart));
-
-                    // Jump back to the original position
-                    reader.BaseStream.Position = currentPosition;
-
-                    break;
-                } else {
-                    // This is a normal label, read the text
-                    labels.Add(Encoding.UTF8.GetString(reader.ReadBytes(length)) + ".");
-                }
-            }
-
-            return string.Join("", labels);
         }
 
         private static string ReadDnsName(this BinaryReader reader, byte[] dnsMessage, ushort rdlength, long messageStart) {
@@ -269,7 +212,7 @@ namespace DnsClientX {
                     pointerReader.BaseStream.Position = messageStart + pointer;
 
                     // Read the rest of the name
-                    labels.Add(pointerReader.ReadDnsName(messageStart));
+                    labels.Add(pointerReader.ReadDnsName(dnsMessage, rdlength, messageStart));
 
                     // Jump back to the original position
                     reader.BaseStream.Position = currentPosition;
@@ -284,85 +227,9 @@ namespace DnsClientX {
             return string.Join("", labels);
         }
 
-        private static string ReadDnsNameNS(this BinaryReader reader, byte[] dnsMessage, int recordStart, long messageStart, ushort rdlength) {
-            //Console.WriteLine($"Starting DNS name reading with RDLENGTH: {rdlength}, MessageStart: {messageStart}");
-            var labels = new List<string>();
-
-            byte[] rdata = reader.ReadBytes(rdlength);
-            //Console.WriteLine($"RDLENGTH is {rdlength}, rdata: {BitConverter.ToString(rdata)}");
-
-            int position = 0;
-            while (position < rdlength) {
-                byte length = rdata[position++];
-                if ((length & 0xC0) == 0xC0) { // Check if this is a pointer
-                    ushort pointer = (ushort)((length & 0x3F) << 8 | rdata[position++]);
-                    //Console.WriteLine($"Detected pointer: {pointer}, jumping to process labels");
-
-                    long pointerPosition = messageStart + pointer; // Correct pointer calculation
-                    //Console.WriteLine($"Calculated pointer position: {pointerPosition}");
-
-                    if (pointerPosition < dnsMessage.Length && pointerPosition >= messageStart) {
-                        using BinaryReader dnsMessageReader = new BinaryReader(new MemoryStream(dnsMessage));
-                        dnsMessageReader.BaseStream.Position = pointerPosition;
-                        ReadLabels(dnsMessageReader, labels, messageStart, dnsMessageReader.BaseStream.Length);
-                    } else {
-                        //Console.WriteLine("Error: Pointer target is beyond the stream length or before message start.");
-                    }
-                    break;
-                } else { // This is a label
-                    string label = Encoding.UTF8.GetString(rdata, position, length);
-                    labels.Add(label);
-                    //Console.WriteLine($"Label read: {label}");
-                    position += length;
-                }
-            }
-
-            string fullName = string.Join(".", labels).TrimEnd('.') + ".";
-            //Console.WriteLine($"Full name read: {fullName}");
-            return fullName;
-        }
-
-        private static void ReadLabels(this BinaryReader reader, List<string> labels, long messageStart, long endPosition) {
-            while (reader.BaseStream.Position < endPosition && reader.BaseStream.Position < reader.BaseStream.Length) {
-                if (reader.BaseStream.Position >= reader.BaseStream.Length) {
-                    //Console.WriteLine("Attempted to read beyond the end of the stream.");
-                    break;
-                }
-
-                byte length = reader.ReadByte();
-                //Console.WriteLine($"Byte read for length/pointer: {length:X2}, Position: {reader.BaseStream.Position - 1}");
-
-                if ((length & 0xC0) == 0xC0) { // It's a pointer
-                    byte secondByte = reader.ReadByte();
-                    ushort pointer = (ushort)(((length & 0x3F) << 8) | secondByte);
-                    long pointerPosition = messageStart + (pointer & 0x3FFF); // Ensure we're correctly interpreting the offset
-                    //Console.WriteLine($"Pointer detected, calculated pointer position: {pointerPosition}");
-
-                    if (pointerPosition < reader.BaseStream.Length && pointerPosition >= messageStart) {
-                        long savedPosition = reader.BaseStream.Position;
-                        reader.BaseStream.Position = pointerPosition;
-                        ReadLabels(reader, labels, messageStart, reader.BaseStream.Length); // Recursive call with correct bounds
-                        reader.BaseStream.Position = savedPosition;
-                        break; // Exit the loop since we've followed the pointer
-                    } else {
-                        //Console.WriteLine("Pointer position is outside the allowed range.");
-                        break;
-                    }
-                } else if (length == 0) {
-                    //Console.WriteLine("End of name detected.");
-                    break; // End of the name
-                } else {
-                    var labelBytes = reader.ReadBytes(length);
-                    string label = Encoding.UTF8.GetString(labelBytes);
-                    labels.Add(label);
-                    //Console.WriteLine($"Label read: {label}");
-                }
-            }
-        }
-
-        private static DnsAnswer ReadDnsRecord(this BinaryReader reader, long messageStart) {
+        private static DnsAnswer ReadDnsRecord(this BinaryReader reader, byte[] dnsMessage, long messageStart) {
             // Read the record name
-            string name = reader.ReadDnsName(messageStart);
+            string name = reader.ReadDnsName(dnsMessage, 0, messageStart);
 
             // Read the record type, class, TTL, and data length
             DnsRecordType type = (DnsRecordType)BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
@@ -456,8 +323,9 @@ namespace DnsClientX {
         /// <param name="rdLength"></param>
         /// <param name="messageStart"></param>
         /// <returns></returns>
-        private static string DecodeNSECRecord(this BinaryReader reader, ushort rdLength, long messageStart) {
-            string nextDomainName = reader.ReadDnsName(messageStart);
+        private static string DecodeNSECRecord(this BinaryReader reader, byte[] dnsMessage, ushort rdLength, long messageStart) {
+            //string nextDomainName = reader.ReadDnsName(messageStart);
+            string nextDomainName = reader.ReadDnsName(dnsMessage, rdLength, messageStart);
             // let's replace nulls with \0 to make sure it's visible and similar to how it's done via JSON API
             nextDomainName = nextDomainName.Replace("\0", "\\000");
             byte[] typeBitmaps = reader.ReadBytes(rdLength - (int)(reader.BaseStream.Position - messageStart));
@@ -519,10 +387,12 @@ namespace DnsClientX {
                         return new IPAddress(rdata).ToString();
                     } else if (type == DnsRecordType.CNAME) {
                         // For NS and CNAME records, decode the domain name from the record data
-                        return reader.ReadDnsName(messageStart);
+                        //return reader.ReadDnsName(messageStart);
+                        return reader.ReadDnsName(dnsMessage, rdLength, messageStart);
                     } else if (type == DnsRecordType.NS) {
                         // For NS records, decode the domain name from the record data
-                        return reader.ReadDnsNameNS(dnsMessage, recordStart, messageStart, rdLength);
+                        //return reader.ReadDnsNameNS(dnsMessage, recordStart, messageStart, rdLength);
+                        return reader.ReadDnsName(dnsMessage, rdLength, messageStart);
                     } else if (type == DnsRecordType.MX) {
                         // For MX records, decode the preference and exchange from the record data
                         ushort preference = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
@@ -536,7 +406,7 @@ namespace DnsClientX {
                     } else if (type == DnsRecordType.DNSKEY) {
                         return reader.DecodeDNSKEYRecord(rdLength);
                     } else if (type == DnsRecordType.NSEC) {
-                        return reader.DecodeNSECRecord(rdLength, messageStart);
+                        return reader.DecodeNSECRecord(dnsMessage, rdLength, messageStart);
                     } else {
                         return Convert.ToBase64String(rdata);
                     }
