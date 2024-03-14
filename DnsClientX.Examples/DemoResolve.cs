@@ -35,7 +35,7 @@ namespace DnsClientX.Examples {
                 DnsRecordType.A,
                 DnsRecordType.TXT,
                 DnsRecordType.AAAA,
-                //DnsRecordType.MX,
+                DnsRecordType.MX,
                 DnsRecordType.NS,
                 DnsRecordType.SOA,
                 DnsRecordType.DNSKEY,
