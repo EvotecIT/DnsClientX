@@ -7,6 +7,7 @@ namespace DnsClientX.Examples {
             // await ConvertToDnsClient.ExampleConvertFromDnsClientToX();
             //await DemoQuery.ExampleTesting();
             //await DemoByManualUrl.ExampleTesting();
+            await DemoResolveReturn.Example();
 
             await DemoQuery.Example1();
 
