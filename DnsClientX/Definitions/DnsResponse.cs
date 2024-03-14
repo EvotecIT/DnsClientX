@@ -1,4 +1,7 @@
+using System.Collections.Generic;
+using System;
 using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DnsClientX {
@@ -83,6 +86,7 @@ namespace DnsClientX {
         /// An extended DNS error code message. For more information, see the <a href="https://developers.cloudflare.com/1.1.1.1/infrastructure/extended-dns-error-codes/">Cloudflare documentation</a>.
         /// </summary>
         [JsonPropertyName("Comment")]
+        [JsonConverter(typeof(CommentConverter))]
         public string Comments { get; set; }
 
         /// <summary>
@@ -115,5 +119,46 @@ namespace DnsClientX {
         /// </summary>
         [JsonPropertyName("extra_text")]
         public string ExtraText { get; set; }
+    }
+
+    /// <summary>
+    /// Converts the comment field in the JSON response to a string.
+    /// In some cases the comment field is an array of strings, so this converter will join them together.
+    /// </summary>
+    public class CommentConverter : JsonConverter<string> {
+        /// <summary>
+        /// Reads the string value from the JSON reader.
+        /// </summary>
+        /// <param name="reader"></param>
+        /// <param name="typeToConvert"></param>
+        /// <param name="options"></param>
+        /// <returns></returns>
+        /// <exception cref="JsonException"></exception>
+        public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
+            switch (reader.TokenType) {
+                case JsonTokenType.String:
+                    return reader.GetString();
+                case JsonTokenType.StartArray:
+                    var comments = new List<string>();
+                    while (reader.Read() && reader.TokenType != JsonTokenType.EndArray) {
+                        if (reader.TokenType == JsonTokenType.String) {
+                            comments.Add(reader.GetString());
+                        }
+                    }
+                    return string.Join("; ", comments);
+                default:
+                    throw new JsonException();
+            }
+        }
+
+        /// <summary>
+        /// Writes the string value to the JSON writer.
+        /// </summary>
+        /// <param name="writer"></param>
+        /// <param name="value"></param>
+        /// <param name="options"></param>
+        public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options) {
+            writer.WriteStringValue(value);
+        }
     }
 }
