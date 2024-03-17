@@ -155,7 +155,7 @@ namespace DnsClientX {
         /// <summary>
         /// Resolves a domain name using DNS over HTTPS and returns the first answer of the provided type.
         /// This helper method is useful when you only need the first answer of a specific type.
-        /// Alternatively, <see cref="Resolve(string, DnsRecordType, bool, bool)"/> may be used to get full control over the response.
+        /// Alternatively, <see cref="Resolve(string, DnsRecordType, bool, bool, bool)"/> may be used to get full control over the response.
         /// </summary>
         /// <param name="name">The fully qualified domain name (FQDN) to resolve. Example: <c>foo.bar.example.com</c></param>
         /// <param name="type">The DNS resource type to resolve. By default, this is the <c>A</c> record.</param>
