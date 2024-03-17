@@ -320,6 +320,7 @@ namespace DnsClientX {
         /// - The types of records are encoded as a series of bit fields, each of which represents a type of record that exists for the next domain name.
         /// </summary>
         /// <param name="reader"></param>
+        /// <param name="dnsMessage"></param>
         /// <param name="rdLength"></param>
         /// <param name="messageStart"></param>
         /// <returns></returns>
