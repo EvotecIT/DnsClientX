@@ -7,7 +7,14 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="Spectre.Console" Version="0.48.0" />
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\DnsClientX\DnsClientX.csproj" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\DnsClientX.Converter\DnsClientX.Converter.csproj" />
     </ItemGroup>
 
 </Project>

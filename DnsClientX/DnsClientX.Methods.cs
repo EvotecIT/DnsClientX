@@ -50,6 +50,20 @@ namespace DnsClientX {
         }
 
         /// <summary>
+        /// Sends a DNS query to multiple domains and multiple record types to a DNS server.
+        /// This method allows you to specify the DNS endpoint by providing a hostname and request format (JSON, WireFormatGet).
+        /// </summary>
+        /// <param name="name">Multiple domain names to check for given type</param>
+        /// <param name="recordType">Multiple types to check for given name.</param>
+        /// <param name="dnsEndpoint">The DNS endpoint. Default endpoint is Cloudflare</param>
+        /// <returns></returns>
+        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.Cloudflare) {
+            ClientX client = new ClientX(endpoint: dnsEndpoint);
+            var data = await client.Resolve(name, recordType);
+            return data;
+        }
+
+        /// <summary>
         /// Resolves a domain name using DNS over HTTPS. This method provides full control over the output.
         /// Alternatively, <see cref="ResolveFirst"/> and <see cref="ResolveAll"/> may be used for a more streamlined experience.
         /// </summary>
@@ -139,9 +153,29 @@ namespace DnsClientX {
         }
 
         /// <summary>
+        /// Resolves multiple domain names for single DNS record type in parallel using DNS over HTTPS.
+        /// </summary>
+        /// <param name="names">The names.</param>
+        /// <param name="type">The type.</param>
+        /// <param name="requestDnsSec">if set to <c>true</c> [request DNS sec].</param>
+        /// <param name="validateDnsSec">if set to <c>true</c> [validate DNS sec].</param>
+        /// <returns></returns>
+        public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false) {
+            var tasks = new List<Task<DnsResponse>>();
+
+            foreach (var name in names) {
+                tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec));
+            }
+
+            await Task.WhenAll(tasks);
+
+            return tasks.Select(task => task.Result).ToArray();
+        }
+
+        /// <summary>
         /// Resolves a domain name using DNS over HTTPS and returns the first answer of the provided type.
         /// This helper method is useful when you only need the first answer of a specific type.
-        /// Alternatively, <see cref="Resolve(string, DnsRecordType, bool, bool)"/> may be used to get full control over the response.
+        /// Alternatively, <see cref="Resolve(string, DnsRecordType, bool, bool, bool)"/> may be used to get full control over the response.
         /// </summary>
         /// <param name="name">The fully qualified domain name (FQDN) to resolve. Example: <c>foo.bar.example.com</c></param>
         /// <param name="type">The DNS resource type to resolve. By default, this is the <c>A</c> record.</param>

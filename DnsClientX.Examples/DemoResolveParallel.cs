@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace DnsClientX.Examples {
@@ -53,8 +54,9 @@ namespace DnsClientX.Examples {
                 };
 
                 foreach (var domain in domains) {
+                    HelpersSpectre.AddLine("Resolve (Parallel)", domain, string.Join(",", recordTypes), endpoint);
                     var responses = await client.Resolve(domain, recordTypes.ToArray());
-                    responses.DisplayToConsole();
+                    responses?.DisplayTable();
                 }
             }
         }

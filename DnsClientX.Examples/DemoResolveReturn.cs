@@ -1,8 +1,16 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace DnsClientX.Examples {
-    public class DemoResolveFirst {
+    internal class DemoResolveReturn {
+        /// <summary>
+        /// Shows a demo for Resolve method when using returnAllTypes
+        /// By default we try to limit answer to what was requested
+        /// But DNS tries to be helpful in some cases and returns additional records
+        /// </summary>
         public static async Task Example() {
             var dnsEndpoints = new List<DnsEndpoint> {
                 DnsEndpoint.Cloudflare,
@@ -25,13 +33,15 @@ namespace DnsClientX.Examples {
 
             var domains = new List<string> {
                 "github.com",
-                "microsoft.com",
-                "evotec.xyz"
+                "google.com",
+                "autodiscover.evotec.pl",
+                "www.microsoft.com",
             };
 
             // List of record types to query
             var recordTypes = new List<DnsRecordType> {
                 DnsRecordType.A,
+                DnsRecordType.CNAME,
                 DnsRecordType.TXT,
                 DnsRecordType.AAAA,
                 DnsRecordType.MX,
@@ -53,8 +63,8 @@ namespace DnsClientX.Examples {
 
                 foreach (var domain in domains) {
                     foreach (var recordType in recordTypes) {
-                        HelpersSpectre.AddLine("ResolveFirst", domain, recordType, endpoint);
-                        var response = await client.ResolveFirst(domain);
+                        HelpersSpectre.AddLine("Resolve", domain, recordType, endpoint);
+                        DnsResponse? response = await client.Resolve(domain, recordType, requestDnsSec: true, validateDnsSec: true, returnAllTypes: true);
                         response?.DisplayTable();
                     }
                 }

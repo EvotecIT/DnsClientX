@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <Title>DnsClientX Converter</Title>
+        <Description>
+            DnsClientX.Converter library is a simple library to convert objects between DnsClient.NET to DnsClientX and vice versa.
+        </Description>
+        <AssemblyName>DnsClientX.Converter</AssemblyName>
+        <AssemblyTitle>DnsClientX.Converter</AssemblyTitle>
+        <VersionPrefix>0.1.0</VersionPrefix>
+        <AssemblyVersion>0.1.0</AssemblyVersion>
+        <FileVersion>0.1.0</FileVersion>
+        <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`Windows`))' ">
+            netstandard2.0;net472;net6.0;net7.0;net8.0
+        </TargetFrameworks>
+        <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`OSX`))'  Or '$([MSBuild]::IsOsPlatform(`Linux`))' ">
+            net6.0;net7.0;net8.0
+        </TargetFrameworks>
+        <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+        <Company>Evotec</Company>
+        <Authors>Przemyslaw Klys</Authors>
+
+        <LangVersion>Latest</LangVersion>
+
+        <PackageId>DnsClientX.Converter</PackageId>
+        <PackageIcon>DnsClientX.Converter.png</PackageIcon>
+        <PackageTags>
+            dns;https;dns-over-https;net472;net48;netstandard;netstandard2.0,netstandard2.1;net70;net80
+        </PackageTags>
+        <PackageProjectUrl>https://github.com/EvotecIT/DnsClientX</PackageProjectUrl>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <RequireLicenseAcceptance>false</RequireLicenseAcceptance>
+        <DelaySign>False</DelaySign>
+        <IsPublishable>True</IsPublishable>
+        <Copyright>(c) 2011 - 2024 Przemyslaw Klys @ Evotec. All rights reserved.</Copyright>
+
+        <RepositoryUrl>https://github.com/EvotecIT/DnsClientX</RepositoryUrl>
+        <DebugType>portable</DebugType>
+        <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
+        <!-- <ApplicationIcon>DnsClientX.Converter.ico</ApplicationIcon> -->
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <RepositoryType>git</RepositoryType>
+        <SignAssembly>False</SignAssembly>
+        <GenerateDocumentationFile>True</GenerateDocumentationFile>
+        <NeutralLanguage>en</NeutralLanguage>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="DnsClient" Version="1.7.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\DnsClientX\DnsClientX.csproj" />
+    </ItemGroup>
+
+</Project>

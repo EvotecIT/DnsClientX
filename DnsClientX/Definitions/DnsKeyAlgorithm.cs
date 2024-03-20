@@ -1,3 +1,5 @@
+using System;
+
 namespace DnsClientX {
 
     /// <summary>
@@ -88,5 +90,24 @@ namespace DnsClientX {
         /// Private OID
         /// </summary>
         PRIVATEOID = 254
+    }
+
+    /// <summary>
+    /// DnsKeyAlgorithmExtensions
+    /// </summary>
+    public static class DnsKeyAlgorithmExtensions {
+        /// <summary>
+        /// Gets the value.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        /// <returns></returns>
+        /// <exception cref="System.ArgumentException">Invalid value for DnsKeyAlgorithm: {value}</exception>
+        public static DnsKeyAlgorithm FromValue(int value) {
+            if (Enum.IsDefined(typeof(DnsKeyAlgorithm), value)) {
+                return (DnsKeyAlgorithm)value;
+            } else {
+                throw new ArgumentException($"Invalid value for DnsKeyAlgorithm: {value}");
+            }
+        }
     }
 }

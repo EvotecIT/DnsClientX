@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Spectre.Console;
 
 namespace DnsClientX.Examples {
     internal class DemoResolve {
@@ -34,7 +35,7 @@ namespace DnsClientX.Examples {
                 DnsRecordType.A,
                 DnsRecordType.TXT,
                 DnsRecordType.AAAA,
-                //DnsRecordType.MX,
+                DnsRecordType.MX,
                 DnsRecordType.NS,
                 DnsRecordType.SOA,
                 DnsRecordType.DNSKEY,
@@ -53,8 +54,9 @@ namespace DnsClientX.Examples {
 
                 foreach (var domain in domains) {
                     foreach (var recordType in recordTypes) {
+                        HelpersSpectre.AddLine("Resolve", domain, recordType, endpoint);
                         DnsResponse? response = await client.Resolve(domain, recordType);
-                        response.DisplayToConsole();
+                        response?.DisplayTable();
                     }
                 }
             }
