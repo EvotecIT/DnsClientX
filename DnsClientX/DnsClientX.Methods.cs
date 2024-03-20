@@ -153,6 +153,26 @@ namespace DnsClientX {
         }
 
         /// <summary>
+        /// Resolves multiple domain names for single DNS record type in parallel using DNS over HTTPS.
+        /// </summary>
+        /// <param name="names">The names.</param>
+        /// <param name="type">The type.</param>
+        /// <param name="requestDnsSec">if set to <c>true</c> [request DNS sec].</param>
+        /// <param name="validateDnsSec">if set to <c>true</c> [validate DNS sec].</param>
+        /// <returns></returns>
+        public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false) {
+            var tasks = new List<Task<DnsResponse>>();
+
+            foreach (var name in names) {
+                tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec));
+            }
+
+            await Task.WhenAll(tasks);
+
+            return tasks.Select(task => task.Result).ToArray();
+        }
+
+        /// <summary>
         /// Resolves a domain name using DNS over HTTPS and returns the first answer of the provided type.
         /// This helper method is useful when you only need the first answer of a specific type.
         /// Alternatively, <see cref="Resolve(string, DnsRecordType, bool, bool, bool)"/> may be used to get full control over the response.
