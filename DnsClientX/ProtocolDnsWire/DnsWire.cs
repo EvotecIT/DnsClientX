@@ -9,17 +9,15 @@ using System.Threading.Tasks;
 
 namespace DnsClientX {
     internal static class DnsWire {
+        //public static async Task<byte[]> ReadResponseBytes(this HttpResponseMessage response) {
+        //    using var stream = await response.Content.ReadAsStreamAsync();
+        //    if (stream.Length == 0) throw new DnsClientException("Response content is empty, can't parse as DNS wire format.");
 
-        public static async Task<byte[]> ReadResponseBytes(this HttpResponseMessage response) {
-            using var stream = await response.Content.ReadAsStreamAsync();
-            if (stream.Length == 0) throw new DnsClientException("Response content is empty, can't parse as DNS wire format.");
-
-            using (var memoryStream = new MemoryStream()) {
-                await stream.CopyToAsync(memoryStream);
-                return memoryStream.ToArray();
-            }
-        }
-
+        //    using (var memoryStream = new MemoryStream()) {
+        //        await stream.CopyToAsync(memoryStream);
+        //        return memoryStream.ToArray();
+        //    }
+        //}
 
         public static async Task<DnsResponse> DeserializeDnsWireFormat(this HttpResponseMessage res, bool debug = false, byte[] bytes = null) {
             try {
