@@ -6,49 +6,55 @@ namespace DnsClientX.Examples {
             // await ConvertToDnsClient.ExampleConvertToDnsClientFromX();
             // await ConvertToDnsClient.ExampleConvertFromDnsClientToX();
             //await DemoQuery.ExampleTesting();
-            //await DemoByManualUrl.ExampleTesting();
-            await DemoResolveReturn.Example();
+            await DemoByManualUrl.ExampleTesting();
+            await DemoByManualUrl.ExampleTestingHttpOverPost();
+            await DemoByManualUrl.ExampleTestingUdp();
+            await DemoByManualUrl.ExampleTestingTcp();
 
-            await DemoQuery.Example1();
+            //await DemoResolveReturn.Example();
 
-            await DemoQuery.Example2();
+            //await DemoQuery.Example1();
 
-            await DemoResolve.Example();
+            //await DemoQuery.Example2();
 
-            await DemoRecords.Demo("evotec.pl", DnsRecordType.A, DnsEndpoint.CloudflareFamily);
+            //await DemoResolve.Example();
 
-            await DemoQuery.Example1();
+            //await DemoRecords.Demo("evotec.pl", DnsRecordType.A, DnsEndpoint.CloudflareFamily);
 
-            await DemoQuery.Example2();
+            //await DemoQuery.Example1();
 
-            await DemoQuery.Example3();
+            //await DemoQuery.Example2();
 
-            await DemoRecords.Demo("evotec.pl", DnsRecordType.A, DnsEndpoint.CloudflareFamily);
+            //await DemoQuery.Example3();
 
-            await DemoRecords.Demo("evotec.pl", DnsRecordType.TXT, DnsEndpoint.CloudflareSecurity);
+            //await DemoQuery.ExampleHttpsOverPost();
 
-            await DemoRecords.Demo("not.evotec.pl", DnsRecordType.TXT, DnsEndpoint.Quad9);
+            //await DemoRecords.Demo("evotec.pl", DnsRecordType.A, DnsEndpoint.CloudflareFamily);
 
-            await DemoRecords.Demo("microsoft.com", DnsRecordType.MX, DnsEndpoint.CloudflareFamily);
+            //await DemoRecords.Demo("evotec.pl", DnsRecordType.TXT, DnsEndpoint.CloudflareSecurity);
 
-            await DemoRecords.Demo("microsoft.com", DnsRecordType.MX, DnsEndpoint.CloudflareWireFormat);
+            //await DemoRecords.Demo("not.evotec.pl", DnsRecordType.TXT, DnsEndpoint.Quad9);
 
-            await DemoRecords.Demo("evotec.pl", DnsRecordType.NSEC, DnsEndpoint.CloudflareFamily);
-            await DemoRecords.Demo("evotec.pl", DnsRecordType.NSEC, DnsEndpoint.Google);
-            await DemoRecords.Demo("evotec.pl", DnsRecordType.NSEC, DnsEndpoint.Quad9);
-            await DemoRecords.Demo("evotec.pl", DnsRecordType.NSEC, DnsEndpoint.OpenDNS);
-            await DemoRecords.Demo("evotec.pl", DnsRecordType.NSEC, DnsEndpoint.OpenDNSFamily);
-            await DemoRecords.Demo("evotec.pl", DnsRecordType.NSEC, DnsEndpoint.Quad9Unsecure);
+            //await DemoRecords.Demo("microsoft.com", DnsRecordType.MX, DnsEndpoint.CloudflareFamily);
 
-            await DemoByManualUrl.Example();
+            //await DemoRecords.Demo("microsoft.com", DnsRecordType.MX, DnsEndpoint.CloudflareWireFormat);
 
-            await DemoByManualUrl.Example2();
+            //await DemoRecords.Demo("evotec.pl", DnsRecordType.NSEC, DnsEndpoint.CloudflareFamily);
+            //await DemoRecords.Demo("evotec.pl", DnsRecordType.NSEC, DnsEndpoint.Google);
+            //await DemoRecords.Demo("evotec.pl", DnsRecordType.NSEC, DnsEndpoint.Quad9);
+            //await DemoRecords.Demo("evotec.pl", DnsRecordType.NSEC, DnsEndpoint.OpenDNS);
+            //await DemoRecords.Demo("evotec.pl", DnsRecordType.NSEC, DnsEndpoint.OpenDNSFamily);
+            //await DemoRecords.Demo("evotec.pl", DnsRecordType.NSEC, DnsEndpoint.Quad9Unsecure);
 
-            await DemoResolveAll.Example();
+            //await DemoByManualUrl.Example();
 
-            await DemoResolveFirst.Example();
+            //await DemoByManualUrl.Example2();
 
-            await DemoResolveParallel.Example();
+            //await DemoResolveAll.Example();
+
+            //await DemoResolveFirst.Example();
+
+            //await DemoResolveParallel.Example();
         }
     }
 }
