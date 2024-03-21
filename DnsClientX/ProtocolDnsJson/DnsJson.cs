@@ -12,7 +12,7 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="value">The value.</param>
         /// <returns></returns>
-        public static string UrlEncode(this string value) => WebUtility.UrlEncode(value);
+        internal static string UrlEncode(this string value) => WebUtility.UrlEncode(value);
 
         /// <summary>
         /// Deserialize a JSON HTTP response into a given type.
@@ -20,7 +20,7 @@ namespace DnsClientX {
         /// <typeparam name="T">The type to deserialize into.</typeparam>
         /// <param name="response">The HTTP response message with JSON as a body.</param>
         /// <param name="debug">Whether to print the JSON data to the console.</param>
-        public static async Task<T> Deserialize<T>(this HttpResponseMessage response, bool debug = false) {
+        internal static async Task<T> Deserialize<T>(this HttpResponseMessage response, bool debug = false) {
             using Stream stream = await response.Content.ReadAsStreamAsync();
             if (stream.Length == 0) throw new DnsClientException("Response content is empty, can't parse as JSON.");
             try {
