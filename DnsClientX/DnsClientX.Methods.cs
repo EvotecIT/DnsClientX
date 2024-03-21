@@ -79,19 +79,23 @@ namespace DnsClientX {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             DnsResponse response;
-            if (EndpointConfiguration.RequestFormat == DnsRequestFormat.JSON) {
+            if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
                 response = await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug);
-            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.WireFormatGet) {
+            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps) {
                 response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug);
-            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.WireFormatPost) {
+            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST) {
                 response = await Client.ResolveWireFormatPost(name, type, requestDnsSec, validateDnsSec, Debug);
-            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.WireFormatDot) {
-                response = await DnsWireResolveDot.ResolveWireFormatDoT(name, type, requestDnsSec, validateDnsSec, Debug);
+            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
+                response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug);
+            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
+                response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug);
+            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
+                response = await DnsWireResolveUdp.ResolveWireFormatUdp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug);
             } else {
                 throw new DnsClientException($"Invalid RequestFormat: {EndpointConfiguration.RequestFormat}");
             }
 
-            // Some DNS Providers return requested type, but also additional types for whatever reason
+            // Some DNS Providers return requested type, but also additional types 
             // https://dns.quad9.net:5053/dns-query?name=autodiscover.evotec.pl&type=CNAME
             // We want to make sure the output is consistent
             if (!returnAllTypes && response.Answers != null) {
