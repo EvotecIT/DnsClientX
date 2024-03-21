@@ -71,7 +71,7 @@ namespace DnsClientX {
         /// </summary>
         BadKey = 18,
         /// <summary>
-        /// The signature is outside of the valid time window.
+        /// The signature is outside the valid time window.
         /// </summary>
         BadTime = 19,
         /// <summary>
