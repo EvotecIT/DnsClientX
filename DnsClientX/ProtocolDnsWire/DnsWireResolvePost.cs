@@ -9,8 +9,6 @@ namespace DnsClientX {
     internal static class DnsWireResolvePost {
         /// <summary>
         /// Sends a DNS query in wire format using HTTP POST and returns the response.
-        ///
-        /// TODO: This method is not yet implemented.
         /// </summary>
         /// <param name="client">The HttpClient used to send the request.</param>
         /// <param name="name">The domain name to query.</param>
