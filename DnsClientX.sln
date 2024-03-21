@@ -12,7 +12,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DnsClientX.Tests", "DnsClie
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DnsClientX.Examples", "DnsClientX.Examples\DnsClientX.Examples.csproj", "{7573BC93-FF47-495D-965B-449C40D8F416}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DnsClientX.Converter", "DnsClientX.Converter\DnsClientX.Converter.csproj", "{6C259556-DF90-4EA2-B1C5-D87CFB5FF483}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DnsClientX.Converter", "DnsClientX.Converter\DnsClientX.Converter.csproj", "{6C259556-DF90-4EA2-B1C5-D87CFB5FF483}"
+	ProjectSection(ProjectDependencies) = postProject
+		{25B1457B-3F86-42C4-86C6-D749054E5B52} = {25B1457B-3F86-42C4-86C6-D749054E5B52}
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DnsClientX.PowerShell", "DnsClientX.PowerShell\DnsClientX.PowerShell.csproj", "{3D75D5DA-879F-43CB-91EB-96B770DE6251}"
 	ProjectSection(ProjectDependencies) = postProject
 		{25B1457B-3F86-42C4-86C6-D749054E5B52} = {25B1457B-3F86-42C4-86C6-D749054E5B52}
 	EndProjectSection
@@ -39,6 +44,10 @@ Global
 		{6C259556-DF90-4EA2-B1C5-D87CFB5FF483}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6C259556-DF90-4EA2-B1C5-D87CFB5FF483}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6C259556-DF90-4EA2-B1C5-D87CFB5FF483}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3D75D5DA-879F-43CB-91EB-96B770DE6251}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3D75D5DA-879F-43CB-91EB-96B770DE6251}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3D75D5DA-879F-43CB-91EB-96B770DE6251}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3D75D5DA-879F-43CB-91EB-96B770DE6251}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
