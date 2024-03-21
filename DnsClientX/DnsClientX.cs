@@ -123,7 +123,7 @@ namespace DnsClientX {
             Client.DefaultRequestHeaders.Accept.Clear();
 
             // Set the accept header based on the request format, which is required for proper processing
-            if (EndpointConfiguration.RequestFormat == DnsRequestFormat.WireFormatGet || EndpointConfiguration.RequestFormat == DnsRequestFormat.WireFormatPost) {
+            if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps || EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST) {
                 Client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/dns-message"));
             } else {
                 Client.DefaultRequestHeaders.Accept.ParseAdd("application/dns-json");
