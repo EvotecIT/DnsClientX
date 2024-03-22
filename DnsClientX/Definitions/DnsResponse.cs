@@ -101,6 +101,19 @@ namespace DnsClientX {
         /// </summary>
         [JsonPropertyName("edns_client_subnet")]
         public string EdnsClientSubnet { get; set; }
+
+        /// <summary>
+        /// Adds the server details to the DNS questions for output purposes.
+        /// </summary>
+        /// <param name="configuration"></param>
+        internal void AddServerDetails(Configuration configuration) {
+            for (int i = 0; i < Questions.Length; i++) {
+                Questions[i].HostName = configuration.Hostname;
+                Questions[i].BaseUri = configuration.BaseUri;
+                Questions[i].RequestFormat = configuration.RequestFormat;
+                Questions[i].Port = configuration.Port;
+            }
+        }
     }
 
     /// <summary>
