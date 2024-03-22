@@ -14,9 +14,12 @@ namespace DnsClientX {
         /// <param name="requestDnsSec">If set to <c>true</c>, the query will request DNSSEC records.</param>
         /// <param name="validateDnsSec">If set to <c>true</c>, the response will be validated using DNSSEC.</param>
         /// <param name="debug">If set to <c>true</c>, debug information will be printed to the console.</param>
+        /// <param name="endpointConfiguration"></param>
         /// <returns>A Task that represents the asynchronous operation. The Task's result is a DnsResponse that contains the DNS response.</returns>
         /// <exception cref="DnsClientException">Thrown when the HTTP request fails or the server returns an error.</exception>
-        internal static async Task<DnsResponse> ResolveWireFormatGet(this HttpClient client, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug) {
+        internal static async Task<DnsResponse> ResolveWireFormatGet(this HttpClient client, string name,
+            DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug,
+            Configuration endpointConfiguration) {
             // For OpenDNS, we need to create a DNS message and base64url encode it
             var dnsMessage = new DnsMessage(name, type, requestDnsSec);
             var base64UrlDnsMessage = dnsMessage.ToBase64Url();
@@ -33,7 +36,7 @@ namespace DnsClientX {
             try {
                 using HttpResponseMessage res = await client.SendAsync(req);
                 DnsResponse response = await res.DeserializeDnsWireFormat(debug);
-
+                response.AddServerDetails(endpointConfiguration);
                 if (res.StatusCode != HttpStatusCode.OK || !string.IsNullOrEmpty(response.Error)) {
                     string message = string.Concat(
                         $"Failed to query type {type} of \"{name}\", received HTTP status code {res.StatusCode}.",
