@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json.Serialization;
 
 namespace DnsClientX {
@@ -31,5 +32,29 @@ namespace DnsClientX {
         /// </summary>
         [JsonPropertyName("type")]
         public DnsRecordType Type { get; set; }
+
+        /// <summary>
+        /// HostName or IP address of the DNS server which received the query.
+        /// </summary>
+        [JsonIgnore]
+        public string HostName { get; set; }
+
+        /// <summary>
+        /// Base URI of the DNS server which received the query.
+        /// </summary>
+        [JsonIgnore]
+        public Uri BaseUri { get; set; }
+
+        /// <summary>
+        /// Request format of the DNS server which received the query.
+        /// </summary>
+        [JsonIgnore]
+        public DnsRequestFormat RequestFormat { get; set; }
+
+        /// <summary>
+        /// Port of the DNS server which received the query.
+        /// </summary>
+        [JsonIgnore]
+        public int Port { get; set; }
     }
 }
