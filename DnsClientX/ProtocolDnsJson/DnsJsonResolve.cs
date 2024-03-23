@@ -17,7 +17,7 @@ namespace DnsClientX {
         /// <param name="debug">If set to <c>true</c>, the method will include debugging information in the response.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         /// <exception cref="DnsClientException">Thrown when the HTTP request fails or the server returns an error.</exception>
-        internal static async Task<DnsResponse> ResolveJsonFormat(this HttpClient client, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug) {
+        internal static async Task<DnsResponse> ResolveJsonFormat(this HttpClient client, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration configuration) {
             string url = string.Concat($"?name={name.UrlEncode()}", type == DnsRecordType.A ? "" : $"&type={type.ToString().UrlEncode()}", requestDnsSec == false ? "" : $"&do=1", validateDnsSec == false ? "" : $"&cd=1");
 
             using HttpRequestMessage req = new(HttpMethod.Get, url);
@@ -25,6 +25,7 @@ namespace DnsClientX {
                 using HttpResponseMessage res = await client.SendAsync(req);
 
                 DnsResponse response = await res.Deserialize<DnsResponse>(debug);
+                response.AddServerDetails(configuration);
                 return response;
             } catch (HttpRequestException ex) {
                 string message = $"Failed to send HTTP request for type {type} of '{name}'.";
