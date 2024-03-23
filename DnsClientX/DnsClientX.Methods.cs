@@ -35,6 +35,20 @@ namespace DnsClientX {
         }
 
         /// <summary>
+        /// Sends a DNS query for multiple domain names and multiple record types to a DNS server using a full URI and request format.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="recordType">Type of the record.</param>
+        /// <param name="dnsUri">The DNS URI.</param>
+        /// <param name="requestFormat">The request format.</param>
+        /// <returns></returns>
+        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, Uri dnsUri, DnsRequestFormat requestFormat) {
+            ClientX client = new ClientX(dnsUri, requestFormat);
+            var data = await client.Resolve(name, recordType);
+            return data;
+        }
+
+        /// <summary>
         /// Sends a DNS query for a specific record type to a DNS server.
         /// This method allows you to specify the DNS endpoint by providing a hostname and request format (JSON, WireFormatGet).
         /// </summary>
@@ -44,6 +58,20 @@ namespace DnsClientX {
         /// <param name="requestFormat">The format of the DNS request.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat) {
+            ClientX client = new ClientX(hostName, requestFormat);
+            var data = await client.Resolve(name, recordType);
+            return data;
+        }
+
+        /// <summary>
+        /// Sends a DNS query for multiple domain names and multiple record types to a DNS server using HostName and RequestFormat.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="recordType">Type of the record.</param>
+        /// <param name="hostName">Name of the host.</param>
+        /// <param name="requestFormat">The request format.</param>
+        /// <returns></returns>
+        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, string hostName, DnsRequestFormat requestFormat) {
             ClientX client = new ClientX(hostName, requestFormat);
             var data = await client.Resolve(name, recordType);
             return data;
@@ -80,17 +108,17 @@ namespace DnsClientX {
 
             DnsResponse response;
             if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
-                response = await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug);
+                response = await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps) {
-                response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug);
+                response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST) {
-                response = await Client.ResolveWireFormatPost(name, type, requestDnsSec, validateDnsSec, Debug);
+                response = await Client.ResolveWireFormatPost(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
-                response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug);
+                response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
-                response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug);
+                response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
-                response = await DnsWireResolveUdp.ResolveWireFormatUdp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug);
+                response = await DnsWireResolveUdp.ResolveWireFormatUdp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
             } else {
                 throw new DnsClientException($"Invalid RequestFormat: {EndpointConfiguration.RequestFormat}");
             }
