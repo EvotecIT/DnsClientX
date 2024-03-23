@@ -5,21 +5,21 @@ $Classes = @( Get-ChildItem -Path $PSScriptRoot\Classes\*.ps1 -ErrorAction Silen
 $Enums = @( Get-ChildItem -Path $PSScriptRoot\Enums\*.ps1 -ErrorAction SilentlyContinue -Recurse -File)
 # Get all assemblies
 $AssemblyFolders = Get-ChildItem -Path $PSScriptRoot\Lib -Directory -ErrorAction SilentlyContinue -File
-$AssemblyFolders = Get-ChildItem -Path "C:\Support\GitHub\PSEventViewer\Sources\PSEventViewer.PowerShell\bin\Debug\net472" -File -ErrorAction SilentlyContinue
+$AssemblyFolders = Get-ChildItem -Path $PSScriptRoot\bin\Debug\net472 -File -ErrorAction SilentlyContinue
 
 # to speed up development adding direct path to binaries, instead of the the Lib folder
 $Development = $true
 $BinaryDev = @(
     if ($PSEdition -eq 'Core') {
-        "$PSScriptRoot\Sources\PowerDnsClient\bin\Debug\netstandard2.0\PowerDnsClient.dll"
-        Write-Warning "Development mode: Using binaries from $PSScriptRoot\Sources\PowerDnsClient\bin\Debug\netstandard2.0\PowerDnsClient.dll"
+        $Variable = Resolve-Path "$PSScriptRoot\..\DnsClientX.PowerShell\bin\Debug\netstandard2.0\DnsClientX.PowerShell.dll"
     } else {
-        "$PSScriptRoot\Sources\PowerDnsClient\bin\Debug\net472\PowerDnsClient.dll"
-        Write-Warning "Development mode: Using binaries from $PSScriptRoot\Sources\PowerDnsClient\bin\Debug\net472\PowerDnsClient.dll"
+        $Variable = Resolve-Path "$PSScriptRoot\..\DnsClientX.PowerShell\bin\Debug\net472\DnsClientX.PowerShell.dll"
     }
+    $Variable
+    Write-Warning "Development mode: Using binaries from $Variable"
 )
 $BinaryModules = @(
-    "PowerDnsClient.dll"
+    "DnsClientX.PowerShell.dll"
 )
 
 # Lets find which libraries we need to load
