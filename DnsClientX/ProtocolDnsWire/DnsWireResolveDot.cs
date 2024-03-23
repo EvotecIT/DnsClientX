@@ -9,13 +9,16 @@ using System.Threading.Tasks;
 namespace DnsClientX {
     internal static class DnsWireResolveDot {
         /// <summary>
-        ///
+        /// Sends a DNS query in wire format using DNS over TLS (DoT) and returns the response.
         /// </summary>
+        /// <param name="dnsServer"></param>
+        /// <param name="port"></param>
         /// <param name="name">The name.</param>
         /// <param name="type">The type.</param>
         /// <param name="requestDnsSec">if set to <c>true</c> [request DNS sec].</param>
         /// <param name="validateDnsSec">if set to <c>true</c> [validate DNS sec].</param>
         /// <param name="debug">if set to <c>true</c> [debug].</param>
+        /// <param name="endpointConfiguration"></param>
         /// <returns></returns>
         /// <exception cref="System.ArgumentNullException">name - Name is null or empty.</exception>
         /// <exception cref="System.Exception">
@@ -23,7 +26,7 @@ namespace DnsClientX {
         /// or
         /// The stream was closed before the entire response could be read.
         /// </exception>
-        internal static async Task<DnsResponse> ResolveWireFormatDoT(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug = false) {
+        internal static async Task<DnsResponse> ResolveWireFormatDoT(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             var query = new DnsMessage(name, type, requestDnsSec);
@@ -104,7 +107,7 @@ namespace DnsClientX {
 
             // Deserialize the response from DNS wire format
             var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer);
-
+            response.AddServerDetails(endpointConfiguration);
             // Close the SSL stream and the TCP client
             sslStream.Close();
             client.Close();
