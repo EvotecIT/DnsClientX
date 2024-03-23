@@ -1,6 +1,6 @@
 ﻿Import-Module "C:\Support\GitHub\PSPublishModule\PSPublishModule.psd1" -Force
 
-Build-Module -ModuleName 'PowerDNSClient' {
+Build-Module -ModuleName 'DnsClientX' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
         ModuleVersion        = '1.0.0'
@@ -17,13 +17,13 @@ Build-Module -ModuleName 'PowerDNSClient' {
         # Copyright statement for this module
         Copyright            = "(c) 2011 - $((Get-Date).Year) Przemyslaw Klys @ Evotec. All rights reserved."
 
-        Description          = 'Simple project PowerDNSClient'
+        Description          = 'Simple project DnsClientX'
 
         Tags                 = @('Windows', 'MacOS', 'Linux')
 
-        IconUri              = 'https://evotec.xyz/wp-content/uploads/2018/10/PSEventViewer.png'
+        # IconUri              = 'https://evotec.xyz/wp-content/uploads/2018/10/PSEventViewer.png'
 
-        ProjectUri           = 'https://github.com/EvotecIT/PSEventViewer'
+        ProjectUri           = 'https://github.com/EvotecIT/DnsClientX'
 
         PowerShellVersion    = '5.1'
     }
@@ -95,10 +95,11 @@ Build-Module -ModuleName 'PowerDNSClient' {
         MergeModuleOnBuild                = $true
         MergeFunctionsFromApprovedModules = $true
         CertificateThumbprint             = '483292C9E317AA13B07BB7A96AE9D1A5ED9E7703'
+        NETProjectPath                    = "$PSScriptRoot\..\..\DnsClientX.PowerShell"
         ResolveBinaryConflicts            = $false
-        ResolveBinaryConflictsName        = 'PowerDnsClient'
-        NETProjectName                    = 'PowerDnsClient'
-        NETBinaryModule                   = 'PowerDnsClient.dll'
+        ResolveBinaryConflictsName        = 'DnsClientX.PowerShell'
+        NETProjectName                    = 'DnsClientX.PowerShell'
+        NETBinaryModule                   = 'DnsClientX.PowerShell.dll'
         NETConfiguration                  = 'Release'
         NETFramework                      = 'netstandard2.0'
         DotSourceLibraries                = $true
