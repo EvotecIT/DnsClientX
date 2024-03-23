@@ -4,7 +4,20 @@ using System.Threading.Tasks;
 
 namespace DnsClientX {
     internal class DnsWireResolveTcp {
-        internal static async Task<DnsResponse> ResolveWireFormatTcp(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug = false) {
+        /// <summary>
+        /// Sends a DNS query in wire format using DNS over TCP (53) and returns the response.
+        /// </summary>
+        /// <param name="dnsServer"></param>
+        /// <param name="port"></param>
+        /// <param name="name"></param>
+        /// <param name="type"></param>
+        /// <param name="requestDnsSec"></param>
+        /// <param name="validateDnsSec"></param>
+        /// <param name="debug"></param>
+        /// <param name="endpointConfiguration"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        internal static async Task<DnsResponse> ResolveWireFormatTcp(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             var query = new DnsMessage(name, type, requestDnsSec);
@@ -39,10 +52,17 @@ namespace DnsClientX {
 
             // Deserialize the response from DNS wire format
             var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer);
-
+            response.AddServerDetails(endpointConfiguration);
             return response;
         }
 
+        /// <summary>
+        /// Sends a DNS query over TCP and returns the response.
+        /// </summary>
+        /// <param name="query"></param>
+        /// <param name="dnsServer"></param>
+        /// <param name="port"></param>
+        /// <returns></returns>
         private static async Task<byte[]> SendQueryOverTcp(byte[] query, string dnsServer, int port) {
             using (var tcpClient = new TcpClient()) {
                 // Connect to the server
