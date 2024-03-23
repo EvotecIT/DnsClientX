@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Management.Automation;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace PowerDnsClient {
+namespace DnsClientX.PowerShell {
     public abstract class AsyncPSCmdlet : PSCmdlet, IDisposable {
         private enum PipelineType {
             Output,

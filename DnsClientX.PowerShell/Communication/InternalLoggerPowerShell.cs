@@ -1,8 +1,7 @@
-﻿using System;
+using System;
 using System.Management.Automation;
-using DnsClientX;
 
-namespace PowerDnsClient {
+namespace DnsClientX.PowerShell {
     /// <summary>
     /// This class allow connecting to the InternalLogger class of ADPlayground and act on events from it in different streams
     /// </summary>
