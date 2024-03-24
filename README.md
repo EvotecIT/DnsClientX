@@ -1,4 +1,4 @@
-﻿# DnsClientX - DnsClient over HTTPS
+# DnsClientX - DnsClient over HTTPS
 
 DnsClientX is available as NuGet from the gallery and its preferred way of using it.
 
@@ -24,6 +24,9 @@ It provides querying multiple DNS Providers.
 - [Quad9](https://www.quad9.net/news/blog/doh-with-quad9-dns-servers/)
 - OpenDNS
 - etc.
+
+If you want to learn about DNS:
+- https://www.cloudflare.com/learning/dns/what-is-dns/
 
 There are two ways **DNS over HTTPS** can be utilized:
 - **JSON Format** - In this format, DNS queries and responses are encoded in JavaScript Object Notation (JSON). This format is more human-readable and can be easier to work with in web and application development environments where JSON is commonly used for data interchange.
