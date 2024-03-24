@@ -17,6 +17,13 @@ namespace DnsClientX.Examples {
             data.DisplayTable();
         }
 
+        public static async Task ExampleGoogle() {
+            HelpersSpectre.AddLine("Resolve", "evotec.pl", DnsRecordType.A, new Uri("https://8.8.8.8/resolve"), DnsRequestFormat.DnsOverHttpsJSON);
+            ClientX client = new ClientX(new Uri("https://8.8.8.8/resolve"), DnsRequestFormat.DnsOverHttpsJSON);
+            var data = await client.Resolve("evotec.pl", DnsRecordType.A);
+            data.DisplayTable();
+        }
+
 
         public static async Task ExampleTesting() {
             HelpersSpectre.AddLine("Resolve", "www.example.com", DnsRecordType.A, "1.1.1.1", DnsRequestFormat.DnsOverTLS);
