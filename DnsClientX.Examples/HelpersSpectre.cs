@@ -63,9 +63,11 @@ namespace DnsClientX.Examples {
             var table = new Table().Border(TableBorder.Rounded);
             table.AddColumn("Status");
             table.AddColumn("Questions");
+            table.AddColumn("Server");
             table.AddColumn("Answers");
 
             var questions = string.Join(", ", response.Questions.Select(q => $"{q.Name} => {q.Type}"));
+            var server = string.Join(Environment.NewLine, response.Questions.Select(q => $"HostName: {q.HostName}{Environment.NewLine}Port: {q.Port}{Environment.NewLine}RequestFormat: {q.RequestFormat}{Environment.NewLine}BaseUri: {q.BaseUri}"));
 
             var answerTable = new Table().Border(TableBorder.Rounded);
             answerTable.AddColumn("Type");
@@ -77,7 +79,7 @@ namespace DnsClientX.Examples {
                 answerTable.AddRow(new Markup(answer.Type.ToString()), new Markup(answer.TTL.ToString()), new Markup(answer.Name), new Markup(answer.Data));
             }
 
-            table.AddRow(new Markup(response.Status.ToString()), new Markup(questions), answerTable);
+            table.AddRow(new Markup(response.Status.ToString()), new Markup(questions), new Markup(server), answerTable);
 
             AnsiConsole.Write(table);
         }
@@ -110,6 +112,20 @@ namespace DnsClientX.Examples {
 
             table.AddRow(new Markup(answer.Type.ToString()), new Markup(answer.TTL.ToString()), new Markup(answer.Name), new Markup(answer.Data));
 
+            AnsiConsole.Write(table);
+        }
+
+        public static void DisplayTable(this DnsQuestion[] questions) {
+            var table = new Table().Border(TableBorder.Rounded);
+            table.AddColumn("Name");
+            table.AddColumn("Type");
+            table.AddColumn("HostName");
+            table.AddColumn("Port");
+            table.AddColumn("RequestFormat");
+            table.AddColumn("BaseUri");
+            foreach (var question in questions) {
+                table.AddRow(new Markup(question.Name), new Markup(question.Type.ToString()), new Markup(question.HostName), new Markup(question.Port.ToString()), new Markup(question.RequestFormat.ToString()), new Markup(question.BaseUri.ToString()));
+            }
             AnsiConsole.Write(table);
         }
     }
