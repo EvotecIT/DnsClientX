@@ -72,8 +72,9 @@ namespace DnsClientX {
         /// Initializes a new instance of the <see cref="ClientX"/> class.
         /// </summary>
         /// <param name="endpoint">The endpoint.</param>
-        public ClientX(DnsEndpoint endpoint = DnsEndpoint.Cloudflare) {
-            EndpointConfiguration = new Configuration(endpoint);
+        /// <param name="dnsSelectionStrategy">Dns selection strategy</param>
+        public ClientX(DnsEndpoint endpoint = DnsEndpoint.Cloudflare, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First) {
+            EndpointConfiguration = new Configuration(endpoint, dnsSelectionStrategy);
             ConfigureClient();
         }
 
