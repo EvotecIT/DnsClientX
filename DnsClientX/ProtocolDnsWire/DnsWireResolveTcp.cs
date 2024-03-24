@@ -14,7 +14,7 @@ namespace DnsClientX {
         /// <param name="requestDnsSec"></param>
         /// <param name="validateDnsSec"></param>
         /// <param name="debug"></param>
-        /// <param name="endpointConfiguration"></param>
+        /// <param name="endpointConfiguration">Provide configuration so it can be added to Question for display purposes</param>
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         internal static async Task<DnsResponse> ResolveWireFormatTcp(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration) {
