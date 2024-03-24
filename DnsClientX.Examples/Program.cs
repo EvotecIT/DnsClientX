@@ -6,10 +6,21 @@ namespace DnsClientX.Examples {
             // await ConvertToDnsClient.ExampleConvertToDnsClientFromX();
             // await ConvertToDnsClient.ExampleConvertFromDnsClientToX();
             //await DemoQuery.ExampleTesting();
-            await DemoByManualUrl.ExampleTesting();
-            await DemoByManualUrl.ExampleTestingHttpOverPost();
-            await DemoByManualUrl.ExampleTestingUdp();
-            await DemoByManualUrl.ExampleTestingTcp();
+            //await DemoByManualUrl.ExampleTesting();
+            //await DemoByManualUrl.ExampleTestingHttpOverPost();
+            //await DemoByManualUrl.ExampleTestingUdp();
+            //await DemoByManualUrl.ExampleTestingTcp();
+
+            //await DemoByManualUrl.ExampleGoogle();
+
+            //await GetSystemDns.Example1();
+
+            //await DemoQuery.Example1();
+            //await DemoQuery.ExampleGoogleOverWire();
+            //await DemoQuery.ExampleGoogleOverWirePost();
+            await DemoQuery.ExampleCloudflareSelection();
+            await DemoQuery.ExampleSystemDns();
+
 
             //await DemoResolveReturn.Example();
 
@@ -55,6 +66,8 @@ namespace DnsClientX.Examples {
             //await DemoResolveFirst.Example();
 
             //await DemoResolveParallel.Example();
+
+            await DemoResolve.Example();
         }
     }
 }
