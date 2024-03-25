@@ -18,12 +18,11 @@ namespace DnsClientX.PowerShell {
 
         [Alias("ServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
-        public List<string> Server;
+        public List<string> Server = new List<string>();
 
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
         public SwitchParameter FullResponse;
-
 
         private InternalLogger _logger;
 
@@ -38,8 +37,9 @@ namespace DnsClientX.PowerShell {
         protected override Task ProcessRecordAsync() {
             _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", Name, Type, DnsProvider);
 
-            if (Server != null) {
+            if (Server.Count > 0) {
                 string myServer = Server[0];
+                _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", Name, Type, myServer);
                 var result = ClientX.QueryDns(Name, Type, myServer, DnsRequestFormat.DnsOverUDP);
                 foreach (var record in result.Result) {
                     if (FullResponse.IsPresent) {
