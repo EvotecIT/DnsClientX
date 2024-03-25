@@ -95,6 +95,20 @@ namespace DnsClientX {
         }
 
         /// <summary>
+        /// Sends a DNS query for multiple domain names and single record types to a DNS server using HostName and RequestFormat.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="recordType">Type of the record.</param>
+        /// <param name="hostName">Name of the host.</param>
+        /// <param name="requestFormat">The request format.</param>
+        /// <returns></returns>
+        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat) {
+            ClientX client = new ClientX(hostName, requestFormat);
+            var data = await client.Resolve(name, recordType);
+            return data;
+        }
+
+        /// <summary>
         /// Sends a DNS query to multiple domains and multiple record types to a DNS server.
         /// This method allows you to specify the DNS endpoint by providing a hostname and request format (JSON, WireFormatGet).
         /// </summary>
