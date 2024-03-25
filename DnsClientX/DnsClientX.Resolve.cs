@@ -20,14 +20,24 @@ namespace DnsClientX {
         public async Task<DnsResponse> Resolve(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
+            // lets we execute valid dns host name strategy
             EndpointConfiguration.SelectHostNameStrategy();
 
             DnsResponse response;
             if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
+                if (EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Random) {
+                    ConfigureClient();
+                }
                 response = await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps) {
+                if (EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Random) {
+                    ConfigureClient();
+                }
                 response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST) {
+                if (EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Random) {
+                    ConfigureClient();
+                }
                 response = await Client.ResolveWireFormatPost(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
                 response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
