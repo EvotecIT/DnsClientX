@@ -28,7 +28,7 @@ namespace DnsClientX.Examples {
         public static async Task ExampleTesting() {
             HelpersSpectre.AddLine("Resolve", "www.example.com", DnsRecordType.A, "1.1.1.1", DnsRequestFormat.DnsOverTLS);
             ClientX client = new ClientX("1.1.1.1", DnsRequestFormat.DnsOverTLS) {
-                Debug = true
+                Debug = false
             };
             var data = await client.Resolve("www.example.com", DnsRecordType.A);
             data.DisplayTable();
@@ -37,7 +37,7 @@ namespace DnsClientX.Examples {
         public static async Task ExampleTestingHttpOverPost() {
             HelpersSpectre.AddLine("Resolve", "www.example.com", DnsRecordType.A, new Uri("https://1.1.1.1/dns-query"), DnsRequestFormat.DnsOverHttpsPOST);
             ClientX client = new ClientX(new Uri("https://1.1.1.1/dns-query"), DnsRequestFormat.DnsOverHttpsPOST) {
-                Debug = true
+                Debug = false
             };
             var data = await client.Resolve("www.example.com", DnsRecordType.A);
             data.DisplayTable();
@@ -46,7 +46,7 @@ namespace DnsClientX.Examples {
         public static async Task ExampleTestingUdp() {
             HelpersSpectre.AddLine("Resolve", "www.example.com", DnsRecordType.A, "192.168.241.6", DnsRequestFormat.DnsOverUDP);
             ClientX client = new ClientX("192.168.241.6", DnsRequestFormat.DnsOverUDP) {
-                Debug = true
+                Debug = false
             };
             var data = await client.Resolve("www.example.com", DnsRecordType.A);
             //var data = await DnsWireResolveUdp.ResolveWireFormatUdp("www.example.com", DnsRecordType.A, false, false, true);
@@ -56,7 +56,7 @@ namespace DnsClientX.Examples {
         public static async Task ExampleTestingTcp() {
             HelpersSpectre.AddLine("Resolve", "www.example.com", DnsRecordType.A, "192.168.241.5", DnsRequestFormat.DnsOverTCP);
             ClientX client = new ClientX("192.168.241.5", DnsRequestFormat.DnsOverTCP) {
-                Debug = true
+                Debug = false
             };
             var data = await client.Resolve("www.example.com", DnsRecordType.A);
             //var data = await DnsWireResolveUdp.ResolveWireFormatTcp("www.example.com", DnsRecordType.A, false, false, true);

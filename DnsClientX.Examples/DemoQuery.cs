@@ -4,6 +4,14 @@ using DnsClientX;
 
 namespace DnsClientX.Examples {
     internal class DemoQuery {
+        public static async Task Example0() {
+            var domains = new[] { "evotec.pl", "google.com" };
+            HelpersSpectre.AddLine("QueryDns", "evotec.pl / google.com", DnsRecordType.A, "1.1.1.1");
+            var data = await ClientX.QueryDns(domains, DnsRecordType.A, "1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON);
+            data.DisplayTable();
+        }
+
+
         public static async Task Example1() {
             HelpersSpectre.AddLine("QueryDns", "evotec.pl", DnsRecordType.A, DnsEndpoint.CloudflareWireFormat);
             var data = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, DnsEndpoint.CloudflareWireFormat);
@@ -19,10 +27,8 @@ namespace DnsClientX.Examples {
         }
 
         public static async Task Example3() {
-            HelpersSpectre.AddLine("QueryDns", "evotec.pl", DnsRecordType.A, new Uri("https://1.1.1.1/dns-query"),
-                DnsRequestFormat.DnsOverHttpsJSON);
-            var data = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, new Uri("https://1.1.1.1/dns-query"),
-                DnsRequestFormat.DnsOverHttpsJSON);
+            HelpersSpectre.AddLine("QueryDns", "evotec.pl", DnsRecordType.A, new Uri("https://1.1.1.1/dns-query"), DnsRequestFormat.DnsOverHttpsJSON);
+            var data = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, new Uri("https://1.1.1.1/dns-query"), DnsRequestFormat.DnsOverHttpsJSON);
             data.Answers.DisplayTable();
         }
 
