@@ -40,9 +40,6 @@ namespace DnsClientX {
                 Console.WriteLine($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
 
-            //string dnsServer = "8.8.8.8"; // Google's DNS endpoint
-            //int port = 53;
-
             // Send the DNS query over UDP and receive the response
             var responseBuffer = await SendQueryOverUdp(queryBytes, dnsServer, port);
 
