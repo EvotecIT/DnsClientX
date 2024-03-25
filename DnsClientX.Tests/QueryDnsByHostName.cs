@@ -18,6 +18,8 @@ namespace DnsClientX.Tests {
         [Theory]
         [InlineData("1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON)]
         [InlineData("family.cloudflare-dns.com", DnsRequestFormat.DnsOverHttpsJSON)]
+        [InlineData("1.1.1.1", DnsRequestFormat.DnsOverUDP)]
+        [InlineData("1.1.1.1", DnsRequestFormat.DnsOverTCP)]
         // Google contrary to the other endpoints does not work with /dns-query but with /resolve
         // [InlineData("8.8.8.8", DnsRequestFormat.JSON)]
         [InlineData("208.67.222.222", DnsRequestFormat.DnsOverHttps)]
@@ -27,6 +29,27 @@ namespace DnsClientX.Tests {
                 Assert.True(answer.Name == "evotec.pl");
                 Assert.True(answer.Type == DnsRecordType.A);
                 Assert.True(answer.Data.Length > 0);
+            }
+        }
+
+        [Theory]
+        [InlineData("1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON)]
+        [InlineData("family.cloudflare-dns.com", DnsRequestFormat.DnsOverHttpsJSON)]
+        [InlineData("1.1.1.1", DnsRequestFormat.DnsOverUDP)]
+        [InlineData("1.1.1.1", DnsRequestFormat.DnsOverTCP)]
+        // Google contrary to the other endpoints does not work with /dns-query but with /resolve
+        // [InlineData("8.8.8.8", DnsRequestFormat.JSON)]
+        [InlineData("208.67.222.222", DnsRequestFormat.DnsOverHttps)]
+        public async void ShouldWorkForMultipleDomains(string hostName, DnsRequestFormat requestFormat) {
+            var domains = new[] { "evotec.pl", "google.com" };
+            var responses = await ClientX.QueryDns(domains, DnsRecordType.A, hostName, requestFormat);
+            foreach (var domain in domains) {
+                var response = responses.First(r => r.Questions.Any(q => q.Name == domain));
+                foreach (DnsAnswer answer in response.Answers) {
+                    Assert.True(answer.Name == domain);
+                    Assert.True(answer.Type == DnsRecordType.A);
+                    Assert.True(answer.Data.Length > 0);
+                }
             }
         }
     }

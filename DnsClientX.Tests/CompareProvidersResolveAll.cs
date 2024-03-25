@@ -45,8 +45,8 @@ namespace DnsClientX.Tests {
                     continue;
                 }
                 output.WriteLine("Provider: " + endpointCompare.ToString());
-                var ClientToCompare = new ClientX(endpointCompare);
-                DnsAnswer[] aAnswersToCompare = await ClientToCompare.ResolveAll(name, resourceRecordType);
+                var clientToCompare = new ClientX(endpointCompare);
+                DnsAnswer[] aAnswersToCompare = await clientToCompare.ResolveAll(name, resourceRecordType);
 
                 var sortedAAnswers = aAnswersPrimary.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();
                 var sortedAAnswersCompared = aAnswersToCompare.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();
