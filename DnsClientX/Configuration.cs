@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 
 namespace DnsClientX {
@@ -13,7 +14,7 @@ namespace DnsClientX {
         private static readonly Random random = new Random();
 
 
-        private List<string> hostnames;
+        private List<string> hostnames = new List<string>();
         private string baseUriFormat;
 
 
@@ -66,9 +67,10 @@ namespace DnsClientX {
         /// <param name="hostname">The hostname of the DNS-over-HTTPS resolver.</param>
         /// <param name="requestFormat">The format of the DNS requests.</param>
         public Configuration(string hostname, DnsRequestFormat requestFormat) {
-            Hostname = hostname;
+            hostnames = new List<string> { hostname };
             RequestFormat = requestFormat;
-            BaseUri = new Uri($"https://{Hostname}/dns-query");
+            baseUriFormat = "https://{0}/dns-query"; ;
+            BaseUri = new Uri(string.Format(baseUriFormat, hostname));
 
             if (requestFormat == DnsRequestFormat.DnsOverTLS) {
                 Port = 853;
@@ -87,6 +89,7 @@ namespace DnsClientX {
         public Configuration(Uri baseUri, DnsRequestFormat requestFormat) {
             BaseUri = baseUri;
             RequestFormat = requestFormat;
+            hostnames = new List<string> { Hostname };
 
             if (requestFormat == DnsRequestFormat.DnsOverTLS) {
                 Port = 853;
@@ -101,30 +104,40 @@ namespace DnsClientX {
         /// Selects the Dns server based on the selection strategy.
         /// </summary>
         public void SelectHostNameStrategy() {
-            // Select a hostname based on the selection strategy
-            switch (SelectionStrategy) {
-                case DnsSelectionStrategy.First:
-                    Hostname = hostnames[0];
-                    break;
-                case DnsSelectionStrategy.Random:
-                    Hostname = hostnames[random.Next(hostnames.Count)];
-                    break;
-                case DnsSelectionStrategy.Failover:
-                    // TODO: Implement failover strategy
-                    // Try each hostname in order until one succeeds
-                    foreach (var hostname in hostnames) {
-                        try {
-                            // Try to make a DNS request...
-                            Hostname = hostname;
-                            break;
-                        } catch {
-                            // If the request fails, try the next hostname
+            if (hostnames.Count == 1) {
+                Hostname = hostnames[0];
+                if (baseUriFormat != null) {
+                    BaseUri = new Uri(string.Format(baseUriFormat, Hostname));
+                }
+            } else if (hostnames.Count == 0) {
+                // use BaseUri as is
+            } else {
+                // Select a hostname based on the selection strategy
+                switch (SelectionStrategy) {
+                    case DnsSelectionStrategy.First:
+                        Hostname = hostnames[0];
+                        break;
+                    case DnsSelectionStrategy.Random:
+                        Hostname = hostnames[random.Next(hostnames.Count)];
+                        break;
+                    case DnsSelectionStrategy.Failover:
+                        // TODO: Implement failover strategy
+                        // Try each hostname in order until one succeeds
+                        foreach (var hostname in hostnames) {
+                            try {
+                                // Try to make a DNS request...
+                                Hostname = hostname;
+                                break;
+                            } catch {
+                                // If the request fails, try the next hostname
+                            }
                         }
-                    }
-                    break;
-            }
 
-            BaseUri = new Uri(string.Format(baseUriFormat, Hostname));
+                        break;
+                }
+
+                BaseUri = new Uri(string.Format(baseUriFormat, Hostname));
+            }
         }
 
         /// <summary>
