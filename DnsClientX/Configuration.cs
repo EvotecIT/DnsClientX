@@ -154,87 +154,72 @@ namespace DnsClientX {
                 case DnsEndpoint.System:
                     // Use the system's default DNS resolver
                     hostnames = SystemInformation.GetDnsFromActiveNetworkCard();
-                    RequestFormat = DnsRequestFormat.DnsOverUDP;
-                    //BaseUri = new Uri($"https://{Hostname}/dns-query");
+                    RequestFormat = DnsRequestFormat.DnsOverTCP;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.Cloudflare:
                     hostnames = ["1.1.1.1", "1.0.0.1"];
                     RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
-                    //BaseUri = new Uri($"https://{Hostname}/dns-query");
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.CloudflareWireFormat:
                     hostnames = new List<string> { "1.1.1.1", "1.0.0.1" };
                     RequestFormat = DnsRequestFormat.DnsOverHttps;
-                    //BaseUri = new Uri($"https://{Hostname}/dns-query");
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.CloudflareWireFormatPost:
                     hostnames = new List<string> { "1.1.1.1", "1.0.0.1" };
                     RequestFormat = DnsRequestFormat.DnsOverHttpsPOST;
-                    //BaseUri = new Uri($"https://{Hostname}/dns-query");
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.CloudflareSecurity:
                     hostnames = new List<string> { "1.1.1.2", "1.0.0.2" };
                     RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
-                    //BaseUri = new Uri($"https://{Hostname}/dns-query");
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.CloudflareFamily:
                     hostnames = new List<string> { "1.1.1.3", "1.0.0.3" };
                     RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
-                    //BaseUri = new Uri($"https://{Hostname}/dns-query");
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.Google:
                     hostnames = new List<string> { "8.8.8.8", "8.8.4.4" };
                     RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
-                    //BaseUri = new Uri($"https://{Hostname}/resolve");
                     baseUriFormat = "https://{0}/resolve";
                     break;
                 case DnsEndpoint.GoogleWireFormat:
                     hostnames = new List<string> { "8.8.8.8", "8.8.4.4" };
                     RequestFormat = DnsRequestFormat.DnsOverHttps;
-                    //BaseUri = new Uri($"https://{Hostname}/dns-query");
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.GoogleWireFormatPost:
                     hostnames = new List<string> { "8.8.8.8", "8.8.4.4" };
                     RequestFormat = DnsRequestFormat.DnsOverHttpsPOST;
-                    //BaseUri = new Uri($"https://{Hostname}/dns-query");
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.Quad9:
-                    hostnames = new List<string> { "9.9.9.9:5053" };
+                    hostnames = new List<string> { "9.9.9.9:5053", "149.112.112.112:5053" };
                     RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
-                    //BaseUri = new Uri($"https://{Hostname}/dns-query");
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.Quad9ECS:
-                    hostnames = new List<string> { "9.9.9.11:5053" };
+                    hostnames = new List<string> { "9.9.9.11:5053", "149.112.112.11:5053" };
                     RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
-                    //BaseUri = new Uri($"https://{Hostname}/dns-query");
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.Quad9Unsecure:
-                    hostnames = new List<string> { "9.9.9.10:5053" };
+                    hostnames = new List<string> { "9.9.9.10:5053", "149.112.112.10:5053" };
                     RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
-                    //BaseUri = new Uri($"https://{Hostname}/dns-query");
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.OpenDNS:
-                    hostnames = new List<string> { "208.67.222.222" };
-                    //Hostname = "doh.opendns.com";
+                    hostnames = new List<string> { "208.67.222.222", "208.67.220.220:5053" };
                     RequestFormat = DnsRequestFormat.DnsOverHttps;
-                    //BaseUri = new Uri($"https://{Hostname}/dns-query");
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.OpenDNSFamily:
-                    hostnames = ["208.67.222.123"];
+                    hostnames = ["208.67.222.123", "208.67.220.123"];
                     RequestFormat = DnsRequestFormat.DnsOverHttps;
-                    //BaseUri = new Uri($"https://{Hostname}/dns-query");
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 default:
