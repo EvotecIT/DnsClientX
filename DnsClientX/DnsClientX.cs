@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -55,6 +56,11 @@ namespace DnsClientX {
         /// The lock for thread safety
         /// </summary>
         private readonly object _lock = new object();
+
+        /// <summary>
+        /// Dictionary of clients for different selection strategies
+        /// </summary>
+        private readonly Dictionary<DnsSelectionStrategy, HttpClient> _clients = new Dictionary<DnsSelectionStrategy, HttpClient>();
 
         /// <summary>
         /// Gets or sets the security protocol. The default value is <see cref="SecurityProtocolType.Tls12"/> which is required by Quad 9.
@@ -142,6 +148,25 @@ namespace DnsClientX {
                     Client.DefaultRequestHeaders.Accept.ParseAdd("application/dns-json");
                 }
             }
+        }
+
+        /// <summary>
+        /// Gets the client based on the selection strategy
+        /// This allows us to have multiple clients for different strategies, so performance is not affected
+        /// </summary>
+        /// <param name="strategy">The strategy.</param>
+        /// <returns></returns>
+        private HttpClient GetClient(DnsSelectionStrategy strategy) {
+            if (!_clients.TryGetValue(strategy, out var client)) {
+                lock (_lock) {
+                    if (!_clients.TryGetValue(strategy, out client)) {
+                        ConfigureClient();
+                        client = Client;
+                        _clients[strategy] = client;
+                    }
+                }
+            }
+            return client;
         }
     }
 }
