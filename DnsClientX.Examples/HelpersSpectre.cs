@@ -52,7 +52,11 @@ namespace DnsClientX.Examples {
                 answerTable.AddColumn("Name");
                 answerTable.AddColumn("Data");
                 answerTable.AddRow(new Markup(answer.Type.ToString()), new Markup(answer.TTL.ToString()), new Markup(answer.Name), new Markup(answer.Data));
-                table.AddRow(new Markup(response.Status.ToString()), new Markup(questions), answerTable);
+                if (response.Status == DnsResponseCode.NoError) {
+                    table.AddRow(new Markup($"[green]{response.Status}[/]"), new Markup(questions), answerTable);
+                } else {
+                    table.AddRow(new Markup($"[red]{response.Status}[/]"), new Markup(questions), answerTable);
+                }
             }
 
             AnsiConsole.Write(table);
@@ -79,8 +83,11 @@ namespace DnsClientX.Examples {
                 answerTable.AddRow(new Markup(answer.Type.ToString()), new Markup(answer.TTL.ToString()), new Markup(answer.Name), new Markup(answer.Data));
             }
 
-            table.AddRow(new Markup(response.Status.ToString()), new Markup(questions), new Markup(server), answerTable);
-
+            if (response.Status == DnsResponseCode.NoError) {
+                table.AddRow(new Markup($"[green]{response.Status}[/]"), new Markup(questions), new Markup(server), answerTable);
+            } else {
+                table.AddRow(new Markup($"[red]{response.Status}[/]"), new Markup(questions), new Markup(server), answerTable);
+            }
             AnsiConsole.Write(table);
         }
 
