@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
@@ -23,21 +22,15 @@ namespace DnsClientX {
             // lets we execute valid dns host name strategy
             EndpointConfiguration.SelectHostNameStrategy();
 
+            // Get the HttpClient for the current strategy
+            Client = GetClient(EndpointConfiguration.SelectionStrategy);
+
             DnsResponse response;
             if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
-                if (EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Random) {
-                    ConfigureClient();
-                }
                 response = await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps) {
-                if (EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Random) {
-                    ConfigureClient();
-                }
                 response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST) {
-                if (EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Random) {
-                    ConfigureClient();
-                }
                 response = await Client.ResolveWireFormatPost(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
                 response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
@@ -49,7 +42,7 @@ namespace DnsClientX {
                 throw new DnsClientException($"Invalid RequestFormat: {EndpointConfiguration.RequestFormat}");
             }
 
-            // Some DNS Providers return requested type, but also additional types 
+            // Some DNS Providers return requested type, but also additional types
             // https://dns.quad9.net:5053/dns-query?name=autodiscover.evotec.pl&type=CNAME
             // We want to make sure the output is consistent
             if (!returnAllTypes && response.Answers != null) {
