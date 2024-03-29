@@ -46,7 +46,7 @@ For now only `GET` requests are supported for Wireformat, as `POST` requests are
 
 ## Credits
 
-This project general idea is based on [DnsOverHttps](https://github.com/actually-akac/DnsOverHttps) by [@akac](https://github.com/actually-akac) which was a starting point for **DnsClientX**. I've decided to take it a step further and make it more generic and more flexible. I've also added more providers and more options to the library, improving . I've also added tests to make sure everything works as expected.
+This project general idea is based on [DnsOverHttps](https://github.com/actually-akac/DnsOverHttps) by [@akac](https://github.com/actually-akac) which was an inspiration for **DnsClientX**. I've decided to take it a step further and make it more generic and more flexible. I've also added more providers and more options to the library, improving . I've also added tests to make sure everything works as expected.
 
 ## TO DO
 
