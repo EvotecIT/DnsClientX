@@ -213,7 +213,7 @@ namespace DnsClientX {
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.OpenDNS:
-                    hostnames = new List<string> { "208.67.222.222", "208.67.220.220:5053" };
+                    hostnames = new List<string> { "208.67.222.222", "208.67.220.220" };
                     RequestFormat = DnsRequestFormat.DnsOverHttps;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
