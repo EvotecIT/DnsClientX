@@ -17,25 +17,23 @@ namespace DnsClientX {
         /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS responses that match the filter.</returns>
         public async Task<DnsResponse[]> ResolveFilter(string[] names, DnsRecordType type, string filter, bool requestDnsSec = false, bool validateDnsSec = false) {
-            var tasks = new List<Task<DnsResponse>>();
-
-            foreach (var name in names) {
-                tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec));
-            }
+            var tasks = names.Select(name => Resolve(name, type, requestDnsSec, validateDnsSec)).ToList();
 
             await Task.WhenAll(tasks);
 
             var responses = tasks.Select(task => task.Result).ToList();
 
             var filteredResponses = responses
-                .Select(response => new DnsResponse {
-                    Answers = response.Answers.Where(answer => Regex.IsMatch(answer.Data, filter)).ToArray()
+                .Where(response => response.Answers.Any(answer => Regex.IsMatch(answer.Data, filter)))
+                .Select(response => {
+                    response.Answers = response.Answers.Where(answer => Regex.IsMatch(answer.Data, filter)).ToArray();
+                    return response;
                 })
-                .Where(response => response.Answers.Any())
                 .ToArray();
 
             return filteredResponses;
         }
+
 
         /// <summary>
         /// Resolves a single domain name for a single DNS record type using DNS over HTTPS.
