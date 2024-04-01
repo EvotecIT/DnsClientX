@@ -45,11 +45,6 @@ namespace DnsClientX {
             // Send the DNS query over UDP and receive the response
             var responseBuffer = await SendQueryOverTcp(queryBytes, dnsServer, port);
 
-            // At this point, responseBuffer contains the full DNS response
-            if (debug) {
-                Console.WriteLine($"Received response: {BitConverter.ToString(responseBuffer)}");
-            }
-
             // Deserialize the response from DNS wire format
             var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer);
             response.AddServerDetails(endpointConfiguration);
