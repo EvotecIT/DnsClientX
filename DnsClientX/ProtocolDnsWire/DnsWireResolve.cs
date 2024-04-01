@@ -48,7 +48,30 @@ namespace DnsClientX {
 
                 return response;
             } catch (HttpRequestException ex) {
-                throw new DnsClientException($"Failed to query type {type} of \"{name}\" => {ex.Message + " " + ex.InnerException.Message}");
+                // If the request fails, return a response with the appropriate error code
+                // TODO: Add more specific error codes?
+                DnsResponseCode responseCode;
+                if (ex.InnerException is WebException webEx && webEx.Status == WebExceptionStatus.ConnectFailure) {
+                    responseCode = DnsResponseCode.Refused;
+                } else {
+                    responseCode = DnsResponseCode.ServerFailure;
+                }
+
+                DnsResponse response = new DnsResponse();
+                response.Questions = [
+                    new DnsQuestion() {
+                        Name = name,
+                        RequestFormat = DnsRequestFormat.DnsOverHttps,
+                        HostName = client.BaseAddress.Host,
+                        Port = client.BaseAddress.Port,
+                        Type = type,
+                        OriginalName = name
+                    }
+                ];
+                response.Status = responseCode;
+                response.AddServerDetails(endpointConfiguration);
+                response.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message + " " + ex.InnerException.Message}";
+                return response;
             }
         }
     }
