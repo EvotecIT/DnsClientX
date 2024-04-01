@@ -100,11 +100,6 @@ namespace DnsClientX {
                 totalBytesRead += bytesRead;
             }
 
-            // At this point, responseBuffer contains the full DNS response
-            if (debug) {
-                Console.WriteLine($"Received response: {BitConverter.ToString(responseBuffer)}");
-            }
-
             // Deserialize the response from DNS wire format
             var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer);
             response.AddServerDetails(endpointConfiguration);
