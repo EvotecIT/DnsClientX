@@ -32,7 +32,7 @@ namespace DnsClientX.Examples {
                 "evotec.xyz"
             };
 
-            string filter = "v=spf1";
+            string filter = "SPF1";
 
             // List of record types to query
             var recordTypes = new List<DnsRecordType> {
