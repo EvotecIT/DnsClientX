@@ -2,8 +2,6 @@ using System.Threading.Tasks;
 
 namespace DnsClientX.Examples {
     internal class DemoResolveUdpTcp {
-
-
         public static async Task ExampleTestingUdp() {
             HelpersSpectre.AddLine("Resolve", "github.com", DnsRecordType.TXT, "192.168.241.6", DnsRequestFormat.DnsOverUDP);
             ClientX client = new ClientX("192.168.241.6", DnsRequestFormat.DnsOverUDP) {
