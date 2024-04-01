@@ -4,9 +4,14 @@ namespace DnsClientX {
     /// </summary>
     public enum DnsEndpoint {
         /// <summary>
-        /// Use the system's default DNS resolver using UDP.
+        /// Use the system's default DNS resolver using UDP. When using this option, the system's default DNS resolver will be used.
+        /// When UDP reaches the maximum packet size, it will automatically switch to TCP.
         /// </summary>
         System,
+        /// <summary>
+        /// Use the system's default DNS resolver using TCP. When using this option, the system's default DNS resolver will be used.
+        /// </summary>
+        SystemTcp,
         /// <summary>
         /// Cloudflare DNS-over-HTTPS endpoint.
         /// </summary>
