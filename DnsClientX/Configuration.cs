@@ -154,6 +154,12 @@ namespace DnsClientX {
                 case DnsEndpoint.System:
                     // Use the system's default DNS resolver
                     hostnames = SystemInformation.GetDnsFromActiveNetworkCard();
+                    RequestFormat = DnsRequestFormat.DnsOverUDP;
+                    baseUriFormat = "https://{0}/dns-query";
+                    break;
+                case DnsEndpoint.SystemTcp:
+                    // Use the system's default DNS resolver
+                    hostnames = SystemInformation.GetDnsFromActiveNetworkCard();
                     RequestFormat = DnsRequestFormat.DnsOverTCP;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
