@@ -18,13 +18,11 @@ namespace DnsClientX.Tests {
             var response = await ClientX.QueryDns("spf-a.anotherexample.com", DnsRecordType.A, endpoint);
             Assert.True(response.Questions.Length == 1);
             Assert.True(response.Answers.Length == 0);
-
+            Assert.True(response.Status != DnsResponseCode.NoError);
             foreach (DnsQuestion question in response.Questions) {
                 Assert.True(question.Name == "spf-a.anotherexample.com");
                 Assert.True(question.Type == DnsRecordType.A);
             }
-
-            Assert.True(response.Comments.Length > 0);
         }
     }
 }
