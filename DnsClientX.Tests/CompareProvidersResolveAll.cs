@@ -15,7 +15,8 @@ namespace DnsClientX.Tests {
         [InlineData("evotec.pl", DnsRecordType.SPF)]
         [InlineData("evotec.pl", DnsRecordType.TXT)]
         [InlineData("evotec.pl", DnsRecordType.SRV)]
-        [InlineData("evotec.pl", DnsRecordType.NSEC)]
+        // for some reason OpenDNS doesn't support SRV record output in NSEC record
+        [InlineData("evotec.pl", DnsRecordType.NSEC, new[] { DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("cloudflare.com", DnsRecordType.NSEC)]
         [InlineData("mail-db3pr0202cu00100.inbound.protection.outlook.com", DnsRecordType.PTR)]
         // lets try different sites
