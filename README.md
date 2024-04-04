@@ -31,7 +31,7 @@ DnsClientX is available as NuGet from the Nuget Gallery and as PowerShell module
 
 <img width="256" height="256" align=right src="https://raw.githubusercontent.com/EvotecIT/DnsClientX/master/Assets/Icons/DnsClientX3.png">
 
-**DnsClientX** is an async C# library for DNS over UDP, TCP, HTTPS (DoH), and TLS (DoT)
+**DnsClientX** is an async C# library for DNS over UDP, TCP, HTTPS (DoH), and TLS (DoT). It also has a PowerShell module that can be used to query DNS records. It provides a simple way to query DNS records using multiple DNS providers. It supports multiple DNS record types and parallel queries. It's available for .NET 6, .NET 7, .NET 8, .NET Standard 2.0, and .NET 4.7.2.
 
 It provides querying multiple DNS Providers.
 - [Cloudflare](https://developers.cloudflare.com/1.1.1.1/encryption/dns-over-https/)
