@@ -60,9 +60,6 @@ namespace DnsClientX {
                 Console.WriteLine($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
 
-            //string dnsServer = "9.9.9.9"; // Cloudflare's DoT endpoint
-            //int port = 853;
-
             // Create a new TCP client and connect to the DNS server
             var client = new TcpClient(dnsServer, port);
 

@@ -34,17 +34,10 @@ namespace DnsClientX {
             content.Headers.ContentType = new MediaTypeHeaderValue("application/dns-message");
             content.Headers.ContentLength = queryBytes.Length;
 
-            //var response = await client.PostAsync(Configuration.BaseUri, content);
             var postAsync = await client.PostAsync(client.BaseAddress, content);
-
-            //if (response.IsSuccessStatusCode) {
             var response = await postAsync.DeserializeDnsWireFormat(debug);
             response.AddServerDetails(endpointConfiguration);
             return response;
-            //} else {
-            //    throw new DnsOverHttpsException($"HTTP request failed with status code: {response.StatusCode}");
-            //}
-            //}
         }
     }
 }

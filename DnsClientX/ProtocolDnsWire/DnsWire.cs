@@ -144,8 +144,6 @@ namespace DnsClientX {
                     // Process the record data
                     string data = ProcessRecordData(dnsWireFormatBytes, recordStart, type, rdata, rdLength, messageStart);
 
-                    //Console.WriteLine("Data: " + data);
-
                     //Create a new Answer object and fill in the properties based on the DNS wire format bytes
                     answers[i] = new DnsAnswer {
                         Name = name,
@@ -191,29 +189,6 @@ namespace DnsClientX {
                 return response;
             } catch (Exception ex) {
                 throw new DnsClientException(ex.Message);
-
-                //DnsResponseCode responseCode;
-                //if (ex.InnerException is WebException webEx && webEx.Status == WebExceptionStatus.ConnectFailure) {
-                //    responseCode = DnsResponseCode.Refused;
-                //} else {
-                //    responseCode = DnsResponseCode.ServerFailure;
-                //}
-
-                //DnsResponse response = new DnsResponse();
-                //response.Questions = [
-                //    new DnsQuestion() {
-                //        Name = name,
-                //        RequestFormat = DnsRequestFormat.DnsOverHttps,
-                //        HostName = client.BaseAddress.Host,
-                //        Port = client.BaseAddress.Port,
-                //        Type = type,
-                //        OriginalName = name
-                //    }
-                //];
-                //response.Status = responseCode;
-                //// response.AddServerDetails(configuration:);
-                //response.Error = ex.Message;
-                //return response;
             }
         }
 
