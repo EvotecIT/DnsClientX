@@ -9,19 +9,12 @@ $AssemblyFolders = Get-ChildItem -Path $PSScriptRoot\bin\Debug\net472 -File -Err
 
 # to speed up development adding direct path to binaries, instead of the the Lib folder
 $Development = $true
-$BinaryDev = @(
-    if ($PSEdition -eq 'Core') {
-        $Variable = Resolve-Path "$PSScriptRoot\..\DnsClientX.PowerShell\bin\Debug\netstandard2.0\DnsClientX.PowerShell.dll"
-    } else {
-        $Variable = Resolve-Path "$PSScriptRoot\..\DnsClientX.PowerShell\bin\Debug\net472\DnsClientX.PowerShell.dll"
-    }
-    $Variable
-    Write-Warning "Development mode: Using binaries from $Variable"
-)
+$DevelopmentPath = "$PSScriptRoot\..\DnsClientX.PowerShell\bin\Debug"
+$DevelopmentFolderCore = "netstandard2.0"
+$DevelopmentFolderDefault = "net472"
 $BinaryModules = @(
     "DnsClientX.PowerShell.dll"
 )
-
 # Lets find which libraries we need to load
 $Default = $false
 $Core = $false
@@ -59,6 +52,18 @@ if ($Standard -and $Core -and $Default) {
 } else {
     #Write-Error -Message 'No assemblies found'
 }
+
+$BinaryDev = @(
+    foreach ($BinaryModule in $BinaryModules) {
+        if ($PSEdition -eq 'Core') {
+            $Variable = Resolve-Path "$DevelopmentPath\$DevelopmentFolderCore\$BinaryModule"
+        } else {
+            $Variable = Resolve-Path "$DevelopmentPath\$DevelopmentFolderDefault\$BinaryModule"
+        }
+        $Variable
+        Write-Warning "Development mode: Using binaries from $Variable"
+    }
+)
 
 $Assembly = @(
     if ($Framework -and $PSEdition -eq 'Core') {
