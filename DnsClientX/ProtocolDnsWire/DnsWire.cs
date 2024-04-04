@@ -9,19 +9,26 @@ using System.Threading.Tasks;
 
 namespace DnsClientX {
     internal static class DnsWire {
-
-        public static async Task<byte[]> ReadResponseBytes(this HttpResponseMessage response) {
-            using var stream = await response.Content.ReadAsStreamAsync();
-            if (stream.Length == 0) throw new DnsClientException("Response content is empty, can't parse as DNS wire format.");
-
-            using (var memoryStream = new MemoryStream()) {
-                await stream.CopyToAsync(memoryStream);
-                return memoryStream.ToArray();
-            }
-        }
-
-
-        public static async Task<DnsResponse> DeserializeDnsWireFormat(this HttpResponseMessage res, bool debug = false, byte[] bytes = null) {
+        /// <summary>
+        /// Deserializes the DNS wire format.
+        /// </summary>
+        /// <param name="res">The resource.</param>
+        /// <param name="debug">if set to <c>true</c> [debug].</param>
+        /// <param name="bytes">The bytes.</param>
+        /// <returns></returns>
+        /// <exception cref="DnsClientX.DnsClientException">
+        /// Response content is empty, can't parse as DNS wire format.
+        /// or
+        /// Not enough data in the stream to read the question.
+        /// or
+        /// Not enough data in the stream to read the answer.
+        /// or
+        /// Not enough data in the stream to read the authority.
+        /// or
+        /// Not enough data in the stream to read the additional.
+        /// or
+        /// </exception>
+        internal static async Task<DnsResponse> DeserializeDnsWireFormat(this HttpResponseMessage res, bool debug = false, byte[] bytes = null) {
             try {
                 byte[] dnsWireFormatBytes;
                 if (bytes != null) {
@@ -51,7 +58,7 @@ namespace DnsClientX {
 
                 // Check the RCODE and throw an exception if it indicates an error
                 if (rcode != DnsResponseCode.NoError) {
-                    throw new DnsClientException($"DNS query failed with RCODE: {rcode}");
+                    //throw new DnsClientException($"DNS query failed with RCODE: {rcode}");
                 }
 
                 // Create a BinaryReader to read the DNS wire format bytes
@@ -136,8 +143,6 @@ namespace DnsClientX {
 
                     // Process the record data
                     string data = ProcessRecordData(dnsWireFormatBytes, recordStart, type, rdata, rdLength, messageStart);
-
-                    //Console.WriteLine("Data: " + data);
 
                     //Create a new Answer object and fill in the properties based on the DNS wire format bytes
                     answers[i] = new DnsAnswer {

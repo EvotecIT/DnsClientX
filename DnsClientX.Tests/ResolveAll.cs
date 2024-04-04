@@ -1,11 +1,16 @@
 namespace DnsClientX.Tests {
     public class ResolveFirst {
         [Theory]
+        [InlineData(DnsEndpoint.System)]
+        [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
         [InlineData(DnsEndpoint.CloudflareFamily)]
         [InlineData(DnsEndpoint.CloudflareSecurity)]
         [InlineData(DnsEndpoint.CloudflareWireFormat)]
+        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
         [InlineData(DnsEndpoint.Google)]
+        [InlineData(DnsEndpoint.GoogleWireFormat)]
+        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.Quad9)]
         [InlineData(DnsEndpoint.Quad9ECS)]
         [InlineData(DnsEndpoint.Quad9Unsecure)]
@@ -21,11 +26,16 @@ namespace DnsClientX.Tests {
         }
 
         [Theory]
+        [InlineData(DnsEndpoint.System)]
+        [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
         [InlineData(DnsEndpoint.CloudflareFamily)]
         [InlineData(DnsEndpoint.CloudflareSecurity)]
         [InlineData(DnsEndpoint.CloudflareWireFormat)]
+        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
         [InlineData(DnsEndpoint.Google)]
+        [InlineData(DnsEndpoint.GoogleWireFormat)]
+        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.Quad9)]
         [InlineData(DnsEndpoint.Quad9ECS)]
         [InlineData(DnsEndpoint.Quad9Unsecure)]

@@ -1,6 +1,7 @@
 using System;
 using System.Buffers.Binary;
 using System.IO;
+using System.Net;
 using System.Text;
 
 namespace DnsClientX {
@@ -92,52 +93,99 @@ namespace DnsClientX {
         }
 
         /// <summary>
-        /// Serializes the DNS wire format for POST query
-        /// TODO: Doesn't work properly
+        /// Serializes the DNS wire format
         /// </summary>
         /// <returns></returns>
         public byte[] SerializeDnsWireFormat() {
             using (var ms = new MemoryStream()) {
-                using (var writer = new BinaryWriter(ms)) {
-                    // Transaction ID
-                    Random random = new Random();
-                    ushort randomId = (ushort)random.Next(ushort.MinValue, ushort.MaxValue);
-                    writer.Write((ushort)randomId);
-                    //writer.Write((ushort)1);
+                // Transaction ID
+                Random random = new Random();
+                ushort randomId = (ushort)random.Next(ushort.MinValue, ushort.MaxValue);
+                var bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)randomId));
+                ms.Write(bytes, 0, bytes.Length);
 
-                    // Flags
-                    writer.Write((ushort)0x0100); // Standard query
-                    //writer.Write((ushort)0x0000);
+                // Flags
+                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)0x0100)); // Standard query
+                ms.Write(bytes, 0, bytes.Length);
 
-                    // Questions
-                    writer.Write((ushort)1);
+                // Questions
+                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)1));
+                ms.Write(bytes, 0, bytes.Length);
 
-                    // Answer RRs
-                    writer.Write((ushort)0);
+                // Answer RRs
+                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)0));
+                ms.Write(bytes, 0, bytes.Length);
 
-                    // Authority RRs
-                    writer.Write((ushort)0);
+                // Authority RRs
+                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)0));
+                ms.Write(bytes, 0, bytes.Length);
 
-                    // Additional RRs
-                    writer.Write((ushort)0);
+                // Additional RRs
+                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)0));
+                ms.Write(bytes, 0, bytes.Length);
 
-                    // Queries
-                    foreach (var part in _name.Split('.')) {
-                        writer.Write((byte)part.Length);
-                        writer.Write(Encoding.ASCII.GetBytes(part));
-                    }
-
-                    writer.Write((byte)0); // End of name
-
-                    // Type
-                    writer.Write((ushort)_type);
-
-                    // Class
-                    writer.Write((ushort)1); // IN
+                // Queries
+                foreach (var part in _name.Split('.')) {
+                    ms.WriteByte((byte)part.Length);
+                    var partBytes = Encoding.ASCII.GetBytes(part);
+                    ms.Write(partBytes, 0, partBytes.Length);
                 }
+                ms.WriteByte((byte)0); // End of name
+
+                // Type
+                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)_type));
+                ms.Write(bytes, 0, bytes.Length);
+
+                // Class
+                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)1)); // IN
+                ms.Write(bytes, 0, bytes.Length);
 
                 return ms.ToArray();
             }
         }
+
+        //public byte[] SerializeDnsWireFormat() {
+        //    using (var ms = new MemoryStream()) {
+        //        using (var writer = new BinaryWriter(ms)) {
+        //            // Transaction ID
+        //            Random random = new Random();
+        //            ushort randomId = (ushort)random.Next(ushort.MinValue, ushort.MaxValue);
+        //            writer.Write((ushort)randomId);
+        //            //writer.Write((ushort)1);
+
+        //            // Flags
+        //            writer.Write((ushort)0x0100); // Standard query
+        //            //writer.Write((ushort)0x0000);
+
+        //            // Questions
+        //            writer.Write((ushort)1);
+
+        //            // Answer RRs
+        //            writer.Write((ushort)0);
+
+        //            // Authority RRs
+        //            writer.Write((ushort)0);
+
+        //            // Additional RRs
+        //            writer.Write((ushort)0);
+
+        //            // Queries
+        //            foreach (var part in _name.Split('.')) {
+        //                writer.Write((byte)part.Length);
+        //                writer.Write(Encoding.ASCII.GetBytes(part));
+        //            }
+
+        //            writer.Write((byte)0); // End of name
+
+        //            // Type
+        //            writer.Write((ushort)_type);
+
+        //            // Class
+        //            writer.Write((ushort)1); // IN
+        //        }
+
+        //        return ms.ToArray();
+        //    }
+        //}
     }
 }

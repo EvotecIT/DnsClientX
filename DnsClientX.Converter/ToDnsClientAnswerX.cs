@@ -4,6 +4,11 @@ using System.Collections.Generic;
 
 namespace DnsClientX.Converter {
     public static partial class DnsClientXExtensions {
+        /// <summary>
+        /// Converts  multiple DnsResourceRecords from DnsClient to DnsClientX.
+        /// </summary>
+        /// <param name="dnsResourceRecords">The DNS resource records.</param>
+        /// <returns></returns>
         public static DnsAnswer[] ToDnsClientAnswerX(this IEnumerable<DnsResourceRecord> dnsResourceRecords) {
             var dnsAnswers = new List<DnsAnswer>();
             foreach (var dnsResourceRecord in dnsResourceRecords) {
@@ -14,6 +19,12 @@ namespace DnsClientX.Converter {
         }
 
 
+        /// <summary>
+        /// Converts DnsResourceRecord from DnsClient to DnsClientX answer.
+        /// </summary>
+        /// <param name="dnsResourceRecord">The DNS resource record.</param>
+        /// <returns></returns>
+        /// <exception cref="System.NotImplementedException">The record type {dnsResourceRecord.RecordType} is not yet implemented</exception>
         public static DnsAnswer ToDnsClientAnswerX(this DnsResourceRecord dnsResourceRecord) {
             switch (dnsResourceRecord.RecordType) {
                 case ResourceRecordType.A:
