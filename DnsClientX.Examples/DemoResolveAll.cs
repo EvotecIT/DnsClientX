@@ -61,5 +61,51 @@ namespace DnsClientX.Examples {
                 }
             }
         }
+
+        public static async Task Example2() {
+            var dnsEndpoints = new List<DnsEndpoint> {
+                DnsEndpoint.Cloudflare,
+            };
+
+            // List of endpoints to exclude
+            var excludeEndpoints = new List<DnsEndpoint> {
+
+            };
+
+            var domains = new List<string> {
+                "evotec.xyz"
+            };
+
+            // List of record types to query
+            var recordTypes = new List<DnsRecordType> {
+                DnsRecordType.A,
+                DnsRecordType.TXT,
+                DnsRecordType.AAAA,
+                DnsRecordType.MX,
+                DnsRecordType.NS,
+                DnsRecordType.SOA,
+                DnsRecordType.DNSKEY,
+                DnsRecordType.NSEC
+            };
+
+            foreach (var endpoint in dnsEndpoints) {
+                if (excludeEndpoints.Contains(endpoint)) {
+                    continue; // Skip this iteration if the endpoint is in the exclude list
+                }
+
+                // Create a new client for each endpoint
+                var client = new ClientX(endpoint) {
+                    Debug = false
+                };
+
+                foreach (var domain in domains) {
+                    foreach (var recordType in recordTypes) {
+                        HelpersSpectre.AddLine("ResolveAll", domain, recordType, endpoint);
+                        var response = await client.ResolveAll(domain, recordType);
+                        response.DisplayToConsole();
+                    }
+                }
+            }
+        }
     }
 }

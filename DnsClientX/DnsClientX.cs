@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -52,6 +53,16 @@ namespace DnsClientX {
         private HttpClientHandler handler;
 
         /// <summary>
+        /// The lock for thread safety
+        /// </summary>
+        private readonly object _lock = new object();
+
+        /// <summary>
+        /// Dictionary of clients for different selection strategies
+        /// </summary>
+        private readonly Dictionary<DnsSelectionStrategy, HttpClient> _clients = new Dictionary<DnsSelectionStrategy, HttpClient>();
+
+        /// <summary>
         /// Gets or sets the security protocol. The default value is <see cref="SecurityProtocolType.Tls12"/> which is required by Quad 9.
         /// </summary>
         /// <value>
@@ -72,8 +83,9 @@ namespace DnsClientX {
         /// Initializes a new instance of the <see cref="ClientX"/> class.
         /// </summary>
         /// <param name="endpoint">The endpoint.</param>
-        public ClientX(DnsEndpoint endpoint = DnsEndpoint.Cloudflare) {
-            EndpointConfiguration = new Configuration(endpoint);
+        /// <param name="dnsSelectionStrategy">Dns selection strategy</param>
+        public ClientX(DnsEndpoint endpoint = DnsEndpoint.Cloudflare, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First) {
+            EndpointConfiguration = new Configuration(endpoint, dnsSelectionStrategy);
             ConfigureClient();
         }
 
@@ -101,33 +113,60 @@ namespace DnsClientX {
         /// Configures the client to required parameters
         /// </summary>
         private void ConfigureClient() {
-            // let's allow TLS 1.2 by default as Quad9 requires it
-            SecurityProtocol = SecurityProtocolType.Tls12;
+            lock (_lock) {
+                // let's allow TLS 1.2 by default as Quad9 requires it
+                SecurityProtocol = SecurityProtocolType.Tls12;
 
-            // let's allow self-signed certificates if we want to
-            handler = new HttpClientHandler();
-            if (IgnoreCertificateErrors) {
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-            }
-            handler.SslProtocols = (SslProtocols)SecurityProtocol;
+                Client?.Dispose();
+                handler?.Dispose();
 
-            Client = new HttpClient(handler) {
-                BaseAddress = EndpointConfiguration.BaseUri,
-            };
+                // let's allow self-signed certificates if we want to
+                handler = new HttpClientHandler();
+                if (IgnoreCertificateErrors) {
+                    handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+                }
+
+                handler.SslProtocols = (SslProtocols)SecurityProtocol;
+
+                Client = new HttpClient(handler) {
+                    BaseAddress = EndpointConfiguration.BaseUri,
+                };
 
 #if NETCOREAPP2_1_OR_GREATER || NET5_0_OR_GREATER
-            Client.DefaultRequestVersion = Configuration.HttpVersion;
+                Client.DefaultRequestVersion = Configuration.HttpVersion;
 #endif
-            // Set the user agent to the default value
-            Client.DefaultRequestHeaders.UserAgent.ParseAdd(EndpointConfiguration.UserAgent);
-            Client.DefaultRequestHeaders.Accept.Clear();
+                // Set the user agent to the default value
+                Client.DefaultRequestHeaders.UserAgent.ParseAdd(EndpointConfiguration.UserAgent);
+                Client.DefaultRequestHeaders.Accept.Clear();
 
-            // Set the accept header based on the request format, which is required for proper processing
-            if (EndpointConfiguration.RequestFormat == DnsRequestFormat.WireFormatGet || EndpointConfiguration.RequestFormat == DnsRequestFormat.WireFormatPost) {
-                Client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/dns-message"));
-            } else {
-                Client.DefaultRequestHeaders.Accept.ParseAdd("application/dns-json");
+                // Set the accept header based on the request format, which is required for proper processing
+                if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps ||
+                    EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST) {
+                    Client.DefaultRequestHeaders.Accept.Add(
+                        new MediaTypeWithQualityHeaderValue("application/dns-message"));
+                } else {
+                    Client.DefaultRequestHeaders.Accept.ParseAdd("application/dns-json");
+                }
             }
+        }
+
+        /// <summary>
+        /// Gets the client based on the selection strategy
+        /// This allows us to have multiple clients for different strategies, so performance is not affected
+        /// </summary>
+        /// <param name="strategy">The strategy.</param>
+        /// <returns></returns>
+        private HttpClient GetClient(DnsSelectionStrategy strategy) {
+            if (!_clients.TryGetValue(strategy, out var client)) {
+                lock (_lock) {
+                    if (!_clients.TryGetValue(strategy, out client)) {
+                        ConfigureClient();
+                        client = Client;
+                        _clients[strategy] = client;
+                    }
+                }
+            }
+            return client;
         }
     }
 }

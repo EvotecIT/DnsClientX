@@ -4,6 +4,15 @@ namespace DnsClientX {
     /// </summary>
     public enum DnsEndpoint {
         /// <summary>
+        /// Use the system's default DNS resolver using UDP. When using this option, the system's default DNS resolver will be used.
+        /// When UDP reaches the maximum packet size, it will automatically switch to TCP.
+        /// </summary>
+        System,
+        /// <summary>
+        /// Use the system's default DNS resolver using TCP. When using this option, the system's default DNS resolver will be used.
+        /// </summary>
+        SystemTcp,
+        /// <summary>
         /// Cloudflare DNS-over-HTTPS endpoint.
         /// </summary>
         Cloudflare,
@@ -19,11 +28,22 @@ namespace DnsClientX {
         /// Cloudflare's DNS-over-HTTPS endpoint using wire format.
         /// </summary>
         CloudflareWireFormat,
-        //CloudflareWireFormatPost,
+        /// <summary>
+        /// Cloudfare's DNS-over-HTTPS endpoint using wire format with POST method.
+        /// </summary>
+        CloudflareWireFormatPost,
         /// <summary>
         /// Google's DNS-over-HTTPS endpoint.
         /// </summary>
         Google,
+        /// <summary>
+        /// Google's DNS-over-HTTPS endpoint using wire format over GET method.
+        /// </summary>
+        GoogleWireFormat,
+        /// <summary>
+        /// Google's DNS-over-HTTPS endpoint using wire format over POST method.
+        /// </summary>
+        GoogleWireFormatPost,
         /// <summary>
         /// Quad9's DNS-over-HTTPS endpoint.
         /// </summary>

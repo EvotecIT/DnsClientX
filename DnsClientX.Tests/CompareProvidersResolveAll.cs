@@ -15,7 +15,8 @@ namespace DnsClientX.Tests {
         [InlineData("evotec.pl", DnsRecordType.SPF)]
         [InlineData("evotec.pl", DnsRecordType.TXT)]
         [InlineData("evotec.pl", DnsRecordType.SRV)]
-        [InlineData("evotec.pl", DnsRecordType.NSEC)]
+        // for some reason OpenDNS doesn't support SRV record output in NSEC record
+        [InlineData("evotec.pl", DnsRecordType.NSEC, new[] { DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9, DnsEndpoint.Quad9Unsecure })]
         [InlineData("cloudflare.com", DnsRecordType.NSEC)]
         [InlineData("mail-db3pr0202cu00100.inbound.protection.outlook.com", DnsRecordType.PTR)]
         // lets try different sites
@@ -45,8 +46,8 @@ namespace DnsClientX.Tests {
                     continue;
                 }
                 output.WriteLine("Provider: " + endpointCompare.ToString());
-                var ClientToCompare = new ClientX(endpointCompare);
-                DnsAnswer[] aAnswersToCompare = await ClientToCompare.ResolveAll(name, resourceRecordType);
+                var clientToCompare = new ClientX(endpointCompare);
+                DnsAnswer[] aAnswersToCompare = await clientToCompare.ResolveAll(name, resourceRecordType);
 
                 var sortedAAnswers = aAnswersPrimary.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();
                 var sortedAAnswersCompared = aAnswersToCompare.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();
