@@ -369,3 +369,5 @@ build/*
 /.idea/
 
 /Ignore/*
+/Module/Artefacts/*
+/Module/Lib/*
