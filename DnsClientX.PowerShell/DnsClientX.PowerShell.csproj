@@ -1,12 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFrameworks>net472;net6.0;net7.0;net8.0</TargetFrameworks>
-        <!-- <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`Windows`))' ">
-            net472;net6.0;net7.0;net8.0
+        <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`Windows`))' ">
+            netstandard2.0;net472;net6.0;net7.0;net8.0
         </TargetFrameworks>
-        <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`OSX`))' Or '$([MSBuild]::IsOsPlatform(`Linux`))' ">
+        <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`OSX`))'  Or '$([MSBuild]::IsOsPlatform(`Linux`))' ">
             net6.0;net7.0;net8.0
-        </TargetFrameworks> -->
+        </TargetFrameworks>
         <Description>PowerShell Module for working with Event Logs</Description>
         <AssemblyName>DnsClientX.PowerShell</AssemblyName>
         <AssemblyTitle>DnsClientX.PowerShell</AssemblyTitle>

@@ -3,46 +3,20 @@
 Build-Module -ModuleName 'DnsClientX' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = '1.0.0'
-
+        ModuleVersion        = '0.1.0'
         CompatiblePSEditions = @('Desktop', 'Core')
-
         GUID                 = '77fa806c-70b7-48d9-8b88-942ed73f24ed'
-
         Author               = 'Przemyslaw Klys'
-
-        # Company or vendor of this module
         CompanyName          = 'Evotec'
-
-        # Copyright statement for this module
         Copyright            = "(c) 2011 - $((Get-Date).Year) Przemyslaw Klys @ Evotec. All rights reserved."
-
-        Description          = 'Simple project DnsClientX'
-
+        Description          = 'DnsClientX is PowerShell module that allows you to query DNS servers for information. It supports DNS over UDP, TCP and DNS over HTTPS (DoH). It supports multiple types of DNS queries and can be used to query public DNS servers, private DNS servers and has built-in DNS Providers.'
         Tags                 = @('Windows', 'MacOS', 'Linux')
-
-        # IconUri              = 'https://evotec.xyz/wp-content/uploads/2018/10/PSEventViewer.png'
-
+        IconUri              = 'https://raw.githubusercontent.com/EvotecIT/DnsClientX/master/Assets/Icons/DnsClientX3_128x128.png'
         ProjectUri           = 'https://github.com/EvotecIT/DnsClientX'
-
         PowerShellVersion    = '5.1'
     }
     New-ConfigurationManifest @Manifest
 
-    # Add standard module dependencies (directly, but can be used with loop as well)
-    #New-ConfigurationModule -Type RequiredModule -Name 'PSSharedGoods' -Guid 'Auto' -Version 'Latest'
-
-    # Add external module dependencies, using loop for simplicity
-    #foreach ($Module in @('Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Archive', 'Microsoft.PowerShell.Management', 'Microsoft.PowerShell.Security')) {
-    #    New-ConfigurationModule -Type ExternalModule -Name $Module
-    #}
-
-    # Add approved modules, that can be used as a dependency, but only when specific function from those modules is used
-    # And on that time only that function and dependant functions will be copied over
-    # Keep in mind it has it's limits when "copying" functions such as it should not depend on DLLs or other external files
-    #New-ConfigurationModule -Type ApprovedModule -Name 'PSSharedGoods', 'PSWriteColor', 'Connectimo', 'PSUnifi', 'PSWebToolbox', 'PSMyPassword'
-
-    #New-ConfigurationModuleSkip -IgnoreFunctionName 'Invoke-Formatter', 'Find-Module' -IgnoreModuleName 'platyPS'
 
     $ConfigurationFormat = [ordered] @{
         RemoveComments                              = $false
@@ -53,7 +27,7 @@ Build-Module -ModuleName 'DnsClientX' {
         PlaceOpenBraceIgnoreOneLineBlock            = $false
 
         PlaceCloseBraceEnable                       = $true
-        PlaceCloseBraceNewLineAfter                 = $true
+        PlaceCloseBraceNewLineAfter                 = $false
         PlaceCloseBraceIgnoreOneLineBlock           = $false
         PlaceCloseBraceNoEmptyLineBefore            = $true
 
@@ -101,7 +75,7 @@ Build-Module -ModuleName 'DnsClientX' {
         NETProjectName                    = 'DnsClientX.PowerShell'
         NETBinaryModule                   = 'DnsClientX.PowerShell.dll'
         NETConfiguration                  = 'Release'
-        NETFramework                      = 'netstandard2.0'
+        NETFramework                      = 'net472', 'net6.0'
         DotSourceLibraries                = $true
     }
 
