@@ -23,7 +23,7 @@
         <LangVersion>Latest</LangVersion>
 
         <PackageId>DnsClientX.Converter</PackageId>
-        <PackageIcon>DnsClientX.Converter.png</PackageIcon>
+        <!-- <PackageIcon>DnsClientX.Converter.png</PackageIcon> -->
         <PackageTags>
             dns;https;dns-over-https;net472;net48;netstandard;netstandard2.0,netstandard2.1;net70;net80
         </PackageTags>
@@ -38,7 +38,7 @@
         <DebugType>portable</DebugType>
         <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
         <!-- <ApplicationIcon>DnsClientX.Converter.ico</ApplicationIcon> -->
-        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <!-- <PackageReadmeFile>README.md</PackageReadmeFile> -->
         <RepositoryType>git</RepositoryType>
         <SignAssembly>False</SignAssembly>
         <GenerateDocumentationFile>True</GenerateDocumentationFile>
