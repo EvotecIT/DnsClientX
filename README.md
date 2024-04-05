@@ -11,12 +11,12 @@ DnsClientX is available as NuGet from the Nuget Gallery and as PowerShell module
   <!-- <a href="https://dev.azure.com/evotecpl/DnsClientX/_build/latest?definitionId=3"><img src="https://dev.azure.com/evotecpl/DnsClientX/_apis/build/status/EvotecIT.DnsClientX"></a> -->
   <a href="https://www.powershellgallery.com/packages/DnsClientX"><img src="https://img.shields.io/powershellgallery/v/DnsClientX.svg"></a>
   <a href="https://www.powershellgallery.com/packages/DnsClientX"><img src="https://img.shields.io/powershellgallery/vpre/DnsClientX.svg?label=powershell%20gallery%20preview&colorB=yellow"></a>
+  <a href="https://www.powershellgallery.com/packages/DnsClientX"><img src="https://img.shields.io/powershellgallery/p/DnsClientX.svg"></a>
+  <a href="https://www.powershellgallery.com/packages/DnsClientX"><img src="https://img.shields.io/powershellgallery/dt/DnsClientX.svg"></a>
 </p>
 
 <p align="center">
-  <a href="https://www.powershellgallery.com/packages/DnsClientX"><img src="https://img.shields.io/powershellgallery/p/DnsClientX.svg"></a>
   <a href="https://github.com/EvotecIT/DnsClientX"><img src="https://img.shields.io/github/languages/top/evotecit/DnsClientX.svg"></a>
-  <a href="https://www.powershellgallery.com/packages/DnsClientX"><img src="https://img.shields.io/powershellgallery/dt/DnsClientX.svg"></a>
   <a href="https://github.com/EvotecIT/DnsClientX"><img src="https://img.shields.io/github/license/EvotecIT/DnsClientX.svg"></a>
 </p>
 
