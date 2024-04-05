@@ -1,3 +1,5 @@
-﻿## 1.0.0
+﻿## 0.1.1 - 2024.04.05
+- Fixes packaging for NUGET to display proper readme
 
-### What's Changed
+## 0.1.0 - 2024.04.05
+- Initial release
