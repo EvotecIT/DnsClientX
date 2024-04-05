@@ -1,5 +1,3 @@
-using Spectre.Console;
-using System;
 using System.Threading.Tasks;
 
 namespace DnsClientX.Examples {
