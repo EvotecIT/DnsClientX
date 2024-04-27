@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+
 using DnsClientX;
 
 namespace DnsClientX.Examples {
@@ -66,6 +67,15 @@ namespace DnsClientX.Examples {
             var data = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, DnsEndpoint.System, DnsSelectionStrategy.Random);
             data.Questions.DisplayTable();
             data.Answers.DisplayTable();
+        }
+
+        public static async Task ExampleTLSA() {
+            var domains = "_25._tcp.mail.ietf.org";
+            foreach (DnsEndpoint endpoint in Enum.GetValues(typeof(DnsEndpoint))) {
+                HelpersSpectre.AddLine("QueryDns", domains, DnsRecordType.TLSA, endpoint);
+                var data = await ClientX.QueryDns(domains, DnsRecordType.TLSA, endpoint);
+                data.DisplayTable();
+            }
         }
     }
 }

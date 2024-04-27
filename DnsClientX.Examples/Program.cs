@@ -14,6 +14,7 @@ namespace DnsClientX.Examples {
 
             //await GetSystemDns.Example1();
             await DemoQuery.Example0();
+            await DemoQuery.ExampleTLSA();
             return;
             await DemoQuery.Example1();
             await DemoQuery.ExampleGoogleOverWire();

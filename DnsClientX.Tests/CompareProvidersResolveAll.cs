@@ -30,6 +30,7 @@ namespace DnsClientX.Tests {
         [InlineData("microsoft.com", DnsRecordType.NS)]
 
         [InlineData("google.com", DnsRecordType.MX)]
+        [InlineData("_25._tcp.mail.ietf.org", DnsRecordType.TLSA)]
         public async void CompareRecords(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 
