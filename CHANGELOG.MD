@@ -1,4 +1,11 @@
-﻿## 0.2.0 - 2024.04.
+﻿## 0.2.1 - 2024.04.27
+
+### What's new
+- Updated description of package
+
+**Full Changelog**: https://github.com/EvotecIT/DnsClientX/compare/v0.2.0...v0.2.1
+
+## 0.2.0 - 2024.04.27
 
 ### What's Changed
 * Add TLSA record improvements & other by @PrzemyslawKlys in https://github.com/EvotecIT/DnsClientX/pull/7
