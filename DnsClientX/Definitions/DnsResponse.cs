@@ -107,6 +107,11 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="configuration"></param>
         internal void AddServerDetails(Configuration configuration) {
+            if (Questions == null) {
+                // TODO: This is unexpected. Wrong query? Better handle?
+                return;
+                throw new InvalidOperationException("Questions is not set. This is unexpected. Wrong query?");
+            }
             for (int i = 0; i < Questions.Length; i++) {
                 Questions[i].HostName = configuration.Hostname;
                 Questions[i].BaseUri = configuration.BaseUri;
