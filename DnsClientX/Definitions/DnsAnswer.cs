@@ -176,7 +176,41 @@ namespace DnsClientX {
                         }
                     }
                 }
+
                 return DataRaw;
+            } else if (Type == DnsRecordType.TLSA) {
+                // This is a TLSA record. The data is in HEX.
+                // The data is in the format: 3 1 1 2b6e0f
+                // The first byte is the certificate usage, the second byte is the selector, the third byte is the matching type, and the rest is the certificate association data
+                byte[] parts;
+                if (DataRaw.StartsWith("\\#")) {
+                    // Handle hexadecimal format
+                    parts = DataRaw.Split(' ')
+                        .Skip(2) // Skip the first two parts
+                        .Where(part => !string.IsNullOrEmpty(part))
+                        .Select(part => part.Trim())
+                        .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]+\b\Z"))
+                        .Select(part => Convert.ToByte(part, 16)) // Convert from hexadecimal to byte
+                        .ToArray();
+                } else if (Regex.IsMatch(DataRaw, @"^\d+ \d+ \d+ [\da-fA-F]+$")) {
+                    // If the DataRaw string is already in the correct format, return it as it is
+                    return DataRaw;
+                } else {
+                    // Handle Base64 format
+                    parts = Convert.FromBase64String(DataRaw);
+                }
+
+                // Get the certificate usage
+                var certificateUsage = parts[0];
+                // Get the selector
+                var selector = parts[1];
+                // Get the matching type
+                var matchingType = parts[2];
+                // Get the certificate association data
+                var certificateAssociationData = string.Join("", parts.Skip(3).Select(part => part.ToString("x2")));
+                //Console.WriteLine($"{certificateUsage} {selector} {matchingType} {certificateAssociationData}");
+                return $"{certificateUsage} {selector} {matchingType} {certificateAssociationData}";
+
             } else {
                 return DataRaw;
             }
