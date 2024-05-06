@@ -3,17 +3,19 @@
 Build-Module -ModuleName 'DnsClientX' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = '0.1.0'
+        ModuleVersion        = '0.2.0'
         CompatiblePSEditions = @('Desktop', 'Core')
         GUID                 = '77fa806c-70b7-48d9-8b88-942ed73f24ed'
         Author               = 'Przemyslaw Klys'
         CompanyName          = 'Evotec'
         Copyright            = "(c) 2011 - $((Get-Date).Year) Przemyslaw Klys @ Evotec. All rights reserved."
-        Description          = 'DnsClientX is PowerShell module that allows you to query DNS servers for information. It supports DNS over UDP, TCP and DNS over HTTPS (DoH). It supports multiple types of DNS queries and can be used to query public DNS servers, private DNS servers and has built-in DNS Providers.'
+        Description          = 'DnsClientX is PowerShell module that allows you to query DNS servers for information. It supports DNS over UDP, TCP and DNS over HTTPS (DoH) and DNS over TLS (DoT). It supports multiple types of DNS queries and can be used to query public DNS servers, private DNS servers and has built-in DNS Providers.'
         Tags                 = @('Windows', 'MacOS', 'Linux')
         IconUri              = 'https://raw.githubusercontent.com/EvotecIT/DnsClientX/master/Assets/Icons/DnsClientX3_128x128.png'
         ProjectUri           = 'https://github.com/EvotecIT/DnsClientX'
         PowerShellVersion    = '5.1'
+        AliasesToExport      = @('Resolve-DnsQuery')
+        CmdletsToExport      = @('Resolve-Dns')
     }
     New-ConfigurationManifest @Manifest
 
@@ -70,7 +72,7 @@ Build-Module -ModuleName 'DnsClientX' {
         MergeFunctionsFromApprovedModules = $true
         CertificateThumbprint             = '483292C9E317AA13B07BB7A96AE9D1A5ED9E7703'
         NETProjectPath                    = "$PSScriptRoot\..\..\DnsClientX.PowerShell"
-        ResolveBinaryConflicts            = $false
+        ResolveBinaryConflicts            = $true
         ResolveBinaryConflictsName        = 'DnsClientX.PowerShell'
         NETProjectName                    = 'DnsClientX.PowerShell'
         NETBinaryModule                   = 'DnsClientX.PowerShell.dll'
