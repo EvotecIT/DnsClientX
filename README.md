@@ -93,7 +93,7 @@ This library supports multiple NET versions:
 - [ ] Go thru all additional parameters and make sure they have proper responses
 
 
-## Usage
+## Usage in .NET
 
 There are multiple ways to use DnsClientX.
 
@@ -196,6 +196,37 @@ foreach (var endpoint in dnsEndpoints) {
         }
     }
 }
+```
+
+## Usage in PowerShell
+
+DnsClientX is also available as a PowerShell module. Below are some examples.
+
+```powershell
+Resolve-DnsQuery -Name 'evotec.pl' -Type A | Format-Table
+Resolve-DnsQuery -Name 'evotec.pl' -Type A -DnsProvider Cloudflare -Verbose | Format-Table
+Resolve-DnsQuery -Name 'evotec.pl' -Type TXT -DnsProvider System -Verbose | Format-Table
+Resolve-DnsQuery -Name 'github.com', 'evotec.pl', 'google.com' -Type TXT -DnsProvider System -Verbose | Format-Table
+```
+
+It can also deliver more detailed information.
+
+```powershell
+$Output = Resolve-DnsQuery -Name '_25._tcp.mail.ietf.org' -Type TLSA -DnsProvider Cloudflare -Verbose -FullResponse
+$Output.Questions | Format-Table
+$Output.AnswersMinimal | Format-Table
+
+$Output = Resolve-DnsQuery -Name 'github.com', 'evotec.pl', 'google.com' -Type TXT -DnsProvider Google -Verbose -FullResponse
+$Output.Questions | Format-Table
+$Output.AnswersMinimal | Format-Table
+
+$Output = Resolve-DnsQuery -Name 'github.com', 'evotec.pl', 'google.com' -Type TXT -DnsProvider Cloudflare -Verbose -FullResponse
+$Output.Questions | Format-Table
+$Output.AnswersMinimal | Format-Table
+
+$Output = Resolve-DnsQuery -Name 'github.com', 'evotec.pl', 'google.com' -Type TXT, A -Verbose -Server "192.168.241.5" -FullResponse
+$Output.Questions | Format-Table
+$Output.AnswersMinimal | Format-Table
 ```
 
 ## Please share with the community
