@@ -3,7 +3,8 @@ using System.Management.Automation;
 using System.Threading.Tasks;
 
 namespace DnsClientX.PowerShell {
-    [Cmdlet(VerbsDiagnostic.Resolve, "DnsQuery", DefaultParameterSetName = "ServerName")]
+    [Alias("Resolve-DnsQuery")]
+    [Cmdlet(VerbsDiagnostic.Resolve, "Dns", DefaultParameterSetName = "ServerName")]
     public sealed class CmdletResolveDnsQuery : AsyncPSCmdlet {
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ServerName")]
@@ -11,10 +12,10 @@ namespace DnsClientX.PowerShell {
 
         [Parameter(Mandatory = false, Position = 1, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, Position = 1, ParameterSetName = "ServerName")]
-        public DnsRecordType[] Type;
+        public DnsRecordType[] Type = [DnsRecordType.A];
 
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        public DnsEndpoint DnsProvider;
+        public DnsEndpoint? DnsProvider;
 
         [Alias("ServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
@@ -35,11 +36,11 @@ namespace DnsClientX.PowerShell {
             return Task.CompletedTask;
         }
         protected override Task ProcessRecordAsync() {
-            _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", Name, Type, DnsProvider);
-
+            string names = string.Join(", ", Name);
+            string types = string.Join(", ", Type);
             if (Server.Count > 0) {
                 string myServer = Server[0];
-                _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", Name, Type, myServer);
+                _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, myServer);
                 var result = ClientX.QueryDns(Name, Type, myServer, DnsRequestFormat.DnsOverUDP);
                 foreach (var record in result.Result) {
                     if (FullResponse.IsPresent) {
@@ -49,8 +50,15 @@ namespace DnsClientX.PowerShell {
                     }
                 }
             } else {
+                Task<DnsResponse[]> result;
+                if (DnsProvider == null) {
+                    _logger.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, "Default");
+                    result = ClientX.QueryDns(Name, Type);
+                } else {
+                    _logger.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, DnsProvider.Value);
+                    result = ClientX.QueryDns(Name, Type, DnsProvider.Value);
+                }
 
-                var result = ClientX.QueryDns(Name, Type, DnsProvider);
                 foreach (var record in result.Result) {
                     if (FullResponse.IsPresent) {
                         WriteObject(record);
