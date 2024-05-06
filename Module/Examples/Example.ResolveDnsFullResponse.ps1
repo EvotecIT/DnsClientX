@@ -14,6 +14,6 @@ $Output = Resolve-DnsQuery -Name 'github.com', 'evotec.pl', 'google.com' -Type T
 $Output.Questions | Format-Table
 $Output.AnswersMinimal | Format-Table
 
-$Output = Resolve-DnsQuery -Name 'github.com', 'evotec.pl', 'google.com' -Type TXT,A -Verbose -Server "192.168.241.5" -FullResponse
+$Output = Resolve-DnsQuery -Name 'github.com', 'evotec.pl', 'google.com' -Type TXT, A -Verbose -Server "192.168.241.5" -FullResponse
 $Output.Questions | Format-Table
 $Output.AnswersMinimal | Format-Table
