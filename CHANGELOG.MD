@@ -1,4 +1,7 @@
-﻿## 0.2.1 - 2024.04.27
+﻿## 0.2.2 - 2024.07.14
+- Update dll package
+
+## 0.2.1 - 2024.04.27
 
 ### What's new
 - Updated description of package
