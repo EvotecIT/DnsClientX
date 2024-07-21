@@ -1,9 +1,9 @@
-﻿Import-Module "C:\Support\GitHub\PSPublishModule\PSPublishModule.psd1" -Force
+﻿#Import-Module "C:\Support\GitHub\PSPublishModule\PSPublishModule.psd1" -Force
 
 Build-Module -ModuleName 'DnsClientX' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = '0.2.0'
+        ModuleVersion        = '0.2.X'
         CompatiblePSEditions = @('Desktop', 'Core')
         GUID                 = '77fa806c-70b7-48d9-8b88-942ed73f24ed'
         Author               = 'Przemyslaw Klys'
@@ -77,6 +77,7 @@ Build-Module -ModuleName 'DnsClientX' {
         NETConfiguration                  = 'Release'
         NETFramework                      = 'net472', 'net6.0'
         DotSourceLibraries                = $true
+        NETSearchClass                    = 'DnsClientX.PowerShell.CmdletResolveDnsQuery'
     }
 
     New-ConfigurationBuild @newConfigurationBuildSplat
