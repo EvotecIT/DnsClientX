@@ -5,6 +5,7 @@ namespace DnsClientX.Tests {
         [Theory]
         //[MemberData(nameof(TestData))]
         [InlineData("evotec.pl", DnsRecordType.A)]
+        [InlineData("www.bücher.de", DnsRecordType.A)]
         [InlineData("evotec.pl", DnsRecordType.SOA)]
         [InlineData("evotec.pl", DnsRecordType.DNSKEY)]
         [InlineData("sip.evotec.pl", DnsRecordType.CNAME)]
