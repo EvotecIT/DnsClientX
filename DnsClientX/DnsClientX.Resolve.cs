@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -24,6 +25,8 @@ namespace DnsClientX {
 
             // Get the HttpClient for the current strategy
             Client = GetClient(EndpointConfiguration.SelectionStrategy);
+
+            name = ConvertToPunycode(name);
 
             DnsResponse response;
             if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
@@ -121,6 +124,17 @@ namespace DnsClientX {
             await Task.WhenAll(tasks);
 
             return tasks.Select(task => task.Result).ToArray();
+        }
+
+        /// <summary>
+        /// Converts a domain name to its Punycode representation. This is useful for internationalized domain names (IDNs).
+        /// For example www.bücher.de will be converted to www.xn--bcher-kva.de
+        /// </summary>
+        /// <param name="domainName"></param>
+        /// <returns></returns>
+        public static string ConvertToPunycode(string domainName) {
+            IdnMapping idn = new IdnMapping();
+            return idn.GetAscii(domainName);
         }
     }
 }
