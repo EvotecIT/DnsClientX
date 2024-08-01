@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -167,6 +168,17 @@ namespace DnsClientX {
                 }
             }
             return client;
+        }
+
+        /// <summary>
+        /// Converts a domain name to its Punycode representation. This is useful for internationalized domain names (IDNs).
+        /// For example www.bücher.de will be converted to www.xn--bcher-kva.de
+        /// </summary>
+        /// <param name="domainName"></param>
+        /// <returns></returns>
+        private static string ConvertToPunycode(string domainName) {
+            IdnMapping idn = new IdnMapping();
+            return idn.GetAscii(domainName);
         }
     }
 }
