@@ -14,9 +14,11 @@ namespace DnsClientX {
         /// <param name="recordType">The type of DNS record to query.</param>
         /// <param name="dnsEndpoint">The DNS endpoint to use for the query. Defaults to Cloudflare.</param>
         /// <param name="dnsSelectionStrategy">The DNS selection strategy. Defaults to First</param>
+        /// <param name="timeOutMilliseconds"></param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
-        public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.Cloudflare, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First) {
+        public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.Cloudflare, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = 1000) {
             ClientX client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy);
+            client.EndpointConfiguration.TimeOut = timeOutMilliseconds;
             var data = await client.Resolve(name, recordType);
             return data;
         }
@@ -29,9 +31,14 @@ namespace DnsClientX {
         /// <param name="recordType">The type of DNS record to query.</param>
         /// <param name="dnsEndpoint">The DNS endpoint to use for the query. Defaults to Cloudflare.</param>
         /// <param name="dnsSelectionStrategy">The DNS selection strategy. Defaults to First</param>
+        /// <param name="timeOutMilliseconds"></param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
-        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.Cloudflare, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First) {
-            ClientX client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy);
+        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.Cloudflare, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = 1000) {
+            ClientX client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy) {
+                EndpointConfiguration = {
+                    TimeOut = timeOutMilliseconds
+                }
+            };
             var data = await client.Resolve(name, recordType);
             return data;
         }
@@ -44,9 +51,14 @@ namespace DnsClientX {
         /// <param name="recordType">The type of DNS record to query.</param>
         /// <param name="dnsUri">The full URI of the DNS server to query.</param>
         /// <param name="requestFormat">The format of the DNS request.</param>
+        /// <param name="timeOutMilliseconds"></param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
-        public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, Uri dnsUri, DnsRequestFormat requestFormat) {
-            ClientX client = new ClientX(dnsUri, requestFormat);
+        public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000) {
+            ClientX client = new ClientX(dnsUri, requestFormat) {
+                EndpointConfiguration = {
+                    TimeOut = timeOutMilliseconds
+                }
+            };
             var data = await client.Resolve(name, recordType);
             return data;
         }
@@ -58,9 +70,14 @@ namespace DnsClientX {
         /// <param name="recordType">Type of the record.</param>
         /// <param name="dnsUri">The DNS URI.</param>
         /// <param name="requestFormat">The request format.</param>
+        /// <param name="timeOutMilliseconds"></param>
         /// <returns></returns>
-        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, Uri dnsUri, DnsRequestFormat requestFormat) {
-            ClientX client = new ClientX(dnsUri, requestFormat);
+        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000) {
+            ClientX client = new ClientX(dnsUri, requestFormat) {
+                EndpointConfiguration = {
+                    TimeOut = timeOutMilliseconds
+                }
+            };
             var data = await client.Resolve(name, recordType);
             return data;
         }
@@ -73,9 +90,14 @@ namespace DnsClientX {
         /// <param name="recordType">The type of DNS record to query.</param>
         /// <param name="hostName">The hostname of the DNS server to query.</param>
         /// <param name="requestFormat">The format of the DNS request.</param>
+        /// <param name="timeOutMilliseconds"></param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
-        public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat) {
-            ClientX client = new ClientX(hostName, requestFormat);
+        public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000) {
+            ClientX client = new ClientX(hostName, requestFormat) {
+                EndpointConfiguration = {
+                    TimeOut = timeOutMilliseconds
+                }
+            };
             var data = await client.Resolve(name, recordType);
             return data;
         }
@@ -87,9 +109,14 @@ namespace DnsClientX {
         /// <param name="recordType">Type of the record.</param>
         /// <param name="hostName">Name of the host.</param>
         /// <param name="requestFormat">The request format.</param>
+        /// <param name="timeOutMilliseconds"></param>
         /// <returns></returns>
-        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, string hostName, DnsRequestFormat requestFormat) {
-            ClientX client = new ClientX(hostName, requestFormat);
+        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000) {
+            ClientX client = new ClientX(hostName, requestFormat) {
+                EndpointConfiguration = {
+                    TimeOut = timeOutMilliseconds
+                }
+            };
             var data = await client.Resolve(name, recordType);
             return data;
         }
@@ -101,9 +128,14 @@ namespace DnsClientX {
         /// <param name="recordType">Type of the record.</param>
         /// <param name="hostName">Name of the host.</param>
         /// <param name="requestFormat">The request format.</param>
+        /// <param name="timeOutMilliseconds"></param>
         /// <returns></returns>
-        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat) {
-            ClientX client = new ClientX(hostName, requestFormat);
+        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000) {
+            ClientX client = new ClientX(hostName, requestFormat) {
+                EndpointConfiguration = {
+                    TimeOut = timeOutMilliseconds
+                }
+            };
             var data = await client.Resolve(name, recordType);
             return data;
         }
@@ -115,9 +147,14 @@ namespace DnsClientX {
         /// <param name="name">Multiple domain names to check for given type</param>
         /// <param name="recordType">Multiple types to check for given name.</param>
         /// <param name="dnsEndpoint">The DNS endpoint. Default endpoint is Cloudflare</param>
+        /// <param name="timeOutMilliseconds"></param>
         /// <returns></returns>
-        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.Cloudflare) {
-            ClientX client = new ClientX(endpoint: dnsEndpoint);
+        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.Cloudflare, int timeOutMilliseconds = 1000) {
+            ClientX client = new ClientX(endpoint: dnsEndpoint) {
+                EndpointConfiguration = {
+                    TimeOut = timeOutMilliseconds
+                }
+            };
             var data = await client.Resolve(name, recordType);
             return data;
         }

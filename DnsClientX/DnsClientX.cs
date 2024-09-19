@@ -85,8 +85,11 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="endpoint">The endpoint.</param>
         /// <param name="dnsSelectionStrategy">Dns selection strategy</param>
-        public ClientX(DnsEndpoint endpoint = DnsEndpoint.Cloudflare, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First) {
-            EndpointConfiguration = new Configuration(endpoint, dnsSelectionStrategy);
+        /// <param name="timeOutMilliseconds"></param>
+        public ClientX(DnsEndpoint endpoint = DnsEndpoint.Cloudflare, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = 1000) {
+            EndpointConfiguration = new Configuration(endpoint, dnsSelectionStrategy) {
+                TimeOut = timeOutMilliseconds
+            };
             ConfigureClient();
         }
 
@@ -95,8 +98,11 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="hostname">The hostname.</param>
         /// <param name="requestFormat">The request format.</param>
-        public ClientX(string hostname, DnsRequestFormat requestFormat) {
-            EndpointConfiguration = new Configuration(hostname, requestFormat);
+        /// <param name="timeOutMilliseconds"></param>
+        public ClientX(string hostname, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000) {
+            EndpointConfiguration = new Configuration(hostname, requestFormat) {
+                TimeOut = timeOutMilliseconds
+            };
             ConfigureClient();
         }
 
@@ -105,8 +111,11 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="baseUri">The base URI.</param>
         /// <param name="requestFormat">The request format.</param>
-        public ClientX(Uri baseUri, DnsRequestFormat requestFormat) {
-            EndpointConfiguration = new Configuration(baseUri, requestFormat);
+        /// <param name="timeOutMilliseconds"></param>
+        public ClientX(Uri baseUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000) {
+            EndpointConfiguration = new Configuration(baseUri, requestFormat) {
+                TimeOut = timeOutMilliseconds
+            };
             ConfigureClient();
         }
 
