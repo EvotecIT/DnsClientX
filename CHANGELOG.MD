@@ -1,4 +1,9 @@
-﻿## 0.2.2 - 2024.07.21
+﻿## 0.3.0 - 2024.09.19
+- Added IDN conversion (punycode) for domain names
+- Added timeout for UDP requests
+- Added error handling for UDP requests
+
+## 0.2.2 - 2024.07.21
 - Update dll package
 
 ## 0.2.1 - 2024.04.27
