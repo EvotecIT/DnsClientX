@@ -19,5 +19,23 @@ namespace DnsClientX.Examples {
             var data = await client.Resolve("github.com", DnsRecordType.TXT);
             data.DisplayTable();
         }
+
+        public static async Task ExampleTestingUdpWrongServer() {
+            HelpersSpectre.AddLine("Resolve", "github.com", DnsRecordType.TXT, "8.8.1.1", DnsRequestFormat.DnsOverUDP);
+            ClientX client = new ClientX("8.8.1.1", DnsRequestFormat.DnsOverUDP) {
+                Debug = true
+            };
+            var data = await client.Resolve("github.com", DnsRecordType.TXT);
+            data.DisplayTable();
+        }
+
+        public static async Task ExampleTestingUdpWrongServer1() {
+            HelpersSpectre.AddLine("Resolve", "github.com", DnsRecordType.TXT, "a1-226.akam.net", DnsRequestFormat.DnsOverUDP);
+            ClientX client = new ClientX("a1-226.akam1.net", DnsRequestFormat.DnsOverUDP) {
+                Debug = true
+            };
+            var data = await client.Resolve("github.com", DnsRecordType.TXT);
+            data.DisplayTable();
+        }
     }
 }
