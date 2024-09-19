@@ -31,7 +31,7 @@ namespace DnsClientX.Examples {
 
         public static async Task ExampleTestingUdpWrongServer1() {
             HelpersSpectre.AddLine("Resolve", "github.com", DnsRecordType.TXT, "a1-226.akam.net", DnsRequestFormat.DnsOverUDP);
-            ClientX client = new ClientX("a1-226.akam1.net", DnsRequestFormat.DnsOverUDP) {
+            ClientX client = new ClientX("a1akam1.net", DnsRequestFormat.DnsOverUDP) {
                 Debug = true
             };
             var data = await client.Resolve("github.com", DnsRecordType.TXT);
