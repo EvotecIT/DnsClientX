@@ -8,5 +8,6 @@ Resolve-DnsQuery -Name 'evotec.pl' -Type A -DnsProvider Cloudflare -Verbose | Fo
 Resolve-DnsQuery -Name 'evotec.pl' -Type TXT -DnsProvider System -Verbose | Format-Table
 Resolve-DnsQuery -Name 'github.com', 'evotec.pl', 'google.com' -Type TXT -DnsProvider System -Verbose | Format-Table
 Resolve-DnsQuery -Name 'github.com', 'evotec.pl', 'google.com' -Type TXT -DnsProvider System -Verbose #-TimeOut 5000
+# Should fail next two
 Resolve-DnsQuery -Name 'evotec.pl' -Type SOA -Server 8.8.4.1 -Verbose -TimeOut 500 | Format-Table
 Resolve-DnsQuery -Name 'evotec.pl' -Type SOA -Server a1.net -Verbose -TimeOut 500 | Format-Table
