@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -24,6 +25,8 @@ namespace DnsClientX {
 
             // Get the HttpClient for the current strategy
             Client = GetClient(EndpointConfiguration.SelectionStrategy);
+
+            name = ConvertToPunycode(name);
 
             DnsResponse response;
             if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {

@@ -13,14 +13,19 @@ namespace DnsClientX.Examples {
             //await DemoByManualUrl.ExampleGoogle();
 
             //await GetSystemDns.Example1();
-            await DemoQuery.Example0();
-            await DemoQuery.ExampleTLSA();
+            //await DemoQuery.Example0();
+            //await DemoQuery.ExampleTLSA();
+
+            await DemoResolveUdpTcp.ExampleTestingUdpWrongServer();
+            await DemoResolveUdpTcp.ExampleTestingUdpWrongServer1();
+
             return;
             await DemoQuery.Example1();
             await DemoQuery.ExampleGoogleOverWire();
             await DemoQuery.ExampleGoogleOverWirePost();
             await DemoQuery.ExampleCloudflareSelection();
             //await DemoQuery.ExampleSystemDns();
+
 
 
             //await DemoResolveReturn.Example();

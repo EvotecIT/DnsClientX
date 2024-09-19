@@ -49,6 +49,12 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
         public SwitchParameter FullResponse;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
+        public int TimeOut = 1000;
+
         private InternalLogger _logger;
 
         protected override Task BeginProcessingAsync() {
@@ -65,8 +71,13 @@ namespace DnsClientX.PowerShell {
             if (Server.Count > 0) {
                 string myServer = Server[0];
                 _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, myServer);
-                var result = ClientX.QueryDns(Name, Type, myServer, DnsRequestFormat.DnsOverUDP);
+                var result = ClientX.QueryDns(Name, Type, myServer, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut);
                 foreach (var record in result.Result) {
+                    if (record.Status == DnsResponseCode.NoError) {
+                        _logger.WriteVerbose("Query successful for {0} with type {1}, {2}", names, types, myServer);
+                    } else {
+                        _logger.WriteWarning("Query failed for {0} with type {1}, {2} and error: {3}", names, types, myServer, record.Error);
+                    }
                     if (FullResponse.IsPresent) {
                         WriteObject(record);
                     } else {
@@ -77,13 +88,26 @@ namespace DnsClientX.PowerShell {
                 Task<DnsResponse[]> result;
                 if (DnsProvider == null) {
                     _logger.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, "Default");
-                    result = ClientX.QueryDns(Name, Type);
+                    result = ClientX.QueryDns(Name, Type, timeOutMilliseconds: TimeOut);
                 } else {
                     _logger.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, DnsProvider.Value);
-                    result = ClientX.QueryDns(Name, Type, DnsProvider.Value);
+                    result = ClientX.QueryDns(Name, Type, DnsProvider.Value, timeOutMilliseconds: TimeOut);
                 }
 
                 foreach (var record in result.Result) {
+                    if (record.Status == DnsResponseCode.NoError) {
+                        if (DnsProvider == null) {
+                            _logger.WriteVerbose("Query successful for {0} with type {1}, {2}", names, types, "Default");
+                        } else {
+                            _logger.WriteVerbose("Query successful for {0} with type {1}, {2}", names, types, DnsProvider.Value);
+                        }
+                    } else {
+                        if (DnsProvider == null) {
+                            _logger.WriteWarning("Query failed for {0} with type {1}, {2} and error: {3}", names, types, "Default", record.Error);
+                        } else {
+                            _logger.WriteWarning("Query failed for {0} with type {1}, {2} and error: {3}", names, types, DnsProvider.Value, record.Error);
+                        }
+                    }
                     if (FullResponse.IsPresent) {
                         WriteObject(record);
                     } else {

@@ -42,7 +42,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async void ShouldWorkForA(DnsEndpoint endpoint) {
-            var Client = new ClientX(endpoint);
             var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, endpoint);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "evotec.pl");

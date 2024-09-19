@@ -32,7 +32,7 @@ namespace DnsClientX {
         public string Hostname { get; private set; }
 
         /// <summary>
-        /// Gets the base URI to send DNS requests to. 
+        /// Gets the base URI to send DNS requests to.
         /// </summary>
         public Uri BaseUri { get; private set; }
 
@@ -45,6 +45,11 @@ namespace DnsClientX {
         /// The User-Agent header value to send along with DNS requests.
         /// </summary>
         public string UserAgent = "DnsClientX";
+
+        /// <summary>
+        /// Time-out for DNS Query in milliseconds. Valid only for UDP (for now).
+        /// </summary>
+        public int TimeOut = 1000;
 
         /// <summary>
         /// Gets or sets the format of the DNS requests.
