@@ -1,4 +1,7 @@
-﻿## 0.3.0 - 2024.09.19
+﻿## 0.3.1 - 2024.10.19
+- Updated dependencies
+
+## 0.3.0 - 2024.09.19
 - Added IDN conversion (punycode) for domain names
 - Added timeout for UDP requests
 - Added error handling for UDP requests
