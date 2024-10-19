@@ -1,5 +1,9 @@
 ﻿## 0.3.1 - 2024.10.19
-- Updated dependencies
+
+### What's Changed
+* Bump System.Text.Json from 8.0.4 to 8.0.5 in /DnsClientX by @dependabot in https://github.com/EvotecIT/DnsClientX/pull/11
+
+**Full Changelog**: https://github.com/EvotecIT/DnsClientX/compare/v0.3.0...v0.3.1
 
 ## 0.3.0 - 2024.09.19
 - Added IDN conversion (punycode) for domain names
