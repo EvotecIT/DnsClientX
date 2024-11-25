@@ -12,6 +12,14 @@ namespace DnsClientX.Examples {
             data.DisplayTable();
         }
 
+        public static async Task ExamplePTR() {
+            var domains = new[] { "1.1.1.1" };
+            HelpersSpectre.AddLine("QueryDns", "1.1.1.1", DnsRecordType.A, "1.1.1.1");
+            var data = await ClientX.QueryDns(domains, DnsRecordType.PTR, "1.1.1.1", DnsRequestFormat.DnsOverHttps);
+            data.DisplayTable();
+        }
+
+
 
         public static async Task Example1() {
             HelpersSpectre.AddLine("QueryDns", "evotec.pl", DnsRecordType.A, DnsEndpoint.CloudflareWireFormat);

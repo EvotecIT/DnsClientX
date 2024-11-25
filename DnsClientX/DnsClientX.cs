@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -188,6 +189,27 @@ namespace DnsClientX {
         private static string ConvertToPunycode(string domainName) {
             IdnMapping idn = new IdnMapping();
             return idn.GetAscii(domainName);
+        }
+
+        /// <summary>
+        /// Converts an IP address to its PTR format. This is useful for reverse DNS lookups.
+        /// </summary>
+        /// <param name="ipAddress"></param>
+        /// <returns></returns>
+        private string ConvertToPtrFormat(string ipAddress) {
+            if (IPAddress.TryParse(ipAddress, out IPAddress? ip)) {
+                if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) {
+                    // IPv4
+                    return string.Join(".", ip.GetAddressBytes().Reverse()) + ".in-addr.arpa";
+                } else if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6) {
+                    // IPv6
+                    return string.Join(".", ip.GetAddressBytes()
+                        .SelectMany(b => b.ToString("x2"))
+                        .Reverse()) + ".ip6.arpa";
+                }
+            }
+            // Invalid IP address, we return as is
+            return ipAddress;
         }
     }
 }

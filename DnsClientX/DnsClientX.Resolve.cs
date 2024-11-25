@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
@@ -26,6 +27,11 @@ namespace DnsClientX {
             // Get the HttpClient for the current strategy
             Client = GetClient(EndpointConfiguration.SelectionStrategy);
 
+            if (type == DnsRecordType.PTR) {
+                // if we have PTR we need to convert it to proper format, just in case user didn't provide as with one
+                name = ConvertToPtrFormat(name);
+            }
+            // Convert the domain name to punycode if it contains non-ASCII characters
             name = ConvertToPunycode(name);
 
             DnsResponse response;

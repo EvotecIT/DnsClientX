@@ -65,7 +65,7 @@ namespace DnsClientX {
         public string[] DataStrings => ConvertToMultiString();
 
         /// <summary>
-        /// The value of the DNS record for the given name and type, escaped if necessary removing the quotes completely. 
+        /// The value of the DNS record for the given name and type, escaped if necessary removing the quotes completely.
         /// </summary>
         [JsonIgnore]
         public string[] DataStringsEscaped {
@@ -211,8 +211,18 @@ namespace DnsClientX {
                 //Console.WriteLine($"{certificateUsage} {selector} {matchingType} {certificateAssociationData}");
                 return $"{certificateUsage} {selector} {matchingType} {certificateAssociationData}";
 
+            } else if (Type == DnsRecordType.PTR) {
+                // For PTR records, decode the domain name from the record data
+                try {
+                    var output = Encoding.UTF8.GetString(Convert.FromBase64String(DataRaw));
+                    return output.EndsWith(".") ? output.TrimEnd('.').ToLower() : output.ToLower();
+                } catch (FormatException) {
+                    // If it's not Base64, return the raw data as is
+                    return DataRaw.EndsWith(".") ? DataRaw.TrimEnd('.').ToLower() : DataRaw.ToLower();
+                }
             } else {
-                return DataRaw;
+                // Some records return the data in a higher case (microsoft.com/NS/Quad9ECS) which needs to be fixed
+                return DataRaw.ToLower();
             }
         }
     }
