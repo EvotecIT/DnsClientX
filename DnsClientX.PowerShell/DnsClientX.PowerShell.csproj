@@ -1,15 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`Windows`))' ">
-            netstandard2.0;net472;net6.0;net7.0;net8.0
+            netstandard2.0;net472;net8.0
         </TargetFrameworks>
         <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`OSX`))'  Or '$([MSBuild]::IsOsPlatform(`Linux`))' ">
-            net6.0;net7.0;net8.0
+            net8.0
         </TargetFrameworks>
         <Description>PowerShell Module for working with Event Logs</Description>
         <AssemblyName>DnsClientX.PowerShell</AssemblyName>
         <AssemblyTitle>DnsClientX.PowerShell</AssemblyTitle>
-        <VersionPrefix>0.3.1</VersionPrefix>
+        <VersionPrefix>0.3.2</VersionPrefix>
         <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
         <Company>Evotec</Company>
         <Authors>Przemyslaw Klys</Authors>
