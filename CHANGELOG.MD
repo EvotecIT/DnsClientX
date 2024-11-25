@@ -1,4 +1,11 @@
-﻿## 0.3.1 - 2024.10.19
+﻿## 0.3.2/0.3.3 - 2024.11.15
+### What's Changed
+* Few improvements, fix PTR by @PrzemyslawKlys in https://github.com/EvotecIT/DnsClientX/pull/12
+* Fix ptr & bump version by @PrzemyslawKlys in https://github.com/EvotecIT/DnsClientX/pull/13
+
+**Full Changelog**: https://github.com/EvotecIT/DnsClientX/compare/v0.3.1...v0.3.2
+
+## 0.3.1 - 2024.10.19
 
 ### What's Changed
 * Bump System.Text.Json from 8.0.4 to 8.0.5 in /DnsClientX by @dependabot in https://github.com/EvotecIT/DnsClientX/pull/11
