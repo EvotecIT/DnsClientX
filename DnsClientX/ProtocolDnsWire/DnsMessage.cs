@@ -143,49 +143,5 @@ namespace DnsClientX {
                 return ms.ToArray();
             }
         }
-
-        //public byte[] SerializeDnsWireFormat() {
-        //    using (var ms = new MemoryStream()) {
-        //        using (var writer = new BinaryWriter(ms)) {
-        //            // Transaction ID
-        //            Random random = new Random();
-        //            ushort randomId = (ushort)random.Next(ushort.MinValue, ushort.MaxValue);
-        //            writer.Write((ushort)randomId);
-        //            //writer.Write((ushort)1);
-
-        //            // Flags
-        //            writer.Write((ushort)0x0100); // Standard query
-        //            //writer.Write((ushort)0x0000);
-
-        //            // Questions
-        //            writer.Write((ushort)1);
-
-        //            // Answer RRs
-        //            writer.Write((ushort)0);
-
-        //            // Authority RRs
-        //            writer.Write((ushort)0);
-
-        //            // Additional RRs
-        //            writer.Write((ushort)0);
-
-        //            // Queries
-        //            foreach (var part in _name.Split('.')) {
-        //                writer.Write((byte)part.Length);
-        //                writer.Write(Encoding.ASCII.GetBytes(part));
-        //            }
-
-        //            writer.Write((byte)0); // End of name
-
-        //            // Type
-        //            writer.Write((ushort)_type);
-
-        //            // Class
-        //            writer.Write((ushort)1); // IN
-        //        }
-
-        //        return ms.ToArray();
-        //    }
-        //}
     }
 }
