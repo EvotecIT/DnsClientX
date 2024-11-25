@@ -3,6 +3,9 @@ using System.Threading.Tasks;
 namespace DnsClientX.Examples {
     public static class Program {
         public static async Task Main() {
+            await DemoQuery.ExamplePTR(); 
+            return;
+
             // await ConvertToDnsClient.ExampleConvertToDnsClientFromX();
             // await ConvertToDnsClient.ExampleConvertFromDnsClientToX();
             //await DemoQuery.ExampleTesting();
