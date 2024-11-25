@@ -214,16 +214,37 @@ namespace DnsClientX {
             } else if (Type == DnsRecordType.PTR) {
                 // For PTR records, decode the domain name from the record data
                 try {
+                    // First try to decode as Base64
                     var output = Encoding.UTF8.GetString(Convert.FromBase64String(DataRaw));
-                    return output.EndsWith(".") ? output.TrimEnd('.').ToLower() : output.ToLower();
+                    return ConvertSpecialFormatToDotted(output);
                 } catch (FormatException) {
-                    // If it's not Base64, return the raw data as is
-                    return DataRaw.EndsWith(".") ? DataRaw.TrimEnd('.').ToLower() : DataRaw.ToLower();
+                    // If it's not Base64, try to handle it as a special format directly
+                    return ConvertSpecialFormatToDotted(DataRaw);
                 }
             } else {
                 // Some records return the data in a higher case (microsoft.com/NS/Quad9ECS) which needs to be fixed
                 return DataRaw.ToLower();
             }
+        }
+
+        /// <summary>
+        /// Converts a special format like "\u0003one\u0003one\u0003one\u0003one\0" to a standard dotted format.
+        /// </summary>
+        /// <param name="data">The raw data in special format.</param>
+        /// <returns>The data in standard dotted format.</returns>
+        private string ConvertSpecialFormatToDotted(string data) {
+            if (string.IsNullOrWhiteSpace(data)) return data;
+
+            // Replace all variants of length-3 markers with dots
+            var result = data.Replace("\\u0003", ".")
+                            .Replace("\\003", ".")
+                            .Replace("\u0003", ".")
+                            .Replace("\0", "");  // Remove null terminators
+
+            // Clean up: remove leading/trailing dots and normalize multiple dots
+            return Regex.Replace(result, "\\.{2,}", ".")  // Replace multiple dots with single dot
+                       .Trim('.')                         // Remove leading/trailing dots
+                       .ToLower();                        // Normalize case
         }
     }
 }
