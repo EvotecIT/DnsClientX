@@ -235,16 +235,35 @@ namespace DnsClientX {
         private string ConvertSpecialFormatToDotted(string data) {
             if (string.IsNullOrWhiteSpace(data)) return data;
 
-            // Replace all variants of length-3 markers with dots
-            var result = data.Replace("\\u0003", ".")
-                            .Replace("\\003", ".")
-                            .Replace("\u0003", ".")
-                            .Replace("\0", "");  // Remove null terminators
+            // Check if the data is already in a standard format
+            if (data.All(c => char.IsLetterOrDigit(c) || c == '-' || c == '.')) {
+                return data.TrimEnd('.').ToLower();
+            }
 
-            // Clean up: remove leading/trailing dots and normalize multiple dots
-            return Regex.Replace(result, "\\.{2,}", ".")  // Replace multiple dots with single dot
-                       .Trim('.')                         // Remove leading/trailing dots
-                       .ToLower();                        // Normalize case
+            var result = new StringBuilder();
+            int i = 0;
+
+            while (i < data.Length) {
+                // Read the length byte
+                int length = data[i];
+                if (length == 0) break; // Null terminator indicates the end of the name
+
+                // Move to the next character
+                i++;
+
+                // Read the label
+                if (i + length <= data.Length) {
+                    result.Append(data.Substring(i, length));
+                    result.Append('.');
+                    i += length;
+                } else {
+                    // If the length byte is invalid, break the loop
+                    break;
+                }
+            }
+
+            // Remove the trailing dot and return the result
+            return result.ToString().TrimEnd('.').ToLower();
         }
     }
 }
