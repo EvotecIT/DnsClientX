@@ -19,6 +19,26 @@ namespace DnsClientX.Examples {
             data.DisplayTable();
         }
 
+        public static async Task ExamplePTR1() {
+            var domains = new[] { "1.1.1.1", "192.168.241.5", "192.168.241.108" };
+            HelpersSpectre.AddLine("QueryDns", "1.1.1.1", DnsRecordType.A, "192.168.241.5");
+            var data = await ClientX.QueryDns(domains, DnsRecordType.PTR, "192.168.241.5", DnsRequestFormat.DnsOverUDP);
+            data.DisplayTable();
+        }
+
+        public static async Task ExamplePTR2() {
+            var domains = new[] { "1.1.1.1", "192.168.241.5", "192.168.241.108" };
+            HelpersSpectre.AddLine("QueryDns", "1.1.1.1", DnsRecordType.A, "192.168.241.5");
+            var data = await ClientX.QueryDns(domains, DnsRecordType.PTR, "192.168.241.5", DnsRequestFormat.DnsOverTCP);
+            data.DisplayTable();
+        }
+
+        public static async Task ExamplePTR3() {
+            var domains = new[] { "1.1.1.1", "108.138.7.68" };
+            HelpersSpectre.AddLine("QueryDns", "1.1.1.1", DnsRecordType.A, "1.1.1.1");
+            var data = await ClientX.QueryDns(domains, DnsRecordType.PTR, "1.1.1.1", DnsRequestFormat.DnsOverHttps);
+            data.DisplayTable();
+        }
 
 
         public static async Task Example1() {

@@ -16,7 +16,7 @@ namespace DnsClientX {
         /// <param name="dnsSelectionStrategy">The DNS selection strategy. Defaults to First</param>
         /// <param name="timeOutMilliseconds"></param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
-        public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.Cloudflare, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = 1000) {
+        public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = 1000) {
             ClientX client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy);
             client.EndpointConfiguration.TimeOut = timeOutMilliseconds;
             var data = await client.Resolve(name, recordType);
@@ -33,7 +33,7 @@ namespace DnsClientX {
         /// <param name="dnsSelectionStrategy">The DNS selection strategy. Defaults to First</param>
         /// <param name="timeOutMilliseconds"></param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
-        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.Cloudflare, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = 1000) {
+        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = 1000) {
             ClientX client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy) {
                 EndpointConfiguration = {
                     TimeOut = timeOutMilliseconds
@@ -149,7 +149,7 @@ namespace DnsClientX {
         /// <param name="dnsEndpoint">The DNS endpoint. Default endpoint is Cloudflare</param>
         /// <param name="timeOutMilliseconds"></param>
         /// <returns></returns>
-        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.Cloudflare, int timeOutMilliseconds = 1000) {
+        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, int timeOutMilliseconds = 1000) {
             ClientX client = new ClientX(endpoint: dnsEndpoint) {
                 EndpointConfiguration = {
                     TimeOut = timeOutMilliseconds
