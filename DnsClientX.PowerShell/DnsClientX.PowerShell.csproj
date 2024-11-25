@@ -9,7 +9,7 @@
         <Description>PowerShell Module for working with Event Logs</Description>
         <AssemblyName>DnsClientX.PowerShell</AssemblyName>
         <AssemblyTitle>DnsClientX.PowerShell</AssemblyTitle>
-        <VersionPrefix>0.3.2</VersionPrefix>
+        <VersionPrefix>0.3.3</VersionPrefix>
         <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
         <Company>Evotec</Company>
         <Authors>Przemyslaw Klys</Authors>
