@@ -75,7 +75,7 @@ Build-Module -ModuleName 'DnsClientX' {
         NETProjectName                    = 'DnsClientX.PowerShell'
         NETBinaryModule                   = 'DnsClientX.PowerShell.dll'
         NETConfiguration                  = 'Release'
-        NETFramework                      = 'net472', 'net6.0'
+        NETFramework                      = 'net472', 'net8.0'
         DotSourceLibraries                = $true
         NETSearchClass                    = 'DnsClientX.PowerShell.CmdletResolveDnsQuery'
     }
@@ -83,7 +83,7 @@ Build-Module -ModuleName 'DnsClientX' {
     New-ConfigurationBuild @newConfigurationBuildSplat
 
     New-ConfigurationArtefact -Type Unpacked -Enable -Path "$PSScriptRoot\..\Artefacts\Unpacked" -RequiredModulesPath "$PSScriptRoot\..\Artefacts\Unpacked\Modules"
-    New-ConfigurationArtefact -Type Packed -Enable -Path "$PSScriptRoot\..\Artefacts\Packed" -IncludeTagName
+    New-ConfigurationArtefact -Type Packed -Enable -Path "$PSScriptRoot\..\Artefacts\Packed" -IncludeTagName -ArtefactName "DnsClientX-PowerShellModule.<TagModuleVersionWithPreRelease>.zip" -ID 'ToGitHub'
 
     # global options for publishing to github/psgallery
     #New-ConfigurationPublish -Type PowerShellGallery -FilePath 'C:\Support\Important\PowerShellGalleryAPI.txt' -Enabled:$true
