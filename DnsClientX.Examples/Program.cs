@@ -3,7 +3,10 @@ using System.Threading.Tasks;
 namespace DnsClientX.Examples {
     public static class Program {
         public static async Task Main() {
-            await DemoQuery.ExamplePTR(); 
+            await DemoQuery.ExamplePTR();
+            await DemoQuery.ExamplePTR1();
+            await DemoQuery.ExamplePTR2();
+            await DemoQuery.ExamplePTR3();
             return;
 
             // await ConvertToDnsClient.ExampleConvertToDnsClientFromX();
