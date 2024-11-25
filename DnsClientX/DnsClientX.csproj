@@ -18,7 +18,7 @@
         </TargetFrameworks>
         <TargetFrameworks
             Condition=" '$([MSBuild]::IsOsPlatform(`OSX`))'  Or '$([MSBuild]::IsOsPlatform(`Linux`))' ">
-            net6.0;net7.0;net8.0
+            net8.0;net9.0
         </TargetFrameworks>
         <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
         <Company>Evotec</Company>
