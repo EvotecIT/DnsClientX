@@ -1,18 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <Title>DnsClientX</Title>
-        <Description>DnsClientX is an async C# library for DNS over UDP, TCP, HTTPS (DoH), and TLS
+        <Description>
+            DnsClientX is an async C# library for DNS over UDP, TCP, HTTPS (DoH), and TLS
             (DoT). It also has a PowerShell module that can be used to query DNS records. It
             provides a simple way to query DNS records using multiple DNS providers. It supports
             multiple DNS record types and parallel queries. It's available for .NET 6, .NET 7, .NET
-            8, .NET Standard 2.0, and .NET 4.7.2.</Description>
+            8, .NET Standard 2.0, and .NET 4.7.2.
+        </Description>
         <AssemblyName>DnsClientX</AssemblyName>
         <AssemblyTitle>DnsClientX</AssemblyTitle>
-        <VersionPrefix>0.3.1</VersionPrefix>
-        <AssemblyVersion>0.3.1</AssemblyVersion>
-        <FileVersion>0.3.1</FileVersion>
+        <VersionPrefix>0.3.2</VersionPrefix>
+        <AssemblyVersion>0.3.2</AssemblyVersion>
+        <FileVersion>0.3.2</FileVersion>
         <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`Windows`))' ">
-            netstandard2.0;net472;net6.0;net7.0;net8.0
+            netstandard2.0;net472;net8.0;net9.0
         </TargetFrameworks>
         <TargetFrameworks
             Condition=" '$([MSBuild]::IsOsPlatform(`OSX`))'  Or '$([MSBuild]::IsOsPlatform(`Linux`))' ">
@@ -27,7 +29,7 @@
         <PackageId>DnsClientX</PackageId>
         <PackageIcon>DnsClientX.png</PackageIcon>
         <PackageTags>
-            dns;https;dns-over-https;net472;net48;netstandard;netstandard2.0,netstandard2.1;net70;net80
+            dns;https;dns-over-https;net472;net48;netstandard;netstandard2.0,netstandard2.1;net80;net90
         </PackageTags>
         <PackageProjectUrl>https://github.com/EvotecIT/DnsClientX</PackageProjectUrl>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -45,14 +47,6 @@
         <SignAssembly>False</SignAssembly>
         <GenerateDocumentationFile>True</GenerateDocumentationFile>
         <NeutralLanguage>en</NeutralLanguage>
-    </PropertyGroup>
-
-    <PropertyGroup
-        Condition="'$(TargetFramework)' == 'netcoreapp2.1' OR '$(TargetFramework)' == 'netcoreapp2.2' OR '$(TargetFramework)' == 'netcoreapp3.0' OR '$(TargetFramework)' == 'netcoreapp3.1' OR '$(TargetFramework)' == 'net5.0' OR '$(TargetFramework)' == 'net6.0'">
-        <DefineConstants>NETCOREAPP2_1_OR_GREATER</DefineConstants>
-    </PropertyGroup>
-    <PropertyGroup Condition="'$(TargetFramework)' == 'net5.0' OR '$(TargetFramework)' == 'net6.0'">
-        <DefineConstants>NET5_0_OR_GREATER</DefineConstants>
     </PropertyGroup>
 
     <ItemGroup>
