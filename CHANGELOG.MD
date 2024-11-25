@@ -1,4 +1,10 @@
-﻿## 0.3.2/0.3.3 - 2024.11.15
+﻿## 0.3.4 - 2024.11.15
+### What's Changed
+* Further changes to PTR (I'm pretty bad at this), changes default provider from Cloudflare to System by @PrzemyslawKlys in https://github.com/EvotecIT/DnsClientX/pull/14
+
+**Full Changelog**: https://github.com/EvotecIT/DnsClientX/compare/v...v0.3.4
+
+## 0.3.2/0.3.3 - 2024.11.15
 ### What's Changed
 * Few improvements, fix PTR by @PrzemyslawKlys in https://github.com/EvotecIT/DnsClientX/pull/12
 * Fix ptr & bump version by @PrzemyslawKlys in https://github.com/EvotecIT/DnsClientX/pull/13
