@@ -333,7 +333,7 @@ namespace DnsClientX {
                 string regexp = Encoding.ASCII.GetString(reader.ReadBytes(regexpLength));
 
                 var replacementBuilder = new StringBuilder();
-                byte labelLength;
+                byte labelLength = 0; // Initialize to prevent CS0165
                 while (memoryStream.Position < memoryStream.Length && (labelLength = reader.ReadByte()) != 0) {
                     if (replacementBuilder.Length > 0) {
                         replacementBuilder.Append('.');
