@@ -1,12 +1,13 @@
 using Xunit.Abstractions;
 
+using System.Threading.Tasks;
+
 namespace DnsClientX.Tests {
     public class CompareProvidersResolveFilter(ITestOutputHelper output) {
         [Theory]
         [InlineData("evotec.pl", DnsRecordType.TXT)]
-        [InlineData("microsoft.com", DnsRecordType.TXT)]
-        [InlineData("disneyplus.com", DnsRecordType.TXT)]
-        public async void CompareRecords(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
+        [InlineData("microsoft.com", DnsRecordType.TXT)]        [InlineData("disneyplus.com", DnsRecordType.TXT)]
+        public async Task CompareRecords(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 
             string filter = "v=spf1";
@@ -80,9 +81,8 @@ namespace DnsClientX.Tests {
             }
         }
 
-        [Theory]
-        [InlineData(new[] { "evotec.pl", "microsoft.com", "disneyplus.com" }, DnsRecordType.TXT)]
-        public async void CompareRecordsMulti(string[] names, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
+        [Theory]        [InlineData(new[] { "evotec.pl", "microsoft.com", "disneyplus.com" }, DnsRecordType.TXT)]
+        public async Task CompareRecordsMulti(string[] names, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             string filter = "v=spf1";
             var primaryEndpoint = DnsEndpoint.Cloudflare;
             var Client = new ClientX(primaryEndpoint);

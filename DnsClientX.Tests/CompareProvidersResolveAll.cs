@@ -1,4 +1,5 @@
 using Xunit.Abstractions;
+using System.Threading.Tasks;
 
 namespace DnsClientX.Tests {
     public class CompareProviders(ITestOutputHelper output) {
@@ -29,9 +30,8 @@ namespace DnsClientX.Tests {
         [InlineData("microsoft.com", DnsRecordType.MX)]
         [InlineData("microsoft.com", DnsRecordType.NS)]
 
-        [InlineData("google.com", DnsRecordType.MX)]
-        [InlineData("_25._tcp.mail.ietf.org", DnsRecordType.TLSA)]
-        public async void CompareRecords(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
+        [InlineData("google.com", DnsRecordType.MX)]        [InlineData("_25._tcp.mail.ietf.org", DnsRecordType.TLSA)]
+        public async Task CompareRecords(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 
             var primaryEndpoint = DnsEndpoint.Cloudflare;
@@ -78,9 +78,8 @@ namespace DnsClientX.Tests {
         [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.Quad9ECS)]
         [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.Quad9Unsecure)]
         [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.CloudflareWireFormat)]
-        [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS)]
-        [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNSFamily)]
-        public async void CompareRecordTextMultiline(string name, DnsRecordType resourceRecordType, DnsEndpoint primaryEndpoint, DnsEndpoint endpointCompare) {
+        [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS)]        [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNSFamily)]
+        public async Task CompareRecordTextMultiline(string name, DnsRecordType resourceRecordType, DnsEndpoint primaryEndpoint, DnsEndpoint endpointCompare) {
             var Client = new ClientX(primaryEndpoint);
             DnsAnswer[] aAnswersPrimary = await Client.ResolveAll(name, resourceRecordType);
             var ClientToCompare = new ClientX(endpointCompare);
