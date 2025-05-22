@@ -1,12 +1,13 @@
+using System.Threading.Tasks;
+
 namespace DnsClientX.Tests {
     public class QueryDnsByHostName {
         [Theory]
         [InlineData("1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON)]
         [InlineData("family.cloudflare-dns.com", DnsRequestFormat.DnsOverHttpsJSON)]
         // Google contrary to the other endpoints does not work with /dns-query but with /resolve
-        // [InlineData("8.8.8.8", DnsRequestFormat.JSON)]
-        [InlineData("208.67.222.222", DnsRequestFormat.DnsOverHttps)]
-        public async void ShouldWorkForTXT(string hostName, DnsRequestFormat requestFormat) {
+        // [InlineData("8.8.8.8", DnsRequestFormat.JSON)]        [InlineData("208.67.222.222", DnsRequestFormat.DnsOverHttps)]
+        public async Task ShouldWorkForTXT(string hostName, DnsRequestFormat requestFormat) {
             var response = await ClientX.QueryDns("github.com", DnsRecordType.TXT, hostName, requestFormat);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "github.com");
@@ -36,9 +37,8 @@ namespace DnsClientX.Tests {
         [InlineData("1.1.1.1", DnsRequestFormat.DnsOverUDP)]
         [InlineData("1.1.1.1", DnsRequestFormat.DnsOverTCP)]
         // Google contrary to the other endpoints does not work with /dns-query but with /resolve
-        // [InlineData("8.8.8.8", DnsRequestFormat.JSON)]
-        [InlineData("208.67.222.222", DnsRequestFormat.DnsOverHttps)]
-        public async void ShouldWorkForA(string hostName, DnsRequestFormat requestFormat) {
+        // [InlineData("8.8.8.8", DnsRequestFormat.JSON)]        [InlineData("208.67.222.222", DnsRequestFormat.DnsOverHttps)]
+        public async Task ShouldWorkForA(string hostName, DnsRequestFormat requestFormat) {
             var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, hostName, requestFormat);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "evotec.pl");
@@ -72,7 +72,8 @@ namespace DnsClientX.Tests {
         // Google contrary to the other endpoints does not work with /dns-query but with /resolve
         // [InlineData("8.8.8.8", DnsRequestFormat.JSON)]
         [InlineData("208.67.222.222", DnsRequestFormat.DnsOverHttps)]
-        public async void ShouldWorkForMultipleDomains(string hostName, DnsRequestFormat requestFormat) {
+        // [InlineData("8.8.8.8", DnsRequestFormat.JSON)]        [InlineData("208.67.222.222", DnsRequestFormat.DnsOverHttps)]
+        public async Task ShouldWorkForMultipleDomains(string hostName, DnsRequestFormat requestFormat) {
             var domains = new[] { "evotec.pl", "google.com" };
             var responses = await ClientX.QueryDns(domains, DnsRecordType.A, hostName, requestFormat);
             foreach (var domain in domains) {
