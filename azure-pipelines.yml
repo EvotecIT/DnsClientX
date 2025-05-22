@@ -3,7 +3,7 @@
 # https://docs.microsoft.com/azure/devops/pipelines/apps/windows/dot-net
 
 trigger:
-  batch: "true"
+  batch: true
   branches:
     include:
       - master
@@ -17,7 +17,7 @@ trigger:
       - CHANGELOG.MD
 
 pr:
-  autoCancel: "true"
+  autoCancel: true
   branches:
     include:
       - '*'
