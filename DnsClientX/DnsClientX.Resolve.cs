@@ -15,10 +15,29 @@ namespace DnsClientX {
         /// <param name="requestDnsSec">Whether to request DNSSEC data in the response. When requested, it will be accessible under the <see cref="DnsAnswer"/> array.</param>
         /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
         /// <param name="returnAllTypes">Whether to return all DNS record types in the response as returned by provider. When set to <c>true</c>, the <see cref="DnsResponse.Answers"/> array will contain all types.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
+        /// <param name="maxRetries">The maximum number of retries.</param>
+        /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
-        public async Task<DnsResponse> Resolve(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false) {
+        public async Task<DnsResponse> Resolve(
+            string name,
+            DnsRecordType type = DnsRecordType.A,
+            bool requestDnsSec = false,
+            bool validateDnsSec = false,
+            bool returnAllTypes = false,
+            bool retryOnTransient = true,
+            int maxRetries = 3,
+            int retryDelayMs = 200) {
+            if (retryOnTransient) {
+                return await RetryAsync(() => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes), maxRetries, retryDelayMs);
+            } else {
+                return await ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes);
+            }
+        }
+
+        private async Task<DnsResponse> ResolveInternal(string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool returnAllTypes) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             // lets we execute valid dns host name strategy
@@ -61,6 +80,26 @@ namespace DnsClientX {
             }
 
             return response;
+        }
+
+        private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 200) {
+            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    return await action();
+                } catch (Exception ex) when (IsTransient(ex) && attempt < maxRetries) {
+                    await Task.Delay(delayMs);
+                }
+            }
+            // Last attempt, let exception bubble up
+            return await action();
+        }
+
+        private static bool IsTransient(Exception ex) {
+            // Customize this for your DNS/network stack
+            return ex is DnsClientException ||
+                   ex is TaskCanceledException ||
+                   ex is TimeoutException ||
+                   (ex.InnerException != null && IsTransient(ex.InnerException));
         }
 
         /// <summary>
