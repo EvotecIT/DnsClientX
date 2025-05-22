@@ -18,14 +18,11 @@
         <PackageReference Include="Microsoft.TestPlatform.ObjectModel" Version="17.4.0" Condition="$([MSBuild]::IsOsPlatform('OSX'))" />
         <PackageReference Include="SemanticComparison" Version="4.1.0" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.4.0" />
-        <PackageReference Include="xunit" Version="2.7.0" />
+        <PackageReference Include="MSTest.TestAdapter" Version="3.1.1" />
+        <PackageReference Include="MSTest.TestFramework" Version="3.1.1" />
         <PackageReference Include="coverlet.collector" Version="6.0.1">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
-        </PackageReference>
-        <PackageReference Include="xunit.runner.visualstudio" Version="2.5.7">
-            <PrivateAssets>all</PrivateAssets>
-            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
     </ItemGroup>
 
@@ -34,7 +31,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Using Include="Xunit" />
+        <Compile Include="TxtRecordParsingTests.cs" />
     </ItemGroup>
 
 </Project>
