@@ -33,7 +33,7 @@ namespace DnsClientX.Tests {
         [InlineData("google.com", DnsRecordType.MX)]
         [InlineData("1.1.1.1", DnsRecordType.PTR)]
         [InlineData("108.138.7.68", DnsRecordType.PTR)]
-        public async void CompareRecords(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
+        public async Task CompareRecords(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 
             var primaryEndpoint = DnsEndpoint.Cloudflare;
@@ -84,6 +84,28 @@ namespace DnsClientX.Tests {
                     Assert.True((bool)(sortedQuestions[i].Type == sortedQuestionsCompared[i].Type), $"Provider {endpointCompare}. There is a type mismatch for " + sortedQuestions[i].Type);
                 }
             }
+        }
+
+        [Fact]
+        public void CanParseNaptrRecordCorrectly() {
+            output.WriteLine($"Testing NAPTR record parsing logic.");
+
+            var dnsAnswer = new DnsAnswer {
+                Name = "sip2sip.info", // Name is not directly used in ConvertData but good to set
+                Type = DnsRecordType.NAPTR,
+                TTL = 3600, // TTL is not used in ConvertData
+                // RDATA for: 10 100 "s" "SIP+D2T" "" _sip._tcp.sip2sip.info.
+                // Hex: 000A00640173075349502b44325400045f736970035f746370077369703273697004696e666f00
+                DataRaw = "AAoAZAFzB1NJUCtEMlQAABRfc2lwA190Y3AHc2lwMnNpcARpbmZvAA=="
+            };
+
+            var expectedData = "10 100 \"s\" \"SIP+D2T\" \"\" _sip._tcp.sip2sip.info.";
+            var actualData = dnsAnswer.Data; // This calls ConvertData()
+
+            output.WriteLine($"Expected NAPTR data: {expectedData}");
+            output.WriteLine($"Actual NAPTR data: {actualData}");
+
+            Assert.Equal(expectedData, actualData);
         }
     }
 }

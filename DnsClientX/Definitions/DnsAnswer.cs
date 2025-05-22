@@ -221,6 +221,53 @@ namespace DnsClientX {
                     // If it's not Base64, try to handle it as a special format directly
                     return ConvertSpecialFormatToDotted(DataRaw);
                 }
+            } else if (Type == DnsRecordType.NAPTR) {
+                // NAPTR record (RFC 3403)
+                // DataRaw is Base64 encoded
+                try {
+                    byte[] rdata = Convert.FromBase64String(DataRaw);
+                    using (var memoryStream = new System.IO.MemoryStream(rdata))
+                    using (var reader = new System.IO.BinaryReader(memoryStream)) {
+                        ushort order = (ushort)(reader.ReadByte() << 8 | reader.ReadByte());
+                        ushort preference = (ushort)(reader.ReadByte() << 8 | reader.ReadByte());
+
+                        // Read Flags
+                        byte flagsLength = reader.ReadByte();
+                        string flags = Encoding.ASCII.GetString(reader.ReadBytes(flagsLength));
+
+                        // Read Service
+                        byte serviceLength = reader.ReadByte();
+                        string service = Encoding.ASCII.GetString(reader.ReadBytes(serviceLength));
+
+                        // Read Regexp
+                        byte regexpLength = reader.ReadByte();
+                        string regexp = Encoding.ASCII.GetString(reader.ReadBytes(regexpLength));
+
+                        // Read Replacement
+                        // The replacement field is a domain name, encoded as a sequence of labels
+                        // each preceded by a length byte. The sequence ends with a zero byte.
+                        var replacementBuilder = new StringBuilder();
+                        byte labelLength;
+                        while ((labelLength = reader.ReadByte()) != 0) {
+                            if (replacementBuilder.Length > 0) {
+                                replacementBuilder.Append('.');
+                            }
+                            replacementBuilder.Append(Encoding.ASCII.GetString(reader.ReadBytes(labelLength)));
+                        }
+                        string replacement = replacementBuilder.ToString();
+                        if (string.IsNullOrEmpty(replacement)) {
+                            replacement = "."; // Root domain
+                        }
+
+
+                        return $"{order} {preference} \"{flags}\" \"{service}\" \"{regexp}\" {replacement}";
+                    }
+                } catch (Exception ex) {
+                    // Log error or return raw data if parsing fails
+                    // For now, returning DataRaw to avoid breaking existing behavior completely on error
+                    Console.WriteLine($"Error parsing NAPTR record: {ex.Message}");
+                    return DataRaw;
+                }
             } else {
                 // Some records return the data in a higher case (microsoft.com/NS/Quad9ECS) which needs to be fixed
                 return DataRaw.ToLower();
