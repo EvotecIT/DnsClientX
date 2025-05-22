@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+
 namespace DnsClientX.Tests {
     public class ResolveFirst {
         [Theory]
@@ -14,9 +16,8 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Quad9)]
         [InlineData(DnsEndpoint.Quad9ECS)]
         [InlineData(DnsEndpoint.Quad9Unsecure)]
-        [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public async void ShouldWorkForTXT(DnsEndpoint endpoint) {
+        [InlineData(DnsEndpoint.OpenDNS)]        [InlineData(DnsEndpoint.OpenDNSFamily)]
+        public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
             var Client = new ClientX(endpoint);
             var answer = await Client.ResolveFirst("github.com", DnsRecordType.TXT);
             Assert.True(answer != null);
