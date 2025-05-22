@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-
 namespace DnsClientX.Tests {
     public class QueryDnsIDN {
         [Theory]
@@ -18,7 +16,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Quad9Unsecure)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public async Task ShouldWorkForA(DnsEndpoint endpoint) {
+        public async void ShouldWorkForA(DnsEndpoint endpoint) {
             var response = await ClientX.QueryDns("www.bücher.de", DnsRecordType.A, endpoint);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "www.xn--bcher-kva.de");
