@@ -85,38 +85,80 @@ namespace DnsClientX {
         /// </summary>
         /// <returns></returns>
         private string[] ConvertToMultiString() {
-            // I'm not sure if this is the best way to do this, but it works for now.
-            // This method searches for quotes with space between them or quotes without space
-            // Then it splits the string into multiple strings, adding back the quotes that we split on
-            var data = new List<string>();
-            var temp = new StringBuilder();
-            if (DataRaw != null) {
-                for (int i = 0; i < DataRaw.Length; i++) {
-                    if (i < DataRaw.Length - 1 && DataRaw[i] == '"' && DataRaw[i + 1] == '"') {
-                        temp.Append(DataRaw[i]);
-                        data.Add(temp.ToString());
-                        temp.Clear();
-                        temp.Append("\""); // Add quotes back
-                        i++; // Skip the next character as it's part of the split
-                    } else if (i < DataRaw.Length - 2 && DataRaw[i] == '"' && DataRaw[i + 1] == ' ' && DataRaw[i + 2] == '"') {
-                        temp.Append(DataRaw[i]);
-                        data.Add(temp.ToString());
-                        temp.Clear();
-                        temp.Append("\""); // Add quotes back
-                        i += 2; // Skip the next two characters as they're part of the split
-                    } else {
-                        temp.Append(DataRaw[i]);
+            if (DataRaw == null) return Array.Empty<string>();
+            if (DataRaw == string.Empty) return new[] { "\"\"" };
+
+            var resultList = new List<string>();
+
+            if (Type == DnsRecordType.TXT) {
+                // Heuristic for Google DoH JSON: DataRaw is not quoted like "foo" AND contains \n.
+                // This indicates multiple TXT entries concatenated by Google, separated by newlines.
+                // It also must not end with a quote, otherwise it could be a legitimate quoted string with a newline.
+                bool isLikelyGoogleNewlineDelimited = !DataRaw.StartsWith("\"") &&
+                                                      !DataRaw.EndsWith("\"") &&
+                                                      DataRaw.Contains("\n");
+
+                if (isLikelyGoogleNewlineDelimited) {
+                    var lines = DataRaw.Split('\n');
+                    foreach (var line in lines) {
+                        if (!string.IsNullOrWhiteSpace(line)) {
+                            // Each line from Google is an individual TXT record, add quotes for consistency.
+                            resultList.Add($"\"{line}\"");
+                        }
+                    }
+                    // If splitting by \n actually yielded results, return them.
+                    // Otherwise, fall through to the standard parsing logic below.
+                    if (resultList.Any()) {
+                        return resultList.ToArray();
                     }
                 }
-
-                if (temp.Length > 0) {
-                    data.Add(temp.ToString());
-                }
-
-                return data.ToArray();
-            } else {
-                return new string[] { };
             }
+
+            // Standard logic for TXT (handles "seg1""seg2", "seg1" "seg2")
+            // and for other types (where it effectively returns DataRaw as a single element array).
+            // Also handles single TXT records (quoted or unquoted).
+            var currentSegment = new StringBuilder();
+            for (int i = 0; i < DataRaw.Length; i++) {
+                // This condition is specific to how TXT records concatenate multiple strings using quotes.
+                if (Type == DnsRecordType.TXT && i < DataRaw.Length - 1 && DataRaw[i] == '"' && DataRaw[i + 1] == '"') { // "" delimiter
+                    currentSegment.Append(DataRaw[i]); // Append the first quote of the pair
+                    resultList.Add(currentSegment.ToString());
+                    currentSegment.Clear().Append('"'); // Start next segment with a quote
+                    i++; // Skip the second quote of the pair
+                } else if (Type == DnsRecordType.TXT && i < DataRaw.Length - 2 && DataRaw[i] == '"' && DataRaw[i + 1] == ' ' && DataRaw[i + 2] == '"') { // " " delimiter
+                    currentSegment.Append(DataRaw[i]); // Append the first quote of the " "
+                    resultList.Add(currentSegment.ToString());
+                    currentSegment.Clear().Append('"'); // Start next segment with a quote
+                    i += 2; // Skip space and the following quote
+                } else {
+                    currentSegment.Append(DataRaw[i]);
+                }
+            }
+
+            if (currentSegment.Length > 0) {
+                string segmentValue = currentSegment.ToString();
+                // If it's TXT and this segment is unquoted
+                // (e.g. single Google entry without \n, or a standard single unquoted TXT record)
+                // then quote it for consistency with how other segments are produced.
+                if (Type == DnsRecordType.TXT && !(segmentValue.StartsWith("\"") && segmentValue.EndsWith("\""))) {
+                    resultList.Add($"\"{segmentValue}\"");
+                } else {
+                    // For non-TXT types, or already quoted TXT segments.
+                    resultList.Add(segmentValue);
+                }
+            }
+
+            // If resultList is still empty at this point AND DataRaw was not null or empty,
+            // it means DataRaw was a string that didn't get processed by the loop logic into any segments.
+            // This could happen if DataRaw was empty after trimming for TXT, or it was an empty string for non-TXT.
+            // Or if DataRaw is not empty but resulted in an empty list (e.g. TXT with only whitespace lines for Google \n split)
+            // In such cases, an empty array is appropriate. If DataRaw was "   " for TXT, it becomes "\"   \"" if currentSegment logic runs.
+            // If DataRaw was " " and it's TXT, Google \n split makes it empty. Standard logic makes it "\" \"".
+            // The original code `if (temp.Length > 0) data.Add(temp.ToString());` would add it.
+            // Current logic: if currentSegment has " ", it will be added.
+            // If DataRaw was empty string, currentSegment.Length is 0, resultList is empty. Correct.
+
+            return resultList.ToArray();
         }
 
         /// <summary>

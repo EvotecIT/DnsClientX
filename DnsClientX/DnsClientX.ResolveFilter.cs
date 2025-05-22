@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace DnsClientX {
     public partial class ClientX {
@@ -21,10 +22,39 @@ namespace DnsClientX {
 
             var responses = tasks.Select(task => task.Result).ToList();
 
+            // Expand TXT answers so each TXT string is its own DnsAnswer
+            for (int i = 0; i < responses.Count; i++) {
+                var response = responses[i];
+                if (type == DnsRecordType.TXT && response.Answers != null) {
+                    var expandedAnswers = new List<DnsAnswer>();
+                    foreach (var answer in response.Answers) {
+                        if (answer.Type == DnsRecordType.TXT && answer.DataStrings.Length > 1) {
+                            foreach (var txt in answer.DataStrings) {
+                                var newAnswer = answer;
+                                newAnswer.DataRaw = txt.Trim();
+                                expandedAnswers.Add(newAnswer);
+                            }
+                        } else {
+                            expandedAnswers.Add(answer);
+                        }
+                    }
+                    response.Answers = expandedAnswers.ToArray();
+                    responses[i] = response;
+                }
+            }
+
             var filteredResponses = responses
-                .Where(response => response.Answers.Any(answer => answer.Data.ToLower().Contains(filter.ToLower())))
+                .Where(response => response.Answers.Any(answer =>
+                    answer.Type == DnsRecordType.TXT
+                        ? answer.DataStrings.Any(s => s.ToLower().Contains(filter.ToLower()))
+                        : answer.Data.ToLower().Contains(filter.ToLower())
+                ))
                 .Select(response => {
-                    response.Answers = response.Answers.Where(answer => answer.Data.ToLower().Contains(filter.ToLower())).ToArray();
+                    response.Answers = response.Answers.Where(answer =>
+                        answer.Type == DnsRecordType.TXT
+                            ? answer.DataStrings.Any(s => s.ToLower().Contains(filter.ToLower()))
+                            : answer.Data.ToLower().Contains(filter.ToLower())
+                    ).ToArray();
                     return response;
                 })
                 .ToArray();
@@ -49,10 +79,39 @@ namespace DnsClientX {
 
             var responses = tasks.Select(task => task.Result).ToList();
 
+            // Expand TXT answers so each TXT string is its own DnsAnswer
+            for (int i = 0; i < responses.Count; i++) {
+                var response = responses[i];
+                if (type == DnsRecordType.TXT && response.Answers != null) {
+                    var expandedAnswers = new List<DnsAnswer>();
+                    foreach (var answer in response.Answers) {
+                        if (answer.Type == DnsRecordType.TXT && answer.DataStrings.Length > 1) {
+                            foreach (var txt in answer.DataStrings) {
+                                var newAnswer = answer;
+                                newAnswer.DataRaw = txt.Trim();
+                                expandedAnswers.Add(newAnswer);
+                            }
+                        } else {
+                            expandedAnswers.Add(answer);
+                        }
+                    }
+                    response.Answers = expandedAnswers.ToArray();
+                    responses[i] = response;
+                }
+            }
+
             var filteredResponses = responses
-                .Where(response => response.Answers.Any(answer => regexFilter.IsMatch(answer.Data)))
+                .Where(response => response.Answers.Any(answer =>
+                    answer.Type == DnsRecordType.TXT
+                        ? answer.DataStrings.Any(s => regexFilter.IsMatch(s))
+                        : regexFilter.IsMatch(answer.Data)
+                ))
                 .Select(response => {
-                    response.Answers = response.Answers.Where(answer => regexFilter.IsMatch(answer.Data)).ToArray();
+                    response.Answers = response.Answers.Where(answer =>
+                        answer.Type == DnsRecordType.TXT
+                            ? answer.DataStrings.Any(s => regexFilter.IsMatch(s))
+                            : regexFilter.IsMatch(answer.Data)
+                    ).ToArray();
                     return response;
                 })
                 .ToArray();
@@ -72,11 +131,31 @@ namespace DnsClientX {
         /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response that matches the filter.</returns>
         public async Task<DnsResponse> ResolveFilter(string name, DnsRecordType type, string filter, bool requestDnsSec = false, bool validateDnsSec = false) {
-
             var response = await Resolve(name, type, requestDnsSec, validateDnsSec);
 
+            // Expand TXT answers so each TXT string is its own DnsAnswer
+            if (type == DnsRecordType.TXT && response.Answers != null) {
+                var expandedAnswers = new List<DnsAnswer>();
+                foreach (var answer in response.Answers) {
+                    if (answer.Type == DnsRecordType.TXT && answer.DataStrings.Length > 1) {
+                        foreach (var txt in answer.DataStrings) {
+                            var newAnswer = answer;
+                            newAnswer.DataRaw = txt.Trim();
+                            expandedAnswers.Add(newAnswer);
+                        }
+                    } else {
+                        expandedAnswers.Add(answer);
+                    }
+                }
+                response.Answers = expandedAnswers.ToArray();
+            }
+
             if (!string.IsNullOrEmpty(filter) && response.Answers != null) {
-                response.Answers = response.Answers.Where(answer => answer.Data.ToLower().Contains(filter.ToLower())).ToArray();
+                response.Answers = response.Answers.Where(answer =>
+                    answer.Type == DnsRecordType.TXT
+                        ? answer.DataStrings.Any(s => s.ToLower().Contains(filter.ToLower()))
+                        : answer.Data.ToLower().Contains(filter.ToLower())
+                ).ToArray();
             }
 
             return response;
@@ -96,8 +175,29 @@ namespace DnsClientX {
             bool requestDnsSec = false, bool validateDnsSec = false) {
             var response = await Resolve(name, type, requestDnsSec, validateDnsSec);
 
+            // Expand TXT answers so each TXT string is its own DnsAnswer
+            if (type == DnsRecordType.TXT && response.Answers != null) {
+                var expandedAnswers = new List<DnsAnswer>();
+                foreach (var answer in response.Answers) {
+                    if (answer.Type == DnsRecordType.TXT && answer.DataStrings.Length > 1) {
+                        foreach (var txt in answer.DataStrings) {
+                            var newAnswer = answer;
+                            newAnswer.DataRaw = txt.Trim();
+                            expandedAnswers.Add(newAnswer);
+                        }
+                    } else {
+                        expandedAnswers.Add(answer);
+                    }
+                }
+                response.Answers = expandedAnswers.ToArray();
+            }
+
             if (response.Answers != null) {
-                response.Answers = response.Answers.Where(answer => regexFilter.IsMatch(answer.Data)).ToArray();
+                response.Answers = response.Answers.Where(answer =>
+                    answer.Type == DnsRecordType.TXT
+                        ? answer.DataStrings.Any(s => regexFilter.IsMatch(s))
+                        : regexFilter.IsMatch(answer.Data)
+                ).ToArray();
             }
 
             return response;

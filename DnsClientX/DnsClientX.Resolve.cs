@@ -15,10 +15,29 @@ namespace DnsClientX {
         /// <param name="requestDnsSec">Whether to request DNSSEC data in the response. When requested, it will be accessible under the <see cref="DnsAnswer"/> array.</param>
         /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
         /// <param name="returnAllTypes">Whether to return all DNS record types in the response as returned by provider. When set to <c>true</c>, the <see cref="DnsResponse.Answers"/> array will contain all types.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
+        /// <param name="maxRetries">The maximum number of retries.</param>
+        /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
-        public async Task<DnsResponse> Resolve(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false) {
+        public async Task<DnsResponse> Resolve(
+            string name,
+            DnsRecordType type = DnsRecordType.A,
+            bool requestDnsSec = false,
+            bool validateDnsSec = false,
+            bool returnAllTypes = false,
+            bool retryOnTransient = true,
+            int maxRetries = 3,
+            int retryDelayMs = 200) {
+            if (retryOnTransient) {
+                return await RetryAsync(() => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes), maxRetries, retryDelayMs);
+            } else {
+                return await ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes);
+            }
+        }
+
+        private async Task<DnsResponse> ResolveInternal(string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool returnAllTypes) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             // lets we execute valid dns host name strategy
@@ -63,6 +82,41 @@ namespace DnsClientX {
             return response;
         }
 
+        private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 200) {
+            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    return await action();
+                } catch (Exception ex) when (IsTransient(ex) && attempt < maxRetries) {
+                    await Task.Delay(delayMs);
+                }
+            }
+            // Last attempt, let exception bubble up
+            return await action();
+        }
+
+        private static bool IsTransient(Exception ex) {
+            // Customize this for your DNS/network stack
+            return ex is DnsClientException ||
+                   ex is TaskCanceledException ||
+                   ex is TimeoutException ||
+                   (ex.InnerException != null && IsTransient(ex.InnerException));
+        }
+
+        /// <summary>
+        /// Resolves a domain name using DNS over HTTPS. This method provides full control over the output. Synchronous version.
+        /// </summary>
+        /// <param name="name">The fully qualified domain name (FQDN) to resolve. Example: <c>foo.bar.example.com</c></param>
+        /// <param name="type">The DNS resource type to resolve. By default, this is the <c>A</c> record.</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data in the response. When requested, it will be accessible under the <see cref="DnsAnswer"/> array.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="returnAllTypes">Whether to return all DNS record types in the response as returned by provider. When set to <c>true</c>, the <see cref="DnsResponse.Answers"/> array will contain all types.</param>
+        /// <returns>The DNS response.</returns>
+        /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
+        /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
+        public DnsResponse ResolveSync(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false) {
+            return Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes).GetAwaiter().GetResult();
+        }
+
         /// <summary>
         /// Resolves multiple DNS resource types for a domain name in parallel using DNS over HTTPS.
         /// </summary>
@@ -91,6 +145,20 @@ namespace DnsClientX {
         }
 
         /// <summary>
+        /// Resolves multiple DNS resource types for a domain name in parallel using DNS over HTTPS. Synchronous version.
+        /// </summary>
+        /// <param name="name">The fully qualified domain name (FQDN) to resolve. Example: <c>foo.bar.example.com</c></param>
+        /// <param name="types">The array of DNS resource record types to resolve. By default, this is the <c>A</c> record.</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data in the response. When requested, it will be accessible under the <see cref="DnsAnswer"/> array.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <returns>An array of DNS responses.</returns>
+        /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
+        /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
+        public DnsResponse[] ResolveSync(string name, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false) {
+            return Resolve(name, types, requestDnsSec, validateDnsSec).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
         /// Resolves multiple domain names for multiple DNS record types in parallel using DNS over HTTPS.
         /// </summary>
         /// <param name="names">The array of domain names to resolve.</param>
@@ -113,6 +181,18 @@ namespace DnsClientX {
         }
 
         /// <summary>
+        /// Resolves multiple domain names for multiple DNS record types in parallel using DNS over HTTPS. Synchronous version.
+        /// </summary>
+        /// <param name="names">The array of domain names to resolve.</param>
+        /// <param name="types">The array of DNS resource record types to resolve.</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data in the response. When requested, it will be accessible under the <see cref="DnsAnswer"/> array.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <returns>An array of DNS responses.</returns>
+        public DnsResponse[] ResolveSync(string[] names, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false) {
+            return Resolve(names, types, requestDnsSec, validateDnsSec).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
         /// Resolves multiple domain names for single DNS record type in parallel using DNS over HTTPS.
         /// </summary>
         /// <param name="names">The names.</param>
@@ -130,6 +210,18 @@ namespace DnsClientX {
             await Task.WhenAll(tasks);
 
             return tasks.Select(task => task.Result).ToArray();
+        }
+
+        /// <summary>
+        /// Resolves multiple domain names for single DNS record type in parallel using DNS over HTTPS. Synchronous version.
+        /// </summary>
+        /// <param name="names">The names.</param>
+        /// <param name="type">The type.</param>
+        /// <param name="requestDnsSec">if set to <c>true</c> [request DNS sec].</param>
+        /// <param name="validateDnsSec">if set to <c>true</c> [validate DNS sec].</param>
+        /// <returns>An array of DNS responses.</returns>
+        public DnsResponse[] ResolveSync(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false) {
+            return Resolve(names, type, requestDnsSec, validateDnsSec).GetAwaiter().GetResult();
         }
     }
 }
