@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+
 namespace DnsClientX.Tests {
     public class CompareJsonWithDnsWire {
         [Theory]
@@ -6,7 +8,7 @@ namespace DnsClientX.Tests {
         [InlineData("www.evotec.pl", DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS, DnsRecordType.A)]
         [InlineData("evotec.pl", DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS, DnsRecordType.AAAA)]
         [InlineData("www.microsoft.com", DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS, DnsRecordType.CNAME)]
-        public async void CompareAnswersRecord(string name, DnsEndpoint endpoint, DnsEndpoint endpointCompare, DnsRecordType resourceRecordType) {
+        public async Task CompareAnswersRecord(string name, DnsEndpoint endpoint, DnsEndpoint endpointCompare, DnsRecordType resourceRecordType) {
             var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = await Client.ResolveAll(name, resourceRecordType);
 
