@@ -103,7 +103,7 @@ namespace DnsClientX {
                     foreach (var line in lines) {
                         if (!string.IsNullOrWhiteSpace(line)) {
                             // Each line from Google is an individual TXT record, add quotes for consistency.
-                            resultList.Add($"\"{line.Trim()}\"");
+                            resultList.Add($"\"{line}\"");
                         }
                     }
                     // If splitting by \n actually yielded results, return them.
@@ -141,7 +141,7 @@ namespace DnsClientX {
                 // (e.g. single Google entry without \n, or a standard single unquoted TXT record)
                 // then quote it for consistency with how other segments are produced.
                 if (Type == DnsRecordType.TXT && !(segmentValue.StartsWith("\"") && segmentValue.EndsWith("\""))) {
-                    resultList.Add($"\"{segmentValue.Trim()}\"");
+                    resultList.Add($"\"{segmentValue}\"");
                 } else {
                     // For non-TXT types, or already quoted TXT segments.
                     resultList.Add(segmentValue);
