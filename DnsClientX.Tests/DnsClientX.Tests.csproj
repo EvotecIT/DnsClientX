@@ -31,7 +31,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Include="TxtRecordParsingTests.cs" />
     </ItemGroup>
 
 </Project>
