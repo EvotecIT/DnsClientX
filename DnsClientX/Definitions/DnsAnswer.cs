@@ -86,6 +86,7 @@ namespace DnsClientX {
         /// <returns></returns>
         private string[] ConvertToMultiString() {
             if (DataRaw == null) return Array.Empty<string>();
+            if (DataRaw == string.Empty) return new[] { "\"\"" };
 
             var resultList = new List<string>();
 
