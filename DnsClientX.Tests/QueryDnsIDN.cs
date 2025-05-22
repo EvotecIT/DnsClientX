@@ -16,7 +16,8 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Quad9)]
         [InlineData(DnsEndpoint.Quad9ECS)]
         [InlineData(DnsEndpoint.Quad9Unsecure)]
-        [InlineData(DnsEndpoint.OpenDNS)]        [InlineData(DnsEndpoint.OpenDNSFamily)]
+        [InlineData(DnsEndpoint.OpenDNS)]
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             var response = await ClientX.QueryDns("www.bücher.de", DnsRecordType.A, endpoint);
             foreach (DnsAnswer answer in response.Answers) {

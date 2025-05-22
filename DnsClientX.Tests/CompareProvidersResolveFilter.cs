@@ -6,7 +6,8 @@ namespace DnsClientX.Tests {
     public class CompareProvidersResolveFilter(ITestOutputHelper output) {
         [Theory]
         [InlineData("evotec.pl", DnsRecordType.TXT)]
-        [InlineData("microsoft.com", DnsRecordType.TXT)]        [InlineData("disneyplus.com", DnsRecordType.TXT)]
+        [InlineData("microsoft.com", DnsRecordType.TXT)]
+        [InlineData("disneyplus.com", DnsRecordType.TXT)]
         public async Task CompareRecords(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 
@@ -81,7 +82,8 @@ namespace DnsClientX.Tests {
             }
         }
 
-        [Theory]        [InlineData(new[] { "evotec.pl", "microsoft.com", "disneyplus.com" }, DnsRecordType.TXT)]
+        [Theory]
+        [InlineData(new[] { "evotec.pl", "microsoft.com", "disneyplus.com" }, DnsRecordType.TXT)]
         public async Task CompareRecordsMulti(string[] names, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             string filter = "v=spf1";
             var primaryEndpoint = DnsEndpoint.Cloudflare;
