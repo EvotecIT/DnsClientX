@@ -87,24 +87,89 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
-        public void CanParseNaptrRecordCorrectly() {
-            output.WriteLine($"Testing NAPTR record parsing logic.");
-
+        public void CanParseNaptrRecordFromBase64() {
+            output.WriteLine("Testing NAPTR record parsing from Base64.");
             var dnsAnswer = new DnsAnswer {
-                Name = "sip2sip.info", // Name is not directly used in ConvertData but good to set
-                Type = DnsRecordType.NAPTR,
-                TTL = 3600, // TTL is not used in ConvertData
-                // RDATA for: 10 100 "s" "SIP+D2T" "" _sip._tcp.sip2sip.info.
-                // Hex: 000A00640173075349502b44325400045f736970035f746370077369703273697004696e666f00
+                Name = "sip2sip.info", Type = DnsRecordType.NAPTR, TTL = 3600,
                 DataRaw = "AAoAZAFzB1NJUCtEMlQAABRfc2lwA190Y3AHc2lwMnNpcARpbmZvAA=="
             };
-
             var expectedData = "10 100 \"s\" \"SIP+D2T\" \"\" _sip._tcp.sip2sip.info.";
-            var actualData = dnsAnswer.Data; // This calls ConvertData()
+            var actualData = dnsAnswer.Data;
+            output.WriteLine($"Expected: {expectedData}");
+            output.WriteLine($"Actual  : {actualData}");
+            Assert.Equal(expectedData, actualData);
+        }
 
-            output.WriteLine($"Expected NAPTR data: {expectedData}");
-            output.WriteLine($"Actual NAPTR data: {actualData}");
+        [Fact]
+        public void CanParseNaptrRecordFromHex() {
+            output.WriteLine("Testing NAPTR record parsing from Hex.");
+            var dnsAnswer = new DnsAnswer {
+                Name = "sip2sip.info", Type = DnsRecordType.NAPTR, TTL = 3600,
+                DataRaw = "\\# 00 0a 00 64 01 73 07 53 49 50 2b 44 32 54 00 04 5f 73 69 70 03 5f 74 63 70 07 73 69 70 32 73 69 70 04 69 6e 66 6f 00"
+            };
+            // The RDATA from Base64 "AAoAZAFzB1NJUCtEMlQAABRfc2lwA190Y3AHc2lwMnNpcARpbmZvAA==" is
+            // 000A00640173075349502b44325400045f736970035f746370077369703273697004696e666f00
+            // This corresponds to: 10 100 "s" "SIP+D2T" "" _sip._tcp.sip2sip.info.
+            var expectedData = "10 100 \"s\" \"SIP+D2T\" \"\" _sip._tcp.sip2sip.info.";
+            var actualData = dnsAnswer.Data;
+            output.WriteLine($"Expected: {expectedData}");
+            output.WriteLine($"Actual  : {actualData}");
+            Assert.Equal(expectedData, actualData);
+        }
 
+        [Fact]
+        public void CanParseNaptrRecordFromPlainTextGoogleStyle() {
+            output.WriteLine("Testing NAPTR record parsing from Plain Text (Google Style).");
+            var dnsAnswer = new DnsAnswer {
+                Name = "sip2sip.info", Type = DnsRecordType.NAPTR, TTL = 3600,
+                DataRaw = "10 100 s SIP+D2T  _sip._tcp.sip2sip.info." // Double space for empty regexp
+            };
+            var expectedData = "10 100 \"s\" \"SIP+D2T\" \"\" _sip._tcp.sip2sip.info.";
+            var actualData = dnsAnswer.Data;
+            output.WriteLine($"Expected: {expectedData}");
+            output.WriteLine($"Actual  : {actualData}");
+            Assert.Equal(expectedData, actualData);
+        }
+
+        [Fact]
+        public void CanParseNaptrRecordFromPlainTextQuotedEmptyRegexp() {
+            output.WriteLine("Testing NAPTR record parsing from Plain Text (Quoted, Empty Regexp).");
+            var dnsAnswer = new DnsAnswer {
+                Name = "sip2sip.info", Type = DnsRecordType.NAPTR, TTL = 3600,
+                DataRaw = "10 100 \"s\" \"SIP+D2T\" \"\" _sip._tcp.sip2sip.info."
+            };
+            var expectedData = "10 100 \"s\" \"SIP+D2T\" \"\" _sip._tcp.sip2sip.info.";
+            var actualData = dnsAnswer.Data;
+            output.WriteLine($"Expected: {expectedData}");
+            output.WriteLine($"Actual  : {actualData}");
+            Assert.Equal(expectedData, actualData);
+        }
+
+        [Fact]
+        public void CanParseNaptrRecordFromPlainTextNonEmptyRegexp() {
+            output.WriteLine("Testing NAPTR record parsing from Plain Text (Non-Empty Regexp).");
+            var dnsAnswer = new DnsAnswer {
+                Name = "example.com", Type = DnsRecordType.NAPTR, TTL = 3600,
+                DataRaw = "10 100 \"s\" \"SIP+D2U\" \"!^.*$!sip:customer-service@example.com!\" _sip._udp.example.com."
+            };
+            var expectedData = "10 100 \"s\" \"SIP+D2U\" \"!^.*$!sip:customer-service@example.com!\" _sip._udp.example.com.";
+            var actualData = dnsAnswer.Data;
+            output.WriteLine($"Expected: {expectedData}");
+            output.WriteLine($"Actual  : {actualData}");
+            Assert.Equal(expectedData, actualData);
+        }
+        
+        [Fact]
+        public void CanParseNaptrRecordFromPlainTextRootReplacement() {
+            output.WriteLine("Testing NAPTR record parsing from Plain Text (Root Replacement).");
+            var dnsAnswer = new DnsAnswer {
+                Name = "example.com", Type = DnsRecordType.NAPTR, TTL = 3600,
+                DataRaw = "0 0 \"s\" \"SERVICE\" \"\" ."
+            };
+            var expectedData = "0 0 \"s\" \"SERVICE\" \"\" .";
+            var actualData = dnsAnswer.Data;
+            output.WriteLine($"Expected: {expectedData}");
+            output.WriteLine($"Actual  : {actualData}");
             Assert.Equal(expectedData, actualData);
         }
     }

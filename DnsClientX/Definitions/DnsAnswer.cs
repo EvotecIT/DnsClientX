@@ -85,80 +85,38 @@ namespace DnsClientX {
         /// </summary>
         /// <returns></returns>
         private string[] ConvertToMultiString() {
-            if (DataRaw == null) return Array.Empty<string>();
-            if (DataRaw == string.Empty) return new[] { "\"\"" };
-
-            var resultList = new List<string>();
-
-            if (Type == DnsRecordType.TXT) {
-                // Heuristic for Google DoH JSON: DataRaw is not quoted like "foo" AND contains \n.
-                // This indicates multiple TXT entries concatenated by Google, separated by newlines.
-                // It also must not end with a quote, otherwise it could be a legitimate quoted string with a newline.
-                bool isLikelyGoogleNewlineDelimited = !DataRaw.StartsWith("\"") &&
-                                                      !DataRaw.EndsWith("\"") &&
-                                                      DataRaw.Contains("\n");
-
-                if (isLikelyGoogleNewlineDelimited) {
-                    var lines = DataRaw.Split('\n');
-                    foreach (var line in lines) {
-                        if (!string.IsNullOrWhiteSpace(line)) {
-                            // Each line from Google is an individual TXT record, add quotes for consistency.
-                            resultList.Add($"\"{line}\"");
-                        }
-                    }
-                    // If splitting by \n actually yielded results, return them.
-                    // Otherwise, fall through to the standard parsing logic below.
-                    if (resultList.Any()) {
-                        return resultList.ToArray();
+            // I'm not sure if this is the best way to do this, but it works for now.
+            // This method searches for quotes with space between them or quotes without space
+            // Then it splits the string into multiple strings, adding back the quotes that we split on
+            var data = new List<string>();
+            var temp = new StringBuilder();
+            if (DataRaw != null) {
+                for (int i = 0; i < DataRaw.Length; i++) {
+                    if (i < DataRaw.Length - 1 && DataRaw[i] == '"' && DataRaw[i + 1] == '"') {
+                        temp.Append(DataRaw[i]);
+                        data.Add(temp.ToString());
+                        temp.Clear();
+                        temp.Append("\""); // Add quotes back
+                        i++; // Skip the next character as it's part of the split
+                    } else if (i < DataRaw.Length - 2 && DataRaw[i] == '"' && DataRaw[i + 1] == ' ' && DataRaw[i + 2] == '"') {
+                        temp.Append(DataRaw[i]);
+                        data.Add(temp.ToString());
+                        temp.Clear();
+                        temp.Append("\""); // Add quotes back
+                        i += 2; // Skip the next two characters as they're part of the split
+                    } else {
+                        temp.Append(DataRaw[i]);
                     }
                 }
-            }
 
-            // Standard logic for TXT (handles "seg1""seg2", "seg1" "seg2")
-            // and for other types (where it effectively returns DataRaw as a single element array).
-            // Also handles single TXT records (quoted or unquoted).
-            var currentSegment = new StringBuilder();
-            for (int i = 0; i < DataRaw.Length; i++) {
-                // This condition is specific to how TXT records concatenate multiple strings using quotes.
-                if (Type == DnsRecordType.TXT && i < DataRaw.Length - 1 && DataRaw[i] == '"' && DataRaw[i + 1] == '"') { // "" delimiter
-                    currentSegment.Append(DataRaw[i]); // Append the first quote of the pair
-                    resultList.Add(currentSegment.ToString());
-                    currentSegment.Clear().Append('"'); // Start next segment with a quote
-                    i++; // Skip the second quote of the pair
-                } else if (Type == DnsRecordType.TXT && i < DataRaw.Length - 2 && DataRaw[i] == '"' && DataRaw[i + 1] == ' ' && DataRaw[i + 2] == '"') { // " " delimiter
-                    currentSegment.Append(DataRaw[i]); // Append the first quote of the " "
-                    resultList.Add(currentSegment.ToString());
-                    currentSegment.Clear().Append('"'); // Start next segment with a quote
-                    i += 2; // Skip space and the following quote
-                } else {
-                    currentSegment.Append(DataRaw[i]);
+                if (temp.Length > 0) {
+                    data.Add(temp.ToString());
                 }
+
+                return data.ToArray();
+            } else {
+                return new string[] { };
             }
-
-            if (currentSegment.Length > 0) {
-                string segmentValue = currentSegment.ToString();
-                // If it's TXT and this segment is unquoted
-                // (e.g. single Google entry without \n, or a standard single unquoted TXT record)
-                // then quote it for consistency with how other segments are produced.
-                if (Type == DnsRecordType.TXT && !(segmentValue.StartsWith("\"") && segmentValue.EndsWith("\""))) {
-                    resultList.Add($"\"{segmentValue}\"");
-                } else {
-                    // For non-TXT types, or already quoted TXT segments.
-                    resultList.Add(segmentValue);
-                }
-            }
-
-            // If resultList is still empty at this point AND DataRaw was not null or empty,
-            // it means DataRaw was a string that didn't get processed by the loop logic into any segments.
-            // This could happen if DataRaw was empty after trimming for TXT, or it was an empty string for non-TXT.
-            // Or if DataRaw is not empty but resulted in an empty list (e.g. TXT with only whitespace lines for Google \n split)
-            // In such cases, an empty array is appropriate. If DataRaw was "   " for TXT, it becomes "\"   \"" if currentSegment logic runs.
-            // If DataRaw was " " and it's TXT, Google \n split makes it empty. Standard logic makes it "\" \"".
-            // The original code `if (temp.Length > 0) data.Add(temp.ToString());` would add it.
-            // Current logic: if currentSegment has " ", it will be added.
-            // If DataRaw was empty string, currentSegment.Length is 0, resultList is empty. Correct.
-
-            return resultList.ToArray();
         }
 
         /// <summary>
@@ -265,51 +223,89 @@ namespace DnsClientX {
                 }
             } else if (Type == DnsRecordType.NAPTR) {
                 // NAPTR record (RFC 3403)
-                // DataRaw is Base64 encoded
+                // Handles Base64, Hex, or Plain Text DataRaw
                 try {
-                    byte[] rdata = Convert.FromBase64String(DataRaw);
-                    using (var memoryStream = new System.IO.MemoryStream(rdata))
-                    using (var reader = new System.IO.BinaryReader(memoryStream)) {
-                        ushort order = (ushort)(reader.ReadByte() << 8 | reader.ReadByte());
-                        ushort preference = (ushort)(reader.ReadByte() << 8 | reader.ReadByte());
-
-                        // Read Flags
-                        byte flagsLength = reader.ReadByte();
-                        string flags = Encoding.ASCII.GetString(reader.ReadBytes(flagsLength));
-
-                        // Read Service
-                        byte serviceLength = reader.ReadByte();
-                        string service = Encoding.ASCII.GetString(reader.ReadBytes(serviceLength));
-
-                        // Read Regexp
-                        byte regexpLength = reader.ReadByte();
-                        string regexp = Encoding.ASCII.GetString(reader.ReadBytes(regexpLength));
-
-                        // Read Replacement
-                        // The replacement field is a domain name, encoded as a sequence of labels
-                        // each preceded by a length byte. The sequence ends with a zero byte.
-                        var replacementBuilder = new StringBuilder();
-                        byte labelLength;
-                        while ((labelLength = reader.ReadByte()) != 0) {
-                            if (replacementBuilder.Length > 0) {
-                                replacementBuilder.Append('.');
-                            }
-                            replacementBuilder.Append(Encoding.ASCII.GetString(reader.ReadBytes(labelLength)));
+                    if (DataRaw.StartsWith("\\#")) {
+                        // Hex Encoded (e.g., \# XX XX ...)
+                        byte[] rdataHex = DataRaw.Split(' ')
+                            .Skip(1) // Skip the "\#" part
+                            .Where(part => !string.IsNullOrEmpty(part))
+                            .Select(part => part.Trim())
+                            .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]{1,2}\b\Z")) // Match 1 or 2 hex chars
+                            .Select(part => Convert.ToByte(part, 16))
+                            .ToArray();
+                        if (rdataHex.Length > 4) { // Basic validation for minimum RDATA length
+                             return ParseNaptrRDataAndFormat(rdataHex);
                         }
-                        string replacement = replacementBuilder.ToString();
-                        if (string.IsNullOrEmpty(replacement)) {
-                            replacement = "."; // Root domain
-                        }
-
-
-                        return $"{order} {preference} \"{flags}\" \"{service}\" \"{regexp}\" {replacement}";
                     }
                 } catch (Exception ex) {
-                    // Log error or return raw data if parsing fails
-                    // For now, returning DataRaw to avoid breaking existing behavior completely on error
-                    Console.WriteLine($"Error parsing NAPTR record: {ex.Message}");
-                    return DataRaw;
+                    Console.WriteLine($"Error parsing NAPTR record from Hex: {ex.Message} for DataRaw: {DataRaw}");
+                    // Fall through to try other formats or return DataRaw at the end
                 }
+
+                try {
+                    // Attempt Base64 Decoding
+                    byte[] rdataBase64 = Convert.FromBase64String(DataRaw);
+                    return ParseNaptrRDataAndFormat(rdataBase64);
+                } catch (FormatException) {
+                    // Not Base64, try parsing as plain text
+                } catch (Exception ex) {
+                    Console.WriteLine($"Error parsing NAPTR record from Base64: {ex.Message} for DataRaw: {DataRaw}");
+                    // Fall through or return DataRaw at the end
+                }
+
+                try {
+                    // Plain Text Parsing (e.g., Google JSON: 10 100 s SIP+D2T  _sip._tcp.sip2sip.info.)
+                    // Or already formatted: 10 100 "s" "SIP+D2T" "" _sip._tcp.sip2sip.info.
+                    var parts = new List<string>();
+                    var currentPart = new StringBuilder();
+                    bool inQuotes = false;
+                    foreach (char c in DataRaw) {
+                        if (c == '\"') {
+                            inQuotes = !inQuotes;
+                            currentPart.Append(c);
+                        } else if (c == ' ' && !inQuotes) {
+                            if (currentPart.Length > 0) {
+                                parts.Add(currentPart.ToString());
+                                currentPart.Clear();
+                            }
+                        } else {
+                            currentPart.Append(c);
+                        }
+                    }
+                    if (currentPart.Length > 0) {
+                        parts.Add(currentPart.ToString());
+                    }
+
+                    if (parts.Count >= 5) {
+                        string orderStr = parts[0];
+                        string preferenceStr = parts[1];
+                        string flags = parts[2].Trim('"');
+                        string service = parts[3].Trim('"');
+                        string regexp;
+                        string replacement;
+
+                        if (parts.Count == 5) { // Format like: 10 100 s SIP+D2T _replacement.domain.
+                            regexp = "";
+                            replacement = parts[4];
+                        } else { // Format like: 10 100 s SIP+D2T "regexp" _replacement.domain. or 10 100 "s" "SIP+D2T" "" target.
+                            regexp = parts[4].Trim('"');
+                            replacement = string.Join(" ", parts.Skip(5).ToArray()); // Should be a single domain part
+                        }
+                        
+                        // Validate Order and Preference are numbers
+                        if (ushort.TryParse(orderStr, out ushort order) && ushort.TryParse(preferenceStr, out ushort preferenceVal)) {
+                            string finalReplacement = (replacement == ".") ? "." : replacement.TrimEnd('.');
+                            return $"{order} {preferenceVal} \"{flags}\" \"{service}\" \"{regexp}\" {finalReplacement}";
+                        }
+                    }
+                } catch (Exception ex) {
+                    Console.WriteLine($"Error parsing NAPTR record from plain text: {ex.Message} for DataRaw: {DataRaw}");
+                }
+                
+                // If all parsing attempts fail or if it's an unrecognized format for NAPTR that didn't cleanly parse
+                Console.WriteLine($"NAPTR DataRaw '{DataRaw}' did not match known Hex, Base64, or plain text patterns, or failed parsing.");
+                return DataRaw; // Fallback
             } else {
                 // Some records return the data in a higher case (microsoft.com/NS/Quad9ECS) which needs to be fixed
                 return DataRaw.ToLower();
@@ -321,6 +317,44 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="data">The raw data in special format.</param>
         /// <returns>The data in standard dotted format.</returns>
+        private string ParseNaptrRDataAndFormat(byte[] rdata) {
+            using (var memoryStream = new System.IO.MemoryStream(rdata))
+            using (var reader = new System.IO.BinaryReader(memoryStream)) {
+                ushort order = (ushort)(reader.ReadByte() << 8 | reader.ReadByte());
+                ushort preference = (ushort)(reader.ReadByte() << 8 | reader.ReadByte());
+
+                byte flagsLength = reader.ReadByte();
+                string flags = Encoding.ASCII.GetString(reader.ReadBytes(flagsLength));
+
+                byte serviceLength = reader.ReadByte();
+                string service = Encoding.ASCII.GetString(reader.ReadBytes(serviceLength));
+
+                byte regexpLength = reader.ReadByte();
+                string regexp = Encoding.ASCII.GetString(reader.ReadBytes(regexpLength));
+
+                var replacementBuilder = new StringBuilder();
+                byte labelLength;
+                while (memoryStream.Position < memoryStream.Length && (labelLength = reader.ReadByte()) != 0) {
+                    if (replacementBuilder.Length > 0) {
+                        replacementBuilder.Append('.');
+                    }
+                    replacementBuilder.Append(Encoding.ASCII.GetString(reader.ReadBytes(labelLength)));
+                }
+                string replacement = replacementBuilder.ToString();
+                if (string.IsNullOrEmpty(replacement) && memoryStream.Position == memoryStream.Length && labelLength == 0) { // Check if it was explicitly a root domain
+                    replacement = "."; 
+                } else if (string.IsNullOrEmpty(replacement) && replacementBuilder.Length == 0 && labelLength !=0 && memoryStream.Position < memoryStream.Length) {
+                    // This case can happen if replacement is empty but not the root domain (e.g. NAPTR with empty replacement)
+                    // However, RFC3403 implies replacement is a domain-name, which if empty, is the root ".".
+                    // For safety, if it's empty and not explicitly root, it might be better to keep it empty or decide a convention.
+                    // Current behavior: keeps it empty if not explicitly root.
+                }
+
+
+                return $"{order} {preference} \"{flags}\" \"{service}\" \"{regexp}\" {replacement}";
+            }
+        }
+        
         private string ConvertSpecialFormatToDotted(string data) {
             if (string.IsNullOrWhiteSpace(data)) return data;
 
