@@ -1,4 +1,4 @@
-﻿using DnsClientX;
+using DnsClientX;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -111,6 +111,106 @@ namespace DnsClientX.Tests {
                     Assert.True(answer.Type == type);
                     Assert.True(answer.Data.Length > 0);
                 }
+            }
+        }
+
+        [Theory]
+        [InlineData(DnsEndpoint.System)]
+        [InlineData(DnsEndpoint.SystemTcp)]
+        [InlineData(DnsEndpoint.Cloudflare)]
+        [InlineData(DnsEndpoint.CloudflareFamily)]
+        [InlineData(DnsEndpoint.CloudflareSecurity)]
+        [InlineData(DnsEndpoint.CloudflareWireFormat)]
+        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
+        [InlineData(DnsEndpoint.Google)]
+        [InlineData(DnsEndpoint.GoogleWireFormat)]
+        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
+        [InlineData(DnsEndpoint.Quad9)]
+        [InlineData(DnsEndpoint.Quad9ECS)]
+        [InlineData(DnsEndpoint.Quad9Unsecure)]
+        [InlineData(DnsEndpoint.OpenDNS)]
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
+        public void ShouldWorkForFirstSyncTXT(DnsEndpoint endpoint) {
+            var client = new ClientX(endpoint);
+            var answer = client.ResolveFirstSync("github.com", DnsRecordType.TXT);
+            Assert.True(answer != null);
+            Assert.True(answer.Value.Name == "github.com");
+            Assert.True(answer.Value.Type == DnsRecordType.TXT);
+            Assert.True(answer.Value.Data.Length > 0);
+        }
+
+        [Theory]
+        [InlineData(DnsEndpoint.System)]
+        [InlineData(DnsEndpoint.SystemTcp)]
+        [InlineData(DnsEndpoint.Cloudflare)]
+        [InlineData(DnsEndpoint.CloudflareFamily)]
+        [InlineData(DnsEndpoint.CloudflareSecurity)]
+        [InlineData(DnsEndpoint.CloudflareWireFormat)]
+        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
+        [InlineData(DnsEndpoint.Google)]
+        [InlineData(DnsEndpoint.GoogleWireFormat)]
+        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
+        [InlineData(DnsEndpoint.Quad9)]
+        [InlineData(DnsEndpoint.Quad9ECS)]
+        [InlineData(DnsEndpoint.Quad9Unsecure)]
+        [InlineData(DnsEndpoint.OpenDNS)]
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
+        public void ShouldWorkForFirstSyncA(DnsEndpoint endpoint) {
+            var client = new ClientX(endpoint);
+            var answer = client.ResolveFirstSync("evotec.pl", DnsRecordType.A);
+            Assert.True(answer != null);
+            Assert.True(answer.Value.Name == "evotec.pl");
+            Assert.True(answer.Value.Type == DnsRecordType.A);
+        }
+
+        [Theory]
+        [InlineData(DnsEndpoint.System)]
+        [InlineData(DnsEndpoint.SystemTcp)]
+        [InlineData(DnsEndpoint.Cloudflare)]
+        [InlineData(DnsEndpoint.CloudflareFamily)]
+        [InlineData(DnsEndpoint.CloudflareSecurity)]
+        [InlineData(DnsEndpoint.CloudflareWireFormat)]
+        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
+        [InlineData(DnsEndpoint.Google)]
+        [InlineData(DnsEndpoint.GoogleWireFormat)]
+        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
+        [InlineData(DnsEndpoint.Quad9)]
+        [InlineData(DnsEndpoint.Quad9ECS)]
+        [InlineData(DnsEndpoint.Quad9Unsecure)]
+        [InlineData(DnsEndpoint.OpenDNS)]
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
+        public void ShouldWorkForAllSyncTXT(DnsEndpoint endpoint) {
+            var client = new ClientX(endpoint);
+            var answers = client.ResolveAllSync("github.com", DnsRecordType.TXT);
+            foreach (DnsAnswer answer in answers) {
+                Assert.True(answer.Name == "github.com");
+                Assert.True(answer.Type == DnsRecordType.TXT);
+                Assert.True(answer.Data.Length > 0);
+            }
+        }
+
+        [Theory]
+        [InlineData(DnsEndpoint.System)]
+        [InlineData(DnsEndpoint.SystemTcp)]
+        [InlineData(DnsEndpoint.Cloudflare)]
+        [InlineData(DnsEndpoint.CloudflareFamily)]
+        [InlineData(DnsEndpoint.CloudflareSecurity)]
+        [InlineData(DnsEndpoint.CloudflareWireFormat)]
+        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
+        [InlineData(DnsEndpoint.Google)]
+        [InlineData(DnsEndpoint.GoogleWireFormat)]
+        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
+        [InlineData(DnsEndpoint.Quad9)]
+        [InlineData(DnsEndpoint.Quad9ECS)]
+        [InlineData(DnsEndpoint.Quad9Unsecure)]
+        [InlineData(DnsEndpoint.OpenDNS)]
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
+        public void ShouldWorkForAllSyncA(DnsEndpoint endpoint) {
+            var client = new ClientX(endpoint);
+            var answers = client.ResolveAllSync("evotec.pl", DnsRecordType.A);
+            foreach (DnsAnswer answer in answers) {
+                Assert.True(answer.Name == "evotec.pl");
+                Assert.True(answer.Type == DnsRecordType.A);
             }
         }
     }
