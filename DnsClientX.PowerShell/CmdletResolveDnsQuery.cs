@@ -57,6 +57,10 @@ namespace DnsClientX.PowerShell {
 
         private InternalLogger _logger;
 
+        /// <summary>
+        /// Begin record asynchronously.
+        /// </summary>
+        /// <returns></returns>
         protected override Task BeginProcessingAsync() {
 
             // Initialize the logger to be able to see verbose, warning, debug, error, progress, and information messages.
@@ -65,6 +69,11 @@ namespace DnsClientX.PowerShell {
             // var searchEvents = new SearchEvents(internalLogger);
             return Task.CompletedTask;
         }
+
+        /// <summary>
+        /// Process the record asynchronously.
+        /// </summary>
+        /// <returns></returns>
         protected override Task ProcessRecordAsync() {
             string names = string.Join(", ", Name);
             string types = string.Join(", ", Type);
