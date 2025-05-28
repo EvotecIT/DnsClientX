@@ -40,7 +40,7 @@ namespace DnsClientX {
                     stream.Position = 0;
 
                     dnsWireFormatBytes = new byte[stream.Length];
-                    await stream.ReadAsync(dnsWireFormatBytes, 0, dnsWireFormatBytes.Length);
+                    await ReadExactAsync(stream, dnsWireFormatBytes, 0, dnsWireFormatBytes.Length);
                 }
 
                 if (debug) {
@@ -421,6 +421,20 @@ namespace DnsClientX {
                 } catch (Exception ex) {
                     throw new DnsClientException("Error processing record data for " + type + ": " + ex.Message);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Helper to read exactly the requested number of bytes from a stream.
+        /// </summary>
+        internal static async Task ReadExactAsync(Stream stream, byte[] buffer, int offset, int count) {
+            int read;
+            while (count > 0 && (read = await stream.ReadAsync(buffer, offset, count)) > 0) {
+                offset += read;
+                count -= read;
+            }
+            if (count > 0) {
+                throw new System.IO.EndOfStreamException("Stream ended before reading all requested bytes.");
             }
         }
     }

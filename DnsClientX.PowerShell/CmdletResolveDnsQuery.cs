@@ -50,7 +50,7 @@ namespace DnsClientX.PowerShell {
         public SwitchParameter FullResponse;
 
         /// <summary>
-        /// 
+        /// <para type="description">Specifies the timeout for the DNS query, in milliseconds. If the DNS server does not respond within this time, the query will fail. Default is 1000 ms (1 second). Increase this value for slow networks or unreliable servers.</para>
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
         public int TimeOut = 1000;

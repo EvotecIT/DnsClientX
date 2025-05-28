@@ -63,8 +63,9 @@ namespace DnsClientX.Tests {
                 } catch (Exception) {
                     void LogRecords(string label, DnsAnswer[] answers) {
                         output.WriteLine($"--- {label} ({answers.Length} records) ---");
-                        foreach (var a in answers)
+                        foreach (var a in answers) {
                             output.WriteLine($"  {a.Data}");
+                        }
                     }
                     LogRecords("Primary", sortedAAnswers);
                     LogRecords("Compared", sortedAAnswersCompared);
