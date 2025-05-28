@@ -75,7 +75,7 @@ namespace DnsClientX {
 
                 // Read the length of the response
                 lengthBytes = new byte[2];
-                await stream.ReadAsync(lengthBytes, 0, lengthBytes.Length);
+                await DnsWire.ReadExactAsync(stream, lengthBytes, 0, lengthBytes.Length);
                 if (BitConverter.IsLittleEndian) {
                     Array.Reverse(lengthBytes); // Ensure big-endian order
                 }
@@ -83,7 +83,7 @@ namespace DnsClientX {
 
                 // Read the response
                 var responseBuffer = new byte[responseLength];
-                await stream.ReadAsync(responseBuffer, 0, responseBuffer.Length);
+                await DnsWire.ReadExactAsync(stream, responseBuffer, 0, responseBuffer.Length);
 
                 return responseBuffer;
             }
