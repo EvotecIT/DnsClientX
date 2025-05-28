@@ -228,7 +228,7 @@ namespace DnsClientX {
                     if (DataRaw.StartsWith("\\#")) {
                         // Hex Encoded (e.g., \# XX XX ...)
                         byte[] rdataHex = DataRaw.Split(' ')
-                            .Skip(1) // Skip the "\#" part
+                            .Skip(2) // Skip the "\#" and the length byte
                             .Where(part => !string.IsNullOrEmpty(part))
                             .Select(part => part.Trim())
                             .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]{1,2}\b\Z")) // Match 1 or 2 hex chars
@@ -292,7 +292,7 @@ namespace DnsClientX {
                             regexp = parts[4].Trim('"');
                             replacement = string.Join(" ", parts.Skip(5).ToArray()); // Should be a single domain part
                         }
-                        
+
                         // Validate Order and Preference are numbers
                         if (ushort.TryParse(orderStr, out ushort order) && ushort.TryParse(preferenceStr, out ushort preferenceVal)) {
                             string finalReplacement = (replacement == ".") ? "." : replacement.TrimEnd('.');
@@ -302,7 +302,7 @@ namespace DnsClientX {
                 } catch (Exception ex) {
                     Console.WriteLine($"Error parsing NAPTR record from plain text: {ex.Message} for DataRaw: {DataRaw}");
                 }
-                
+
                 // If all parsing attempts fail or if it's an unrecognized format for NAPTR that didn't cleanly parse
                 Console.WriteLine($"NAPTR DataRaw '{DataRaw}' did not match known Hex, Base64, or plain text patterns, or failed parsing.");
                 return DataRaw; // Fallback
@@ -342,7 +342,7 @@ namespace DnsClientX {
                 }
                 string replacement = replacementBuilder.ToString();
                 if (string.IsNullOrEmpty(replacement) && memoryStream.Position == memoryStream.Length && labelLength == 0) { // Check if it was explicitly a root domain
-                    replacement = "."; 
+                    replacement = ".";
                 } else if (string.IsNullOrEmpty(replacement) && replacementBuilder.Length == 0 && labelLength !=0 && memoryStream.Position < memoryStream.Length) {
                     // This case can happen if replacement is empty but not the root domain (e.g. NAPTR with empty replacement)
                     // However, RFC3403 implies replacement is a domain-name, which if empty, is the root ".".
@@ -354,7 +354,7 @@ namespace DnsClientX {
                 return $"{order} {preference} \"{flags}\" \"{service}\" \"{regexp}\" {replacement}";
             }
         }
-        
+
         private string ConvertSpecialFormatToDotted(string data) {
             if (string.IsNullOrWhiteSpace(data)) return data;
 
