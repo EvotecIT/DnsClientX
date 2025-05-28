@@ -33,6 +33,7 @@ namespace DnsClientX.Tests {
         [InlineData("google.com", DnsRecordType.MX)]
         [InlineData("1.1.1.1", DnsRecordType.PTR)]
         [InlineData("108.138.7.68", DnsRecordType.PTR)]
+        [InlineData("sip2sip.info", DnsRecordType.NAPTR)]
         public async Task CompareRecords(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 

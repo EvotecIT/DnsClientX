@@ -1,6 +1,19 @@
 ﻿Clear-Host
 
-Import-Module $PSScriptRoot\..\DnsClientX.psd1 -Force
+Import-Module $PSScriptRoot\..\DnsClientX.psd1 -Force -Verbose
+
+$Domains = 'sip2sip.info' #, 'sip5060.net'
+
+foreach ($Domain in $Domains) {
+    Resolve-Dns -Type NAPTR -Name $Domain -DnsProvider Cloudflare | Format-Table
+    Resolve-Dns -Type NAPTR -Name $Domain -DnsProvider Google | Format-Table
+    Resolve-Dns -Type NAPTR -Name $Domain -DnsProvider GoogleWireFormat | Format-Table
+    Resolve-Dns -Type NAPTR -Name $Domain -DnsProvider OpenDNS | Format-Table
+    Resolve-Dns -Type NAPTR -Name $Domain -DnsProvider CloudflareWireFormat | Format-Table
+    Resolve-Dns -Type NAPTR -Name $Domain -DnsProvider CloudflareWireFormatPost | Format-Table
+}
+return
+
 
 Resolve-DnsQuery -Name 'www.bücher.de' -Type A | Format-Table
 Resolve-DnsQuery -Name 'evotec.pl' -Type A | Format-Table
