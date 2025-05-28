@@ -16,7 +16,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Quad9Unsecure)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public async void ShouldWorkForTXT(DnsEndpoint endpoint) {
+        public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
             var response = await ClientX.QueryDns("github.com", DnsRecordType.TXT, endpoint);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "github.com");
@@ -41,7 +41,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Quad9Unsecure)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public async void ShouldWorkForA(DnsEndpoint endpoint) {
+        public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, endpoint);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "evotec.pl");
@@ -66,7 +66,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Quad9Unsecure)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public async void ShouldWorkForPTR(DnsEndpoint endpoint) {
+        public async Task ShouldWorkForPTR(DnsEndpoint endpoint) {
             var response = await ClientX.QueryDns("1.1.1.1", DnsRecordType.PTR, endpoint);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Data == "one.one.one.one");

@@ -1,5 +1,9 @@
 namespace DnsClientX.Tests {
     public class QueryDnsSpecialCases {
+        /// <summary>
+        /// This test case is for a special case where the query is expected to fail.
+        /// </summary>
+        /// <param name="endpoint"></param>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -16,10 +20,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Quad9Unsecure)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        /// <summary>
-        /// This test case is for a special case where the query is expected to fail.
-        /// </summary>
-        public async void ShouldDeliverResponseOnFailedQueries(DnsEndpoint endpoint) {
+        public async Task ShouldDeliverResponseOnFailedQueries(DnsEndpoint endpoint) {
             var response = await ClientX.QueryDns("spf-a.anotherexample.com", DnsRecordType.A, endpoint);
             Assert.True(response.Questions.Length == 1);
             Assert.True(response.Answers.Length == 0);

@@ -110,11 +110,14 @@ namespace DnsClientX {
         /// <param name="requestDnsSec">Whether to request DNSSEC data in the response. When requested, it will be accessible under the <see cref="DnsAnswer"/> array.</param>
         /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
         /// <param name="returnAllTypes">Whether to return all DNS record types in the response as returned by provider. When set to <c>true</c>, the <see cref="DnsResponse.Answers"/> array will contain all types.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
+        /// <param name="maxRetries">The maximum number of retries.</param>
+        /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>The DNS response.</returns>
         /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
-        public DnsResponse ResolveSync(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false) {
-            return Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes).GetAwaiter().GetResult();
+        public DnsResponse ResolveSync(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
+            return Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -124,13 +127,17 @@ namespace DnsClientX {
         /// <param name="types">The array of DNS resource record types to resolve. By default, this is the <c>A</c> record.</param>
         /// <param name="requestDnsSec">Whether to request DNSSEC data in the response. When requested, it will be accessible under the <see cref="DnsAnswer"/> array.</param>
         /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="returnAllTypes">Whether to return all DNS record types in the response as returned by provider. When set to <c>true</c>, the <see cref="DnsResponse.Answers"/> array will contain all types.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
+        /// <param name="maxRetries">The maximum number of retries.</param>
+        /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of DNS responses.</returns>
         /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
-        public async Task<DnsResponse[]> Resolve(string name, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false) {
+        public async Task<DnsResponse[]> Resolve(string name, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
             Task<DnsResponse>[] tasks = new Task<DnsResponse>[types.Length];
             for (int i = 0; i < tasks.Length; i++) {
-                tasks[i] = Resolve(name, types[i], requestDnsSec, validateDnsSec);
+                tasks[i] = Resolve(name, types[i], requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs);
             }
 
             await Task.WhenAll(tasks);
@@ -151,11 +158,15 @@ namespace DnsClientX {
         /// <param name="types">The array of DNS resource record types to resolve. By default, this is the <c>A</c> record.</param>
         /// <param name="requestDnsSec">Whether to request DNSSEC data in the response. When requested, it will be accessible under the <see cref="DnsAnswer"/> array.</param>
         /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="returnAllTypes">Whether to return all DNS record types in the response as returned by provider. When set to <c>true</c>, the <see cref="DnsResponse.Answers"/> array will contain all types.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
+        /// <param name="maxRetries">The maximum number of retries.</param>
+        /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>An array of DNS responses.</returns>
         /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
-        public DnsResponse[] ResolveSync(string name, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false) {
-            return Resolve(name, types, requestDnsSec, validateDnsSec).GetAwaiter().GetResult();
+        public DnsResponse[] ResolveSync(string name, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
+            return Resolve(name, types, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -165,13 +176,17 @@ namespace DnsClientX {
         /// <param name="types">The array of DNS resource record types to resolve.</param>
         /// <param name="requestDnsSec">Whether to request DNSSEC data in the response. When requested, it will be accessible under the <see cref="DnsAnswer"/> array.</param>
         /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="returnAllTypes">Whether to return all DNS record types in the response as returned by provider. When set to <c>true</c>, the <see cref="DnsResponse.Answers"/> array will contain all types.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
+        /// <param name="maxRetries">The maximum number of retries.</param>
+        /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of DNS responses.</returns>
-        public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false) {
+        public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
             var tasks = new List<Task<DnsResponse>>();
 
             foreach (var name in names) {
                 foreach (var type in types) {
-                    tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec));
+                    tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs));
                 }
             }
 
@@ -187,9 +202,13 @@ namespace DnsClientX {
         /// <param name="types">The array of DNS resource record types to resolve.</param>
         /// <param name="requestDnsSec">Whether to request DNSSEC data in the response. When requested, it will be accessible under the <see cref="DnsAnswer"/> array.</param>
         /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="returnAllTypes">Whether to return all DNS record types in the response as returned by provider. When set to <c>true</c>, the <see cref="DnsResponse.Answers"/> array will contain all types.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
+        /// <param name="maxRetries">The maximum number of retries.</param>
+        /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>An array of DNS responses.</returns>
-        public DnsResponse[] ResolveSync(string[] names, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false) {
-            return Resolve(names, types, requestDnsSec, validateDnsSec).GetAwaiter().GetResult();
+        public DnsResponse[] ResolveSync(string[] names, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
+            return Resolve(names, types, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -199,12 +218,16 @@ namespace DnsClientX {
         /// <param name="type">The type.</param>
         /// <param name="requestDnsSec">if set to <c>true</c> [request DNS sec].</param>
         /// <param name="validateDnsSec">if set to <c>true</c> [validate DNS sec].</param>
+        /// <param name="returnAllTypes">Whether to return all DNS record types in the response as returned by provider. When set to <c>true</c>, the <see cref="DnsResponse.Answers"/> array will contain all types.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
+        /// <param name="maxRetries">The maximum number of retries.</param>
+        /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns></returns>
-        public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false) {
+        public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
             var tasks = new List<Task<DnsResponse>>();
 
             foreach (var name in names) {
-                tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec));
+                tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs));
             }
 
             await Task.WhenAll(tasks);
@@ -219,9 +242,13 @@ namespace DnsClientX {
         /// <param name="type">The type.</param>
         /// <param name="requestDnsSec">if set to <c>true</c> [request DNS sec].</param>
         /// <param name="validateDnsSec">if set to <c>true</c> [validate DNS sec].</param>
+        /// <param name="returnAllTypes">Whether to return all DNS record types in the response as returned by provider. When set to <c>true</c>, the <see cref="DnsResponse.Answers"/> array will contain all types.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
+        /// <param name="maxRetries">The maximum number of retries.</param>
+        /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>An array of DNS responses.</returns>
-        public DnsResponse[] ResolveSync(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false) {
-            return Resolve(names, type, requestDnsSec, validateDnsSec).GetAwaiter().GetResult();
+        public DnsResponse[] ResolveSync(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
+            return Resolve(names, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs).GetAwaiter().GetResult();
         }
     }
 }

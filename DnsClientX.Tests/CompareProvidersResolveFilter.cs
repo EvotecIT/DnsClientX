@@ -60,7 +60,7 @@ namespace DnsClientX.Tests {
                             sortedAAnswers[i].DataStrings + " length expected: " + sortedAAnswers[i].DataStrings.Length +
                             " length provided: " + sortedAAnswersCompared[i].DataStrings.Length);
                     }
-                } catch (Exception ex) {
+                } catch (Exception) {
                     void LogRecords(string label, DnsAnswer[] answers) {
                         output.WriteLine($"--- {label} ({answers.Length} records) ---");
                         foreach (var a in answers)
@@ -145,7 +145,7 @@ namespace DnsClientX.Tests {
                                 sortedAAnswers[i].DataStrings + " length expected: " + sortedAAnswers[i].DataStrings.Length +
                                 " length provided: " + sortedAAnswersCompared[i].DataStrings.Length);
                         }
-                    } catch (Exception ex) {
+                    } catch (Exception) {
                         void LogRecords(string label, DnsAnswer[] answers) {
                             output.WriteLine($"--- {label} ({answers.Length} records) ---");
                             foreach (var a in answers)

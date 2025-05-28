@@ -51,7 +51,7 @@ namespace DnsClientX {
                     // If the response is truncated, retry the query over TCP
                     response = await DnsWireResolveTcp.ResolveWireFormatTcp(dnsServer, port, name, type, requestDnsSec,
                         validateDnsSec, debug, endpointConfiguration);
-                };
+                }
                 response.AddServerDetails(endpointConfiguration);
                 return response;
             } catch (Exception ex) {
@@ -88,6 +88,7 @@ namespace DnsClientX {
         /// <param name="query"></param>
         /// <param name="dnsServer"></param>
         /// <param name="port"></param>
+        /// <param name="timeoutMilliseconds"></param>
         /// <returns></returns>
         private static async Task<byte[]> SendQueryOverUdp(byte[] query, string dnsServer, int port, int timeoutMilliseconds) {
             using (var udpClient = new UdpClient()) {
