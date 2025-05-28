@@ -74,7 +74,9 @@ namespace DnsClientX {
             get => _securityProtocol;
             set {
                 _securityProtocol = value;
+#if NET472
                 ServicePointManager.SecurityProtocol = value;
+#endif
                 if (handler != null) {
                     handler.SslProtocols = (SslProtocols)value;
                 }
