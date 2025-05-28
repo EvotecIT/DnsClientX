@@ -315,7 +315,7 @@ namespace DnsClientX {
         /// <summary>
         /// Converts a special format like "\u0003one\u0003one\u0003one\u0003one\0" to a standard dotted format.
         /// </summary>
-        /// <param name="data">The raw data in special format.</param>
+        /// <param name="rdata">The raw data in special format.</param>
         /// <returns>The data in standard dotted format.</returns>
         private string ParseNaptrRDataAndFormat(byte[] rdata) {
             using (var memoryStream = new System.IO.MemoryStream(rdata))
