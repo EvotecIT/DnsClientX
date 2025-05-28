@@ -1,5 +1,5 @@
 namespace DnsClientX.Tests {
-    public class ResolveFirst {
+    public class ResolveAll {
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -18,11 +18,12 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async void ShouldWorkForTXT(DnsEndpoint endpoint) {
             var Client = new ClientX(endpoint);
-            var answer = await Client.ResolveFirst("github.com", DnsRecordType.TXT);
-            Assert.True(answer != null);
-            Assert.True(answer.Value.Name == "github.com");
-            Assert.True(answer.Value.Type == DnsRecordType.TXT);
-            Assert.True(answer.Value.Data.Length > 0);
+            DnsAnswer[] aAnswers = await Client.ResolveAll("github.com", DnsRecordType.TXT);
+            foreach (DnsAnswer answer in aAnswers) {
+                Assert.True(answer.Name == "github.com");
+                Assert.True((bool)(answer.Type == DnsRecordType.TXT));
+                Assert.True(answer.Data.Length > 0);
+            }
         }
 
         [Theory]
@@ -43,10 +44,11 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async void ShouldWorkForA(DnsEndpoint endpoint) {
             var Client = new ClientX(endpoint);
-            var answer = await Client.ResolveFirst("evotec.pl", DnsRecordType.A);
-            Assert.True(answer != null);
-            Assert.True(answer.Value.Name == "evotec.pl");
-            Assert.True(answer.Value.Type == DnsRecordType.A);
+            DnsAnswer[] aAnswers = await Client.ResolveAll("evotec.pl", DnsRecordType.A);
+            foreach (DnsAnswer answer in aAnswers) {
+                Assert.True(answer.Name == "evotec.pl");
+                Assert.True((bool)(answer.Type == DnsRecordType.A));
+            }
         }
     }
 }
