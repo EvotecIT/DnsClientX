@@ -25,7 +25,7 @@ public class InternalLoggerPowerShell {
     /// <param name="writeErrorAction"></param>
     /// <param name="writeProgressAction"></param>
     /// <param name="writeInformationAction"></param>
-    public InternalLoggerPowerShell(InternalLogger logger, Action<string> writeVerboseAction = null, Action<string> writeWarningAction = null, Action<string> writeDebugAction = null, Action<ErrorRecord> writeErrorAction = null, Action<ProgressRecord> writeProgressAction = null, Action<InformationRecord> writeInformationAction = null) {
+    public InternalLoggerPowerShell(InternalLogger logger, Action<string>? writeVerboseAction = null, Action<string>? writeWarningAction = null, Action<string>? writeDebugAction = null, Action<ErrorRecord>? writeErrorAction = null, Action<ProgressRecord>? writeProgressAction = null, Action<InformationRecord>? writeInformationAction = null) {
         _logger = logger;
 
         if (writeVerboseAction != null) {
