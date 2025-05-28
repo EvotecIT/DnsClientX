@@ -16,7 +16,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Quad9Unsecure)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public async void ShouldWorkForTXT(DnsEndpoint endpoint) {
+        public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
             var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = await Client.ResolveAll("github.com", DnsRecordType.TXT);
             foreach (DnsAnswer answer in aAnswers) {
@@ -42,7 +42,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Quad9Unsecure)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public async void ShouldWorkForA(DnsEndpoint endpoint) {
+        public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = await Client.ResolveAll("evotec.pl", DnsRecordType.A);
             foreach (DnsAnswer answer in aAnswers) {

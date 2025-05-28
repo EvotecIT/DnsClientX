@@ -20,7 +20,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Quad9Unsecure)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public async void ShouldDeliverResponseOnFailedQueries(DnsEndpoint endpoint) {
+        public async Task ShouldDeliverResponseOnFailedQueries(DnsEndpoint endpoint) {
             var response = await ClientX.QueryDns("spf-a.anotherexample.com", DnsRecordType.A, endpoint);
             Assert.True(response.Questions.Length == 1);
             Assert.True(response.Answers.Length == 0);
