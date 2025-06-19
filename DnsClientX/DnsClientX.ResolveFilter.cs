@@ -4,6 +4,11 @@ using System.Threading.Tasks;
 
 namespace DnsClientX {
     public partial class ClientX {
+        /// <summary>
+        /// Extracts only the SPF portion from a TXT record. Google DNS often
+        /// concatenates all TXT records into one string, so we need to trim
+        /// the response to just the <c>v=spf1</c> data for reliable filtering.
+        /// </summary>
         private static string ExtractSpfRecord(string data) {
             if (string.IsNullOrEmpty(data)) {
                 return data;
@@ -40,6 +45,8 @@ namespace DnsClientX {
                         .Select(answer => {
                             if (answer.Type == DnsRecordType.TXT &&
                                 filter.Equals("v=spf1", System.StringComparison.OrdinalIgnoreCase)) {
+                                // Google sometimes merges all TXT records together, so
+                                // trim to the SPF value before filtering.
                                 answer.DataRaw = ExtractSpfRecord(answer.DataRaw);
                             }
                             return answer;
@@ -106,6 +113,8 @@ namespace DnsClientX {
                     .Select(answer => {
                         if (answer.Type == DnsRecordType.TXT &&
                             filter.Equals("v=spf1", System.StringComparison.OrdinalIgnoreCase)) {
+                            // Google sometimes merges all TXT records together, so
+                            // trim to the SPF value before filtering.
                             answer.DataRaw = ExtractSpfRecord(answer.DataRaw);
                         }
                         return answer;
@@ -138,6 +147,8 @@ namespace DnsClientX {
                     .Select(answer => {
                         if (answer.Type == DnsRecordType.TXT &&
                             regexFilter.IsMatch("v=spf1")) {
+                            // Google sometimes merges all TXT records together, so
+                            // trim to the SPF value before filtering.
                             answer.DataRaw = ExtractSpfRecord(answer.DataRaw);
                         }
                         return answer;
