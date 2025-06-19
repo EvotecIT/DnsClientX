@@ -83,15 +83,13 @@ namespace DnsClientX {
         }
 
         private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 200) {
-            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            for (int attempt = 1; ; attempt++) {
                 try {
                     return await action();
                 } catch (Exception ex) when (IsTransient(ex) && attempt < maxRetries) {
                     await Task.Delay(delayMs);
                 }
             }
-            // Last attempt, let exception bubble up
-            return await action();
         }
 
         private static bool IsTransient(Exception ex) {
