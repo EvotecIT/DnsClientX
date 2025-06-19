@@ -63,7 +63,7 @@ namespace DnsClientX {
 
             // Create a new TCP client and connect to the DNS server
             var client = new TcpClient();
-            await client.ConnectAsync(dnsServer, port, cancellationToken);
+            await ConnectAsync(client, dnsServer, port, cancellationToken);
 
             // Create a new SSL stream for the secure connection
             //var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) => true);
@@ -107,6 +107,19 @@ namespace DnsClientX {
             client.Close();
 
             return response;
+        }
+
+        private static async Task ConnectAsync(TcpClient client, string host, int port, CancellationToken cancellationToken) {
+            var connectTask = client.ConnectAsync(host, port);
+            var delayTask = Task.Delay(Timeout.Infinite, cancellationToken);
+
+            var completed = await Task.WhenAny(connectTask, delayTask);
+            if (completed != connectTask) {
+                client.Close();
+                throw new OperationCanceledException(cancellationToken);
+            }
+
+            await connectTask;
         }
     }
 }
