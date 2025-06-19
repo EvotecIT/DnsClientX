@@ -70,7 +70,7 @@ namespace DnsClientX {
                 ];
                 response.Status = responseCode;
                 response.AddServerDetails(endpointConfiguration);
-                response.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message + " " + ex.InnerException.Message}";
+                response.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message + " " + ex.InnerException?.Message}";
                 return response;
             }
         }
