@@ -37,7 +37,18 @@ jobs:
               run: dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
 
             - name: Run tests
-              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity normal --logger trx --collect:"XPlat Code Coverage"
+              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --results-directory TestResults --collect:"XPlat Code Coverage"
+
+            - name: Summarize test results
+              shell: bash
+              run: |
+                  FAILED=$(grep -o 'outcome="Failed"' TestResults/test-results.trx | wc -l)
+                  TOTAL=$(grep -oP 'total="\d+"' TestResults/test-results.trx | head -1 | grep -oP '\d+')
+                  echo "Failed: $FAILED of $TOTAL tests" >> "$GITHUB_STEP_SUMMARY"
+                  if [ "$TOTAL" -gt 0 ] && [ $(( FAILED * 100 / TOTAL )) -gt 30 ]; then
+                      echo "More than 30% of tests failed." >> "$GITHUB_STEP_SUMMARY"
+                      exit 1
+                  fi
 
             - name: Upload test results
               uses: actions/upload-artifact@v4
@@ -77,7 +88,18 @@ jobs:
               run: dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
 
             - name: Run tests
-              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity normal --logger trx --collect:"XPlat Code Coverage"
+              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --results-directory TestResults --collect:"XPlat Code Coverage"
+
+            - name: Summarize test results
+              shell: bash
+              run: |
+                  FAILED=$(grep -o 'outcome="Failed"' TestResults/test-results.trx | wc -l)
+                  TOTAL=$(grep -oP 'total="\d+"' TestResults/test-results.trx | head -1 | grep -oP '\d+')
+                  echo "Failed: $FAILED of $TOTAL tests" >> "$GITHUB_STEP_SUMMARY"
+                  if [ "$TOTAL" -gt 0 ] && [ $(( FAILED * 100 / TOTAL )) -gt 30 ]; then
+                      echo "More than 30% of tests failed." >> "$GITHUB_STEP_SUMMARY"
+                      exit 1
+                  fi
 
             - name: Upload test results
               uses: actions/upload-artifact@v4
@@ -117,7 +139,18 @@ jobs:
               run: dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
 
             - name: Run tests
-              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity normal --logger trx --collect:"XPlat Code Coverage"
+              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --results-directory TestResults --collect:"XPlat Code Coverage"
+
+            - name: Summarize test results
+              shell: bash
+              run: |
+                  FAILED=$(grep -o 'outcome="Failed"' TestResults/test-results.trx | wc -l)
+                  TOTAL=$(grep -oP 'total="\d+"' TestResults/test-results.trx | head -1 | grep -oP '\d+')
+                  echo "Failed: $FAILED of $TOTAL tests" >> "$GITHUB_STEP_SUMMARY"
+                  if [ "$TOTAL" -gt 0 ] && [ $(( FAILED * 100 / TOTAL )) -gt 30 ]; then
+                      echo "More than 30% of tests failed." >> "$GITHUB_STEP_SUMMARY"
+                      exit 1
+                  fi
 
             - name: Upload test results
               uses: actions/upload-artifact@v4
