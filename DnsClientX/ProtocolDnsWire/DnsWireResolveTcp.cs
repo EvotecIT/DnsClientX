@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace DnsClientX {
     internal class DnsWireResolveTcp {
@@ -38,10 +40,9 @@ namespace DnsClientX {
                 Console.WriteLine($"Question type: {BitConverter.ToString(queryBytes, queryBytes.Length - 4, 2)}");
                 Console.WriteLine($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
-
             try {
                 // Send the DNS query over TCP and receive the response
-                var responseBuffer = await SendQueryOverTcp(queryBytes, dnsServer, port);
+                var responseBuffer = await SendQueryOverTcp(queryBytes, dnsServer, port, endpointConfiguration.TimeOut);
 
                 // Deserialize the response from DNS wire format
                 var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer);
@@ -73,46 +74,92 @@ namespace DnsClientX {
                 return response;
             }
         }
-
         /// <summary>
         /// Sends a DNS query over TCP and returns the response.
         /// </summary>
         /// <param name="query"></param>
         /// <param name="dnsServer"></param>
         /// <param name="port"></param>
+        /// <param name="timeoutMilliseconds"></param>
         /// <returns></returns>
-        private static async Task<byte[]> SendQueryOverTcp(byte[] query, string dnsServer, int port) {
+        private static async Task<byte[]> SendQueryOverTcp(byte[] query, string dnsServer, int port, int timeoutMilliseconds) {
             using (var tcpClient = new TcpClient()) {
-                // Connect to the server
-                await tcpClient.ConnectAsync(dnsServer, port);
+                try {
+                    // Connect to the server with timeout
+                    var connectTask = tcpClient.ConnectAsync(dnsServer, port);
+                    var timeoutTask = Task.Delay(timeoutMilliseconds);
+                    var completedTask = await Task.WhenAny(connectTask, timeoutTask);
 
-                // Get the stream
-                var stream = tcpClient.GetStream();
+                    if (completedTask == timeoutTask) {
+                        throw new TimeoutException($"Connection to {dnsServer}:{port} timed out after {timeoutMilliseconds} milliseconds.");
+                    }
 
-                // Write the length of the query as a 16-bit big-endian integer
-                var lengthBytes = BitConverter.GetBytes((ushort)query.Length);
-                if (BitConverter.IsLittleEndian) {
-                    Array.Reverse(lengthBytes); // Ensure big-endian order
+                    await connectTask; // Ensure any exceptions from connect are propagated
+
+                    // Get the stream
+                    var stream = tcpClient.GetStream();
+
+                    // Write the length of the query as a 16-bit big-endian integer
+                    var lengthBytes = BitConverter.GetBytes((ushort)query.Length);
+                    if (BitConverter.IsLittleEndian) {
+                        Array.Reverse(lengthBytes); // Ensure big-endian order
+                    }
+
+                    // Write operations with timeout
+                    var writeTask = stream.WriteAsync(lengthBytes, 0, lengthBytes.Length);
+                    timeoutTask = Task.Delay(timeoutMilliseconds);
+                    completedTask = await Task.WhenAny(writeTask, timeoutTask);
+
+                    if (completedTask == timeoutTask) {
+                        throw new TimeoutException($"Writing length to {dnsServer}:{port} timed out after {timeoutMilliseconds} milliseconds.");
+                    }
+                    await writeTask;
+
+                    // Write the query
+                    writeTask = stream.WriteAsync(query, 0, query.Length);
+                    timeoutTask = Task.Delay(timeoutMilliseconds);
+                    completedTask = await Task.WhenAny(writeTask, timeoutTask);
+
+                    if (completedTask == timeoutTask) {
+                        throw new TimeoutException($"Writing query to {dnsServer}:{port} timed out after {timeoutMilliseconds} milliseconds.");
+                    }
+                    await writeTask;
+
+                    // Read the length of the response with timeout
+                    lengthBytes = new byte[2];
+                    var readTask = ReadExactWithTimeoutAsync(stream, lengthBytes, 0, lengthBytes.Length, timeoutMilliseconds);
+                    await readTask;
+
+                    if (BitConverter.IsLittleEndian) {
+                        Array.Reverse(lengthBytes); // Ensure big-endian order
+                    }
+                    var responseLength = BitConverter.ToUInt16(lengthBytes, 0);
+
+                    // Read the response with timeout
+                    var responseBuffer = new byte[responseLength];
+                    readTask = ReadExactWithTimeoutAsync(stream, responseBuffer, 0, responseBuffer.Length, timeoutMilliseconds);
+                    await readTask;
+
+                    return responseBuffer;
+                } catch (OperationCanceledException) {
+                    throw new TimeoutException($"The TCP DNS query timed out after {timeoutMilliseconds} milliseconds.");
                 }
-                await stream.WriteAsync(lengthBytes, 0, lengthBytes.Length);
-
-                // Write the query
-                await stream.WriteAsync(query, 0, query.Length);
-
-                // Read the length of the response
-                lengthBytes = new byte[2];
-                await DnsWire.ReadExactAsync(stream, lengthBytes, 0, lengthBytes.Length);
-                if (BitConverter.IsLittleEndian) {
-                    Array.Reverse(lengthBytes); // Ensure big-endian order
-                }
-                var responseLength = BitConverter.ToUInt16(lengthBytes, 0);
-
-                // Read the response
-                var responseBuffer = new byte[responseLength];
-                await DnsWire.ReadExactAsync(stream, responseBuffer, 0, responseBuffer.Length);
-
-                return responseBuffer;
             }
+        }
+
+        /// <summary>
+        /// Helper to read exactly the requested number of bytes from a stream with timeout.
+        /// </summary>
+        private static async Task ReadExactWithTimeoutAsync(Stream stream, byte[] buffer, int offset, int count, int timeoutMilliseconds) {
+            var readTask = DnsWire.ReadExactAsync(stream, buffer, offset, count);
+            var timeoutTask = Task.Delay(timeoutMilliseconds);
+            var completedTask = await Task.WhenAny(readTask, timeoutTask);
+
+            if (completedTask == timeoutTask) {
+                throw new TimeoutException($"Reading from stream timed out after {timeoutMilliseconds} milliseconds.");
+            }
+
+            await readTask; // Ensure any exceptions from read are propagated
         }
     }
 }
