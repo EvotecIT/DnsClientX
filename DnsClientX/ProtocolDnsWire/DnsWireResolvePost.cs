@@ -1,6 +1,7 @@
 using System;
 using System.Net.Http.Headers;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
@@ -18,7 +19,7 @@ namespace DnsClientX {
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         /// <exception cref="System.ArgumentNullException">Thrown when the 'name' parameter is null or empty.</exception>
         /// <exception cref="DnsClientException">Thrown when the HTTP request fails or the server returns an error.</exception>
-        internal static async Task<DnsResponse> ResolveWireFormatPost(this HttpClient client, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration) {
+        internal static async Task<DnsResponse> ResolveWireFormatPost(this HttpClient client, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             var query = new DnsMessage(name, type, requestDnsSec);
@@ -34,7 +35,7 @@ namespace DnsClientX {
             content.Headers.ContentType = new MediaTypeHeaderValue("application/dns-message");
             content.Headers.ContentLength = queryBytes.Length;
 
-            var postAsync = await client.PostAsync(client.BaseAddress, content);
+            var postAsync = await client.PostAsync(client.BaseAddress, content, cancellationToken);
             var response = await postAsync.DeserializeDnsWireFormat(debug);
             response.AddServerDetails(endpointConfiguration);
             return response;

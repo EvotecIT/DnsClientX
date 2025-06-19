@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using System;
 
@@ -19,7 +20,7 @@ namespace DnsClientX {
         /// <exception cref="DnsClientException">Thrown when the HTTP request fails or the server returns an error.</exception>
         internal static async Task<DnsResponse> ResolveWireFormatGet(this HttpClient client, string name,
             DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug,
-            Configuration endpointConfiguration) {
+            Configuration endpointConfiguration, CancellationToken cancellationToken) {
             // For OpenDNS, we need to create a DNS message and base64url encode it
             var dnsMessage = new DnsMessage(name, type, requestDnsSec);
             var base64UrlDnsMessage = dnsMessage.ToBase64Url();
@@ -34,7 +35,7 @@ namespace DnsClientX {
             }
 
             try {
-                using HttpResponseMessage res = await client.SendAsync(req);
+                using HttpResponseMessage res = await client.SendAsync(req, cancellationToken);
                 DnsResponse response = await res.DeserializeDnsWireFormat(debug);
                 response.AddServerDetails(endpointConfiguration);
                 if (res.StatusCode != HttpStatusCode.OK || !string.IsNullOrEmpty(response.Error)) {

@@ -4,6 +4,7 @@ using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
@@ -26,7 +27,7 @@ namespace DnsClientX {
         /// or
         /// The stream was closed before the entire response could be read.
         /// </exception>
-        internal static async Task<DnsResponse> ResolveWireFormatDoT(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration) {
+        internal static async Task<DnsResponse> ResolveWireFormatDoT(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             var query = new DnsMessage(name, type, requestDnsSec);
@@ -61,7 +62,8 @@ namespace DnsClientX {
             }
 
             // Create a new TCP client and connect to the DNS server
-            var client = new TcpClient(dnsServer, port);
+            var client = new TcpClient();
+            await ConnectAsync(client, dnsServer, port, cancellationToken);
 
             // Create a new SSL stream for the secure connection
             //var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) => true);
@@ -76,12 +78,12 @@ namespace DnsClientX {
             await sslStream.AuthenticateAsClientAsync(dnsServer, null, SslProtocols.Tls12, false);
 
             // Write the combined query bytes to the SSL stream and flush it
-            await sslStream.WriteAsync(combinedQueryBytes, 0, combinedQueryBytes.Length);
-            await sslStream.FlushAsync();
+            await sslStream.WriteAsync(combinedQueryBytes, 0, combinedQueryBytes.Length, cancellationToken);
+            await sslStream.FlushAsync(cancellationToken);
 
             // Prepare to read the response with handling for length prefix
             var lengthPrefixBuffer = new byte[2];
-            int prefixBytesRead = await sslStream.ReadAsync(lengthPrefixBuffer, 0, 2);
+            int prefixBytesRead = await sslStream.ReadAsync(lengthPrefixBuffer, 0, 2, cancellationToken);
             if (prefixBytesRead != 2) {
                 throw new Exception("Failed to read the length prefix of the response.");
             }
@@ -90,7 +92,7 @@ namespace DnsClientX {
             var responseBuffer = new byte[responseLength];
             int totalBytesRead = 0;
             while (totalBytesRead < responseLength) {
-                int bytesRead = await sslStream.ReadAsync(responseBuffer, totalBytesRead, responseLength - totalBytesRead);
+                int bytesRead = await sslStream.ReadAsync(responseBuffer, totalBytesRead, responseLength - totalBytesRead, cancellationToken);
                 if (bytesRead == 0) {
                     throw new Exception("The stream was closed before the entire response could be read.");
                 }
@@ -105,6 +107,19 @@ namespace DnsClientX {
             client.Close();
 
             return response;
+        }
+
+        private static async Task ConnectAsync(TcpClient client, string host, int port, CancellationToken cancellationToken) {
+            var connectTask = client.ConnectAsync(host, port);
+            var delayTask = Task.Delay(Timeout.Infinite, cancellationToken);
+
+            var completed = await Task.WhenAny(connectTask, delayTask);
+            if (completed != connectTask) {
+                client.Close();
+                throw new OperationCanceledException(cancellationToken);
+            }
+
+            await connectTask;
         }
     }
 }

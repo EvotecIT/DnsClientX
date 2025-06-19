@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Text.Json;
 using System;
@@ -19,14 +20,14 @@ namespace DnsClientX {
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         /// <exception cref="DnsClientException">Thrown when the HTTP request fails or the server returns an error.</exception>
         internal static async Task<DnsResponse> ResolveJsonFormat(this HttpClient client, string name,
-            DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration configuration) {
+            DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration configuration, CancellationToken cancellationToken) {
             string url = string.Concat($"?name={name.UrlEncode()}",
                 type == DnsRecordType.A ? "" : $"&type={type.ToString().UrlEncode()}",
                 requestDnsSec == false ? "" : $"&do=1", validateDnsSec == false ? "" : $"&cd=1");
 
             using HttpRequestMessage req = new(HttpMethod.Get, url);
             try {
-                using HttpResponseMessage res = await client.SendAsync(req);
+                using HttpResponseMessage res = await client.SendAsync(req, cancellationToken);
 
                 DnsResponse response = await res.Deserialize<DnsResponse>(debug);
                 response.AddServerDetails(configuration);

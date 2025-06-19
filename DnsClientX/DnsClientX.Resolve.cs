@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
@@ -29,15 +30,16 @@ namespace DnsClientX {
             bool returnAllTypes = false,
             bool retryOnTransient = true,
             int maxRetries = 3,
-            int retryDelayMs = 200) {
+            int retryDelayMs = 200,
+            CancellationToken cancellationToken = default) {
             if (retryOnTransient) {
-                return await RetryAsync(() => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes), maxRetries, retryDelayMs);
+                return await RetryAsync(() => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, cancellationToken), maxRetries, retryDelayMs);
             } else {
-                return await ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes);
+                return await ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, cancellationToken);
             }
         }
 
-        private async Task<DnsResponse> ResolveInternal(string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool returnAllTypes) {
+        private async Task<DnsResponse> ResolveInternal(string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool returnAllTypes, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             // lets we execute valid dns host name strategy
@@ -55,17 +57,17 @@ namespace DnsClientX {
 
             DnsResponse response;
             if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
-                response = await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
+                response = await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps) {
-                response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
+                response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST) {
-                response = await Client.ResolveWireFormatPost(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
+                response = await Client.ResolveWireFormatPost(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
-                response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
+                response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
-                response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
+                response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
-                response = await DnsWireResolveUdp.ResolveWireFormatUdp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration);
+                response = await DnsWireResolveUdp.ResolveWireFormatUdp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
             } else {
                 throw new DnsClientException($"Invalid RequestFormat: {EndpointConfiguration.RequestFormat}");
             }
@@ -132,10 +134,10 @@ namespace DnsClientX {
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of DNS responses.</returns>
         /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
-        public async Task<DnsResponse[]> Resolve(string name, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
+        public async Task<DnsResponse[]> Resolve(string name, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             Task<DnsResponse>[] tasks = new Task<DnsResponse>[types.Length];
             for (int i = 0; i < tasks.Length; i++) {
-                tasks[i] = Resolve(name, types[i], requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs);
+                tasks[i] = Resolve(name, types[i], requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken);
             }
 
             await Task.WhenAll(tasks);
@@ -179,12 +181,12 @@ namespace DnsClientX {
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of DNS responses.</returns>
-        public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
+        public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             var tasks = new List<Task<DnsResponse>>();
 
             foreach (var name in names) {
                 foreach (var type in types) {
-                    tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs));
+                    tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken));
                 }
             }
 
@@ -221,11 +223,11 @@ namespace DnsClientX {
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns></returns>
-        public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
+        public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             var tasks = new List<Task<DnsResponse>>();
 
             foreach (var name in names) {
-                tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs));
+                tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken));
             }
 
             await Task.WhenAll(tasks);
