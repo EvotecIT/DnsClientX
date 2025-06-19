@@ -39,13 +39,39 @@ namespace DnsClientX {
                 Console.WriteLine($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
 
-            // Send the DNS query over UDP and receive the response
-            var responseBuffer = await SendQueryOverTcp(queryBytes, dnsServer, port);
+            try {
+                // Send the DNS query over TCP and receive the response
+                var responseBuffer = await SendQueryOverTcp(queryBytes, dnsServer, port);
 
-            // Deserialize the response from DNS wire format
-            var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer);
-            response.AddServerDetails(endpointConfiguration);
-            return response;
+                // Deserialize the response from DNS wire format
+                var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer);
+                response.AddServerDetails(endpointConfiguration);
+                return response;
+            } catch (Exception ex) {
+                DnsResponseCode responseCode;
+                if (ex is SocketException) {
+                    responseCode = DnsResponseCode.Refused;
+                } else if (ex is TimeoutException) {
+                    responseCode = DnsResponseCode.ServerFailure;
+                } else {
+                    responseCode = DnsResponseCode.ServerFailure;
+                }
+
+                DnsResponse response = new DnsResponse {
+                    Questions = [
+                        new DnsQuestion() {
+                            Name = name,
+                            RequestFormat = DnsRequestFormat.DnsOverTCP,
+                            Type = type,
+                            OriginalName = name
+                        }
+                    ],
+                    Status = responseCode
+                };
+                response.AddServerDetails(endpointConfiguration);
+                response.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message + " " + ex.InnerException?.Message}";
+                return response;
+            }
         }
 
         /// <summary>
