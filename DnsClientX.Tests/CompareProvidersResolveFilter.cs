@@ -41,7 +41,7 @@ namespace DnsClientX.Tests {
 
                 // Check that the arrays have the same elements in the same order
                 try {
-                    Assert.True(sortedAAnswers.Length == sortedAAnswersCompared.Length, $"Record count mismatch: {sortedAAnswers.Length} vs {sortedAAnswersCompared.Length}");
+                    Assert.Equal(sortedAAnswers.Length, sortedAAnswersCompared.Length);
                     for (int i = 0; i < sortedAAnswers.Length; i++) {
                         output.WriteLine($"Record {i} should equal: {sortedAAnswers[i].Data} == {sortedAAnswersCompared[i].Data}");
                         Assert.True((bool)(sortedAAnswers[i].Name == sortedAAnswersCompared[i].Name),
@@ -84,7 +84,7 @@ namespace DnsClientX.Tests {
                     .ThenBy(a => a.Type).ToArray();
 
                 // Check that the arrays have the same length
-                Assert.True(sortedQuestions.Length == sortedQuestionsCompared.Length);
+                Assert.Equal(sortedQuestions.Length, sortedQuestionsCompared.Length);
 
                 for (int i = 0; i < sortedQuestions.Length; i++) {
                     output.WriteLine("Provider: " + endpointCompare.ToString());
@@ -127,7 +127,7 @@ namespace DnsClientX.Tests {
 
                     // Check that the arrays have the same elements in the same order
                     try {
-                        Assert.True(sortedAAnswers.Length == sortedAAnswersCompared.Length, $"Record count mismatch: {sortedAAnswers.Length} vs {sortedAAnswersCompared.Length}");
+                        Assert.Equal(sortedAAnswers.Length, sortedAAnswersCompared.Length);
                         for (int i = 0; i < sortedAAnswers.Length; i++) {
                             output.WriteLine($"Record {i} should equal: {sortedAAnswers[i].Data} == {sortedAAnswersCompared[i].Data}");
                             Assert.True((bool)(sortedAAnswers[i].Name == sortedAAnswersCompared[i].Name),
