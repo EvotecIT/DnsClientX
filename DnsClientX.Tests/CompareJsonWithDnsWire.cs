@@ -18,14 +18,14 @@ namespace DnsClientX.Tests {
             var sortedAAnswersWire = aAnswersWire.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();
 
             // Check that the arrays have the same length
-            Assert.True(sortedAAnswers.Length == sortedAAnswersWire.Length);
+            Assert.Equal(sortedAAnswers.Length, sortedAAnswersWire.Length);
 
             // Check that the arrays have the same elements in the same order
             for (int i = 0; i < sortedAAnswers.Length; i++) {
-                Assert.True((bool)(sortedAAnswers[i].Name == sortedAAnswersWire[i].Name));
-                Assert.True((bool)(sortedAAnswers[i].Type == sortedAAnswersWire[i].Type));
-                Assert.True((bool)(sortedAAnswers[i].Data.Length == sortedAAnswersWire[i].Data.Length));
-                Assert.True(Enumerable.SequenceEqual<char>(sortedAAnswers[i].Data, sortedAAnswersWire[i].Data));
+                Assert.Equal(sortedAAnswers[i].Name, sortedAAnswersWire[i].Name);
+                Assert.Equal(sortedAAnswers[i].Type, sortedAAnswersWire[i].Type);
+                Assert.Equal(sortedAAnswers[i].Data.Length, sortedAAnswersWire[i].Data.Length);
+                Assert.Equal(sortedAAnswers[i].Data, sortedAAnswersWire[i].Data);
             }
         }
     }

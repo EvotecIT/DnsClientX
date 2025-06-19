@@ -54,7 +54,7 @@ namespace DnsClientX.Tests {
                 var sortedAAnswersCompared = aAnswersToCompare.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();
 
                 // Check that the arrays have the same length
-                Assert.True(sortedAAnswers.Length == sortedAAnswersCompared.Length);
+                Assert.Equal(sortedAAnswers.Length, sortedAAnswersCompared.Length);
 
                 // Check that the arrays have the same elements in the same order
                 for (int i = 0; i < sortedAAnswers.Length; i++) {
@@ -94,7 +94,7 @@ namespace DnsClientX.Tests {
             var sortedAAnswersCompared = aAnswersToCompare.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();
 
             // Check that the arrays have the same length
-            Assert.True(sortedAAnswers.Length == sortedAAnswersCompared.Length);
+            Assert.Equal(sortedAAnswers.Length, sortedAAnswersCompared.Length);
 
             for (int i = 0; i < sortedAAnswers.Length; i++) {
                 Assert.True((bool)(sortedAAnswers[i].Name == sortedAAnswersCompared[i].Name));

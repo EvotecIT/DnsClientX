@@ -59,24 +59,26 @@ namespace DnsClientX.Tests {
                 var sortedAAnswersCompared = aAnswersToCompare.Answers.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();
 
                 // Check that the arrays have the same length
-                Assert.True(sortedAAnswers.Length == sortedAAnswersCompared.Length);
+                output.WriteLine($"Answer count expected {sortedAAnswers.Length} vs {sortedAAnswersCompared.Length}");
+                Assert.Equal(sortedAAnswers.Length, sortedAAnswersCompared.Length);
 
                 // Check that the arrays have the same elements in the same order
                 for (int i = 0; i < sortedAAnswers.Length; i++) {
 
                     output.WriteLine($"Record {i} should equal: {sortedAAnswers[i].Data} == {sortedAAnswersCompared[i].Data}");
-                    Assert.True((bool)(sortedAAnswers[i].Name == sortedAAnswersCompared[i].Name), $"Provider {endpointCompare}. There is a name mismatch for " + sortedAAnswers[i].Data);
-                    Assert.True((bool)(sortedAAnswers[i].Type == sortedAAnswersCompared[i].Type), $"Provider {endpointCompare}. There is a type mismatch for " + sortedAAnswers[i].Data);
-                    Assert.True((bool)(sortedAAnswers[i].Data.Length == sortedAAnswersCompared[i].Data.Length), $"Provider {endpointCompare}. Records not matching length for " + sortedAAnswers[i].Data + " length expected: " + sortedAAnswers[i].Data.Length + " length provided: " + sortedAAnswersCompared[i].Data.Length);
-                    Assert.True(Enumerable.SequenceEqual<char>(sortedAAnswers[i].Data, sortedAAnswersCompared[i].Data), $"Provider {endpointCompare}. Records not matching content for " + sortedAAnswers[i].Data);
-                    Assert.True((bool)(sortedAAnswers[i].DataStrings.Length == sortedAAnswersCompared[i].DataStrings.Length), $"Provider {endpointCompare}. Records not matching length for " + sortedAAnswers[i].DataStrings + " length expected: " + sortedAAnswers[i].DataStrings.Length + " length provided: " + sortedAAnswersCompared[i].DataStrings.Length);
+                    Assert.Equal(sortedAAnswers[i].Name, sortedAAnswersCompared[i].Name);
+                    Assert.Equal(sortedAAnswers[i].Type, sortedAAnswersCompared[i].Type);
+                    Assert.Equal(sortedAAnswers[i].Data.Length, sortedAAnswersCompared[i].Data.Length);
+                    Assert.Equal(sortedAAnswers[i].Data, sortedAAnswersCompared[i].Data);
+                    Assert.Equal(sortedAAnswers[i].DataStrings.Length, sortedAAnswersCompared[i].DataStrings.Length);
                 }
 
                 var sortedQuestions = aAnswersPrimary.Questions.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Type).ToArray();
                 var sortedQuestionsCompared = aAnswersToCompare.Questions.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Type).ToArray();
 
                 // Check that the arrays have the same length
-                Assert.True(sortedQuestions.Length == sortedQuestionsCompared.Length);
+                output.WriteLine($"Question count expected {sortedQuestions.Length} vs {sortedQuestionsCompared.Length}");
+                Assert.Equal(sortedQuestions.Length, sortedQuestionsCompared.Length);
 
                 for (int i = 0; i < sortedQuestions.Length; i++) {
                     output.WriteLine("Provider: " + endpointCompare.ToString());
