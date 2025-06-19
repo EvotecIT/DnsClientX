@@ -5,6 +5,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
@@ -40,7 +41,7 @@ namespace DnsClientX {
                     stream.Position = 0;
 
                     dnsWireFormatBytes = new byte[stream.Length];
-                    await ReadExactAsync(stream, dnsWireFormatBytes, 0, dnsWireFormatBytes.Length);
+                    await ReadExactAsync(stream, dnsWireFormatBytes, 0, dnsWireFormatBytes.Length, CancellationToken.None);
                 }
 
                 if (debug) {
@@ -427,9 +428,9 @@ namespace DnsClientX {
         /// <summary>
         /// Helper to read exactly the requested number of bytes from a stream.
         /// </summary>
-        internal static async Task ReadExactAsync(Stream stream, byte[] buffer, int offset, int count) {
+        internal static async Task ReadExactAsync(Stream stream, byte[] buffer, int offset, int count, CancellationToken cancellationToken) {
             int read;
-            while (count > 0 && (read = await stream.ReadAsync(buffer, offset, count)) > 0) {
+            while (count > 0 && (read = await stream.ReadAsync(buffer, offset, count, cancellationToken)) > 0) {
                 offset += read;
                 count -= read;
             }

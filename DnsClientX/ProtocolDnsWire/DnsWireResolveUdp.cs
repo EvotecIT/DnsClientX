@@ -19,7 +19,7 @@ namespace DnsClientX {
         /// <param name="endpointConfiguration">Provide configuration so it can be added to Question for display purposes</param>
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
-        internal static async Task<DnsResponse> ResolveWireFormatUdp(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration) {
+        internal static async Task<DnsResponse> ResolveWireFormatUdp(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             var query = new DnsMessage(name, type, requestDnsSec);
@@ -43,14 +43,14 @@ namespace DnsClientX {
 
             try {
                 // Send the DNS query over UDP and receive the response
-                var responseBuffer = await SendQueryOverUdp(queryBytes, dnsServer, port, endpointConfiguration.TimeOut);
+                var responseBuffer = await SendQueryOverUdp(queryBytes, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken);
 
                 // Deserialize the response from DNS wire format
                 var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer);
                 if (response.IsTruncated) {
                     // If the response is truncated, retry the query over TCP
                     response = await DnsWireResolveTcp.ResolveWireFormatTcp(dnsServer, port, name, type, requestDnsSec,
-                        validateDnsSec, debug, endpointConfiguration);
+                        validateDnsSec, debug, endpointConfiguration, cancellationToken);
                 }
                 response.AddServerDetails(endpointConfiguration);
                 return response;
@@ -90,7 +90,7 @@ namespace DnsClientX {
         /// <param name="port"></param>
         /// <param name="timeoutMilliseconds"></param>
         /// <returns></returns>
-        private static async Task<byte[]> SendQueryOverUdp(byte[] query, string dnsServer, int port, int timeoutMilliseconds) {
+        private static async Task<byte[]> SendQueryOverUdp(byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
             using (var udpClient = new UdpClient()) {
                 // Set the server IP address and port number
                 var serverEndpoint = new IPEndPoint(IPAddress.Parse(dnsServer), port);
@@ -99,7 +99,8 @@ namespace DnsClientX {
                 await udpClient.SendAsync(query, query.Length, serverEndpoint);
 
                 // Set up the cancellation token for the timeout
-                using (var cts = new CancellationTokenSource(timeoutMilliseconds)) {
+                using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)) {
+                    cts.CancelAfter(timeoutMilliseconds);
                     try {
                         // Receive the response with a timeout
                         var responseTask = udpClient.ReceiveAsync();
