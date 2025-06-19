@@ -5,16 +5,44 @@ using System.Threading.Tasks;
 namespace DnsClientX {
     public partial class ClientX {
         /// <summary>
-        /// Extracts only the SPF portion from a TXT record. Google DNS often
-        /// concatenates all TXT records into one string, so we need to trim
-        /// the response to just the <c>v=spf1</c> data for reliable filtering.
+        /// Extracts a single TXT record from a combined Google response.
+        /// Google DNS sometimes returns all TXT records as one string with no
+        /// separators. This helper splits that blob and returns only the record
+        /// matching the provided filter. It supports generic key=value records
+        /// as well as full SPF strings.
         /// </summary>
-        private static string ExtractSpfRecord(string data) {
+        private static string ExtractTxtRecord(string data, string filter) {
+            if (string.IsNullOrEmpty(data) || string.IsNullOrEmpty(filter)) {
+                return data;
+            }
+
+            // Look for standard TXT tokens (foo=bar) or an SPF definition
+            var tokens = Regex.Matches(data,
+                @"((?i)v=spf1.*?-all)|([A-Za-z0-9][A-Za-z0-9_-]*=[^\s]+)");
+            foreach (Match token in tokens) {
+                if (token.Value.IndexOf(filter, System.StringComparison.OrdinalIgnoreCase) >= 0) {
+                    return token.Value.Trim();
+                }
+            }
+
+            int index = data.IndexOf(filter, System.StringComparison.OrdinalIgnoreCase);
+            return index >= 0 ? data.Substring(index).Trim() : data;
+        }
+
+        private static string ExtractTxtRecord(string data, Regex regexFilter) {
             if (string.IsNullOrEmpty(data)) {
                 return data;
             }
 
-            var match = Regex.Match(data, "(?i)v=spf1.*?-all");
+            var tokens = Regex.Matches(data,
+                @"((?i)v=spf1.*?-all)|([A-Za-z0-9][A-Za-z0-9_-]*=[^\s]+)");
+            foreach (Match token in tokens) {
+                if (regexFilter.IsMatch(token.Value)) {
+                    return token.Value.Trim();
+                }
+            }
+
+            var match = regexFilter.Match(data);
             return match.Success ? match.Value.Trim() : data;
         }
         /// <summary>
@@ -43,11 +71,10 @@ namespace DnsClientX {
                     response.Answers = response.Answers
                         .Where(answer => answer.Data.ToLower().Contains(filter.ToLower()))
                         .Select(answer => {
-                            if (answer.Type == DnsRecordType.TXT &&
-                                filter.Equals("v=spf1", System.StringComparison.OrdinalIgnoreCase)) {
-                                // Google sometimes merges all TXT records together, so
-                                // trim to the SPF value before filtering.
-                                answer.DataRaw = ExtractSpfRecord(answer.DataRaw);
+                            if (answer.Type == DnsRecordType.TXT) {
+                                // Google may combine TXT records in one string. Extract just the part
+                                // matching the filter so the returned data mirrors other providers.
+                                answer.DataRaw = ExtractTxtRecord(answer.DataRaw, filter);
                             }
                             return answer;
                         })
@@ -82,7 +109,15 @@ namespace DnsClientX {
             var filteredResponses = responses
                 .Where(response => response.Answers.Any(answer => regexFilter.IsMatch(answer.Data)))
                 .Select(response => {
-                    response.Answers = response.Answers.Where(answer => regexFilter.IsMatch(answer.Data)).ToArray();
+                    response.Answers = response.Answers
+                        .Where(answer => regexFilter.IsMatch(answer.Data))
+                        .Select(answer => {
+                            if (answer.Type == DnsRecordType.TXT) {
+                                answer.DataRaw = ExtractTxtRecord(answer.DataRaw, regexFilter);
+                            }
+                            return answer;
+                        })
+                        .ToArray();
                     return response;
                 })
                 .ToArray();
@@ -111,11 +146,9 @@ namespace DnsClientX {
                 response.Answers = response.Answers
                     .Where(answer => answer.Data.ToLower().Contains(filter.ToLower()))
                     .Select(answer => {
-                        if (answer.Type == DnsRecordType.TXT &&
-                            filter.Equals("v=spf1", System.StringComparison.OrdinalIgnoreCase)) {
-                            // Google sometimes merges all TXT records together, so
-                            // trim to the SPF value before filtering.
-                            answer.DataRaw = ExtractSpfRecord(answer.DataRaw);
+                        if (answer.Type == DnsRecordType.TXT) {
+                            // Normalise Google's combined TXT blob to a single record.
+                            answer.DataRaw = ExtractTxtRecord(answer.DataRaw, filter);
                         }
                         return answer;
                     })
@@ -145,11 +178,8 @@ namespace DnsClientX {
                 response.Answers = response.Answers
                     .Where(answer => regexFilter.IsMatch(answer.Data))
                     .Select(answer => {
-                        if (answer.Type == DnsRecordType.TXT &&
-                            regexFilter.IsMatch("v=spf1")) {
-                            // Google sometimes merges all TXT records together, so
-                            // trim to the SPF value before filtering.
-                            answer.DataRaw = ExtractSpfRecord(answer.DataRaw);
+                        if (answer.Type == DnsRecordType.TXT) {
+                            answer.DataRaw = ExtractTxtRecord(answer.DataRaw, regexFilter);
                         }
                         return answer;
                     })
