@@ -4,6 +4,14 @@ using System.Threading.Tasks;
 
 namespace DnsClientX {
     public partial class ClientX {
+        private static string ExtractSpfRecord(string data) {
+            if (string.IsNullOrEmpty(data)) {
+                return data;
+            }
+
+            var match = Regex.Match(data, "(?i)v=spf1.*?-all");
+            return match.Success ? match.Value.Trim() : data;
+        }
         /// <summary>
         /// Resolves multiple domain names for a single DNS record type in parallel using DNS over HTTPS.
         /// This method allows you to specify a filter that will be applied to the data of the DNS answers.
@@ -27,7 +35,16 @@ namespace DnsClientX {
             var filteredResponses = responses
                 .Where(response => response.Answers.Any(answer => answer.Data.ToLower().Contains(filter.ToLower())))
                 .Select(response => {
-                    response.Answers = response.Answers.Where(answer => answer.Data.ToLower().Contains(filter.ToLower())).ToArray();
+                    response.Answers = response.Answers
+                        .Where(answer => answer.Data.ToLower().Contains(filter.ToLower()))
+                        .Select(answer => {
+                            if (answer.Type == DnsRecordType.TXT &&
+                                filter.Equals("v=spf1", System.StringComparison.OrdinalIgnoreCase)) {
+                                answer.DataRaw = ExtractSpfRecord(answer.DataRaw);
+                            }
+                            return answer;
+                        })
+                        .ToArray();
                     return response;
                 })
                 .ToArray();
@@ -84,7 +101,16 @@ namespace DnsClientX {
             var response = await Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs);
 
             if (!string.IsNullOrEmpty(filter) && response.Answers != null) {
-                response.Answers = response.Answers.Where(answer => answer.Data.ToLower().Contains(filter.ToLower())).ToArray();
+                response.Answers = response.Answers
+                    .Where(answer => answer.Data.ToLower().Contains(filter.ToLower()))
+                    .Select(answer => {
+                        if (answer.Type == DnsRecordType.TXT &&
+                            filter.Equals("v=spf1", System.StringComparison.OrdinalIgnoreCase)) {
+                            answer.DataRaw = ExtractSpfRecord(answer.DataRaw);
+                        }
+                        return answer;
+                    })
+                    .ToArray();
             }
 
             return response;
@@ -107,7 +133,16 @@ namespace DnsClientX {
             var response = await Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs);
 
             if (response.Answers != null) {
-                response.Answers = response.Answers.Where(answer => regexFilter.IsMatch(answer.Data)).ToArray();
+                response.Answers = response.Answers
+                    .Where(answer => regexFilter.IsMatch(answer.Data))
+                    .Select(answer => {
+                        if (answer.Type == DnsRecordType.TXT &&
+                            regexFilter.IsMatch("v=spf1")) {
+                            answer.DataRaw = ExtractSpfRecord(answer.DataRaw);
+                        }
+                        return answer;
+                    })
+                    .ToArray();
             }
 
             return response;
