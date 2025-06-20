@@ -12,6 +12,7 @@ namespace DnsClientX {
         private readonly string _name;
         private readonly DnsRecordType _type;
         private readonly bool _requestDnsSec;
+        private const ushort _ednsUdpPayloadSize = 4096;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DnsMessage"/> class.
@@ -65,8 +66,8 @@ namespace DnsClientX {
             BinaryPrimitives.WriteUInt16BigEndian(buffer, 0);
             stream.Write(buffer.ToArray(), 0, buffer.Length);
 
-            // Write the additional count
-            BinaryPrimitives.WriteUInt16BigEndian(buffer, 0);
+            // Write the additional count (for EDNS0 OPT record)
+            BinaryPrimitives.WriteUInt16BigEndian(buffer, 1);
             stream.Write(buffer.ToArray(), 0, buffer.Length);
 
             // Write the question name
@@ -85,9 +86,24 @@ namespace DnsClientX {
             BinaryPrimitives.WriteUInt16BigEndian(buffer, 1);
             stream.Write(buffer.ToArray(), 0, buffer.Length);
 
+            // Append OPT record for EDNS0
+            stream.WriteByte(0); // root name
+            BinaryPrimitives.WriteUInt16BigEndian(buffer, (ushort)DnsRecordType.OPT);
+            stream.Write(buffer.ToArray(), 0, buffer.Length);
+            BinaryPrimitives.WriteUInt16BigEndian(buffer, _ednsUdpPayloadSize);
+            stream.Write(buffer.ToArray(), 0, buffer.Length);
+            stream.WriteByte(0); // extended rcode
+            stream.WriteByte(0); // edns version
+            BinaryPrimitives.WriteUInt16BigEndian(buffer, _requestDnsSec ? (ushort)0x8000 : (ushort)0);
+            stream.Write(buffer.ToArray(), 0, buffer.Length);
+            BinaryPrimitives.WriteUInt16BigEndian(buffer, 0); // rdlen
+            stream.Write(buffer.ToArray(), 0, buffer.Length);
+
             // Convert to base64url format
             var dnsMessageBytes = stream.ToArray();
-            string base64Url = Convert.ToBase64String(dnsMessageBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+            string base64Url = Convert.ToBase64String(dnsMessageBytes).TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
 
             return base64Url;
         }
@@ -120,8 +136,8 @@ namespace DnsClientX {
                 bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)0));
                 ms.Write(bytes, 0, bytes.Length);
 
-                // Additional RRs
-                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)0));
+                // Additional RRs (for EDNS0 OPT record)
+                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)1));
                 ms.Write(bytes, 0, bytes.Length);
 
                 // Queries
@@ -138,6 +154,19 @@ namespace DnsClientX {
 
                 // Class
                 bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)1)); // IN
+                ms.Write(bytes, 0, bytes.Length);
+
+                // Append OPT record for EDNS0
+                ms.WriteByte(0); // root name
+                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)DnsRecordType.OPT));
+                ms.Write(bytes, 0, bytes.Length);
+                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)_ednsUdpPayloadSize));
+                ms.Write(bytes, 0, bytes.Length);
+                ms.WriteByte(0); // extended rcode
+                ms.WriteByte(0); // edns version
+                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)(_requestDnsSec ? 0x8000 : 0)));
+                ms.Write(bytes, 0, bytes.Length);
+                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)0)); // rdlen
                 ms.Write(bytes, 0, bytes.Length);
 
                 return ms.ToArray();
