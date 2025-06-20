@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Threading.Tasks;
 
 using DnsClientX;
@@ -104,6 +105,40 @@ namespace DnsClientX.Examples {
                 var data = await ClientX.QueryDns(domains, DnsRecordType.TLSA, endpoint);
                 data.DisplayTable();
             }
+        }
+
+        public static async Task ExampleTXT() {
+            var domains = new[] { "disneyplus.com" };
+            HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.TXT, "1.1.1.1");
+            var data = await ClientX.QueryDns(domains, DnsRecordType.TXT, "1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON);
+            foreach (var d in data[0].Answers) {
+                Console.WriteLine(d.Data);
+            }
+
+
+            HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.TXT, DnsEndpoint.Google);
+            var dataGoogle = await ClientX.QueryDns(domains, DnsRecordType.TXT, DnsEndpoint.Google);
+            foreach (var d in dataGoogle[0].Answers) {
+                Console.WriteLine(d.Data);
+            }
+        }
+
+        public static async Task ExampleSPF() {
+            var domains = new[] { "disneyplus.com" };
+            HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.SPF, "1.1.1.1");
+            var client = new ClientX(DnsEndpoint.Cloudflare, DnsSelectionStrategy.First) {
+                Debug = false
+            };
+            var data = await client.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
+            //data.DisplayTable();
+            Console.WriteLine(data.Answers[0].Data);
+
+            HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.SPF, DnsEndpoint.Google);
+            var client1 = new ClientX(DnsEndpoint.GoogleWireFormat, DnsSelectionStrategy.First) {
+                Debug = false
+            };
+            var data1 = await client1.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
+            Console.WriteLine(data1.Answers[0].Data);
         }
     }
 }
