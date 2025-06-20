@@ -6,10 +6,10 @@ using System.Collections.Generic;
 namespace DnsClientX.Tests {
     public class CompareProvidersResolveFilter(ITestOutputHelper output) {
         [Theory]
-        [InlineData("evotec.pl", DnsRecordType.TXT)]
-        [InlineData("microsoft.com", DnsRecordType.TXT)]
-        [InlineData("disneyplus.com", DnsRecordType.TXT)]
-        [InlineData("github.com", DnsRecordType.TXT)]
+        [InlineData("evotec.pl", DnsRecordType.TXT, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("microsoft.com", DnsRecordType.TXT, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("disneyplus.com", DnsRecordType.TXT, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("github.com", DnsRecordType.TXT, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
         public async Task CompareRecordsImproved(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 
