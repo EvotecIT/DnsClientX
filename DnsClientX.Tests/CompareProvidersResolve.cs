@@ -34,6 +34,166 @@ namespace DnsClientX.Tests {
         [InlineData("1.1.1.1", DnsRecordType.PTR)]
         [InlineData("108.138.7.68", DnsRecordType.PTR)]
         [InlineData("sip2sip.info", DnsRecordType.NAPTR)]
+        public async Task CompareRecordsImproved(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
+            output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
+
+            var primaryEndpoint = DnsEndpoint.Cloudflare;
+            var allEndpoints = Enum.GetValues(typeof(DnsEndpoint)).Cast<DnsEndpoint>()
+                .Where(e => e != primaryEndpoint && (excludedEndpoints == null || !excludedEndpoints.Contains(e)))
+                .ToArray();
+
+            // Collect results from all providers with retry logic
+            var results = new Dictionary<DnsEndpoint, (DnsResponse response, string? error)>();
+
+            // Get primary endpoint result
+            var primaryClient = new ClientX(primaryEndpoint);
+            var primaryResult = await GetResponseWithRetry(primaryClient, name, resourceRecordType, primaryEndpoint, output);
+            results[primaryEndpoint] = primaryResult;
+
+            output.WriteLine($"Primary ({primaryEndpoint}): {primaryResult.response.Answers?.Length ?? 0} records, Status: {primaryResult.response.Status}");
+            if (!string.IsNullOrEmpty(primaryResult.error)) {
+                output.WriteLine($"  Error: {primaryResult.error}");
+            }
+
+            // Get all other endpoint results
+            foreach (var endpoint in allEndpoints) {
+                var client = new ClientX(endpoint);
+                var result = await GetResponseWithRetry(client, name, resourceRecordType, endpoint, output);
+                results[endpoint] = result;
+
+                output.WriteLine($"Provider {endpoint}: {result.response.Answers?.Length ?? 0} records, Status: {result.response.Status}");
+                if (!string.IsNullOrEmpty(result.error)) {
+                    output.WriteLine($"  Error: {result.error}");
+                }
+            }
+
+            // Analyze results
+            var expectedCount = primaryResult.response.Answers?.Length ?? 0;
+            var failedProviders = new List<string>();
+            var inconsistentProviders = new List<string>();
+
+            foreach (var kvp in results.Where(r => r.Key != primaryEndpoint)) {
+                var endpoint = kvp.Key;
+                var result = kvp.Value;
+                var actualCount = result.response.Answers?.Length ?? 0;
+
+                if (actualCount == 0 && expectedCount > 0) {
+                    failedProviders.Add($"{endpoint} (0 records, expected {expectedCount})");
+                } else if (actualCount != expectedCount) {
+                    inconsistentProviders.Add($"{endpoint} ({actualCount} records, expected {expectedCount})");
+                }
+            }
+
+            // Report diagnostics
+            if (failedProviders.Any()) {
+                output.WriteLine($"⚠️  Providers returning empty results: {string.Join(", ", failedProviders)}");
+            }
+            if (inconsistentProviders.Any()) {
+                output.WriteLine($"⚠️  Providers with different record counts: {string.Join(", ", inconsistentProviders)}");
+            }
+
+            // Only fail if MORE than 20% of providers have issues (allows for some transient failures)
+            var totalProviders = allEndpoints.Length;
+            var problematicProviders = failedProviders.Count + inconsistentProviders.Count;
+            var failureRate = (double)problematicProviders / totalProviders;
+
+            if (failureRate > 0.2) { // More than 20% of providers failing
+                var allIssues = failedProviders.Concat(inconsistentProviders);
+                Assert.False(true, $"Too many providers ({problematicProviders}/{totalProviders}, {failureRate:P0}) have issues: {string.Join(", ", allIssues)}");
+            } else if (problematicProviders > 0) {
+                output.WriteLine($"✅ Acceptable failure rate: {problematicProviders}/{totalProviders} providers ({failureRate:P0}) have issues - likely transient");
+            }
+
+            // For providers that did return results, validate content consistency
+            var successfulResults = results.Where(r => (r.Value.response.Answers?.Length ?? 0) == expectedCount).ToList();
+            if (successfulResults.Count > 1 && expectedCount > 0) {
+                var reference = successfulResults.First().Value.response.Answers.OrderBy(a => a.Data).ToArray();
+                foreach (var kvp in successfulResults.Skip(1)) {
+                    var endpoint = kvp.Key;
+                    var result = kvp.Value;
+                    var sorted = result.response.Answers.OrderBy(a => a.Data).ToArray();
+                    for (int i = 0; i < reference.Length; i++) {
+                        if (reference[i].Data != sorted[i].Data) {
+                            output.WriteLine($"⚠️  Content mismatch in {endpoint}: expected '{reference[i].Data}', got '{sorted[i].Data}'");
+                        }
+                    }
+                }
+            }
+        }
+
+        private async Task<(DnsResponse response, string? error)> GetResponseWithRetry(
+            ClientX client, string name, DnsRecordType type, DnsEndpoint endpoint, ITestOutputHelper output) {
+
+            const int maxRetries = 3;
+            const int delayMs = 500;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    var response = await client.Resolve(name, type);
+
+                    if ((response.Answers?.Length ?? 0) == 0 && response.Status == DnsResponseCode.NoError && attempt < maxRetries) {
+                        output.WriteLine($"  {endpoint}: Attempt {attempt} returned 0 records with NoError status, retrying...");
+                        await Task.Delay(delayMs);
+                        continue;
+                    }
+
+                    return (response, response.Error);
+                } catch (Exception ex) {
+                    if (attempt == maxRetries) {
+                        var emptyResponse = new DnsResponse {
+                            Status = DnsResponseCode.ServerFailure,
+                            Error = $"Exception after {maxRetries} attempts: {ex.Message}",
+                            Answers = Array.Empty<DnsAnswer>(),
+                            Questions = Array.Empty<DnsQuestion>()
+                        };
+                        return (emptyResponse, $"Exception after {maxRetries} attempts: {ex.Message}");
+                    }
+                    output.WriteLine($"  {endpoint}: Attempt {attempt} failed: {ex.Message}, retrying...");
+                    await Task.Delay(delayMs);
+                }
+            }
+
+            var failureResponse = new DnsResponse {
+                Status = DnsResponseCode.ServerFailure,
+                Error = "Max retries exceeded",
+                Answers = Array.Empty<DnsAnswer>(),
+                Questions = Array.Empty<DnsQuestion>()
+            };
+            return (failureResponse, "Max retries exceeded");
+        }
+
+        [Theory]
+        //[MemberData(nameof(TestData))]
+        [InlineData("evotec.pl", DnsRecordType.A)]
+        [InlineData("www.bücher.de", DnsRecordType.A)]
+        [InlineData("evotec.pl", DnsRecordType.SOA)]
+        [InlineData("evotec.pl", DnsRecordType.DNSKEY)]
+        [InlineData("sip.evotec.pl", DnsRecordType.CNAME)]
+        [InlineData("autodiscover.evotec.pl", DnsRecordType.CNAME)]
+        [InlineData("evotec.pl", DnsRecordType.CAA)]
+        [InlineData("evotec.pl", DnsRecordType.AAAA)]
+        [InlineData("evotec.pl", DnsRecordType.MX)]
+        [InlineData("evotec.pl", DnsRecordType.NS)]
+        [InlineData("evotec.pl", DnsRecordType.SPF)]
+        [InlineData("evotec.pl", DnsRecordType.TXT)]
+        [InlineData("evotec.pl", DnsRecordType.SRV)]
+        [InlineData("evotec.pl", DnsRecordType.NSEC, new[] { DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("cloudflare.com", DnsRecordType.NSEC)]
+        [InlineData("mail-db3pr0202cu00100.inbound.protection.outlook.com", DnsRecordType.PTR)]
+        // lets try different sites
+        [InlineData("reddit.com", DnsRecordType.A)]
+        [InlineData("reddit.com", DnsRecordType.CAA)]
+        [InlineData("reddit.com", DnsRecordType.SOA)]
+        // github.com has a lot of TXT records, including multiline, however google dns doesn't do multiline TXT records and delivers them as one line
+        [InlineData("github.com", DnsRecordType.TXT, new[] { DnsEndpoint.Google })]
+
+        [InlineData("microsoft.com", DnsRecordType.MX)]
+        [InlineData("microsoft.com", DnsRecordType.NS)]
+
+        [InlineData("google.com", DnsRecordType.MX)]
+        [InlineData("1.1.1.1", DnsRecordType.PTR)]
+        [InlineData("108.138.7.68", DnsRecordType.PTR)]
+        [InlineData("sip2sip.info", DnsRecordType.NAPTR)]
         public async Task CompareRecords(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 

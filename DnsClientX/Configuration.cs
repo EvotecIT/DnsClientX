@@ -209,17 +209,17 @@ namespace DnsClientX {
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.Quad9:
-                    hostnames = new List<string> { "9.9.9.9", "149.112.112.112" };
+                    hostnames = new List<string> { "dns.quad9.net" };
                     RequestFormat = DnsRequestFormat.DnsOverHttps;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.Quad9ECS:
-                    hostnames = new List<string> { "9.9.9.11", "149.112.112.11" };
+                    hostnames = new List<string> { "dns11.quad9.net" };
                     RequestFormat = DnsRequestFormat.DnsOverHttps;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.Quad9Unsecure:
-                    hostnames = new List<string> { "9.9.9.10", "149.112.112.10" };
+                    hostnames = new List<string> { "dns10.quad9.net" };
                     RequestFormat = DnsRequestFormat.DnsOverHttps;
                     baseUriFormat = "https://{0}/dns-query";
                     break;

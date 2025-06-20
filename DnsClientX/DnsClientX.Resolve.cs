@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -85,21 +86,126 @@ namespace DnsClientX {
         }
 
         private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 200) {
-            for (int attempt = 1; ; attempt++) {
+            Exception lastException = null;
+            T lastResult = default(T);
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
-                    return await action();
-                } catch (Exception ex) when (IsTransient(ex) && attempt < maxRetries) {
+                    var result = await action();
+
+                    // Special handling for DnsResponse - check if it indicates a transient error
+                    if (result is DnsResponse response && IsTransientResponse(response)) {
+                        lastResult = result;
+                        if (attempt == maxRetries) {
+                            // This was the last attempt, return the result (don't throw)
+                            return result;
+                        }
+                        // Not the last attempt, wait and retry
+                        await Task.Delay(delayMs);
+                        continue;
+                    }
+
+                    // Success case or non-transient response
+                    return result;
+                } catch (Exception ex) when (IsTransient(ex)) {
+                    lastException = ex;
+                    if (attempt == maxRetries) {
+                        // This was the last attempt, rethrow the exception
+                        throw;
+                    }
+                    // Not the last attempt, wait and retry
                     await Task.Delay(delayMs);
                 }
             }
+
+            // This should never be reached due to the throw in the catch block,
+            // but just in case, throw the last exception we caught or return the last result
+            if (lastException != null) {
+                throw lastException;
+            }
+            return lastResult;
         }
 
         private static bool IsTransient(Exception ex) {
-            // Customize this for your DNS/network stack
+            // Handle DnsClientException with specific response codes
+            if (ex is DnsClientException dnsEx && dnsEx.Data.Contains("DnsResponse")) {
+                if (dnsEx.Data["DnsResponse"] is DnsResponse response) {
+                    // Consider these DNS response codes as transient (should retry)
+                    return response.Status == DnsResponseCode.ServerFailure ||
+                           response.Status == DnsResponseCode.Refused ||
+                           response.Status == DnsResponseCode.NotImplemented;
+                }
+            }
+
+            // Check for SSL/TLS and connection-related errors (these often are transient)
+            if (ex is HttpRequestException httpEx) {
+                var message = httpEx.Message?.ToLowerInvariant() ?? "";
+                var innerMessage = httpEx.InnerException?.Message?.ToLowerInvariant() ?? "";
+
+                // SSL/TLS certificate and connection errors - these are often transient
+                if (message.Contains("ssl connection could not be established") ||
+                    message.Contains("unable to read data from the transport connection") ||
+                    message.Contains("connection was forcibly closed") ||
+                    message.Contains("certificate validation") ||
+                    message.Contains("handshake") ||
+                    innerMessage.Contains("ssl connection could not be established") ||
+                    innerMessage.Contains("unable to read data from the transport connection") ||
+                    innerMessage.Contains("connection was forcibly closed") ||
+                    innerMessage.Contains("certificate validation") ||
+                    innerMessage.Contains("handshake")) {
+                    return true;
+                }
+            }
+
+            // Network and timeout-related exceptions
             return ex is DnsClientException ||
                    ex is TaskCanceledException ||
                    ex is TimeoutException ||
+                   ex is HttpRequestException ||
+                   ex is System.Net.Sockets.SocketException ||
+                   ex is System.IO.IOException ||
                    (ex.InnerException != null && IsTransient(ex.InnerException));
+        }
+
+        /// <summary>
+        /// Checks if a DnsResponse indicates a transient error that should be retried
+        /// </summary>
+        private static bool IsTransientResponse(DnsResponse response) {
+            // Only consider ServerFailure as transient if it has no answers and contains network/SSL errors
+            if (response.Status == DnsResponseCode.ServerFailure) {
+                // If there are answers despite ServerFailure, don't retry (it's likely a real DNS issue)
+                if (response.Answers != null && response.Answers.Length > 0) {
+                    return false;
+                }
+
+                // Check if the error indicates a network/SSL connection issue
+                if (!string.IsNullOrEmpty(response.Error)) {
+                    var errorMessage = response.Error.ToLowerInvariant();
+                    if (errorMessage.Contains("ssl connection could not be established") ||
+                        errorMessage.Contains("unable to read data from the transport connection") ||
+                        errorMessage.Contains("connection was forcibly closed") ||
+                        errorMessage.Contains("certificate validation") ||
+                        errorMessage.Contains("handshake") ||
+                        errorMessage.Contains("network error") ||
+                        errorMessage.Contains("timeout") ||
+                        errorMessage.Contains("an error occurred while sending the request") ||
+                        errorMessage.Contains("unexpected error occurred on a send") ||
+                        errorMessage.Contains("underlying connection was closed")) {
+                        return true;
+                    }
+                }
+
+                // ServerFailure with no answers and no clear error message might also be transient
+                return true;
+            }
+
+            // Other potentially transient DNS response codes
+            if (response.Status == DnsResponseCode.Refused ||
+                response.Status == DnsResponseCode.NotImplemented) {
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>

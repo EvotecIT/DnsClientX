@@ -47,7 +47,11 @@ namespace DnsClientX {
         /// <value>
         /// The security protocol.
         /// </value>
+#if NET472 || NETSTANDARD2_0
         private SecurityProtocolType _securityProtocol = SecurityProtocolType.Tls12;
+#else
+        private SecurityProtocolType _securityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
+#endif
 
         /// <summary>
         /// The handler
@@ -127,8 +131,17 @@ namespace DnsClientX {
         /// </summary>
         private void ConfigureClient() {
             lock (_lock) {
-                // let's allow TLS 1.2 by default as Quad9 requires it
+                // let's allow TLS 1.2 and 1.3 by default as Quad9 requires at least TLS 1.2
+#if NET472 || NETSTANDARD2_0
                 SecurityProtocol = SecurityProtocolType.Tls12;
+#else
+                try {
+                    SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
+                } catch {
+                    // TLS 1.3 might not be available on all platforms, fallback to TLS 1.2
+                    SecurityProtocol = SecurityProtocolType.Tls12;
+                }
+#endif
 
                 Client?.Dispose();
                 handler?.Dispose();
@@ -143,6 +156,7 @@ namespace DnsClientX {
 
                 Client = new HttpClient(handler) {
                     BaseAddress = EndpointConfiguration.BaseUri,
+                    Timeout = TimeSpan.FromMilliseconds(EndpointConfiguration.TimeOut * 3) // Allow more time for retries
                 };
 
 #if NETCOREAPP2_1_OR_GREATER || NET5_0_OR_GREATER

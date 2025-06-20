@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -25,9 +27,9 @@ namespace DnsClientX {
             var responses = tasks.Select(task => task.Result).ToList();
 
             var filteredResponses = responses
-                .Where(response => response.Answers.Any(answer => answer.Data.ToLower().Contains(filter.ToLower())))
+                .Where(response => HasMatchingAnswers(response.Answers, filter, type))
                 .Select(response => {
-                    response.Answers = response.Answers.Where(answer => answer.Data.ToLower().Contains(filter.ToLower())).ToArray();
+                    response.Answers = FilterAnswers(response.Answers, filter, type);
                     return response;
                 })
                 .ToArray();
@@ -56,9 +58,9 @@ namespace DnsClientX {
             var responses = tasks.Select(task => task.Result).ToList();
 
             var filteredResponses = responses
-                .Where(response => response.Answers.Any(answer => regexFilter.IsMatch(answer.Data)))
+                .Where(response => HasMatchingAnswersRegex(response.Answers, regexFilter, type))
                 .Select(response => {
-                    response.Answers = response.Answers.Where(answer => regexFilter.IsMatch(answer.Data)).ToArray();
+                    response.Answers = FilterAnswersRegex(response.Answers, regexFilter, type);
                     return response;
                 })
                 .ToArray();
@@ -84,7 +86,7 @@ namespace DnsClientX {
             var response = await Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs);
 
             if (!string.IsNullOrEmpty(filter) && response.Answers != null) {
-                response.Answers = response.Answers.Where(answer => answer.Data.ToLower().Contains(filter.ToLower())).ToArray();
+                response.Answers = FilterAnswers(response.Answers, filter, type);
             }
 
             return response;
@@ -107,10 +109,136 @@ namespace DnsClientX {
             var response = await Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs);
 
             if (response.Answers != null) {
-                response.Answers = response.Answers.Where(answer => regexFilter.IsMatch(answer.Data)).ToArray();
+                response.Answers = FilterAnswersRegex(response.Answers, regexFilter, type);
             }
 
             return response;
+        }
+
+        /// <summary>
+        /// Filters DNS answers based on a string filter, with special handling for TXT records that may contain multiple lines.
+        /// </summary>
+        /// <param name="answers">The DNS answers to filter.</param>
+        /// <param name="filter">The filter string to search for.</param>
+        /// <param name="type">The DNS record type being filtered.</param>
+        /// <returns>Filtered array of DNS answers.</returns>
+        private DnsAnswer[] FilterAnswers(DnsAnswer[] answers, string filter, DnsRecordType type) {
+            var filteredAnswers = new List<DnsAnswer>();
+
+            foreach (var answer in answers) {
+                if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
+                    // For TXT records, check if any line contains the filter
+                    var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                    var matchingLines = lines.Where(line => line.ToLower().Contains(filter.ToLower())).ToArray();
+
+                    if (matchingLines.Length > 0) {
+                        // Create a new answer with only the matching lines
+                        var filteredAnswer = new DnsAnswer {
+                            Name = answer.Name,
+                            Type = answer.Type,
+                            TTL = answer.TTL,
+                            DataRaw = answer.DataRaw
+                        };
+                        // Override the Data property to return only matching lines
+                        filteredAnswer.SetFilteredData(string.Join("\n", matchingLines));
+                        filteredAnswers.Add(filteredAnswer);
+                    }
+                } else {
+                    // For non-TXT records, use the original logic
+                    if (answer.Data.ToLower().Contains(filter.ToLower())) {
+                        filteredAnswers.Add(answer);
+                    }
+                }
+            }
+
+            return filteredAnswers.ToArray();
+        }
+
+        /// <summary>
+        /// Filters DNS answers based on a regex filter, with special handling for TXT records that may contain multiple lines.
+        /// </summary>
+        /// <param name="answers">The DNS answers to filter.</param>
+        /// <param name="regexFilter">The regex filter to match against.</param>
+        /// <param name="type">The DNS record type being filtered.</param>
+        /// <returns>Filtered array of DNS answers.</returns>
+        private DnsAnswer[] FilterAnswersRegex(DnsAnswer[] answers, Regex regexFilter, DnsRecordType type) {
+            var filteredAnswers = new List<DnsAnswer>();
+
+            foreach (var answer in answers) {
+                if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
+                    // For TXT records, check if any line matches the regex
+                    var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                    var matchingLines = lines.Where(line => regexFilter.IsMatch(line)).ToArray();
+
+                    if (matchingLines.Length > 0) {
+                        // Create a new answer with only the matching lines
+                        var filteredAnswer = new DnsAnswer {
+                            Name = answer.Name,
+                            Type = answer.Type,
+                            TTL = answer.TTL,
+                            DataRaw = answer.DataRaw
+                        };
+                        // Override the Data property to return only matching lines
+                        filteredAnswer.SetFilteredData(string.Join("\n", matchingLines));
+                        filteredAnswers.Add(filteredAnswer);
+                    }
+                } else {
+                    // For non-TXT records, use the original logic
+                    if (regexFilter.IsMatch(answer.Data)) {
+                        filteredAnswers.Add(answer);
+                    }
+                }
+            }
+
+            return filteredAnswers.ToArray();
+        }
+
+        /// <summary>
+        /// Checks if any answers contain matches for the given filter.
+        /// </summary>
+        /// <param name="answers">The DNS answers to check.</param>
+        /// <param name="filter">The filter string to search for.</param>
+        /// <param name="type">The DNS record type being filtered.</param>
+        /// <returns>True if any answer contains a match.</returns>
+        private bool HasMatchingAnswers(DnsAnswer[] answers, string filter, DnsRecordType type) {
+            foreach (var answer in answers) {
+                if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
+                    var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                    var matchingLines = lines.Where(line => line.ToLower().Contains(filter.ToLower())).ToArray();
+                    if (matchingLines.Length > 0) {
+                        return true;
+                    }
+                } else {
+                    if (answer.Data.ToLower().Contains(filter.ToLower())) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if any answers contain matches for the given regex filter.
+        /// </summary>
+        /// <param name="answers">The DNS answers to check.</param>
+        /// <param name="regexFilter">The regex filter to match against.</param>
+        /// <param name="type">The DNS record type being filtered.</param>
+        /// <returns>True if any answer contains a match.</returns>
+        private bool HasMatchingAnswersRegex(DnsAnswer[] answers, Regex regexFilter, DnsRecordType type) {
+            foreach (var answer in answers) {
+                if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
+                    var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                    var matchingLines = lines.Where(line => regexFilter.IsMatch(line)).ToArray();
+                    if (matchingLines.Length > 0) {
+                        return true;
+                    }
+                } else {
+                    if (regexFilter.IsMatch(answer.Data)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
     }
 }

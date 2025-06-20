@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -107,6 +108,17 @@ namespace DnsClientX.Examples {
             }
         }
 
+        public static async Task ExampleTXTAll() {
+            var domains = new[] { "disneyplus.com" };
+            foreach (DnsEndpoint endpoint in Enum.GetValues(typeof(DnsEndpoint))) {
+                HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.TXT, endpoint);
+                var data = await ClientX.QueryDns(domains, DnsRecordType.TXT, endpoint);
+                foreach (var d in data[0].Answers) {
+                    Console.WriteLine(d.Data);
+                }
+            }
+        }
+
         public static async Task ExampleTXT() {
             var domains = new[] { "disneyplus.com" };
             HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.TXT, "1.1.1.1");
@@ -116,8 +128,24 @@ namespace DnsClientX.Examples {
             }
 
 
-            HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.TXT, DnsEndpoint.Google);
-            var dataGoogle = await ClientX.QueryDns(domains, DnsRecordType.TXT, DnsEndpoint.Google);
+            HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.TXT, DnsEndpoint.GoogleWireFormat);
+            var dataGoogle = await ClientX.QueryDns(domains, DnsRecordType.TXT, DnsEndpoint.GoogleWireFormat);
+            foreach (var d in dataGoogle[0].Answers) {
+                Console.WriteLine(d.Data);
+            }
+        }
+
+        public static async Task ExampleTXTQuad() {
+            var domains = new[] { "disneyplus.com" };
+            HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.TXT, "1.1.1.1");
+            var data = await ClientX.QueryDns(domains, DnsRecordType.TXT, "1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON);
+            foreach (var d in data[0].Answers) {
+                Console.WriteLine(d.Data);
+            }
+
+
+            HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.TXT, DnsEndpoint.Quad9);
+            var dataGoogle = await ClientX.QueryDns(domains, DnsRecordType.TXT, DnsEndpoint.Quad9);
             foreach (var d in dataGoogle[0].Answers) {
                 Console.WriteLine(d.Data);
             }
@@ -130,7 +158,6 @@ namespace DnsClientX.Examples {
                 Debug = false
             };
             var data = await client.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
-            //data.DisplayTable();
             Console.WriteLine(data.Answers[0].Data);
 
             HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.SPF, DnsEndpoint.Google);
@@ -139,6 +166,27 @@ namespace DnsClientX.Examples {
             };
             var data1 = await client1.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
             Console.WriteLine(data1.Answers[0].Data);
+        }
+
+        public static async Task ExampleSPFQuad() {
+            var domains = new[] { "disneyplus.com" };
+            HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.SPF, "1.1.1.1");
+            var client = new ClientX(DnsEndpoint.Cloudflare, DnsSelectionStrategy.First) {
+                Debug = false
+            };
+            var data = await client.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
+            Console.WriteLine(data.Answers[0].Data);
+
+            foreach (DnsEndpoint endpoint in Enum.GetValues(typeof(DnsEndpoint))) {
+                HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.SPF, endpoint);
+                var client1 = new ClientX(endpoint, DnsSelectionStrategy.First) {
+                    Debug = false
+                };
+                var data1 = await client1.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
+                Console.WriteLine(data1.Answers[0].Data);
+                Console.WriteLine(data1.Answers[0].DataStrings.Length);
+                Console.WriteLine(data1.Answers[0].DataStrings[0]);
+            }
         }
     }
 }
