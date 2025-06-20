@@ -127,57 +127,73 @@ namespace DnsClientX {
         }
 
         /// <summary>
-        /// Configures the client to required parameters
+        /// Creates an optimized HttpClient with proper connection management and realistic timeouts
         /// </summary>
-        private void ConfigureClient() {
-            lock (_lock) {
-                // let's allow TLS 1.2 and 1.3 by default as Quad9 requires at least TLS 1.2
+        private HttpClient CreateOptimizedHttpClient() {
+            // Configure TLS protocols
 #if NET472 || NETSTANDARD2_0
-                SecurityProtocol = SecurityProtocolType.Tls12;
+            SecurityProtocol = SecurityProtocolType.Tls12;
 #else
-                try {
-                    SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
-                } catch {
-                    // TLS 1.3 might not be available on all platforms, fallback to TLS 1.2
-                    SecurityProtocol = SecurityProtocolType.Tls12;
-                }
+            try {
+                SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
+            } catch {
+                // TLS 1.3 might not be available on all platforms, fallback to TLS 1.2
+                SecurityProtocol = SecurityProtocolType.Tls12;
+            }
 #endif
 
-                Client?.Dispose();
-                handler?.Dispose();
+            // Create handler with proper connection management
+            var handler = new HttpClientHandler();
+            if (IgnoreCertificateErrors) {
+                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+            }
 
-                // let's allow self-signed certificates if we want to
-                handler = new HttpClientHandler();
-                if (IgnoreCertificateErrors) {
-                    handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-                }
+            handler.SslProtocols = (SslProtocols)SecurityProtocol;
 
-                handler.SslProtocols = (SslProtocols)SecurityProtocol;
+            // Optimize connection settings for DNS workloads
+            handler.MaxConnectionsPerServer = 10; // Allow multiple connections for parallel requests
+            handler.UseCookies = false; // DNS doesn't need cookies
 
-                Client = new HttpClient(handler) {
-                    BaseAddress = EndpointConfiguration.BaseUri,
-                    Timeout = TimeSpan.FromMilliseconds(EndpointConfiguration.TimeOut * 3) // Allow more time for retries
-                };
+            var client = new HttpClient(handler) {
+                BaseAddress = EndpointConfiguration.BaseUri,
+                Timeout = TimeSpan.FromMilliseconds(EndpointConfiguration.TimeOut) // Use realistic DNS timeout (1 second, not 3)
+            };
 
 #if NETCOREAPP2_1_OR_GREATER || NET5_0_OR_GREATER
-                Client.DefaultRequestVersion = Configuration.HttpVersion;
+            client.DefaultRequestVersion = Configuration.HttpVersion;
 #endif
-                // Set the user agent to the default value
-                Client.DefaultRequestHeaders.UserAgent.ParseAdd(EndpointConfiguration.UserAgent);
-                Client.DefaultRequestHeaders.Accept.Clear();
+            // Set the user agent to the default value
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(EndpointConfiguration.UserAgent);
+            client.DefaultRequestHeaders.Accept.Clear();
 
-                // Set the accept header based on the request format, which is required for proper processing
-                if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps ||
-                    EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST) {
-                    Client.DefaultRequestHeaders.Accept.Add(
-                        new MediaTypeWithQualityHeaderValue("application/dns-message"));
-                } else {
-                    Client.DefaultRequestHeaders.Accept.ParseAdd("application/dns-json");
-                }
+            // Set the accept header based on the request format, which is required for proper processing
+            if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps ||
+                EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST) {
+                client.DefaultRequestHeaders.Accept.Add(
+                    new MediaTypeWithQualityHeaderValue("application/dns-message"));
+            } else {
+                client.DefaultRequestHeaders.Accept.ParseAdd("application/dns-json");
             }
+
+            return client;
         }
 
         /// <summary>
+        /// Configures the client to required parameters (legacy method for backward compatibility)
+        /// </summary>
+        private void ConfigureClient() {
+            lock (_lock) {
+                Client?.Dispose();
+                handler?.Dispose();
+
+                Client = CreateOptimizedHttpClient();
+                handler = (HttpClientHandler)((HttpClient)Client).GetType()
+                    .GetField("_handler", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                    ?.GetValue(Client) as HttpClientHandler;
+            }
+        }
+
+                /// <summary>
         /// Gets the client based on the selection strategy
         /// This allows us to have multiple clients for different strategies, so performance is not affected
         /// </summary>
@@ -187,8 +203,7 @@ namespace DnsClientX {
             if (!_clients.TryGetValue(strategy, out var client)) {
                 lock (_lock) {
                     if (!_clients.TryGetValue(strategy, out client)) {
-                        ConfigureClient();
-                        client = Client;
+                        client = CreateOptimizedHttpClient();
                         _clients[strategy] = client;
                     }
                 }

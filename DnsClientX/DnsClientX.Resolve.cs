@@ -31,7 +31,7 @@ namespace DnsClientX {
             bool returnAllTypes = false,
             bool retryOnTransient = true,
             int maxRetries = 3,
-            int retryDelayMs = 200,
+            int retryDelayMs = 100,
             CancellationToken cancellationToken = default) {
             if (retryOnTransient) {
                 return await RetryAsync(() => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, cancellationToken), maxRetries, retryDelayMs);
@@ -85,7 +85,7 @@ namespace DnsClientX {
             return response;
         }
 
-        private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 200) {
+        private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 100) {
             Exception lastException = null;
             T lastResult = default(T);
 
@@ -100,7 +100,7 @@ namespace DnsClientX {
                             // This was the last attempt, return the result (don't throw)
                             return result;
                         }
-                        // Not the last attempt, wait and retry
+                        // Not the last attempt, wait and retry with normal delay
                         await Task.Delay(delayMs);
                         continue;
                     }
@@ -113,7 +113,7 @@ namespace DnsClientX {
                         // This was the last attempt, rethrow the exception
                         throw;
                     }
-                    // Not the last attempt, wait and retry
+                    // Not the last attempt, wait and retry with normal delay
                     await Task.Delay(delayMs);
                 }
             }
@@ -124,6 +124,22 @@ namespace DnsClientX {
                 throw lastException;
             }
             return lastResult;
+        }
+
+        /// <summary>
+        /// Checks if an error message indicates an SSL/TLS connection issue
+        /// </summary>
+        private static bool IsSSLConnectionError(string errorMessage) {
+            if (string.IsNullOrEmpty(errorMessage)) return false;
+
+            var message = errorMessage.ToLowerInvariant();
+            return message.Contains("ssl connection could not be established") ||
+                   message.Contains("unable to read data from the transport connection") ||
+                   message.Contains("connection was forcibly closed") ||
+                   message.Contains("certificate validation") ||
+                   message.Contains("handshake") ||
+                   message.Contains("underlying connection was closed") ||
+                   message.Contains("unexpected error occurred on a send");
         }
 
         private static bool IsTransient(Exception ex) {
@@ -222,7 +238,7 @@ namespace DnsClientX {
         /// <returns>The DNS response.</returns>
         /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
-        public DnsResponse ResolveSync(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
+        public DnsResponse ResolveSync(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100) {
             return Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs).GetAwaiter().GetResult();
         }
 
