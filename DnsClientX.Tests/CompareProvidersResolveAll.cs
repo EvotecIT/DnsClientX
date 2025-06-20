@@ -46,7 +46,7 @@ namespace DnsClientX.Tests {
                 if (excludedEndpoints != null && excludedEndpoints.Contains(endpointCompare)) {
                     continue;
                 }
-                output.WriteLine("Provider: " + endpointCompare.ToString());
+                output.WriteLine($"Comparing {primaryEndpoint} -> {endpointCompare}");
                 var clientToCompare = new ClientX(endpointCompare);
                 DnsAnswer[] aAnswersToCompare = await clientToCompare.ResolveAll(name, resourceRecordType);
 

@@ -50,7 +50,7 @@ namespace DnsClientX.Tests {
                     continue;
                 }
 
-                output.WriteLine("Provider: " + endpointCompare.ToString());
+                output.WriteLine($"Comparing {primaryEndpoint} -> {endpointCompare}");
 
                 var ClientToCompare = new ClientX(endpointCompare);
                 DnsResponse aAnswersToCompare = await ClientToCompare.Resolve(name, resourceRecordType);
@@ -81,7 +81,7 @@ namespace DnsClientX.Tests {
                 Assert.Equal(sortedQuestions.Length, sortedQuestionsCompared.Length);
 
                 for (int i = 0; i < sortedQuestions.Length; i++) {
-                    output.WriteLine("Provider: " + endpointCompare.ToString());
+                    output.WriteLine($"Comparing {primaryEndpoint} -> {endpointCompare}");
                     output.WriteLine($"Question {i} should equal: {sortedQuestions[i].Name} == {sortedQuestionsCompared[i].Name}");
                     Assert.True(sortedQuestions[i].Name == sortedQuestionsCompared[i].Name, $"Provider {endpointCompare}. There is a name mismatch for " + sortedQuestions[i].Name);
                     Assert.True((bool)(sortedQuestions[i].Type == sortedQuestionsCompared[i].Type), $"Provider {endpointCompare}. There is a type mismatch for " + sortedQuestions[i].Type);

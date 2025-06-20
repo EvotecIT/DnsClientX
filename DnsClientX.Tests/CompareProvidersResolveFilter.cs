@@ -2,6 +2,7 @@ using Xunit.Abstractions;
 
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace DnsClientX.Tests {
     public class CompareProvidersResolveFilter(ITestOutputHelper output) {
@@ -29,7 +30,7 @@ namespace DnsClientX.Tests {
                     continue;
                 }
 
-                output.WriteLine("Provider: " + endpointCompare.ToString());
+                output.WriteLine($"Comparing {primaryEndpoint} -> {endpointCompare}");
 
                 var ClientToCompare = new ClientX(endpointCompare);
                 DnsResponse aAnswersToCompare = await ClientToCompare.ResolveFilter(name, resourceRecordType, filter);
@@ -75,6 +76,9 @@ namespace DnsClientX.Tests {
                     var onlyInB = setB.Except(setA).ToList();
                     if (onlyInA.Any()) output.WriteLine("Only in primary: " + string.Join(" | ", onlyInA));
                     if (onlyInB.Any()) output.WriteLine("Only in compared: " + string.Join(" | ", onlyInB));
+#if DEBUG
+                    if (Debugger.IsAttached) Debugger.Break();
+#endif
                     throw;
                 }
 
@@ -87,7 +91,7 @@ namespace DnsClientX.Tests {
                 Assert.Equal(sortedQuestions.Length, sortedQuestionsCompared.Length);
 
                 for (int i = 0; i < sortedQuestions.Length; i++) {
-                    output.WriteLine("Provider: " + endpointCompare.ToString());
+                    output.WriteLine($"Comparing {primaryEndpoint} -> {endpointCompare}");
                     output.WriteLine(
                         $"Question {i} should equal: {sortedQuestions[i].Name} == {sortedQuestionsCompared[i].Name}");
                     Assert.True(sortedQuestions[i].Name == sortedQuestionsCompared[i].Name,
@@ -160,6 +164,9 @@ namespace DnsClientX.Tests {
                         var onlyInB = setB.Except(setA).ToList();
                         if (onlyInA.Any()) output.WriteLine("Only in primary: " + string.Join(" | ", onlyInA));
                         if (onlyInB.Any()) output.WriteLine("Only in compared: " + string.Join(" | ", onlyInB));
+#if DEBUG
+                        if (Debugger.IsAttached) Debugger.Break();
+#endif
                         throw;
                     }
                 }
