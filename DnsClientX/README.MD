@@ -100,6 +100,14 @@ var data = await Client.ResolveAll(domainName, type);
 data
 ```
 
+### Disposing the client
+
+```csharp
+using var client = new ClientX(DnsEndpoint.Cloudflare);
+var result = await client.ResolveFirst("evotec.pl");
+result.Answers
+```
+
 ### Querying DNS over HTTPS with multiple endpoints using Resolve
 
 ```csharp

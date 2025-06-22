@@ -11,7 +11,7 @@ namespace DnsClientX {
     /// <summary>
     /// The primary class for sending DNS over HTTPS queries.
     /// </summary>
-    public partial class ClientX {
+    public partial class ClientX : IDisposable {
         /// <summary>
         /// The client
         /// </summary>
