@@ -73,8 +73,16 @@ namespace DnsClientX.Tests {
                     Assert.Equal(sortedAAnswers[i].DataStrings.Length, sortedAAnswersCompared[i].DataStrings.Length);
                 }
 
-                var sortedQuestions = aAnswersPrimary.Questions.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Type).ToArray();
-                var sortedQuestionsCompared = aAnswersToCompare.Questions.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Type).ToArray();
+                var sortedQuestions = (aAnswersPrimary.Questions ?? Array.Empty<DnsQuestion>())
+                    .OrderBy(a => a.Name)
+                    .ThenBy(a => a.Type)
+                    .ThenBy(a => a.Type)
+                    .ToArray();
+                var sortedQuestionsCompared = (aAnswersToCompare.Questions ?? Array.Empty<DnsQuestion>())
+                    .OrderBy(a => a.Name)
+                    .ThenBy(a => a.Type)
+                    .ThenBy(a => a.Type)
+                    .ToArray();
 
                 // Check that the arrays have the same length
                 output.WriteLine($"Question count expected {sortedQuestions.Length} vs {sortedQuestionsCompared.Length}");

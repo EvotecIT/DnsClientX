@@ -47,7 +47,9 @@ namespace DnsClientX {
         public bool CheckingDisabled { get; set; }
 
         /// <summary>
-        /// The questions that were asked in the DNS query.
+        /// The questions that were asked in the DNS query. Some providers do
+        /// not return the question section in their response. In those cases
+        /// this property will be <c>null</c>.
         /// </summary>
         [JsonPropertyName("Question")]
         public DnsQuestion[] Questions { get; set; }
