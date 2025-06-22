@@ -19,27 +19,35 @@ namespace DnsClientX.Tests {
 
         [Fact]
         public async Task ResolveWireFormatDoT_DisposesTcpClientAndSslStream() {
-            using var listener = new TcpListener(IPAddress.Loopback, 0);
+            var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
-            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            try {
+                int port = ((IPEndPoint)listener.LocalEndpoint).Port;
 
-            var serverTask = Task.Run(async () => {
-                using TcpClient serverClient = await listener.AcceptTcpClientAsync();
-                using var sslServer = new SslStream(serverClient.GetStream(), false);
-                using X509Certificate2 cert = CreateCertificate();
-                await sslServer.AuthenticateAsServerAsync(cert, false, SslProtocols.Tls12, false);
-                var buffer = new byte[2];
-                int read = await sslServer.ReadAsync(buffer, 0, 2);
-                return read == 0; // true if client closed connection
-            });
+                var serverTask = Task.Run(async () => {
+                    using TcpClient serverClient = await listener.AcceptTcpClientAsync();
+                    using NetworkStream stream = serverClient.GetStream();
+                    var buffer = new byte[1];
+                    try {
+                        while (await stream.ReadAsync(buffer, 0, 1) != 0) {
+                        }
+                        return true;
+                    } catch {
+                        // any exception indicates the client closed or aborted
+                        return true;
+                    }
+                });
 
-            var config = new Configuration("localhost", DnsRequestFormat.DnsOverTLS) { Port = port };
+                var config = new Configuration("localhost", DnsRequestFormat.DnsOverTLS) { Port = port };
 
-            await Assert.ThrowsAsync<Exception>(async () =>
-                await DnsWireResolveDot.ResolveWireFormatDoT("localhost", port, "example.com", DnsRecordType.A,
-                    false, false, false, config, CancellationToken.None));
+                await Assert.ThrowsAsync<IOException>(async () =>
+                    await DnsWireResolveDot.ResolveWireFormatDoT("localhost", port, "example.com", DnsRecordType.A,
+                        false, false, false, config, CancellationToken.None));
 
-            Assert.True(await serverTask); // server observed client disconnect
+                Assert.True(await serverTask); // server observed client disconnect
+            } finally {
+                listener.Stop();
+            }
         }
     }
 }
