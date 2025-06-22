@@ -49,9 +49,12 @@
         <NeutralLanguage>en</NeutralLanguage>
     </PropertyGroup>
 
-    <ItemGroup>
-        <Content Include="DnsClientX.ico" />
-    </ItemGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>DnsClientX.Tests</_Parameter1>
+    </AssemblyAttribute>
+    <Content Include="DnsClientX.ico" />
+  </ItemGroup>
 
     <ItemGroup Condition="'$(TargetFramework)'=='netstandard2.0'">
         <PackageReference Include="System.Net.Http" Version="4.3.4" />

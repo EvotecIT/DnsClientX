@@ -6,6 +6,7 @@ using System.Threading;
 
 namespace DnsClientX {
     internal class DnsWireResolveUdp {
+        internal static Func<UdpClient> UdpClientFactory { get; set; } = () => new UdpClient();
         /// <summary>
         /// Sends a DNS query in wire format using DNS over UDP (53) and returns the response.
         /// </summary>
@@ -93,7 +94,8 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>Raw DNS response bytes.</returns>
         private static async Task<byte[]> SendQueryOverUdp(byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
-            using (var udpClient = new UdpClient()) {
+            var udpClient = UdpClientFactory();
+            try {
                 // Set the server IP address and port number
                 var serverEndpoint = new IPEndPoint(IPAddress.Parse(dnsServer), port);
 
@@ -119,6 +121,8 @@ namespace DnsClientX {
                         throw new TimeoutException("The UDP query timed out.");
                     }
                 }
+            } finally {
+                udpClient.Dispose();
             }
         }
     }
