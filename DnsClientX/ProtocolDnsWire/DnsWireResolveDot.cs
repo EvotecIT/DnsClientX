@@ -11,6 +11,8 @@ namespace DnsClientX {
     internal static class DnsWireResolveDot {
         /// <summary>
         /// Sends a DNS query in wire format using DNS over TLS (DoT) and returns the response.
+        /// The created <see cref="SslStream"/> and underlying <see cref="TcpClient"/> are disposed
+        /// before the method exits.
         /// </summary>
         /// <param name="dnsServer"></param>
         /// <param name="port"></param>
@@ -62,18 +64,15 @@ namespace DnsClientX {
                 Console.WriteLine($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
 
-            // Create a new TCP client and connect to the DNS server
-            var client = new TcpClient();
+            // Create and connect TCP client
+            using var client = new TcpClient();
             await ConnectAsync(client, dnsServer, port, cancellationToken);
 
-            // Create a new SSL stream for the secure connection
-            //var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) => true);
-
-            var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) => {
+            // Create SSL stream for the secure connection
+            using var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) => {
                 //Console.WriteLine($"SSL policy errors: {sslPolicyErrors}");
                 return true; // Always accept the certificate for now
             });
-
 
             // Authenticate the client using the DNS server's name and the TLS protocol
             await sslStream.AuthenticateAsClientAsync(dnsServer, null, SslProtocols.Tls12, false);
@@ -103,9 +102,6 @@ namespace DnsClientX {
             // Deserialize the response from DNS wire format
             var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer);
             response.AddServerDetails(endpointConfiguration);
-            // Close the SSL stream and the TCP client
-            sslStream.Close();
-            client.Close();
 
             return response;
         }
