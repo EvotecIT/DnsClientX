@@ -143,6 +143,7 @@ namespace DnsClientX {
 
                 Client = new HttpClient(handler) {
                     BaseAddress = EndpointConfiguration.BaseUri,
+                    Timeout = TimeSpan.FromMilliseconds(EndpointConfiguration.TimeOut)
                 };
 
 #if NETCOREAPP2_1_OR_GREATER || NET5_0_OR_GREATER

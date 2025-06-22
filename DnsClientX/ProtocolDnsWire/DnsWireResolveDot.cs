@@ -31,6 +31,10 @@ namespace DnsClientX {
         internal static async Task<DnsResponse> ResolveWireFormatDoT(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(endpointConfiguration.TimeOut);
+            var timeoutToken = cts.Token;
+
             var query = new DnsMessage(name, type, requestDnsSec);
             var queryBytes = query.SerializeDnsWireFormat();
 
@@ -64,7 +68,7 @@ namespace DnsClientX {
 
             // Create a new TCP client and connect to the DNS server
             var client = new TcpClient();
-            await ConnectAsync(client, dnsServer, port, cancellationToken);
+            await ConnectAsync(client, dnsServer, port, endpointConfiguration.TimeOut, timeoutToken);
 
             // Create a new SSL stream for the secure connection
             //var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) => true);
@@ -79,12 +83,12 @@ namespace DnsClientX {
             await sslStream.AuthenticateAsClientAsync(dnsServer, null, SslProtocols.Tls12, false);
 
             // Write the combined query bytes to the SSL stream and flush it
-            await sslStream.WriteAsync(combinedQueryBytes, 0, combinedQueryBytes.Length, cancellationToken);
-            await sslStream.FlushAsync(cancellationToken);
+            await sslStream.WriteAsync(combinedQueryBytes, 0, combinedQueryBytes.Length, timeoutToken);
+            await sslStream.FlushAsync(timeoutToken);
 
             // Prepare to read the response with handling for length prefix
             var lengthPrefixBuffer = new byte[2];
-            int prefixBytesRead = await sslStream.ReadAsync(lengthPrefixBuffer, 0, 2, cancellationToken);
+            int prefixBytesRead = await sslStream.ReadAsync(lengthPrefixBuffer, 0, 2, timeoutToken);
             if (prefixBytesRead != 2) {
                 throw new Exception("Failed to read the length prefix of the response.");
             }
@@ -93,7 +97,7 @@ namespace DnsClientX {
             var responseBuffer = new byte[responseLength];
             int totalBytesRead = 0;
             while (totalBytesRead < responseLength) {
-                int bytesRead = await sslStream.ReadAsync(responseBuffer, totalBytesRead, responseLength - totalBytesRead, cancellationToken);
+                int bytesRead = await sslStream.ReadAsync(responseBuffer, totalBytesRead, responseLength - totalBytesRead, timeoutToken);
                 if (bytesRead == 0) {
                     throw new Exception("The stream was closed before the entire response could be read.");
                 }
@@ -117,14 +121,17 @@ namespace DnsClientX {
         /// <param name="host">Target host.</param>
         /// <param name="port">Target port.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
-        private static async Task ConnectAsync(TcpClient client, string host, int port, CancellationToken cancellationToken) {
+        private static async Task ConnectAsync(TcpClient client, string host, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            linkedCts.CancelAfter(timeoutMilliseconds);
             var connectTask = client.ConnectAsync(host, port);
-            var delayTask = Task.Delay(Timeout.Infinite, cancellationToken);
+            var delayTask = Task.Delay(Timeout.Infinite, linkedCts.Token);
 
             var completed = await Task.WhenAny(connectTask, delayTask);
             if (completed != connectTask) {
                 client.Close();
-                throw new OperationCanceledException(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                throw new TimeoutException($"Connection to {host}:{port} timed out after {timeoutMilliseconds} milliseconds.");
             }
 
             await connectTask;

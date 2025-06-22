@@ -20,8 +20,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            ClientX client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy);
-            client.EndpointConfiguration.TimeOut = timeOutMilliseconds;
+            ClientX client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy, timeOutMilliseconds);
             var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
             return data;
         }
@@ -40,8 +39,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns>The DNS response.</returns>
         public static DnsResponse QueryDnsSync(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            ClientX client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy);
-            client.EndpointConfiguration.TimeOut = timeOutMilliseconds;
+            ClientX client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy, timeOutMilliseconds);
             var data = client.ResolveSync(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
             return data;
         }
@@ -60,11 +58,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            ClientX client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
+            ClientX client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy, timeOutMilliseconds);
             var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
             return data;
         }
@@ -83,11 +77,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns>The DNS response.</returns>
         public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            ClientX client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
+            ClientX client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy, timeOutMilliseconds);
             var data = client.ResolveSync(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
             return data;
         }
@@ -106,11 +96,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            ClientX client = new ClientX(dnsUri, requestFormat) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
+            ClientX client = new ClientX(dnsUri, requestFormat, timeOutMilliseconds);
             var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
             return data;
         }
@@ -129,11 +115,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns>The DNS response.</returns>
         public static DnsResponse QueryDnsSync(string name, DnsRecordType recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            ClientX client = new ClientX(dnsUri, requestFormat) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
+            ClientX client = new ClientX(dnsUri, requestFormat, timeOutMilliseconds);
             var data = client.ResolveSync(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
             return data;
         }
@@ -151,11 +133,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns></returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            ClientX client = new ClientX(dnsUri, requestFormat) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
+            ClientX client = new ClientX(dnsUri, requestFormat, timeOutMilliseconds);
             var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
             return data;
         }
@@ -173,11 +151,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns></returns>
         public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType[] recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            ClientX client = new ClientX(dnsUri, requestFormat) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
+            ClientX client = new ClientX(dnsUri, requestFormat, timeOutMilliseconds);
             var data = client.ResolveSync(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
             return data;
         }
@@ -196,11 +170,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            ClientX client = new ClientX(hostName, requestFormat) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
+            ClientX client = new ClientX(hostName, requestFormat, timeOutMilliseconds);
             var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
             return data;
         }
@@ -219,11 +189,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns>The DNS response.</returns>
         public static DnsResponse QueryDnsSync(string name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            ClientX client = new ClientX(hostName, requestFormat) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
+            ClientX client = new ClientX(hostName, requestFormat, timeOutMilliseconds);
             var data = client.ResolveSync(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
             return data;
         }
@@ -241,11 +207,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns></returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            ClientX client = new ClientX(hostName, requestFormat) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
+            ClientX client = new ClientX(hostName, requestFormat, timeOutMilliseconds);
             var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
             return data;
         }
@@ -263,11 +225,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns></returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            ClientX client = new ClientX(hostName, requestFormat) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
+            ClientX client = new ClientX(hostName, requestFormat, timeOutMilliseconds);
             var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
             return data;
         }
@@ -285,11 +243,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns></returns>
         public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType[] recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            ClientX client = new ClientX(hostName, requestFormat) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
+            ClientX client = new ClientX(hostName, requestFormat, timeOutMilliseconds);
             var data = client.ResolveSync(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
             return data;
         }
@@ -306,11 +260,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns></returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            ClientX client = new ClientX(endpoint: dnsEndpoint) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
+            ClientX client = new ClientX(endpoint: dnsEndpoint, timeOutMilliseconds: timeOutMilliseconds);
             var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
             return data;
         }
@@ -328,11 +278,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns></returns>
         public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType[] recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            ClientX client = new ClientX(endpoint: dnsEndpoint) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
+            ClientX client = new ClientX(endpoint: dnsEndpoint, timeOutMilliseconds: timeOutMilliseconds);
             var data = client.ResolveSync(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
             return data;
         }
