@@ -77,7 +77,9 @@ public class InternalLogger {
     }
 
     /// <summary>
-    /// Writes a progress message to the console and invokes the OnProgressMessage event.
+    /// Writes a progress message to the console and invokes the OnProgressMessage event. The
+    /// <see cref="LogEventArgs.ProgressPercentage"/> property of the event is set to
+    /// <paramref name="percentCompleted"/>.
     /// </summary>
     /// <param name="activity">The activity being logged.</param>
     /// <param name="currentOperation">The current operation being logged.</param>
@@ -86,7 +88,7 @@ public class InternalLogger {
     /// <param name="totalSteps">The total steps of the operation (optional).</param>
     public void WriteProgress(string activity, string currentOperation, int percentCompleted, int? currentSteps = null, int? totalSteps = null) {
         lock (_lock) {
-            OnProgressMessage?.Invoke(this, new LogEventArgs(activity, currentOperation, currentSteps, totalSteps, totalSteps));
+            OnProgressMessage?.Invoke(this, new LogEventArgs(activity, currentOperation, currentSteps, totalSteps, percentCompleted));
             if (IsProgress) {
                 if (currentSteps.HasValue && totalSteps.HasValue) {
                     Console.WriteLine("[progress] activity: {0} / operation: {1} / percent completed: {2}% ({3} out of {4})", activity, currentOperation, percentCompleted, currentSteps, totalSteps);
@@ -282,7 +284,7 @@ public class LogEventArgs : EventArgs {
     /// <param name="currentOperation">The current operation.</param>
     /// <param name="currentSteps">The current steps.</param>
     /// <param name="totalSteps">The total steps.</param>
-    /// <param name="percentage">The percentage.</param>
+    /// <param name="percentage">The progress percentage.</param>
     public LogEventArgs(string activity, string currentOperation, int? currentSteps, int? totalSteps, int? percentage) {
         ProgressActivity = activity;
         ProgressCurrentOperation = currentOperation;

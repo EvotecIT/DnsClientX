@@ -44,7 +44,7 @@ namespace DnsClientX.Tests {
             var domains = new[] { "evotec.pl", "google.com" };
             var responses = await ClientX.QueryDns(domains, DnsRecordType.A, hostName, requestFormat);
             foreach (var domain in domains) {
-                var response = responses.First(r => r.Questions.Any(q => q.Name == domain));
+                var response = responses.First(r => r.Questions?.Any(q => q.Name == domain) == true);
                 foreach (DnsAnswer answer in response.Answers) {
                     Assert.True(answer.Name == domain);
                     Assert.True(answer.Type == DnsRecordType.A);

@@ -85,7 +85,7 @@ namespace DnsClientX.Examples {
             HelpersSpectre.AddLine("QueryDns", "evotec.pl", DnsRecordType.A, DnsEndpoint.Cloudflare);
             var data = await ClientX.QueryDns(["evotec.pl", "google.com", "onet.pl"], DnsRecordType.A, DnsEndpoint.Cloudflare, DnsSelectionStrategy.Random);
             foreach (var dnsResponse in data) {
-                dnsResponse.Questions.DisplayTable();
+                dnsResponse.Questions?.DisplayTable();
                 dnsResponse.Answers.DisplayTable();
             }
         }
@@ -93,7 +93,7 @@ namespace DnsClientX.Examples {
         public static async Task ExampleSystemDns() {
             HelpersSpectre.AddLine("QueryDns", "evotec.pl", DnsRecordType.A, DnsEndpoint.System);
             var data = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, DnsEndpoint.System, DnsSelectionStrategy.Random);
-            data.Questions.DisplayTable();
+            data.Questions?.DisplayTable();
             data.Answers.DisplayTable();
         }
 

@@ -43,7 +43,9 @@ namespace DnsClientX.Examples {
             table.AddColumn("Questions");
             table.AddColumn("Answers");
 
-            var questions = string.Join(", ", response.Questions.Select(q => $"{q.Name} => {q.Type}"));
+            var questions = response.Questions == null
+                ? string.Empty
+                : string.Join(", ", response.Questions.Select(q => $"{q.Name} => {q.Type}"));
 
             foreach (var answer in response.Answers) {
                 var answerTable = new Table().Border(TableBorder.Rounded);
@@ -70,8 +72,12 @@ namespace DnsClientX.Examples {
             table.AddColumn("Server");
             table.AddColumn("Answers");
 
-            var questions = string.Join(", ", response.Questions.Select(q => $"{q.Name} => {q.Type}"));
-            var server = string.Join(Environment.NewLine, response.Questions.Select(q => $"HostName: {q.HostName}{Environment.NewLine}Port: {q.Port}{Environment.NewLine}RequestFormat: {q.RequestFormat}{Environment.NewLine}BaseUri: {q.BaseUri}"));
+            var questions = response.Questions == null
+                ? string.Empty
+                : string.Join(", ", response.Questions.Select(q => $"{q.Name} => {q.Type}"));
+            var server = response.Questions == null
+                ? string.Empty
+                : string.Join(Environment.NewLine, response.Questions.Select(q => $"HostName: {q.HostName}{Environment.NewLine}Port: {q.Port}{Environment.NewLine}RequestFormat: {q.RequestFormat}{Environment.NewLine}BaseUri: {q.BaseUri}"));
 
             var answerTable = new Table().Border(TableBorder.Rounded);
             answerTable.AddColumn("Type");
