@@ -74,7 +74,7 @@ namespace DnsClientX {
         public Configuration(string hostname, DnsRequestFormat requestFormat) {
             hostnames = new List<string> { hostname };
             RequestFormat = requestFormat;
-            baseUriFormat = "https://{0}/dns-query"; ;
+            baseUriFormat = "https://{0}/dns-query";
             BaseUri = new Uri(string.Format(baseUriFormat, hostname));
 
             if (requestFormat == DnsRequestFormat.DnsOverTLS) {
