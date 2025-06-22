@@ -89,7 +89,7 @@ namespace DnsClientX.Tests {
             var domains = new[] { "evotec.pl", "google.com" };
             var responses = client.ResolveSync(domains, DnsRecordType.A);
             foreach (var domain in domains) {
-                var response = responses.First(r => r.Questions.Any(q => q.Name == domain));
+                var response = responses.First(r => r.Questions?.Any(q => q.Name == domain) == true);
                 foreach (DnsAnswer answer in response.Answers) {
                     Assert.True(answer.Name == domain);
                     Assert.True(answer.Type == DnsRecordType.A);
@@ -105,7 +105,7 @@ namespace DnsClientX.Tests {
             var types = new[] { DnsRecordType.A, DnsRecordType.TXT };
             var responses = client.ResolveSync("evotec.pl", types);
             foreach (var type in types) {
-                var response = responses.First(r => r.Questions.Any(q => q.Type == type));
+                var response = responses.First(r => r.Questions?.Any(q => q.Type == type) == true);
                 foreach (DnsAnswer answer in response.Answers) {
                     Assert.True(answer.Name == "evotec.pl");
                     Assert.True(answer.Type == type);

@@ -78,10 +78,16 @@ namespace DnsClientX.Tests {
                     throw;
                 }
 
-                var sortedQuestions = aAnswersPrimary.Questions.OrderBy(a => a.Name).ThenBy(a => a.Type)
-                    .ThenBy(a => a.Type).ToArray();
-                var sortedQuestionsCompared = aAnswersToCompare.Questions.OrderBy(a => a.Name).ThenBy(a => a.Type)
-                    .ThenBy(a => a.Type).ToArray();
+                var sortedQuestions = (aAnswersPrimary.Questions ?? Array.Empty<DnsQuestion>())
+                    .OrderBy(a => a.Name)
+                    .ThenBy(a => a.Type)
+                    .ThenBy(a => a.Type)
+                    .ToArray();
+                var sortedQuestionsCompared = (aAnswersToCompare.Questions ?? Array.Empty<DnsQuestion>())
+                    .OrderBy(a => a.Name)
+                    .ThenBy(a => a.Type)
+                    .ThenBy(a => a.Type)
+                    .ToArray();
 
                 // Check that the arrays have the same length
                 Assert.Equal(sortedQuestions.Length, sortedQuestionsCompared.Length);
