@@ -19,6 +19,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
@@ -131,6 +132,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of DNS responses.</returns>
         /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
@@ -180,6 +182,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of DNS responses.</returns>
         public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             var tasks = new List<Task<DnsResponse>>();
@@ -222,7 +225,8 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
-        /// <returns></returns>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <returns>The array of DNS responses from all queries.</returns>
         public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             var tasks = new List<Task<DnsResponse>>();
 

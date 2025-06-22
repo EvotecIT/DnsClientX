@@ -17,6 +17,7 @@ namespace DnsClientX {
         /// <param name="validateDnsSec">If set to <c>true</c>, the method will validate DNSSEC data.</param>
         /// <param name="debug">If set to <c>true</c>, the method will include debugging information in the response.</param>
         /// <param name="configuration">Provide configuration so it can be added to Question for display purposes</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         /// <exception cref="DnsClientException">Thrown when the HTTP request fails or the server returns an error.</exception>
         internal static async Task<DnsResponse> ResolveJsonFormat(this HttpClient client, string name,
