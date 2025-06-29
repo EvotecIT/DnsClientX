@@ -19,8 +19,9 @@ namespace DnsClientX {
         /// <param name="requestDnsSec">if set to <c>true</c> [request DNS sec].</param>
         /// <param name="validateDnsSec">if set to <c>true</c> [validate DNS sec].</param>
         /// <param name="debug">if set to <c>true</c> [debug].</param>
-        /// <param name="endpointConfiguration"></param>
-        /// <returns></returns>
+        /// <param name="endpointConfiguration">Configuration used for server details.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <returns>The DNS response.</returns>
         /// <exception cref="System.ArgumentNullException">name - Name is null or empty.</exception>
         /// <exception cref="System.Exception">
         /// Failed to read the length prefix of the response.
@@ -109,6 +110,13 @@ namespace DnsClientX {
             return response;
         }
 
+        /// <summary>
+        /// Connects asynchronously to the specified host using a <see cref="TcpClient"/>.
+        /// </summary>
+        /// <param name="client">TCP client used for the connection.</param>
+        /// <param name="host">Target host.</param>
+        /// <param name="port">Target port.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         private static async Task ConnectAsync(TcpClient client, string host, int port, CancellationToken cancellationToken) {
             var connectTask = client.ConnectAsync(host, port);
             var delayTask = Task.Delay(Timeout.Infinite, cancellationToken);

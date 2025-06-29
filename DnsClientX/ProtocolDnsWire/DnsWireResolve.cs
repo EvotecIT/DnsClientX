@@ -15,7 +15,8 @@ namespace DnsClientX {
         /// <param name="requestDnsSec">If set to <c>true</c>, the query will request DNSSEC records.</param>
         /// <param name="validateDnsSec">If set to <c>true</c>, the response will be validated using DNSSEC.</param>
         /// <param name="debug">If set to <c>true</c>, debug information will be printed to the console.</param>
-        /// <param name="endpointConfiguration"></param>
+        /// <param name="endpointConfiguration">Configuration used for server details.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A Task that represents the asynchronous operation. The Task's result is a DnsResponse that contains the DNS response.</returns>
         /// <exception cref="DnsClientException">Thrown when the HTTP request fails or the server returns an error.</exception>
         internal static async Task<DnsResponse> ResolveWireFormatGet(this HttpClient client, string name,

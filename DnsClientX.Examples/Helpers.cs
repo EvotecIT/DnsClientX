@@ -35,8 +35,10 @@ namespace DnsClientX.Examples {
                 Console.WriteLine("\tAnswers: No answers");
                 return;
             }
-            foreach (DnsQuestion question in response.Value.Questions) {
-                Console.WriteLine($"\tQuestion: {question.Name} => {question.Type}");
+            if (response.Value.Questions != null) {
+                foreach (DnsQuestion question in response.Value.Questions) {
+                    Console.WriteLine($"\tQuestion: {question.Name} => {question.Type}");
+                }
             }
             Console.WriteLine($"\tAnswers: ");
             foreach (DnsAnswer answer in response.Value.Answers) {
