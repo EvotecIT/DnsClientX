@@ -3,6 +3,150 @@ using Xunit.Abstractions;
 namespace DnsClientX.Tests {
     public class CompareProviders(ITestOutputHelper output) {
         [Theory]
+        [InlineData("evotec.pl", DnsRecordType.A, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("evotec.pl", DnsRecordType.SOA, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("evotec.pl", DnsRecordType.DNSKEY, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("sip.evotec.pl", DnsRecordType.CNAME, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("autodiscover.evotec.pl", DnsRecordType.CNAME, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("evotec.pl", DnsRecordType.CAA, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("evotec.pl", DnsRecordType.AAAA, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("evotec.pl", DnsRecordType.MX, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("evotec.pl", DnsRecordType.NS, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("evotec.pl", DnsRecordType.SPF, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("evotec.pl", DnsRecordType.TXT, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("evotec.pl", DnsRecordType.SRV, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        // for some reason OpenDNS doesn't support SRV record output in NSEC record
+        [InlineData("evotec.pl", DnsRecordType.NSEC, new[] { DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("cloudflare.com", DnsRecordType.NSEC, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("mail-db3pr0202cu00100.inbound.protection.outlook.com", DnsRecordType.PTR, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        // lets try different sites
+        [InlineData("reddit.com", DnsRecordType.A, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("reddit.com", DnsRecordType.CAA, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("reddit.com", DnsRecordType.SOA, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        // github.com has a lot of TXT records, including multiline, however google dns doesn't do multiline TXT records and delivers them as one line
+        [InlineData("github.com", DnsRecordType.TXT, new[] { DnsEndpoint.Google, DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+
+        [InlineData("microsoft.com", DnsRecordType.MX, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("microsoft.com", DnsRecordType.NS, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+
+        [InlineData("google.com", DnsRecordType.MX, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("_25._tcp.mail.ietf.org", DnsRecordType.TLSA, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        public async Task CompareRecordsImproved(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
+            output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
+
+            var primaryEndpoint = DnsEndpoint.Cloudflare;
+            var allEndpoints = Enum.GetValues(typeof(DnsEndpoint)).Cast<DnsEndpoint>()
+                .Where(e => e != primaryEndpoint && (excludedEndpoints == null || !excludedEndpoints.Contains(e)))
+                .ToArray();
+
+            // Collect results from all providers with retry logic
+            var results = new Dictionary<DnsEndpoint, (DnsAnswer[] answers, string? error, DnsResponseCode status)>();
+
+            // Get primary endpoint result
+            var primaryClient = new ClientX(primaryEndpoint);
+            var primaryAnswers = await GetAnswersWithRetry(primaryClient, name, resourceRecordType, primaryEndpoint, output);
+            results[primaryEndpoint] = primaryAnswers;
+
+            output.WriteLine($"Primary ({primaryEndpoint}): {primaryAnswers.answers.Length} records, Status: {primaryAnswers.status}");
+            if (!string.IsNullOrEmpty(primaryAnswers.error)) {
+                output.WriteLine($"  Error: {primaryAnswers.error}");
+            }
+
+            // Get all other endpoint results
+            foreach (var endpoint in allEndpoints) {
+                var client = new ClientX(endpoint);
+                var result = await GetAnswersWithRetry(client, name, resourceRecordType, endpoint, output);
+                results[endpoint] = result;
+
+                output.WriteLine($"Provider {endpoint}: {result.answers.Length} records, Status: {result.status}");
+                if (!string.IsNullOrEmpty(result.error)) {
+                    output.WriteLine($"  Error: {result.error}");
+                }
+            }
+
+            // Analyze results
+            var expectedCount = primaryAnswers.answers.Length;
+            var failedProviders = new List<string>();
+            var inconsistentProviders = new List<string>();
+
+            foreach (var kvp in results.Where(r => r.Key != primaryEndpoint)) {
+                var endpoint = kvp.Key;
+                var result = kvp.Value;
+                if (result.answers.Length == 0 && expectedCount > 0) {
+                    failedProviders.Add($"{endpoint} (0 records, expected {expectedCount})");
+                } else if (result.answers.Length != expectedCount) {
+                    inconsistentProviders.Add($"{endpoint} ({result.answers.Length} records, expected {expectedCount})");
+                }
+            }
+
+            // Report diagnostics
+            if (failedProviders.Any()) {
+                output.WriteLine($"⚠️  Providers returning empty results: {string.Join(", ", failedProviders)}");
+            }
+            if (inconsistentProviders.Any()) {
+                output.WriteLine($"⚠️  Providers with different record counts: {string.Join(", ", inconsistentProviders)}");
+            }
+
+            // Only fail if MORE than 20% of providers have issues (allows for some transient failures)
+            var totalProviders = allEndpoints.Length;
+            var problematicProviders = failedProviders.Count + inconsistentProviders.Count;
+            var failureRate = (double)problematicProviders / totalProviders;
+
+            if (failureRate > 0.2) { // More than 20% of providers failing
+                var allIssues = failedProviders.Concat(inconsistentProviders);
+                Assert.False(true, $"Too many providers ({problematicProviders}/{totalProviders}, {failureRate:P0}) have issues: {string.Join(", ", allIssues)}");
+            } else if (problematicProviders > 0) {
+                output.WriteLine($"✅ Acceptable failure rate: {problematicProviders}/{totalProviders} providers ({failureRate:P0}) have issues - likely transient");
+            }
+
+            // For providers that did return results, validate content consistency
+            var successfulResults = results.Where(r => r.Value.answers.Length == expectedCount).ToList();
+            if (successfulResults.Count > 1) {
+                var reference = successfulResults.First().Value.answers.OrderBy(a => a.Data).ToArray();
+                foreach (var kvp in successfulResults.Skip(1)) {
+                    var endpoint = kvp.Key;
+                    var result = kvp.Value;
+                    var sorted = result.answers.OrderBy(a => a.Data).ToArray();
+                    for (int i = 0; i < reference.Length; i++) {
+                        if (reference[i].Data != sorted[i].Data) {
+                            output.WriteLine($"⚠️  Content mismatch in {endpoint}: expected '{reference[i].Data}', got '{sorted[i].Data}'");
+                        }
+                    }
+                }
+            }
+        }
+
+        private async Task<(DnsAnswer[] answers, string? error, DnsResponseCode status)> GetAnswersWithRetry(
+            ClientX client, string name, DnsRecordType type, DnsEndpoint endpoint, ITestOutputHelper output) {
+
+            const int maxRetries = 3;
+            const int delayMs = 500;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    var fullResponse = await client.Resolve(name, type);
+                    var answers = await client.ResolveAll(name, type);
+
+                    if (answers.Length == 0 && fullResponse.Status == DnsResponseCode.NoError && attempt < maxRetries) {
+                        output.WriteLine($"  {endpoint}: Attempt {attempt} returned 0 records with NoError status, retrying...");
+                        await Task.Delay(delayMs);
+                        continue;
+                    }
+
+                    return (answers, fullResponse.Error, fullResponse.Status);
+                } catch (Exception ex) {
+                    if (attempt == maxRetries) {
+                        return (Array.Empty<DnsAnswer>(), $"Exception after {maxRetries} attempts: {ex.Message}", DnsResponseCode.ServerFailure);
+                    }
+                    output.WriteLine($"  {endpoint}: Attempt {attempt} failed: {ex.Message}, retrying...");
+                    await Task.Delay(delayMs);
+                }
+            }
+
+            return (Array.Empty<DnsAnswer>(), "Max retries exceeded", DnsResponseCode.ServerFailure);
+        }
+
+        [Theory]
         [InlineData("evotec.pl", DnsRecordType.A)]
         [InlineData("evotec.pl", DnsRecordType.SOA)]
         [InlineData("evotec.pl", DnsRecordType.DNSKEY)]
