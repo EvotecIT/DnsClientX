@@ -2,7 +2,7 @@ using Xunit.Abstractions;
 
 namespace DnsClientX.Tests {
     public class CompareProvidersResolve(ITestOutputHelper output) {
-        [Theory]
+        [Theory(Skip = "External dependency - unreliable for automated testing")]
         //[MemberData(nameof(TestData))]
         [InlineData("evotec.pl", DnsRecordType.A, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("www.bücher.de", DnsRecordType.A, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
@@ -162,7 +162,7 @@ namespace DnsClientX.Tests {
             return (failureResponse, "Max retries exceeded");
         }
 
-        [Theory]
+        [Theory(Skip = "External dependency - unreliable for automated testing")]
         //[MemberData(nameof(TestData))]
         [InlineData("evotec.pl", DnsRecordType.A)]
         [InlineData("www.bücher.de", DnsRecordType.A)]
@@ -250,3 +250,4 @@ namespace DnsClientX.Tests {
         }
     }
 }
+

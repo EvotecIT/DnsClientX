@@ -1,6 +1,6 @@
 namespace DnsClientX.Tests {
     public class CompareJsonWithDnsWire {
-        [Theory]
+        [Theory(Skip = "External dependency - unreliable for automated testing")]
         [InlineData("evotec.pl", DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS, DnsRecordType.A)]
         [InlineData("reddit.com", DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS, DnsRecordType.A)]
         // Removed www.example.com as it uses Akamai CDN which returns different IPs based on geographic location
@@ -31,3 +31,4 @@ namespace DnsClientX.Tests {
         }
     }
 }
+

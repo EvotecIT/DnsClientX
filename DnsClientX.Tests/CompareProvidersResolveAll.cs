@@ -2,7 +2,7 @@ using Xunit.Abstractions;
 
 namespace DnsClientX.Tests {
     public class CompareProviders(ITestOutputHelper output) {
-        [Theory]
+        [Theory(Skip = "External dependency - unreliable for automated testing")]
         [InlineData("evotec.pl", DnsRecordType.A, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("evotec.pl", DnsRecordType.SOA, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("evotec.pl", DnsRecordType.DNSKEY, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
@@ -146,7 +146,7 @@ namespace DnsClientX.Tests {
             return (Array.Empty<DnsAnswer>(), "Max retries exceeded", DnsResponseCode.ServerFailure);
         }
 
-        [Theory]
+        [Theory(Skip = "External dependency - unreliable for automated testing")]
         [InlineData("evotec.pl", DnsRecordType.A)]
         [InlineData("evotec.pl", DnsRecordType.SOA)]
         [InlineData("evotec.pl", DnsRecordType.DNSKEY)]
@@ -212,7 +212,7 @@ namespace DnsClientX.Tests {
             }
         }
 
-        [Theory]
+        [Theory(Skip = "External dependency - unreliable for automated testing")]
         [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.CloudflareFamily)]
         // Google seems to have a different set of TXT records for github.com, as it doesn't follow specficiation directly
         // It seems to merge multiline TXT records into one line
@@ -258,3 +258,4 @@ namespace DnsClientX.Tests {
     }
 
 }
+
