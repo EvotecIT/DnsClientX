@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Net.NetworkInformation;
+using System.Net.Sockets;
+using System.IO;
+using System.Net;
 
 namespace DnsClientX {
     /// <summary>
@@ -19,13 +22,45 @@ namespace DnsClientX {
                 if (networkInterface.OperationalStatus == OperationalStatus.Up) {
                     var properties = networkInterface.GetIPProperties();
                     if (properties.GatewayAddresses.Count > 0) {
-                        var dnsAddresses = properties.DnsAddresses;
-                        foreach (var dnsAddress in dnsAddresses) {
-                            dnsServers.Add(dnsAddress.ToString());
+                        foreach (var dnsAddress in properties.DnsAddresses) {
+                            var address = dnsAddress.ToString();
+                            if (dnsAddress.AddressFamily == AddressFamily.InterNetworkV6) {
+                                address = address.Split('%')[0];
+                                address = $"[{address}]";
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(address)) {
+                                dnsServers.Add(address);
+                            }
                         }
+
                         // Once we find an active interface with a default gateway, we break the loop
                         break;
                     }
+                }
+            }
+
+            if (dnsServers.Count == 0) {
+                try {
+                    foreach (var line in File.ReadAllLines("/etc/resolv.conf")) {
+                        var trimmed = line.Trim();
+                        if (trimmed.StartsWith("nameserver", StringComparison.OrdinalIgnoreCase)) {
+                            var parts = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                            if (parts.Length > 1) {
+                                var address = parts[1];
+                                if (IPAddress.TryParse(address, out var ip)) {
+                                    address = ip.ToString();
+                                    if (ip.AddressFamily == AddressFamily.InterNetworkV6) {
+                                        address = address.Split('%')[0];
+                                        address = $"[{address}]";
+                                    }
+                                    dnsServers.Add(address);
+                                }
+                            }
+                        }
+                    }
+                } catch {
+                    // ignore if file not accessible
                 }
             }
 
