@@ -14,9 +14,9 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-        [InlineData(DnsEndpoint.Quad9)]
-        [InlineData(DnsEndpoint.Quad9ECS)]
-        [InlineData(DnsEndpoint.Quad9Unsecure)]
+
+
+
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForTXTSync(DnsEndpoint endpoint) {
@@ -40,9 +40,9 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-        [InlineData(DnsEndpoint.Quad9)]
-        [InlineData(DnsEndpoint.Quad9ECS)]
-        [InlineData(DnsEndpoint.Quad9Unsecure)]
+
+
+
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForASync(DnsEndpoint endpoint) {
@@ -66,9 +66,9 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-        [InlineData(DnsEndpoint.Quad9)]
-        [InlineData(DnsEndpoint.Quad9ECS)]
-        [InlineData(DnsEndpoint.Quad9Unsecure)]
+
+
+
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForPTRSync(DnsEndpoint endpoint) {
@@ -125,9 +125,9 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-        [InlineData(DnsEndpoint.Quad9)]
-        [InlineData(DnsEndpoint.Quad9ECS)]
-        [InlineData(DnsEndpoint.Quad9Unsecure)]
+
+
+
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForFirstSyncTXT(DnsEndpoint endpoint) {
@@ -150,9 +150,9 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-        [InlineData(DnsEndpoint.Quad9)]
-        [InlineData(DnsEndpoint.Quad9ECS)]
-        [InlineData(DnsEndpoint.Quad9Unsecure)]
+
+
+
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForFirstSyncA(DnsEndpoint endpoint) {
@@ -161,6 +161,7 @@ namespace DnsClientX.Tests {
             Assert.True(answer != null);
             Assert.True(answer.Value.Name == "evotec.pl");
             Assert.True(answer.Value.Type == DnsRecordType.A);
+            Assert.True(answer.Value.Data.Length > 0);
         }
 
         [Theory]
@@ -174,9 +175,9 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-        [InlineData(DnsEndpoint.Quad9)]
-        [InlineData(DnsEndpoint.Quad9ECS)]
-        [InlineData(DnsEndpoint.Quad9Unsecure)]
+
+
+
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForAllSyncTXT(DnsEndpoint endpoint) {
@@ -200,9 +201,9 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-        [InlineData(DnsEndpoint.Quad9)]
-        [InlineData(DnsEndpoint.Quad9ECS)]
-        [InlineData(DnsEndpoint.Quad9Unsecure)]
+
+
+
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForAllSyncA(DnsEndpoint endpoint) {

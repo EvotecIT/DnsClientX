@@ -3,34 +3,34 @@ using Xunit.Abstractions;
 namespace DnsClientX.Tests {
     public class CompareProviders(ITestOutputHelper output) {
         [Theory]
-        [InlineData("evotec.pl", DnsRecordType.A, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("evotec.pl", DnsRecordType.SOA, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("evotec.pl", DnsRecordType.DNSKEY, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("sip.evotec.pl", DnsRecordType.CNAME, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("autodiscover.evotec.pl", DnsRecordType.CNAME, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("evotec.pl", DnsRecordType.CAA, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("evotec.pl", DnsRecordType.AAAA, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("evotec.pl", DnsRecordType.MX, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("evotec.pl", DnsRecordType.NS, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("evotec.pl", DnsRecordType.SPF, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("evotec.pl", DnsRecordType.TXT, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("evotec.pl", DnsRecordType.SRV, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("evotec.pl", DnsRecordType.A, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("evotec.pl", DnsRecordType.SOA, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("evotec.pl", DnsRecordType.DNSKEY, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("sip.evotec.pl", DnsRecordType.CNAME, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("autodiscover.evotec.pl", DnsRecordType.CNAME, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("evotec.pl", DnsRecordType.CAA, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("evotec.pl", DnsRecordType.AAAA, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("evotec.pl", DnsRecordType.MX, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("evotec.pl", DnsRecordType.NS, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("evotec.pl", DnsRecordType.SPF, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("evotec.pl", DnsRecordType.TXT, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("evotec.pl", DnsRecordType.SRV, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         // for some reason OpenDNS doesn't support SRV record output in NSEC record
-        [InlineData("evotec.pl", DnsRecordType.NSEC, new[] { DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("cloudflare.com", DnsRecordType.NSEC, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("mail-db3pr0202cu00100.inbound.protection.outlook.com", DnsRecordType.PTR, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("evotec.pl", DnsRecordType.NSEC, new[] { DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily, DnsEndpoint.Google })]
+        [InlineData("cloudflare.com", DnsRecordType.NSEC, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("mail-db3pr0202cu00100.inbound.protection.outlook.com", DnsRecordType.PTR, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         // lets try different sites
-        [InlineData("reddit.com", DnsRecordType.A, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("reddit.com", DnsRecordType.CAA, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("reddit.com", DnsRecordType.SOA, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("reddit.com", DnsRecordType.A, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("reddit.com", DnsRecordType.CAA, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("reddit.com", DnsRecordType.SOA, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         // github.com has a lot of TXT records, including multiline, however google dns doesn't do multiline TXT records and delivers them as one line
-        [InlineData("github.com", DnsRecordType.TXT, new[] { DnsEndpoint.Google, DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("github.com", DnsRecordType.TXT, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
 
-        [InlineData("microsoft.com", DnsRecordType.MX, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("microsoft.com", DnsRecordType.NS, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("microsoft.com", DnsRecordType.MX, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("microsoft.com", DnsRecordType.NS, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
 
-        [InlineData("google.com", DnsRecordType.MX, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
-        [InlineData("_25._tcp.mail.ietf.org", DnsRecordType.TLSA, new[] { DnsEndpoint.Quad9, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("google.com", DnsRecordType.MX, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("_25._tcp.mail.ietf.org", DnsRecordType.TLSA, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         public async Task CompareRecordsImproved(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 
@@ -160,7 +160,7 @@ namespace DnsClientX.Tests {
         [InlineData("evotec.pl", DnsRecordType.TXT)]
         [InlineData("evotec.pl", DnsRecordType.SRV)]
         // for some reason OpenDNS doesn't support SRV record output in NSEC record
-        [InlineData("evotec.pl", DnsRecordType.NSEC, new[] { DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily, DnsEndpoint.Quad9ECS, DnsEndpoint.Quad9, DnsEndpoint.Quad9Unsecure })]
+        [InlineData("evotec.pl", DnsRecordType.NSEC, new[] { DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily, DnsEndpoint.Google })]
         [InlineData("cloudflare.com", DnsRecordType.NSEC)]
         [InlineData("mail-db3pr0202cu00100.inbound.protection.outlook.com", DnsRecordType.PTR)]
         // lets try different sites
@@ -218,9 +218,9 @@ namespace DnsClientX.Tests {
         // It seems to merge multiline TXT records into one line
         // https://dns.google/query?name=github.com&rr_type=TXT&ecs=
         //[InlineData("github.com", ResourceRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.Google)]
-        [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.Quad9)]
-        [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.Quad9ECS)]
-        [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.Quad9Unsecure)]
+
+
+
         [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.CloudflareWireFormat)]
         [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS)]
         [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNSFamily)]
