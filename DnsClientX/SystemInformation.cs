@@ -114,39 +114,7 @@ namespace DnsClientX {
             // Unix/Linux fallback: try reading /etc/resolv.conf
             if (dnsServers.Count == 0) {
                 DebugPrint("No DNS servers found from network interfaces, trying /etc/resolv.conf");
-                try {
-                    if (File.Exists("/etc/resolv.conf")) {
-                        DebugPrint("Reading /etc/resolv.conf");
-                        foreach (var line in File.ReadAllLines("/etc/resolv.conf")) {
-                            var trimmed = line.Trim();
-                            if (trimmed.StartsWith("nameserver", StringComparison.OrdinalIgnoreCase)) {
-                                var parts = trimmed.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                                if (parts.Length > 1) {
-                                    var address = parts[1];
-                                    DebugPrint($"[resolv.conf] Found nameserver: {address}");
-                                    if (IPAddress.TryParse(address, out var ip)) {
-                                        var formattedAddress = FormatDnsAddress(ip);
-                                        if (!string.IsNullOrWhiteSpace(formattedAddress)) {
-                                            if (IsValidDnsAddress(ip)) {
-                                                DebugPrint($"[resolv.conf] Accepted: {address}");
-                                                dnsServers.Add(formattedAddress);
-                                            } else {
-                                                DebugPrint($"[resolv.conf] Filtered out: {address}");
-                                            }
-                                        }
-                                    } else {
-                                        DebugPrint($"[resolv.conf] Not a valid IP: {address}");
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        DebugPrint("/etc/resolv.conf does not exist");
-                    }
-                } catch (Exception ex) {
-                    DebugPrint($"Exception reading /etc/resolv.conf: {ex.Message}");
-                    // Ignore if file not accessible or other I/O errors
-                }
+                dnsServers.AddRange(ParseResolvConf("/etc/resolv.conf", DebugPrint));
             }
 
             // Final fallback: if no system DNS servers found, use well-known public DNS
@@ -163,6 +131,48 @@ namespace DnsClientX {
             }
 
             return dnsServers;
+        }
+
+        internal static List<string> ParseResolvConf(string path, Action<string>? debugPrint = null) {
+            var servers = new List<string>();
+
+            if (!File.Exists(path)) {
+                debugPrint?.Invoke($"{path} does not exist");
+                return servers;
+            }
+
+            debugPrint?.Invoke($"Reading {path}");
+
+            try {
+                foreach (var line in File.ReadAllLines(path)) {
+                    var trimmed = line.Trim();
+                    if (trimmed.StartsWith("nameserver", StringComparison.OrdinalIgnoreCase)) {
+                        var parts = trimmed.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length > 1) {
+                            var address = parts[1];
+                            debugPrint?.Invoke($"[resolv.conf] Found nameserver: {address}");
+                            if (IPAddress.TryParse(address, out var ip)) {
+                                var formattedAddress = FormatDnsAddress(ip);
+                                if (!string.IsNullOrWhiteSpace(formattedAddress)) {
+                                    if (IsValidDnsAddress(ip)) {
+                                        debugPrint?.Invoke($"[resolv.conf] Accepted: {address}");
+                                        servers.Add(formattedAddress);
+                                    } else {
+                                        debugPrint?.Invoke($"[resolv.conf] Filtered out: {address}");
+                                    }
+                                }
+                            } else {
+                                debugPrint?.Invoke($"[resolv.conf] Not a valid IP: {address}");
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                debugPrint?.Invoke($"Exception reading {path}: {ex.Message}");
+                // Ignore if file not accessible or other I/O errors
+            }
+
+            return servers;
         }
 
         /// <summary>
