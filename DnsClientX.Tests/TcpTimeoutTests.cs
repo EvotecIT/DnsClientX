@@ -19,7 +19,7 @@ namespace DnsClientX.Tests {
             // With such a short timeout, it should either timeout or complete very quickly
             Assert.True(response.Status != DnsResponseCode.NoError || response.Status == DnsResponseCode.NoError);
             // This test mainly ensures no exception is thrown and the timeout mechanism is in place
-            Assert.True(response.Questions == null || response.Questions.Length > 0);
+            Assert.NotNull(response.Questions);
         }
 
         [Fact(Skip = "Skipped on macOS due to platform-specific issues")]
@@ -34,7 +34,7 @@ namespace DnsClientX.Tests {
 
             // This should work normally - though it might still fail if DNS resolution fails
             // We just check that it doesn't throw an exception and returns a response
-            Assert.True(response.Questions == null || response.Questions.Length > 0);
+            Assert.NotNull(response.Questions);
         }
     }
 }

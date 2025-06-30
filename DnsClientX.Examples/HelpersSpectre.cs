@@ -43,7 +43,7 @@ namespace DnsClientX.Examples {
             table.AddColumn("Questions");
             table.AddColumn("Answers");
 
-            var questions = response.Questions == null
+            var questions = response.Questions.Length == 0
                 ? string.Empty
                 : string.Join(", ", response.Questions.Select(q => $"{q.Name} => {q.Type}"));
 
@@ -72,10 +72,10 @@ namespace DnsClientX.Examples {
             table.AddColumn("Server");
             table.AddColumn("Answers");
 
-            var questions = response.Questions == null
+            var questions = response.Questions.Length == 0
                 ? string.Empty
                 : string.Join(", ", response.Questions.Select(q => $"{q.Name} => {q.Type}"));
-            var server = response.Questions == null
+            var server = response.Questions.Length == 0
                 ? string.Empty
                 : string.Join(Environment.NewLine, response.Questions.Select(q => $"HostName: {q.HostName}{Environment.NewLine}Port: {q.Port}{Environment.NewLine}RequestFormat: {q.RequestFormat}{Environment.NewLine}BaseUri: {q.BaseUri}"));
 

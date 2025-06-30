@@ -24,7 +24,8 @@ namespace DnsClientX.Tests {
             var response = await ClientX.QueryDns("spf-a.anotherexample.com", DnsRecordType.A, endpoint);
             Assert.True(response.Answers.Length == 0);
             Assert.True(response.Status != DnsResponseCode.NoError);
-            if (response.Questions != null) {
+            Assert.NotNull(response.Questions);
+            if (response.Questions.Length > 0) {
                 Assert.True(response.Questions.Length == 1);
                 foreach (DnsQuestion question in response.Questions) {
                     Assert.True(question.Name == "spf-a.anotherexample.com");
