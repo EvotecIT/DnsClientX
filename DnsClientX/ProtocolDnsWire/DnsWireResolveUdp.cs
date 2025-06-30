@@ -98,14 +98,22 @@ namespace DnsClientX {
                 var serverEndpoint = new IPEndPoint(IPAddress.Parse(dnsServer), port);
 
                 // Send the query
+#if NET5_0_OR_GREATER
+                await udpClient.SendAsync(query, serverEndpoint, cancellationToken);
+#else
                 await udpClient.SendAsync(query, query.Length, serverEndpoint);
+#endif
 
                 // Set up the cancellation token for the timeout
                 using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)) {
                     cts.CancelAfter(timeoutMilliseconds);
                     try {
                         // Receive the response with a timeout
+#if NET5_0_OR_GREATER
+                        var responseTask = udpClient.ReceiveAsync(cancellationToken).AsTask();
+#else
                         var responseTask = udpClient.ReceiveAsync();
+#endif
                         var completedTask = await Task.WhenAny(responseTask, Task.Delay(timeoutMilliseconds, cts.Token));
 
                         if (completedTask == responseTask) {

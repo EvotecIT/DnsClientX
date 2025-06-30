@@ -110,6 +110,9 @@ namespace DnsClientX {
         /// <param name="port">Target port.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         private static async Task ConnectAsync(TcpClient client, string host, int port, CancellationToken cancellationToken) {
+#if NET5_0_OR_GREATER
+            await client.ConnectAsync(host, port, cancellationToken);
+#else
             var connectTask = client.ConnectAsync(host, port);
             var delayTask = Task.Delay(Timeout.Infinite, cancellationToken);
 
@@ -120,6 +123,7 @@ namespace DnsClientX {
             }
 
             await connectTask;
+#endif
         }
     }
 }
