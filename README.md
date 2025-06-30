@@ -2,34 +2,47 @@
 
 DnsClientX is available as NuGet from the Nuget Gallery and as PowerShell module from PSGallery
 
-<p align="center">
-  <a href="https://www.nuget.org/packages/DnsClientX"><img src="https://img.shields.io/nuget/dt/DnsClientX?label=nuget%20downloads" alt="nuget downloads"></a>
-  <a href="https://www.nuget.org/packages/DnsClientX"><img src="https://img.shields.io/nuget/v/DnsClientX" alt="nuget version"></a>
-</p>
+### 📦 NuGet Package
 
 <p align="center">
-  <!-- <a href="https://dev.azure.com/evotecpl/DnsClientX/_build/latest?definitionId=3"><img src="https://dev.azure.com/evotecpl/DnsClientX/_apis/build/status/EvotecIT.DnsClientX"></a> -->
-  <a href="https://www.powershellgallery.com/packages/DnsClientX"><img src="https://img.shields.io/powershellgallery/v/DnsClientX.svg"></a>
-  <a href="https://www.powershellgallery.com/packages/DnsClientX"><img src="https://img.shields.io/powershellgallery/vpre/DnsClientX.svg?label=powershell%20gallery%20preview&colorB=yellow"></a>
-  <a href="https://www.powershellgallery.com/packages/DnsClientX"><img src="https://img.shields.io/powershellgallery/p/DnsClientX.svg"></a>
-  <a href="https://www.powershellgallery.com/packages/DnsClientX"><img src="https://img.shields.io/powershellgallery/dt/DnsClientX.svg"></a>
+
+[![nuget downloads](https://img.shields.io/nuget/dt/DnsClientX?label=nuget%20downloads)](https://www.nuget.org/packages/DnsClientX)
+[![nuget version](https://img.shields.io/nuget/v/DnsClientX)](https://www.nuget.org/packages/DnsClientX)
+
 </p>
 
-<p align="center">
-  <a href="https://github.com/EvotecIT/DnsClientX"><img src="https://img.shields.io/github/languages/top/evotecit/DnsClientX.svg"></a>
-  <a href="https://github.com/EvotecIT/DnsClientX"><img src="https://img.shields.io/github/license/EvotecIT/DnsClientX.svg"></a>
-</p>
+### 💻 PowerShell Module
 
 <p align="center">
-  <a href="https://twitter.com/PrzemyslawKlys"><img src="https://img.shields.io/twitter/follow/PrzemyslawKlys.svg?label=Twitter%20%40PrzemyslawKlys&style=social"></a>
-  <a href="https://evotec.xyz/hub"><img src="https://img.shields.io/badge/Blog-evotec.xyz-2A6496.svg"></a>
-  <a href="https://www.linkedin.com/in/pklys"><img src="https://img.shields.io/badge/LinkedIn-pklys-0077B5.svg?logo=LinkedIn"></a>
-  <a href="https://www.threads.net/@przemyslaw.klys"><img src="https://img.shields.io/badge/Threads-@PrzemyslawKlys-000000.svg?logo=Threads&logoColor=White"></a>
+
+[![powershell gallery version](https://img.shields.io/powershellgallery/v/DnsClientX.svg)](https://www.powershellgallery.com/packages/DnsClientX)
+[![powershell gallery preview](https://img.shields.io/powershellgallery/vpre/DnsClientX.svg?label=powershell%20gallery%20preview&colorB=yellow)](https://www.powershellgallery.com/packages/DnsClientX)
+[![powershell gallery platforms](https://img.shields.io/powershellgallery/p/DnsClientX.svg)](https://www.powershellgallery.com/packages/DnsClientX)
+[![powershell gallery downloads](https://img.shields.io/powershellgallery/dt/DnsClientX.svg)](https://www.powershellgallery.com/packages/DnsClientX)
+
+</p>
+
+### 🛠️ Project Information
+
+<p align="center">
+
+[![top language](https://img.shields.io/github/languages/top/evotecit/DnsClientX.svg)](https://github.com/EvotecIT/DnsClientX)
+[![license](https://img.shields.io/github/license/EvotecIT/DnsClientX.svg)](https://github.com/EvotecIT/DnsClientX)
+
+</p>
+
+### 👨‍💻 Author & Social
+
+<p align="center">
+
+[![Twitter follow](https://img.shields.io/twitter/follow/PrzemyslawKlys.svg?label=Twitter%20%40PrzemyslawKlys&style=social)](https://twitter.com/PrzemyslawKlys)
+[![Blog](https://img.shields.io/badge/Blog-evotec.xyz-2A6496.svg)](https://evotec.xyz/hub)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-pklys-0077B5.svg?logo=LinkedIn)](https://www.linkedin.com/in/pklys)
+[![Threads](https://img.shields.io/badge/Threads-@PrzemyslawKlys-000000.svg?logo=Threads&logoColor=White)](https://www.threads.net/@przemyslaw.klys)
+
 </p>
 
 ## What it's all about
-
-<img width="256" height="256" align=right src="https://raw.githubusercontent.com/EvotecIT/DnsClientX/master/Assets/Icons/DnsClientX3.png">
 
 **DnsClientX** is an async C# library for DNS over UDP, TCP, HTTPS (DoH), and TLS (DoT). It also has a PowerShell module that can be used to query DNS records. It provides a simple way to query DNS records using multiple DNS providers. It supports multiple DNS record types and parallel queries. It's available for .NET 6, .NET 7, .NET 8, .NET Standard 2.0, and .NET 4.7.2.
 
@@ -44,7 +57,7 @@ If you want to learn about DNS:
 - https://www.cloudflare.com/learning/dns/what-is-dns/
 
 > [!WARNING]
-> We try to unify the responses as much as possible for common use cases by translating on the fly. This is because different providers do not store it always the same way. If you find disprepencies please **open an issue** or better **pull request**.
+> We try to unify the responses as much as possible for common use cases by translating on the fly. This is because different providers do not store it always the same way. If you find discrepancies please **open an issue** or better **pull request**.
 
 ## Supported .NET Versions
 
@@ -62,11 +75,12 @@ This library supports multiple NET versions:
 
 ## Build Status
 
-| Platform | Status                                                                                                                                                                                                              | Test Report                                                                                                                                                                                                                                   | Code Coverage                                                                                                                                                                                                                                             | .NET                                                                 |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| Windows  | <a href="https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=30"><img src="https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/30/master?compact_message&style=flat&label=Tests%20Windows"></a> | <a href="https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=30&contextType=build"><img src="https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/30/master?compact_message&style=flat&label=Test Analytics"></a> | <a href="https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=30&view=ms.vss-pipelineanalytics-web.new-build-definition-pipeline-analytics-view-cardmetrics"><img src="https://img.shields.io/azure-devops/coverage/evotecpl/DnsClientX/30"></a> | .NET 4.7.2, NET 4.8, .NET 6.0, .NET 7.0, .NET 8.0, .NET Standard 2.0 |
-| Linux    | <a href="https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=31"><img src="https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/31/master?compact_message&style=flat&label=Tests%20Linux"></a>   | <a href="https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=31&contextType=build"><img src="https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/31/master?compact_message&style=flat&label=Test Analytics"></a> |                                                                                                                                                                                                                                                           | .NET 6.0, .NET 7.0, .NET Standard 2.0, .NET 8.0                      |
-| MacOs    | <a href="https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=32"><img src="https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/32/master?compact_message&style=flat&label=Tests%20MacOs"></a>   | <a href="https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=32&contextType=build"><img src="https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/32/master?compact_message&style=flat&label=Test Analytics"></a> |                                                                                                                                                                                                                                                           | .NET 6.0, .NET 7.0, .NET Standard 2.0, .NET 8.0                      |
+| Platform | Status | Test Report | Code Coverage | .NET |
+| -------- | ------ | ----------- | ------------- | ---- |
+| Windows  | [![Tests Windows](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/30/master?compact_message&style=flat&label=Tests%20Windows)](https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=30) | [![Test Analytics](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/30/master?compact_message&style=flat&label=Test%20Analytics)](https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=30&contextType=build) | [![Coverage](https://img.shields.io/azure-devops/coverage/evotecpl/DnsClientX/30)](https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=30&view=ms.vss-pipelineanalytics-web.new-build-definition-pipeline-analytics-view-cardmetrics) | .NET 4.7.2, NET 4.8, .NET 6.0, .NET 7.0, .NET 8.0, .NET Standard 2.0 |
+| Linux    | [![Tests Linux](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/31/master?compact_message&style=flat&label=Tests%20Linux)](https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=31) | [![Test Analytics](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/31/master?compact_message&style=flat&label=Test%20Analytics)](https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=31&contextType=build) |  | .NET 6.0, .NET 7.0, .NET Standard 2.0, .NET 8.0 |
+| MacOs    | [![Tests MacOs](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/32/master?compact_message&style=flat&label=Tests%20MacOs)](https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=32) | [![Test Analytics](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/32/master?compact_message&style=flat&label=Test%20Analytics)](https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=32&contextType=build) |  | .NET 6.0, .NET 7.0, .NET Standard 2.0, .NET 8.0 |
+
 ## Features
 
 - [x] Supports multiple built-in DNS Providers (System, Cloudflare, Google, Quad9, OpenDNS, etc.)
@@ -294,7 +308,6 @@ The system DNS endpoints provide the most compatible and network-environment-awa
 - [ ] [Add more providers](https://dnscrypt.info/public-servers/)
 - [ ] Add more tests
 - [ ] Go thru all additional parameters and make sure they have proper responses
-
 
 ## Usage in .NET
 
