@@ -266,8 +266,10 @@ var response = await ClientX.QueryDns("google.com", DnsRecordType.A, DnsEndpoint
 // Use system DNS with TCP only
 var response = await ClientX.QueryDns("google.com", DnsRecordType.A, DnsEndpoint.SystemTcp);
 
-// Get system DNS servers programmatically
+// Get system DNS servers programmatically (cached)
 var systemDnsServers = SystemInformation.GetDnsFromActiveNetworkCard();
+// Refresh the cache when network configuration changes
+var refreshedDnsServers = SystemInformation.GetDnsFromActiveNetworkCard(refresh: true);
 ```
 
 ### Advantages of System DNS
