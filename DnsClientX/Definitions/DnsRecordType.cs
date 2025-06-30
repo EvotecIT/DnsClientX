@@ -237,7 +237,7 @@ public enum DnsRecordType : ushort {
     /// </summary>
     SVCB = 64,
     /// <summary>
-    /// Service Binding compatible type for us with HTTP
+    /// Service Binding compatible type for use with HTTP
     /// </summary>
     HTTPS = 65,
     /// <summary>
