@@ -93,12 +93,14 @@ namespace DnsClientX {
         /// <param name="endpoint">The endpoint.</param>
         /// <param name="dnsSelectionStrategy">Dns selection strategy</param>
         /// <param name="timeOutMilliseconds"></param>
+        /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
         public ClientX(
             DnsEndpoint endpoint = DnsEndpoint.Cloudflare,
             DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First,
             int timeOutMilliseconds = 1000,
             string? userAgent = null,
-            Version? httpVersion = null) {
+            Version? httpVersion = null,
+            bool ignoreCertificateErrors = false) {
             EndpointConfiguration = new Configuration(endpoint, dnsSelectionStrategy) {
                 TimeOut = timeOutMilliseconds
             };
@@ -108,6 +110,7 @@ namespace DnsClientX {
             if (httpVersion != null) {
                 EndpointConfiguration.HttpVersion = httpVersion;
             }
+            IgnoreCertificateErrors = ignoreCertificateErrors;
             ConfigureClient();
         }
 
@@ -117,12 +120,14 @@ namespace DnsClientX {
         /// <param name="hostname">The hostname.</param>
         /// <param name="requestFormat">The request format.</param>
         /// <param name="timeOutMilliseconds"></param>
+        /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
         public ClientX(
             string hostname,
             DnsRequestFormat requestFormat,
             int timeOutMilliseconds = 1000,
             string? userAgent = null,
-            Version? httpVersion = null) {
+            Version? httpVersion = null,
+            bool ignoreCertificateErrors = false) {
             EndpointConfiguration = new Configuration(hostname, requestFormat) {
                 TimeOut = timeOutMilliseconds
             };
@@ -132,6 +137,7 @@ namespace DnsClientX {
             if (httpVersion != null) {
                 EndpointConfiguration.HttpVersion = httpVersion;
             }
+            IgnoreCertificateErrors = ignoreCertificateErrors;
             ConfigureClient();
         }
 
@@ -141,12 +147,14 @@ namespace DnsClientX {
         /// <param name="baseUri">The base URI.</param>
         /// <param name="requestFormat">The request format.</param>
         /// <param name="timeOutMilliseconds"></param>
+        /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
         public ClientX(
             Uri baseUri,
             DnsRequestFormat requestFormat,
             int timeOutMilliseconds = 1000,
             string? userAgent = null,
-            Version? httpVersion = null) {
+            Version? httpVersion = null,
+            bool ignoreCertificateErrors = false) {
             EndpointConfiguration = new Configuration(baseUri, requestFormat) {
                 TimeOut = timeOutMilliseconds
             };
@@ -156,6 +164,7 @@ namespace DnsClientX {
             if (httpVersion != null) {
                 EndpointConfiguration.HttpVersion = httpVersion;
             }
+            IgnoreCertificateErrors = ignoreCertificateErrors;
             ConfigureClient();
         }
 
@@ -226,7 +235,7 @@ namespace DnsClientX {
             }
         }
 
-                /// <summary>
+        /// <summary>
         /// Gets the client based on the selection strategy
         /// This allows us to have multiple clients for different strategies, so performance is not affected
         /// </summary>
