@@ -27,7 +27,7 @@ namespace DnsClientX.Tests {
             var client = new ClientX();
             MethodInfo method = typeof(ClientX).GetMethod("FilterAnswersRegex", BindingFlags.NonPublic | BindingFlags.Instance)!;
             var answers = new[] { CreateAnswer(string.Empty, DnsRecordType.A) };
-            var result = (DnsAnswer[])method.Invoke(client, new object[] { answers, new Regex("test"), DnsRecordType.A })!;
+            var result = (DnsAnswer[])method.Invoke(client, new object[] { answers, new Regex("test", RegexOptions.CultureInvariant), DnsRecordType.A })!;
             Assert.Empty(result);
         }
 
@@ -45,7 +45,7 @@ namespace DnsClientX.Tests {
             var client = new ClientX();
             MethodInfo method = typeof(ClientX).GetMethod("HasMatchingAnswersRegex", BindingFlags.NonPublic | BindingFlags.Instance)!;
             var answers = new[] { CreateAnswer(string.Empty, DnsRecordType.A) };
-            var result = (bool)method.Invoke(client, new object[] { answers, new Regex("test"), DnsRecordType.A })!;
+            var result = (bool)method.Invoke(client, new object[] { answers, new Regex("test", RegexOptions.CultureInvariant), DnsRecordType.A })!;
             Assert.False(result);
         }
     }

@@ -187,7 +187,7 @@ namespace DnsClientX {
                     var parts = DataRaw.Split(' ')
                         .Where(part => !string.IsNullOrEmpty(part))
                         .Select(part => part.Trim())
-                        .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]+\b\Z"))
+                        .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]+\b\Z", RegexOptions.CultureInvariant))
                         .Select(part => Convert.ToByte(part, 16))
                         .ToArray();
 
@@ -254,10 +254,10 @@ namespace DnsClientX {
                         .Skip(2) // Skip the first two parts
                         .Where(part => !string.IsNullOrEmpty(part))
                         .Select(part => part.Trim())
-                        .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]+\b\Z"))
+                        .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]+\b\Z", RegexOptions.CultureInvariant))
                         .Select(part => Convert.ToByte(part, 16)) // Convert from hexadecimal to byte
                         .ToArray();
-                } else if (Regex.IsMatch(DataRaw, @"^\d+ \d+ \d+ [\da-fA-F]+$")) {
+                } else if (Regex.IsMatch(DataRaw, @"^\d+ \d+ \d+ [\da-fA-F]+$", RegexOptions.CultureInvariant)) {
                     // If the DataRaw string is already in the correct format, return it as it is
                     return DataRaw;
                 } else {
@@ -302,7 +302,7 @@ namespace DnsClientX {
                             .Skip(2) // Skip the "\#" and the length byte
                             .Where(part => !string.IsNullOrEmpty(part))
                             .Select(part => part.Trim())
-                            .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]{1,2}\b\Z")) // Match 1 or 2 hex chars
+                            .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]{1,2}\b\Z", RegexOptions.CultureInvariant)) // Match 1 or 2 hex chars
                             .Select(part => Convert.ToByte(part, 16))
                             .ToArray();
                         if (rdataHex.Length > 4) { // Basic validation for minimum RDATA length
