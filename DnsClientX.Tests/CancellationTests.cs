@@ -32,5 +32,12 @@ namespace DnsClientX.Tests {
             using var cts = new CancellationTokenSource(100);
             await Assert.ThrowsAsync<TaskCanceledException>(() => clientX.Resolve("example.com", DnsRecordType.A, cancellationToken: cts.Token));
         }
+
+        [Fact]
+        public async Task QueryDnsShouldCancelEarly() {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+            await Assert.ThrowsAsync<TaskCanceledException>(() => ClientX.QueryDns("example.com", DnsRecordType.A, cancellationToken: cts.Token));
+        }
     }
 }
