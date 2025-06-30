@@ -39,6 +39,8 @@ jobs:
 
             - name: Run tests
               run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity normal --logger trx --collect:"XPlat Code Coverage"
+              env:
+                  DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
 
             - name: Upload test results
               uses: actions/upload-artifact@v4
@@ -79,6 +81,8 @@ jobs:
 
             - name: Run tests
               run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity normal --logger trx --collect:"XPlat Code Coverage"
+              env:
+                  DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
 
             - name: Upload test results
               uses: actions/upload-artifact@v4
@@ -119,6 +123,8 @@ jobs:
 
             - name: Run tests
               run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity normal --logger trx --collect:"XPlat Code Coverage"
+              env:
+                  DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
 
             - name: Upload test results
               uses: actions/upload-artifact@v4
