@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 
 namespace DnsClientX {
     public partial class ClientX : IDisposable {
         private bool _disposed;
+        private readonly HashSet<HttpClient> _disposedClients = new();
 
         /// <inheritdoc/>
         public void Dispose() {
@@ -20,10 +22,16 @@ namespace DnsClientX {
                 if (disposing) {
                     lock (_lock) {
                         foreach (HttpClient client in _clients.Values) {
-                            client.Dispose();
+                            if (_disposedClients.Add(client)) {
+                                client.Dispose();
+                            }
                         }
                         _clients.Clear();
-                        Client?.Dispose();
+
+                        if (Client != null && _disposedClients.Add(Client)) {
+                            Client.Dispose();
+                        }
+
                         handler?.Dispose();
                     }
                 }
