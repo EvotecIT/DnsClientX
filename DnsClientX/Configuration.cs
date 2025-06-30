@@ -37,14 +37,19 @@ namespace DnsClientX {
         public Uri BaseUri { get; private set; }
 
         /// <summary>
-        /// The preferred HTTP request version to use.
+        /// The preferred HTTP request version to use by default.
         /// </summary>
-        public static readonly Version HttpVersion = new(2, 0);
+        public static readonly Version DefaultHttpVersion = new(2, 0);
 
         /// <summary>
-        /// The User-Agent header value to send along with DNS requests.
+        /// Gets or sets the HTTP version used when communicating with the DNS provider.
         /// </summary>
-        public string UserAgent = "DnsClientX";
+        public Version HttpVersion { get; set; } = DefaultHttpVersion;
+
+        /// <summary>
+        /// Gets or sets the User-Agent header value to send along with DNS requests.
+        /// </summary>
+        public string UserAgent { get; set; } = "DnsClientX";
 
         /// <summary>
         /// Time-out for DNS Query in milliseconds. Valid only for UDP (for now).
