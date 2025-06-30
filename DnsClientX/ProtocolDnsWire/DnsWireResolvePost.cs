@@ -34,7 +34,6 @@ namespace DnsClientX {
 
             using ByteArrayContent content = new(queryBytes);
             content.Headers.ContentType = new MediaTypeHeaderValue("application/dns-message");
-            content.Headers.ContentLength = queryBytes.Length;
 
             using HttpResponseMessage postAsync = await client.PostAsync(client.BaseAddress, content, cancellationToken);
             var response = await postAsync.DeserializeDnsWireFormat(debug);
