@@ -229,6 +229,10 @@ namespace DnsClientX {
         /// <param name="type">The DNS record type being filtered.</param>
         /// <returns>True if any answer contains a match.</returns>
         private bool HasMatchingAnswersRegex(DnsAnswer[] answers, Regex regexFilter, DnsRecordType type) {
+            if (answers == null) {
+                return false;
+            }
+
             foreach (var answer in answers) {
                 if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
                     var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
