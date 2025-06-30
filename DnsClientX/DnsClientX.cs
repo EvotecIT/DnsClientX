@@ -251,8 +251,16 @@ namespace DnsClientX {
         /// <param name="domainName"></param>
         /// <returns></returns>
         private static string ConvertToPunycode(string domainName) {
-            IdnMapping idn = new IdnMapping();
-            return idn.GetAscii(domainName);
+            if (string.IsNullOrWhiteSpace(domainName)) {
+                return domainName;
+            }
+
+            try {
+                IdnMapping idn = new IdnMapping();
+                return idn.GetAscii(domainName);
+            } catch {
+                return domainName;
+            }
         }
 
         /// <summary>
