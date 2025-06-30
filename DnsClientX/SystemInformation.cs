@@ -205,7 +205,9 @@ namespace DnsClientX {
         /// <param name="address">The IP address to validate</param>
         /// <returns>True if the address is valid for DNS use</returns>
         private static bool IsValidDnsAddress(IPAddress address) {
-            if (address == null) return false;
+            if (address is null) {
+                return false;
+            }
 
             // Convert to string for pattern matching
             string ipString = address.ToString();
