@@ -126,6 +126,7 @@ namespace DnsClientX {
                 dnsServers.Add("8.8.8.8");    // Google Primary
             }
 
+            dnsServers = DeduplicateDnsServers(dnsServers);
             DebugPrint($"Final DNS server list: {string.Join(", ", dnsServers)}");
 
             return dnsServers;
@@ -171,6 +172,10 @@ namespace DnsClientX {
             }
 
             return servers;
+        }
+
+        private static List<string> DeduplicateDnsServers(IEnumerable<string> servers) {
+            return servers.Distinct().ToList();
         }
 
         /// <summary>
