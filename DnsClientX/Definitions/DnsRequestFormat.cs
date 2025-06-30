@@ -29,5 +29,9 @@ namespace DnsClientX {
         /// Wire format using the DOT protocol for DNS requests.
         /// </summary>
         DnsOverTLS,
+        /// <summary>
+        /// DNS over QUIC, defined in <a href="https://www.rfc-editor.org/rfc/rfc9250">RFC 9250</a>.
+        /// </summary>
+        DnsOverQuic,
     }
 }

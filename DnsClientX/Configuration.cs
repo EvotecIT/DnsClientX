@@ -96,7 +96,7 @@ namespace DnsClientX {
             BaseUri = new Uri(string.Format(baseUriFormat, hostname));
             hostnameIndex = 0;
 
-            if (requestFormat == DnsRequestFormat.DnsOverTLS) {
+            if (requestFormat == DnsRequestFormat.DnsOverTLS || requestFormat == DnsRequestFormat.DnsOverQuic) {
                 Port = 853;
             } else if (requestFormat == DnsRequestFormat.DnsOverUDP || requestFormat == DnsRequestFormat.DnsOverTCP) {
                 Port = 53;
@@ -117,7 +117,7 @@ namespace DnsClientX {
             hostnames = new List<string> { baseUri.Host };
             hostnameIndex = 0;
 
-            if (requestFormat == DnsRequestFormat.DnsOverTLS) {
+            if (requestFormat == DnsRequestFormat.DnsOverTLS || requestFormat == DnsRequestFormat.DnsOverQuic) {
                 Port = 853;
             } else if (requestFormat == DnsRequestFormat.DnsOverUDP || requestFormat == DnsRequestFormat.DnsOverTCP) {
                 Port = 53;
@@ -209,6 +209,11 @@ namespace DnsClientX {
                     RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
+                case DnsEndpoint.CloudflareQuic:
+                    hostnames = new List<string> { "1.1.1.1", "1.0.0.1" };
+                    RequestFormat = DnsRequestFormat.DnsOverQuic;
+                    baseUriFormat = "https://{0}/dns-query";
+                    break;
                 case DnsEndpoint.Google:
                     hostnames = new List<string> { "8.8.8.8", "8.8.4.4" };
                     RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
@@ -222,6 +227,11 @@ namespace DnsClientX {
                 case DnsEndpoint.GoogleWireFormatPost:
                     hostnames = new List<string> { "8.8.8.8", "8.8.4.4" };
                     RequestFormat = DnsRequestFormat.DnsOverHttpsPOST;
+                    baseUriFormat = "https://{0}/dns-query";
+                    break;
+                case DnsEndpoint.GoogleQuic:
+                    hostnames = new List<string> { "8.8.8.8", "8.8.4.4" };
+                    RequestFormat = DnsRequestFormat.DnsOverQuic;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.Quad9:
@@ -259,7 +269,7 @@ namespace DnsClientX {
 
             SelectHostNameStrategy();
 
-            if (RequestFormat == DnsRequestFormat.DnsOverTLS) {
+            if (RequestFormat == DnsRequestFormat.DnsOverTLS || RequestFormat == DnsRequestFormat.DnsOverQuic) {
                 Port = 853;
             } else if (RequestFormat == DnsRequestFormat.DnsOverUDP || RequestFormat == DnsRequestFormat.DnsOverTCP) {
                 Port = 53;

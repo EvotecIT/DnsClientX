@@ -64,6 +64,14 @@ namespace DnsClientX {
         /// <summary>
         /// OpenDNS's family-friendly DNS-over-HTTPS endpoint.
         /// </summary>
-        OpenDNSFamily
+        OpenDNSFamily,
+        /// <summary>
+        /// Cloudflare's DNS-over-QUIC endpoint.
+        /// </summary>
+        CloudflareQuic,
+        /// <summary>
+        /// Google's DNS-over-QUIC endpoint.
+        /// </summary>
+        GoogleQuic
     }
 }
