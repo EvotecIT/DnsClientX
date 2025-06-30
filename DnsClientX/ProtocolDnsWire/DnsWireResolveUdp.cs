@@ -93,6 +93,7 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>Raw DNS response bytes.</returns>
         private static async Task<byte[]> SendQueryOverUdp(byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
+            if (timeoutMilliseconds < 1) throw new ArgumentOutOfRangeException(nameof(timeoutMilliseconds));
             using (var udpClient = new UdpClient()) {
                 // Set the server IP address and port number
                 var serverEndpoint = new IPEndPoint(IPAddress.Parse(dnsServer), port);

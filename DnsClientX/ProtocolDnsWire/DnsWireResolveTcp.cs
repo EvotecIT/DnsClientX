@@ -85,6 +85,7 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>Raw DNS response bytes.</returns>
         private static async Task<byte[]> SendQueryOverTcp(byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
+            if (timeoutMilliseconds < 1) throw new ArgumentOutOfRangeException(nameof(timeoutMilliseconds));
             using var tcpClient = new TcpClient();
             try {
                 // Connect to the server with timeout
@@ -144,6 +145,7 @@ namespace DnsClientX {
         /// Helper to read exactly the requested number of bytes from a stream with timeout.
         /// </summary>
         private static async Task ReadExactWithTimeoutAsync(Stream stream, byte[] buffer, int offset, int count, int timeoutMilliseconds, CancellationToken cancellationToken) {
+            if (timeoutMilliseconds < 1) throw new ArgumentOutOfRangeException(nameof(timeoutMilliseconds));
             var readTask = DnsWire.ReadExactAsync(stream, buffer, offset, count, cancellationToken);
             var timeoutTask = Task.Delay(timeoutMilliseconds, cancellationToken);
             var completedTask = await Task.WhenAny(readTask, timeoutTask);
@@ -164,6 +166,7 @@ namespace DnsClientX {
         /// <param name="timeoutMilliseconds">Timeout in milliseconds.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         private static async Task ConnectAsync(TcpClient tcpClient, string host, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
+            if (timeoutMilliseconds < 1) throw new ArgumentOutOfRangeException(nameof(timeoutMilliseconds));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             linkedCts.CancelAfter(timeoutMilliseconds);
 

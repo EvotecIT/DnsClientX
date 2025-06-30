@@ -101,6 +101,7 @@ namespace DnsClientX {
             string? userAgent = null,
             Version? httpVersion = null,
             bool ignoreCertificateErrors = false) {
+            ValidateTimeout(timeOutMilliseconds);
             EndpointConfiguration = new Configuration(endpoint, dnsSelectionStrategy) {
                 TimeOut = timeOutMilliseconds
             };
@@ -128,6 +129,7 @@ namespace DnsClientX {
             string? userAgent = null,
             Version? httpVersion = null,
             bool ignoreCertificateErrors = false) {
+            ValidateTimeout(timeOutMilliseconds);
             EndpointConfiguration = new Configuration(hostname, requestFormat) {
                 TimeOut = timeOutMilliseconds
             };
@@ -155,6 +157,7 @@ namespace DnsClientX {
             string? userAgent = null,
             Version? httpVersion = null,
             bool ignoreCertificateErrors = false) {
+            ValidateTimeout(timeOutMilliseconds);
             EndpointConfiguration = new Configuration(baseUri, requestFormat) {
                 TimeOut = timeOutMilliseconds
             };
