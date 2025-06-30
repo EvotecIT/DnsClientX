@@ -9,6 +9,19 @@ namespace DnsClientX {
         private string _name;
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="DnsQuestion"/> struct.
+        /// </summary>
+        public DnsQuestion() {
+            _name = string.Empty;
+            OriginalName = string.Empty;
+            Type = DnsRecordType.A;
+            HostName = string.Empty;
+            BaseUri = null!;
+            RequestFormat = DnsRequestFormat.DnsOverHttps;
+            Port = 0;
+        }
+
+        /// <summary>
         /// The FQDN record name requested.
         /// Retains original name as set by the client.
         /// </summary>
@@ -23,7 +36,11 @@ namespace DnsClientX {
             get => _name;
             set {
                 OriginalName = value;
-                _name = value.EndsWith(".") ? value.TrimEnd('.') : value;
+                if (string.IsNullOrEmpty(value)) {
+                    _name = value;
+                } else {
+                    _name = value.EndsWith(".") ? value.TrimEnd('.') : value;
+                }
             }
         }
 
