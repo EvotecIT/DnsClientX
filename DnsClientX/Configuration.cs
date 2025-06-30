@@ -100,7 +100,8 @@ namespace DnsClientX {
         public Configuration(Uri baseUri, DnsRequestFormat requestFormat) {
             BaseUri = baseUri;
             RequestFormat = requestFormat;
-            hostnames = new List<string> { Hostname };
+            Hostname = baseUri.Host;
+            hostnames = new List<string> { baseUri.Host };
 
             if (requestFormat == DnsRequestFormat.DnsOverTLS) {
                 Port = 853;
