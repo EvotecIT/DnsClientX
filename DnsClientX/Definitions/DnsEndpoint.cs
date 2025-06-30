@@ -29,7 +29,7 @@ namespace DnsClientX {
         /// </summary>
         CloudflareWireFormat,
         /// <summary>
-        /// Cloudfare's DNS-over-HTTPS endpoint using wire format with POST method.
+        /// Cloudflare's DNS-over-HTTPS endpoint using wire format with POST method.
         /// </summary>
         CloudflareWireFormatPost,
         /// <summary>
