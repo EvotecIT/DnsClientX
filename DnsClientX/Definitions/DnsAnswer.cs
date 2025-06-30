@@ -213,6 +213,20 @@ namespace DnsClientX {
                 } else {
                     return DataRaw;
                 }
+            } else if (Type == DnsRecordType.DS) {
+                // For DS records, decode the key tag, algorithm, digest type and digest
+                var parts = DataRaw.Split(' ');
+                if (parts.Length >= 4 &&
+                    ushort.TryParse(parts[0], out var keyTag) &&
+                    byte.TryParse(parts[1], out var algVal) &&
+                    byte.TryParse(parts[2], out var digestType)) {
+                    string algorithmName = Enum.IsDefined(typeof(DnsKeyAlgorithm), (int)algVal)
+                        ? ((DnsKeyAlgorithm)algVal).ToString()
+                        : parts[1];
+                    return $"{keyTag} {algorithmName} {digestType} {parts[3]}";
+                } else {
+                    return DataRaw;
+                }
             } else if (Type == DnsRecordType.NSEC) {
                 // This is a NSEC record. Some providers may return non-standard (google) types.
                 // Check if the type is a non-standard type

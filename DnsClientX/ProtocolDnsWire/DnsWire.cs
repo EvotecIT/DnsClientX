@@ -412,6 +412,17 @@ namespace DnsClientX {
                         return reader.DecodeCAARecord(rdLength);
                     } else if (type == DnsRecordType.DNSKEY) {
                         return reader.DecodeDNSKEYRecord(rdLength);
+                    } else if (type == DnsRecordType.DS) {
+                        if (rdLength < 4) throw new DnsClientException("The record data for DS is not long enough");
+                        ushort keyTag = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
+                        byte algorithmVal = reader.ReadByte();
+                        byte digestType = reader.ReadByte();
+                        byte[] digestBytes = reader.ReadBytes(rdLength - 4);
+                        string algorithmName = Enum.IsDefined(typeof(DnsKeyAlgorithm), (int)algorithmVal)
+                            ? ((DnsKeyAlgorithm)algorithmVal).ToString()
+                            : algorithmVal.ToString();
+                        string digest = BitConverter.ToString(digestBytes).Replace("-", "").ToLower();
+                        return $"{keyTag} {algorithmName} {digestType} {digest}";
                     } else if (type == DnsRecordType.NSEC) {
                         return reader.DecodeNSECRecord(dnsMessage, rdLength, messageStart);
                     } else {
