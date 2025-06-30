@@ -94,7 +94,7 @@ namespace DnsClientX.Tests {
 
             if (failureRate > 0.2) { // More than 20% of providers failing
                 var allIssues = failedProviders.Concat(inconsistentProviders);
-                Assert.False(true, $"Too many providers ({problematicProviders}/{totalProviders}, {failureRate:P0}) have issues: {string.Join(", ", allIssues)}");
+                Assert.Fail($"Too many providers ({problematicProviders}/{totalProviders}, {failureRate:P0}) have issues: {string.Join(", ", allIssues)}");
             } else if (problematicProviders > 0) {
                 output.WriteLine($"✅ Acceptable failure rate: {problematicProviders}/{totalProviders} providers ({failureRate:P0}) have issues - likely transient");
             }

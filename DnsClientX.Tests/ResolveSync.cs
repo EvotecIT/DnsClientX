@@ -20,10 +20,10 @@ namespace DnsClientX.Tests {
         private async Task<DnsResponse> TryResolveWithDiagnostics(ClientX client, string domain, DnsRecordType recordType, int maxRetries = 3)
         {
             LogDiagnostics($"Attempting to resolve {domain} for record type {recordType}");
-            LogDiagnostics($"Using endpoint: {client.EndpointConfiguration.Endpoint}");
+            LogDiagnostics($"Using DNS configuration: {client.EndpointConfiguration.RequestFormat}");
             LogDiagnostics($"DNS Servers: {string.Join(", ", SystemInformation.GetDnsFromActiveNetworkCard())}");
 
-            DnsResponse response = null;
+            DnsResponse response = new DnsResponse();
             Exception lastException = null;
 
             for (int attempt = 1; attempt <= maxRetries; attempt++)
@@ -90,6 +90,59 @@ namespace DnsClientX.Tests {
             var client = new ClientX(endpoint);
             var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
 
+            Assert.True(response.Answers.Length > 0, "Expected at least one answer");
+            foreach (DnsAnswer answer in response.Answers)
+            {
+                Assert.True(answer.Name == "github.com", $"Expected answer name to be github.com but got {answer.Name}");
+                Assert.True(answer.Type == DnsRecordType.TXT, $"Expected answer type to be TXT but got {answer.Type}");
+                Assert.True(answer.Data.Length > 0, "Expected answer data to not be empty");
+            }
+        }
+
+        [Theory]
+        [InlineData(DnsEndpoint.System)]
+        [InlineData(DnsEndpoint.SystemTcp)]
+        [InlineData(DnsEndpoint.Cloudflare)]
+        [InlineData(DnsEndpoint.CloudflareFamily)]
+        [InlineData(DnsEndpoint.CloudflareSecurity)]
+        [InlineData(DnsEndpoint.CloudflareWireFormat)]
+        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
+        [InlineData(DnsEndpoint.Google)]
+        [InlineData(DnsEndpoint.GoogleWireFormat)]
+        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
+        [InlineData(DnsEndpoint.OpenDNS)]
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
+        public async Task ShouldWorkForFirstSyncTXT(DnsEndpoint endpoint)
+        {
+            var client = new ClientX(endpoint);
+            var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
+
+            Assert.True(response.Answers.Length > 0, "Expected at least one answer");
+            var answer = response.Answers[0];
+            Assert.True(answer.Name == "github.com", $"Expected answer name to be github.com but got {answer.Name}");
+            Assert.True(answer.Type == DnsRecordType.TXT, $"Expected answer type to be TXT but got {answer.Type}");
+            Assert.True(answer.Data.Length > 0, "Expected answer data to not be empty");
+        }
+
+        [Theory]
+        [InlineData(DnsEndpoint.System)]
+        [InlineData(DnsEndpoint.SystemTcp)]
+        [InlineData(DnsEndpoint.Cloudflare)]
+        [InlineData(DnsEndpoint.CloudflareFamily)]
+        [InlineData(DnsEndpoint.CloudflareSecurity)]
+        [InlineData(DnsEndpoint.CloudflareWireFormat)]
+        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
+        [InlineData(DnsEndpoint.Google)]
+        [InlineData(DnsEndpoint.GoogleWireFormat)]
+        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
+        [InlineData(DnsEndpoint.OpenDNS)]
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
+        public async Task ShouldWorkForAllSyncTXT(DnsEndpoint endpoint)
+        {
+            var client = new ClientX(endpoint);
+            var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
+
+            Assert.True(response.Answers.Length > 0, "Expected at least one answer");
             foreach (DnsAnswer answer in response.Answers)
             {
                 Assert.True(answer.Name == "github.com", $"Expected answer name to be github.com but got {answer.Name}");
@@ -178,58 +231,6 @@ namespace DnsClientX.Tests {
                     Assert.True(answer.Type == type);
                     Assert.True(answer.Data.Length > 0);
                 }
-            }
-        }
-
-        [Theory]
-        [InlineData(DnsEndpoint.System)]
-        [InlineData(DnsEndpoint.SystemTcp)]
-        [InlineData(DnsEndpoint.Cloudflare)]
-        [InlineData(DnsEndpoint.CloudflareFamily)]
-        [InlineData(DnsEndpoint.CloudflareSecurity)]
-        [InlineData(DnsEndpoint.CloudflareWireFormat)]
-        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
-        [InlineData(DnsEndpoint.Google)]
-        [InlineData(DnsEndpoint.GoogleWireFormat)]
-        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-        [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public async Task ShouldWorkForFirstSyncTXT(DnsEndpoint endpoint)
-        {
-            var client = new ClientX(endpoint);
-            var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
-
-            Assert.True(response.Answers.Length > 0, "Expected at least one answer");
-            var answer = response.Answers[0];
-            Assert.True(answer.Name == "github.com", $"Expected answer name to be github.com but got {answer.Name}");
-            Assert.True(answer.Type == DnsRecordType.TXT, $"Expected answer type to be TXT but got {answer.Type}");
-            Assert.True(answer.Data.Length > 0, "Expected answer data to not be empty");
-        }
-
-        [Theory]
-        [InlineData(DnsEndpoint.System)]
-        [InlineData(DnsEndpoint.SystemTcp)]
-        [InlineData(DnsEndpoint.Cloudflare)]
-        [InlineData(DnsEndpoint.CloudflareFamily)]
-        [InlineData(DnsEndpoint.CloudflareSecurity)]
-        [InlineData(DnsEndpoint.CloudflareWireFormat)]
-        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
-        [InlineData(DnsEndpoint.Google)]
-        [InlineData(DnsEndpoint.GoogleWireFormat)]
-        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-        [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public async Task ShouldWorkForAllSyncTXT(DnsEndpoint endpoint)
-        {
-            var client = new ClientX(endpoint);
-            var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
-
-            Assert.True(response.Answers.Length > 0, "Expected at least one answer");
-            foreach (DnsAnswer answer in response.Answers)
-            {
-                Assert.True(answer.Name == "github.com", $"Expected answer name to be github.com but got {answer.Name}");
-                Assert.True(answer.Type == DnsRecordType.TXT, $"Expected answer type to be TXT but got {answer.Type}");
-                Assert.True(answer.Data.Length > 0, "Expected answer data to not be empty");
             }
         }
 
