@@ -101,17 +101,8 @@ namespace DnsClientX {
             string? userAgent = null,
             Version? httpVersion = null,
             bool ignoreCertificateErrors = false) {
-            EndpointConfiguration = new Configuration(endpoint, dnsSelectionStrategy) {
-                TimeOut = timeOutMilliseconds
-            };
-            if (userAgent != null) {
-                EndpointConfiguration.UserAgent = userAgent;
-            }
-            if (httpVersion != null) {
-                EndpointConfiguration.HttpVersion = httpVersion;
-            }
-            IgnoreCertificateErrors = ignoreCertificateErrors;
-            ConfigureClient();
+            EndpointConfiguration = new Configuration(endpoint, dnsSelectionStrategy);
+            ApplyClientOptions(timeOutMilliseconds, userAgent, httpVersion, ignoreCertificateErrors);
         }
 
         /// <summary>
@@ -128,17 +119,8 @@ namespace DnsClientX {
             string? userAgent = null,
             Version? httpVersion = null,
             bool ignoreCertificateErrors = false) {
-            EndpointConfiguration = new Configuration(hostname, requestFormat) {
-                TimeOut = timeOutMilliseconds
-            };
-            if (userAgent != null) {
-                EndpointConfiguration.UserAgent = userAgent;
-            }
-            if (httpVersion != null) {
-                EndpointConfiguration.HttpVersion = httpVersion;
-            }
-            IgnoreCertificateErrors = ignoreCertificateErrors;
-            ConfigureClient();
+            EndpointConfiguration = new Configuration(hostname, requestFormat);
+            ApplyClientOptions(timeOutMilliseconds, userAgent, httpVersion, ignoreCertificateErrors);
         }
 
         /// <summary>
@@ -155,9 +137,12 @@ namespace DnsClientX {
             string? userAgent = null,
             Version? httpVersion = null,
             bool ignoreCertificateErrors = false) {
-            EndpointConfiguration = new Configuration(baseUri, requestFormat) {
-                TimeOut = timeOutMilliseconds
-            };
+            EndpointConfiguration = new Configuration(baseUri, requestFormat);
+            ApplyClientOptions(timeOutMilliseconds, userAgent, httpVersion, ignoreCertificateErrors);
+        }
+
+        private void ApplyClientOptions(int timeoutMs, string? userAgent, Version? httpVersion, bool ignoreCertificateErrors) {
+            EndpointConfiguration.TimeOut = timeoutMs;
             if (userAgent != null) {
                 EndpointConfiguration.UserAgent = userAgent;
             }

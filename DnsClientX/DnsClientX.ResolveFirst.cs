@@ -44,8 +44,5 @@ namespace DnsClientX {
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>The first DNS answer of the provided type, or null if no such answer exists.</returns>
-        public DnsAnswer? ResolveFirstSync(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100) {
-            return ResolveFirst(name, type, requestDnsSec, validateDnsSec, retryOnTransient, maxRetries, retryDelayMs).GetAwaiter().GetResult();
-        }
     }
 }

@@ -40,12 +40,6 @@ namespace DnsClientX {
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns>The DNS response.</returns>
-        public static DnsResponse QueryDnsSync(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
-            using var client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy);
-            client.EndpointConfiguration.TimeOut = timeOutMilliseconds;
-            var data = client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken).GetAwaiter().GetResult();
-            return data;
-        }
 
         /// <summary>
         /// Sends a DNS query for multiple names for a specific record type to a DNS server.
@@ -83,15 +77,6 @@ namespace DnsClientX {
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns>The DNS response.</returns>
-        public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
-            using var client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
-            var data = client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken).GetAwaiter().GetResult();
-            return data;
-        }
 
         /// <summary>
         /// Sends a DNS query for a specific record type to a DNS server.
@@ -129,15 +114,6 @@ namespace DnsClientX {
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns>The DNS response.</returns>
-        public static DnsResponse QueryDnsSync(string name, DnsRecordType recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
-            using var client = new ClientX(dnsUri, requestFormat) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
-            var data = client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken).GetAwaiter().GetResult();
-            return data;
-        }
 
         /// <summary>
         /// Sends a DNS query for multiple domain names and multiple record types to a DNS server using a full URI and request format.
@@ -173,15 +149,6 @@ namespace DnsClientX {
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns></returns>
-        public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType[] recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            using var client = new ClientX(dnsUri, requestFormat) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
-            var data = client.ResolveSync(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
-            return data;
-        }
 
         /// <summary>
         /// Sends a DNS query for a specific record type to a DNS server.
@@ -219,15 +186,6 @@ namespace DnsClientX {
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns>The DNS response.</returns>
-        public static DnsResponse QueryDnsSync(string name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
-            using var client = new ClientX(hostName, requestFormat) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
-            var data = client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken).GetAwaiter().GetResult();
-            return data;
-        }
 
         /// <summary>
         /// Sends a DNS query for multiple domain names and multiple record types to a DNS server using HostName and RequestFormat.
@@ -285,15 +243,6 @@ namespace DnsClientX {
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns></returns>
-        public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType[] recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
-            using var client = new ClientX(hostName, requestFormat) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
-            var data = client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken).GetAwaiter().GetResult();
-            return data;
-        }
 
         /// <summary>
         /// Sends a DNS query for multiple domain names and single record types to a DNS server using HostName and RequestFormat.
@@ -328,14 +277,5 @@ namespace DnsClientX {
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns></returns>
-        public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType[] recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
-            using var client = new ClientX(endpoint: dnsEndpoint) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
-            var data = client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken).GetAwaiter().GetResult();
-            return data;
-        }
     }
 }
