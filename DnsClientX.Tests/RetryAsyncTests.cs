@@ -43,7 +43,31 @@ namespace DnsClientX.Tests {
             sw.Stop();
 
             Assert.Equal(3, attempts);
-            Assert.True(sw.ElapsedMilliseconds >= 100);
+            Assert.InRange(sw.ElapsedMilliseconds, 150, 300);
+        }
+
+        [Fact]
+        public async Task ShouldUseExponentialBackoff() {
+            int attempts = 0;
+            DateTime[] times = new DateTime[3];
+            Func<Task<int>> action = () => {
+                times[attempts] = DateTime.UtcNow;
+                attempts++;
+                throw new TimeoutException();
+            };
+
+            MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
+            Task<int> Invoke() {
+                var generic = method.MakeGenericMethod(typeof(int));
+                return (Task<int>)generic.Invoke(null, new object[] { action, 3, 50 })!;
+            }
+
+            await Assert.ThrowsAsync<TimeoutException>(Invoke);
+
+            var firstInterval = times[1] - times[0];
+            var secondInterval = times[2] - times[1];
+
+            Assert.True(secondInterval > firstInterval);
         }
     }
 }

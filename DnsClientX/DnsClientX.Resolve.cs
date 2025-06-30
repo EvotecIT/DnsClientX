@@ -87,6 +87,8 @@ namespace DnsClientX {
             return response;
         }
 
+        private static readonly Random _jitterRandom = new();
+
         private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 100) {
             Exception lastException = null;
             T lastResult = default(T);
@@ -102,8 +104,13 @@ namespace DnsClientX {
                             // This was the last attempt, return the result (don't throw)
                             return result;
                         }
-                        // Not the last attempt, wait and retry with normal delay
-                        await Task.Delay(delayMs);
+
+                        int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
+                        int jitter;
+                        lock (_jitterRandom) {
+                            jitter = _jitterRandom.Next(0, delayMs);
+                        }
+                        await Task.Delay(exponentialDelay + jitter);
                         continue;
                     }
 
@@ -116,8 +123,12 @@ namespace DnsClientX {
                         throw;
                     }
 
-                    // Not the last attempt, wait and retry with normal delay
-                    await Task.Delay(delayMs);
+                    int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
+                    int jitter;
+                    lock (_jitterRandom) {
+                        jitter = _jitterRandom.Next(0, delayMs);
+                    }
+                    await Task.Delay(exponentialDelay + jitter);
                     continue;
                 }
             }
