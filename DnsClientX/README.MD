@@ -42,6 +42,44 @@ This library supports multiple NET versions:
 - [x] No external dependencies on .NET 6, .NET 7 and .NET 8
 - [x] Minimal dependencies on .NET Standard 2.0 and .NET 4.7.2
 
+## Understanding DNS Query Behavior
+
+When using DnsClientX, you may notice different DNS providers return different results for the same domain. This is **normal behavior** for:
+
+- **CDN-backed domains** (like `www.example.com`): Return different IP addresses based on geographic location and provider routing policies
+- **Geographically distributed services**: Optimized for regional performance
+- **Load-balanced applications**: Traffic distributed across multiple servers
+
+**Key Points:**
+- Different results from different providers are often **correct** - they're optimized for different network paths
+- CDN domains will naturally return different IPs (e.g., Cloudflare vs OpenDNS)
+- Non-CDN domains should return consistent results across providers
+- Response times can vary (10-500ms) based on geographic distance and provider characteristics
+
+For detailed information about DNS query behavior, testing best practices, and troubleshooting, see the main [project README](../README.md#understanding-dns-query-behavior).
+
+## System DNS Support
+
+DnsClientX provides intelligent system DNS resolution through `DnsEndpoint.System` and `DnsEndpoint.SystemTcp`:
+
+### Cross-Platform Discovery
+- **Windows/All Platforms**: Uses `NetworkInterface` APIs to detect system DNS servers
+- **Linux/Unix Fallback**: Reads `/etc/resolv.conf` when interface detection fails
+- **Final Fallback**: Uses Cloudflare (1.1.1.1) and Google (8.8.8.8) public DNS
+
+### Intelligent Filtering
+- Prioritizes interfaces with default gateways (internet-connected)
+- Filters out link-local, multicast, and invalid addresses
+- Properly formats IPv6 addresses with brackets and removes zone identifiers
+
+### Protocol Options
+- **`DnsEndpoint.System`**: UDP with automatic TCP fallback
+- **`DnsEndpoint.SystemTcp`**: TCP-only for large responses or restricted networks
+
+**Advantages**: Respects local network configuration, works with corporate DNS, VPN-aware, container-compatible.
+
+For complete system DNS documentation, see the main [project README](../README.md#system-dns-fallback-mechanism).
+
 ## TO DO
 
 > This library is still in development and there are things that need to be done, tested and fixed.
