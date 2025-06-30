@@ -32,5 +32,25 @@ namespace DnsClientX.Tests {
 
             Assert.Equal(1, handler.DisposeCount);
         }
+
+        [Fact]
+        public async Task Client_Dispose_CalledConcurrently_ShouldOnlyDisposeOnce() {
+            var handler = new TrackingHandler();
+            var customClient = new HttpClient(handler) { BaseAddress = new Uri("https://example.com") };
+            var clientX = new ClientX("example.com", DnsRequestFormat.DnsOverHttps);
+            var clientsField = typeof(ClientX).GetField("_clients", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var clients = (Dictionary<DnsSelectionStrategy, HttpClient>)clientsField.GetValue(clientX)!;
+            clients[clientX.EndpointConfiguration.SelectionStrategy] = customClient;
+            var clientField = typeof(ClientX).GetField("Client", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            clientField.SetValue(clientX, customClient);
+
+            var tasks = new List<Task>();
+            for (int i = 0; i < 5; i++) {
+                tasks.Add(Task.Run(() => clientX.Dispose()));
+            }
+            await Task.WhenAll(tasks);
+
+            Assert.Equal(1, handler.DisposeCount);
+        }
     }
 }
