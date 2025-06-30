@@ -19,6 +19,7 @@ namespace DnsClientX.Tests {
         [Theory]
         [InlineData("2001:db8::1", "[2001:db8::1]")]
         [InlineData("fe80::1%12", "[fe80::1]")]
+        [InlineData("::1", "[::1]")]
         public void FormatIpv6_RemovesZoneAndAddsBrackets(string input, string expected) {
             var result = InvokeFormatDnsAddress(input);
             Assert.Equal(expected, result);

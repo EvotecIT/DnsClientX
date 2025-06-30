@@ -195,6 +195,11 @@ namespace DnsClientX {
                     addressString = addressString.Substring(0, zoneIndex);
                 }
 
+                // Normalize loopback address so it is always ::1
+                if (IPAddress.IPv6Loopback.Equals(address)) {
+                    addressString = "::1";
+                }
+
                 // Wrap IPv6 addresses in brackets for proper DNS formatting
                 addressString = $"[{addressString}]";
             }
