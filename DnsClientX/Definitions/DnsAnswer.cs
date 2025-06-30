@@ -22,7 +22,7 @@ namespace DnsClientX {
         /// Temporary storage for filtered data that overrides the normal ConvertData() behavior.
         /// </summary>
         [JsonIgnore]
-        private string _filteredData;
+        private string? _filteredData;
         //private string[] _data;
 
         /// <summary>
@@ -61,7 +61,7 @@ namespace DnsClientX {
         /// the value of the DNS record for the given name and type after being processed and converted to a string.
         /// </summary>
         [JsonIgnore]
-        public string Data => string.IsNullOrEmpty(_filteredData) ? ConvertData() : _filteredData;
+        public string Data => _filteredData is null ? ConvertData() : _filteredData;
 
         /// <summary>
         /// The value of the DNS record for the given name and type, split into multiple strings if necessary.
@@ -89,7 +89,7 @@ namespace DnsClientX {
         /// This is used internally for filtering operations.
         /// </summary>
         /// <param name="filteredData">The filtered data to return from the Data property.</param>
-        internal void SetFilteredData(string filteredData) {
+        internal void SetFilteredData(string? filteredData) {
             _filteredData = filteredData;
         }
 
@@ -101,7 +101,7 @@ namespace DnsClientX {
         /// <returns></returns>
         private string[] ConvertToMultiString() {
             // If we have filtered data, use that instead of the raw data
-            string dataToProcess = string.IsNullOrEmpty(_filteredData) ? DataRaw : _filteredData;
+            string dataToProcess = _filteredData is null ? DataRaw : _filteredData;
 
             if (dataToProcess is null) {
                 return Array.Empty<string>();
