@@ -379,6 +379,9 @@ namespace DnsClientX {
                 // If all parsing attempts fail or if it's an unrecognized format for NAPTR that didn't cleanly parse
                 Settings.Logger.WriteDebug($"NAPTR DataRaw '{DataRaw}' did not match known Hex, Base64, or plain text patterns, or failed parsing.");
                 return DataRaw; // Fallback
+            } else if (Type == DnsRecordType.SVCB || Type == DnsRecordType.HTTPS) {
+                // SVCB and HTTPS records use key=value pairs. Preserve the original formatting.
+                return DataRaw;
             } else {
                 // Some records return the data in a higher case (microsoft.com/NS/Quad9ECS) which needs to be fixed
                 return DataRaw.ToLower();
