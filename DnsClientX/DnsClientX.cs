@@ -264,8 +264,8 @@ namespace DnsClientX {
                 return domainName;
             }
 
+            IdnMapping idn = new IdnMapping();
             try {
-                IdnMapping idn = new IdnMapping();
                 return idn.GetAscii(domainName);
             } catch {
                 return domainName;
