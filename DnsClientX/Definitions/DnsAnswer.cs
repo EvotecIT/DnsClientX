@@ -79,7 +79,7 @@ namespace DnsClientX {
         /// the value of the DNS record for the given name and type after being processed and converted to a string.
         /// </summary>
         [JsonIgnore]
-        public string Data => _filteredData is null ? ConvertData() : _filteredData;
+        public string Data => NormalizeLineEndings(_filteredData is null ? ConvertData() : _filteredData);
 
         /// <summary>
         /// The value of the DNS record for the given name and type, split into multiple strings if necessary.
@@ -422,6 +422,17 @@ namespace DnsClientX {
                 .ToArray();
 
             return string.Join("\n", lines);
+        }
+
+        /// <summary>
+        /// Normalizes line endings to '\n' regardless of the original platform.
+        /// </summary>
+        /// <param name="data">Input string</param>
+        /// <returns>String with '\n' line endings</returns>
+        private static string NormalizeLineEndings(string data) {
+            if (string.IsNullOrEmpty(data)) return string.Empty;
+
+            return data.Replace("\r\n", "\n").Replace("\r", "\n");
         }
 
         /// <summary>
