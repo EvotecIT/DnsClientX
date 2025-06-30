@@ -39,7 +39,7 @@ namespace DnsClientX.Tests {
         /// </summary>
         public async Task ShouldHandleHttpRequestExceptionWithoutInner() {
             var handler = new ThrowingHandler();
-            var clientX = new ClientX("1.1.1.1", DnsRequestFormat.DnsOverHttps);
+            using var clientX = new ClientX("1.1.1.1", DnsRequestFormat.DnsOverHttps);
 
             var customClient = new HttpClient(handler) { BaseAddress = clientX.EndpointConfiguration.BaseUri };
             var clientsField = typeof(ClientX).GetField("_clients", BindingFlags.NonPublic | BindingFlags.Instance)!;

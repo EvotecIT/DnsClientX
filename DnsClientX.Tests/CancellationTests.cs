@@ -20,7 +20,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public async Task ResolveShouldCancelEarly() {
             var handler = new DelayingHandler();
-            var clientX = new ClientX("1.1.1.1", DnsRequestFormat.DnsOverHttps);
+            using var clientX = new ClientX("1.1.1.1", DnsRequestFormat.DnsOverHttps);
 
             var customClient = new HttpClient(handler) { BaseAddress = clientX.EndpointConfiguration.BaseUri };
             var clientsField = typeof(ClientX).GetField("_clients", BindingFlags.NonPublic | BindingFlags.Instance)!;

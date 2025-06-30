@@ -45,7 +45,7 @@ namespace DnsClientX.Examples {
                 }
 
                 // Create a new client for each endpoint
-                var client = new ClientX(endpoint, DnsSelectionStrategy.Random) {
+                using var client = new ClientX(endpoint, DnsSelectionStrategy.Random) {
                     Debug = false
                 };
 
@@ -97,7 +97,7 @@ namespace DnsClientX.Examples {
                 }
 
                 // Create a new client for each endpoint
-                var client = new ClientX(endpoint, DnsSelectionStrategy.Random) {
+                using var client = new ClientX(endpoint, DnsSelectionStrategy.Random) {
                     Debug = false
                 };
 

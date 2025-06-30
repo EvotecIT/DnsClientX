@@ -46,7 +46,7 @@ namespace DnsClientX.Tests {
             var results = new Dictionary<DnsEndpoint, (DnsResponse response, string? error)>();
 
             // Get primary endpoint result
-            var primaryClient = new ClientX(primaryEndpoint);
+            using var primaryClient = new ClientX(primaryEndpoint);
             var primaryResult = await GetResponseWithRetry(primaryClient, name, resourceRecordType, primaryEndpoint, output);
             results[primaryEndpoint] = primaryResult;
 
@@ -57,7 +57,7 @@ namespace DnsClientX.Tests {
 
             // Get all other endpoint results
             foreach (var endpoint in allEndpoints) {
-                var client = new ClientX(endpoint);
+                using var client = new ClientX(endpoint);
                 var result = await GetResponseWithRetry(client, name, resourceRecordType, endpoint, output);
                 results[endpoint] = result;
 
@@ -199,7 +199,7 @@ namespace DnsClientX.Tests {
 
             var primaryEndpoint = DnsEndpoint.Cloudflare;
 
-            var Client = new ClientX(primaryEndpoint);
+            using var Client = new ClientX(primaryEndpoint);
             DnsResponse aAnswersPrimary = await Client.Resolve(name, resourceRecordType);
 
             foreach (var endpointCompare in Enum.GetValues(typeof(DnsEndpoint)).Cast<DnsEndpoint>()) {
@@ -212,7 +212,7 @@ namespace DnsClientX.Tests {
 
                 output.WriteLine("Provider: " + endpointCompare.ToString());
 
-                var ClientToCompare = new ClientX(endpointCompare);
+                using var ClientToCompare = new ClientX(endpointCompare);
                 DnsResponse aAnswersToCompare = await ClientToCompare.Resolve(name, resourceRecordType);
 
                 var sortedAAnswers = aAnswersPrimary.Answers.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();

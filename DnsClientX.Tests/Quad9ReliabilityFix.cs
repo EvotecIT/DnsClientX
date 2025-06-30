@@ -28,7 +28,7 @@ namespace DnsClientX.Tests {
                 attempt++;
                 try {
                     // Create a fresh client for each attempt to avoid connection reuse issues
-                    var client = new ClientX(endpoint) {
+                    using var client = new ClientX(endpoint) {
                         Debug = false
                     };
 
@@ -73,7 +73,7 @@ namespace DnsClientX.Tests {
             output.WriteLine(new string('=', 50));
 
             foreach (var provider in reliableProviders) {
-                var client = new ClientX(provider) { Debug = false };
+                using var client = new ClientX(provider) { Debug = false };
 
                 try {
                     var response = await client.Resolve(domain, DnsRecordType.A);
