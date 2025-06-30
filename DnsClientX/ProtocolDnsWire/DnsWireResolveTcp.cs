@@ -166,7 +166,15 @@ namespace DnsClientX {
         private static async Task ConnectAsync(TcpClient tcpClient, string host, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             linkedCts.CancelAfter(timeoutMilliseconds);
-
+#if NET5_0_OR_GREATER
+            try {
+                await tcpClient.ConnectAsync(host, port, linkedCts.Token);
+            } catch (OperationCanceledException) {
+                tcpClient.Close();
+                cancellationToken.ThrowIfCancellationRequested();
+                throw new TimeoutException($"Connection to {host}:{port} timed out after {timeoutMilliseconds} milliseconds.");
+            }
+#else
             var connectTask = tcpClient.ConnectAsync(host, port);
             var delayTask = Task.Delay(Timeout.Infinite, linkedCts.Token);
 
@@ -178,6 +186,7 @@ namespace DnsClientX {
             }
 
             await connectTask; // propagate possible exceptions
+#endif
         }
     }
 }
