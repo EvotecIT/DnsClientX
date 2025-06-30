@@ -36,7 +36,11 @@ namespace DnsClientX {
             int retryDelayMs = 100,
             CancellationToken cancellationToken = default) {
             if (retryOnTransient) {
-                return await RetryAsync(() => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, cancellationToken), maxRetries, retryDelayMs);
+                try {
+                    return await RetryAsync(() => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, cancellationToken), maxRetries, retryDelayMs);
+                } catch (DnsClientException ex) {
+                    return ex.Response;
+                }
             } else {
                 return await ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, cancellationToken);
             }
@@ -141,11 +145,16 @@ namespace DnsClientX {
                 }
             }
 
-            // This should never be reached due to the throw in the catch block,
-            // but just in case, throw the last exception we caught or return the last result
+            // After retries, rethrow the last exception if there was one
             if (lastException != null) {
                 throw lastException;
             }
+
+            // If the last result indicates a transient failure, surface it as an exception
+            if (lastResult is DnsResponse lastResponse && IsTransientResponse(lastResponse)) {
+                throw new DnsClientException("Transient DNS response after maximum retries.", lastResponse);
+            }
+
             return lastResult;
         }
 
