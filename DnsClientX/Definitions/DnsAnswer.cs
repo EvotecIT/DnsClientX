@@ -261,6 +261,9 @@ namespace DnsClientX {
                     return DataRaw;
                 } else {
                     // Handle Base64 format
+                    if (string.IsNullOrEmpty(DataRaw)) {
+                        return DataRaw;
+                    }
                     parts = Convert.FromBase64String(DataRaw);
                 }
 
@@ -279,12 +282,15 @@ namespace DnsClientX {
                 // For PTR records, decode the domain name from the record data
                 try {
                     // First try to decode as Base64
-                    var output = Encoding.UTF8.GetString(Convert.FromBase64String(DataRaw));
-                    return ConvertSpecialFormatToDotted(output);
+                    if (!string.IsNullOrEmpty(DataRaw)) {
+                        var output = Encoding.UTF8.GetString(Convert.FromBase64String(DataRaw));
+                        return ConvertSpecialFormatToDotted(output);
+                    }
                 } catch (FormatException) {
-                    // If it's not Base64, try to handle it as a special format directly
-                    return ConvertSpecialFormatToDotted(DataRaw);
+                    // Ignore and try special format directly
                 }
+
+                return ConvertSpecialFormatToDotted(DataRaw);
             } else if (Type == DnsRecordType.NAPTR) {
                 // NAPTR record (RFC 3403)
                 // Handles Base64, Hex, or Plain Text DataRaw
@@ -309,8 +315,10 @@ namespace DnsClientX {
 
                 try {
                     // Attempt Base64 Decoding
-                    byte[] rdataBase64 = Convert.FromBase64String(DataRaw);
-                    return ParseNaptrRDataAndFormat(rdataBase64);
+                    if (!string.IsNullOrEmpty(DataRaw)) {
+                        byte[] rdataBase64 = Convert.FromBase64String(DataRaw);
+                        return ParseNaptrRDataAndFormat(rdataBase64);
+                    }
                 } catch (FormatException) {
                     // Not Base64, try parsing as plain text
                 } catch (Exception ex) {
