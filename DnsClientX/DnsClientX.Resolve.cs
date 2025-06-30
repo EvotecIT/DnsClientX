@@ -84,6 +84,14 @@ namespace DnsClientX {
                 response.Answers = Array.Empty<DnsAnswer>();
             }
 
+            if (validateDnsSec) {
+                bool hasRrsig = response.Answers != null && response.Answers.Any(a => a.Type == DnsRecordType.RRSIG);
+                if (!response.AuthenticData && !hasRrsig) {
+                    string validationError = "DNSSEC validation failed.";
+                    response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
+                }
+            }
+
             return response;
         }
 
