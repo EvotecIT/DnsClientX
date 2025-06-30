@@ -28,7 +28,7 @@ namespace DnsClientX {
         /// or
         /// The stream was closed before the entire response could be read.
         /// </exception>
-        internal static async Task<DnsResponse> ResolveWireFormatDoT(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, CancellationToken cancellationToken) {
+        internal static async Task<DnsResponse> ResolveWireFormatDoT(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, bool ignoreCertificateErrors, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             var query = new DnsMessage(name, type, requestDnsSec);
@@ -67,12 +67,8 @@ namespace DnsClientX {
             await ConnectAsync(client, dnsServer, port, cancellationToken);
 
             // Create a new SSL stream for the secure connection
-            //var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) => true);
-
-            using var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) => {
-                //Console.WriteLine($"SSL policy errors: {sslPolicyErrors}");
-                return true; // Always accept the certificate for now
-            });
+            using var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) =>
+                sslPolicyErrors == SslPolicyErrors.None || ignoreCertificateErrors);
 
 
             // Authenticate the client using the DNS server's name and the TLS protocol
