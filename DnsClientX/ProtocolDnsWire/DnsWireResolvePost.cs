@@ -32,11 +32,11 @@ namespace DnsClientX {
                 Settings.Logger.WriteDebug($"Sending query: {BitConverter.ToString(queryBytes)}");
             }
 
-            var content = new ByteArrayContent(queryBytes);
+            using ByteArrayContent content = new(queryBytes);
             content.Headers.ContentType = new MediaTypeHeaderValue("application/dns-message");
             content.Headers.ContentLength = queryBytes.Length;
 
-            var postAsync = await client.PostAsync(client.BaseAddress, content, cancellationToken);
+            using HttpResponseMessage postAsync = await client.PostAsync(client.BaseAddress, content, cancellationToken);
             var response = await postAsync.DeserializeDnsWireFormat(debug);
             response.AddServerDetails(endpointConfiguration);
             return response;
