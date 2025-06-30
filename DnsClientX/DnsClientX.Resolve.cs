@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -174,12 +175,19 @@ namespace DnsClientX {
                 }
             }
 
+            if (ex is SocketException socketEx) {
+                if (socketEx.SocketErrorCode == SocketError.ConnectionReset ||
+                    socketEx.SocketErrorCode == SocketError.NetworkUnreachable) {
+                    return true;
+                }
+            }
+
             // Network and timeout-related exceptions
             return ex is DnsClientException ||
                    ex is TaskCanceledException ||
                    ex is TimeoutException ||
                    ex is HttpRequestException ||
-                   ex is System.Net.Sockets.SocketException ||
+                   ex is SocketException ||
                    ex is System.IO.IOException ||
                    (ex.InnerException != null && IsTransient(ex.InnerException));
         }

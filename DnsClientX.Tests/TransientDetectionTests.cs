@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Reflection;
 using Xunit;
 
@@ -73,6 +74,15 @@ namespace DnsClientX.Tests {
             var response = new DnsResponse { Status = DnsResponseCode.NXDomain };
 
             Assert.False(InvokeIsTransientResponse(response));
+        }
+
+        [Theory]
+        [InlineData(SocketError.ConnectionReset)]
+        [InlineData(SocketError.NetworkUnreachable)]
+        public void IsTransient_SocketExceptionSpecificErrors_ShouldBeTrue(SocketError error) {
+            var ex = new SocketException((int)error);
+
+            Assert.True(InvokeIsTransient(ex));
         }
     }
 }
