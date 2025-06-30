@@ -39,6 +39,16 @@ namespace DnsClientX {
         public string Data { get; internal set; }
 
         /// <summary>
+        /// Gets the port of the DNS server that provided the answer.
+        /// </summary>
+        public int Port { get; internal set; }
+
+        /// <summary>
+        /// Gets the protocol used to obtain the DNS answer.
+        /// </summary>
+        public DnsRequestFormat RequestFormat { get; internal set; }
+
+        /// <summary>
         /// Performs an explicit conversion from <see cref="DnsAnswer"/> to <see cref="DnsAnswerMinimal"/>.
         /// </summary>
         /// <param name="dnsAnswer">The DNS answer.</param>
