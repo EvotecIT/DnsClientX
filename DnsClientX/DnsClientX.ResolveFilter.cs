@@ -27,7 +27,7 @@ namespace DnsClientX {
             var responses = tasks.Select(task => task.Result).ToList();
 
             var filteredResponses = responses
-                .Where(response => HasMatchingAnswers(response.Answers, filter, type))
+                .Where(response => HasMatchingAnswers(response.Answers ?? Array.Empty<DnsAnswer>(), filter, type))
                 .Select(response => {
                     response.Answers = FilterAnswers(response.Answers, filter, type);
                     return response;
@@ -58,7 +58,7 @@ namespace DnsClientX {
             var responses = tasks.Select(task => task.Result).ToList();
 
             var filteredResponses = responses
-                .Where(response => HasMatchingAnswersRegex(response.Answers, regexFilter, type))
+                .Where(response => HasMatchingAnswersRegex(response.Answers ?? Array.Empty<DnsAnswer>(), regexFilter, type))
                 .Select(response => {
                     response.Answers = FilterAnswersRegex(response.Answers, regexFilter, type);
                     return response;
@@ -201,6 +201,10 @@ namespace DnsClientX {
         /// <param name="type">The DNS record type being filtered.</param>
         /// <returns>True if any answer contains a match.</returns>
         private bool HasMatchingAnswers(DnsAnswer[] answers, string filter, DnsRecordType type) {
+            if (answers == null) {
+                return false;
+            }
+
             foreach (var answer in answers) {
                 if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
                     var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
