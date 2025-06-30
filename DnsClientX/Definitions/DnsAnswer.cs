@@ -103,43 +103,44 @@ namespace DnsClientX {
             // If we have filtered data, use that instead of the raw data
             string dataToProcess = string.IsNullOrEmpty(_filteredData) ? DataRaw : _filteredData;
 
+            if (dataToProcess is null) {
+                return Array.Empty<string>();
+            }
+
             // I'm not sure if this is the best way to do this, but it works for now.
             // This method searches for quotes with space between them or quotes without space
             // Then it splits the string into multiple strings, adding back the quotes that we split on
             var data = new List<string>();
             var temp = new StringBuilder();
-            if (dataToProcess != null) {
-                for (int i = 0; i < dataToProcess.Length; i++) {
-                    if (i < dataToProcess.Length - 1 && dataToProcess[i] == '"' && dataToProcess[i + 1] == '"') {
-                        temp.Append(dataToProcess[i]);
-                        data.Add(temp.ToString());
-                        temp.Clear();
-                        temp.Append("\""); // Add quotes back
-                        i++; // Skip the next character as it's part of the split
-                    } else if (i < dataToProcess.Length - 2 && dataToProcess[i] == '"' && dataToProcess[i + 1] == ' ' && dataToProcess[i + 2] == '"') {
-                        temp.Append(dataToProcess[i]);
-                        data.Add(temp.ToString());
-                        temp.Clear();
-                        temp.Append("\""); // Add quotes back
-                        i += 2; // Skip the next two characters as they're part of the split
-                    } else {
-                        temp.Append(dataToProcess[i]);
-                    }
-                }
 
-                if (temp.Length > 0) {
+            for (int i = 0; i < dataToProcess.Length; i++) {
+                if (i < dataToProcess.Length - 1 && dataToProcess[i] == '"' && dataToProcess[i + 1] == '"') {
+                    temp.Append(dataToProcess[i]);
                     data.Add(temp.ToString());
+                    temp.Clear();
+                    temp.Append("\""); // Add quotes back
+                    i++; // Skip the next character as it's part of the split
+                } else if (i < dataToProcess.Length - 2 && dataToProcess[i] == '"' && dataToProcess[i + 1] == ' ' && dataToProcess[i + 2] == '"') {
+                    temp.Append(dataToProcess[i]);
+                    data.Add(temp.ToString());
+                    temp.Clear();
+                    temp.Append("\""); // Add quotes back
+                    i += 2; // Skip the next two characters as they're part of the split
+                } else {
+                    temp.Append(dataToProcess[i]);
                 }
-
-                // Clean up empty strings and whitespace-only entries for TXT records
-                if (Type == DnsRecordType.TXT) {
-                    data = data.Where(s => !string.IsNullOrWhiteSpace(s) && s.Trim('"').Trim().Length > 0).ToList();
-                }
-
-                return data.ToArray();
-            } else {
-                return new string[] { };
             }
+
+            if (temp.Length > 0) {
+                data.Add(temp.ToString());
+            }
+
+            // Clean up empty strings and whitespace-only entries for TXT records
+            if (Type == DnsRecordType.TXT) {
+                data = data.Where(s => !string.IsNullOrWhiteSpace(s) && s.Trim('"').Trim().Length > 0).ToList();
+            }
+
+            return data.ToArray();
         }
 
         /// <summary>
