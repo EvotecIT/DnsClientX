@@ -1,6 +1,7 @@
 namespace DnsClientX {
     /// <summary>
-    /// Enum representing the available DNS-over-HTTPS endpoints.
+    /// Enumerates known DNS-over-HTTPS endpoints and system resolvers.
+    /// DNS-over-HTTPS is defined in <a href="https://www.rfc-editor.org/rfc/rfc8484">RFC 8484</a>.
     /// </summary>
     public enum DnsEndpoint {
         /// <summary>

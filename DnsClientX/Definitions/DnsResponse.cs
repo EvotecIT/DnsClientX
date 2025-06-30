@@ -6,7 +6,9 @@ using System.Text.Json.Serialization;
 
 namespace DnsClientX {
     /// <summary>
-    /// Represents the response from a DNS query over HTTPS. This can be in either JSON or wire format.
+    /// Represents a DNS message returned by a resolver.
+    /// The structure mirrors the response format described in
+    /// <a href="https://www.rfc-editor.org/rfc/rfc1035">RFC 1035</a>.
     /// </summary>
     public struct DnsResponse {
         /// <summary>

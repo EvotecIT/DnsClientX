@@ -3,7 +3,10 @@ using System;
 namespace DnsClientX {
 
     /// <summary>
-    /// An enumeration of the DNSKEY algorithms.
+    /// Enumerates DNSSEC algorithm identifiers used in DNSKEY records.
+    /// Algorithm numbers are assigned by IANA as described in
+    /// <a href="https://www.rfc-editor.org/rfc/rfc4034">RFC 4034</a>
+    /// and <a href="https://www.rfc-editor.org/rfc/rfc8624">RFC 8624</a>.
     /// </summary>
     public enum DnsKeyAlgorithm {
         /// <summary>

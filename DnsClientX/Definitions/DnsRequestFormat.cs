@@ -1,6 +1,8 @@
 namespace DnsClientX {
     /// <summary>
-    /// Enum representing the available formats for DNS requests.
+    /// Specifies the transport formats supported for DNS queries.
+    /// Includes DNS over HTTPS (<a href="https://www.rfc-editor.org/rfc/rfc8484">RFC 8484</a>)
+    /// and DNS over TLS (<a href="https://www.rfc-editor.org/rfc/rfc7858">RFC 7858</a>).
     /// </summary>
     public enum DnsRequestFormat {
         /// <summary>
