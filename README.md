@@ -136,7 +136,7 @@ These differences can result in:
 You should expect **consistent results** for:
 - **Non-CDN domains**: Simple domains with static IP assignments
 - **Infrastructure domains**: DNS servers, mail servers, etc.
-- **Record types other than A/AAAA**: TXT, MX, NS records are usually consistent
+- **Record types other than A/AAAA**: TXT, MX, NS, DS records are usually consistent
 
 #### When to Expect Different Results
 
@@ -168,7 +168,7 @@ When testing DNS resolution:
 
 1. **Use stable domains** for consistency tests (e.g., `google.com`, `github.com`)
 2. **Use CDN domains** to test geographic/provider differences
-3. **Test multiple record types** (A, AAAA, TXT, MX, NS)
+3. **Test multiple record types** (A, AAAA, TXT, MX, NS, DS)
 4. **Allow for reasonable response time variation** (50-500ms)
 5. **Validate structure, not exact content** for CDN domains
 
@@ -350,6 +350,14 @@ using var client = new ClientX(DnsEndpoint.Cloudflare, userAgent: "MyApp/1.0", h
 ```
 You can also modify `client.EndpointConfiguration.UserAgent` and `client.EndpointConfiguration.HttpVersion` after construction.
 
+### Querying DS record with DNSSEC
+
+```csharp
+using var client = new ClientX(DnsEndpoint.Cloudflare);
+var ds = await client.Resolve("evotec.pl", DnsRecordType.DS, requestDnsSec: true);
+ds.DisplayToConsole();
+```
+
 ### Querying DNS over HTTPS via defined endpoint using ResolveAll
 
 ```csharp
@@ -401,6 +409,7 @@ var recordTypes = new List<DnsRecordType> {
     DnsRecordType.MX,
     DnsRecordType.NS,
     DnsRecordType.SOA,
+    DnsRecordType.DS,
     DnsRecordType.DNSKEY,
     DnsRecordType.NSEC
 };
@@ -432,6 +441,7 @@ DnsClientX is also available as a PowerShell module. Below are some examples.
 Resolve-DnsQuery -Name 'evotec.pl' -Type A | Format-Table
 Resolve-DnsQuery -Name 'evotec.pl' -Type A -DnsProvider Cloudflare -Verbose | Format-Table
 Resolve-DnsQuery -Name 'evotec.pl' -Type TXT -DnsProvider System -Verbose | Format-Table
+Resolve-DnsQuery -Name 'evotec.pl' -Type DS -DnsProvider Cloudflare -Verbose | Format-Table
 Resolve-DnsQuery -Name 'github.com', 'evotec.pl', 'google.com' -Type TXT -DnsProvider System -Verbose | Format-Table
 ```
 
@@ -439,6 +449,10 @@ It can also deliver more detailed information.
 
 ```powershell
 $Output = Resolve-DnsQuery -Name '_25._tcp.mail.ietf.org' -Type TLSA -DnsProvider Cloudflare -Verbose -FullResponse
+$Output.Questions | Format-Table
+$Output.AnswersMinimal | Format-Table
+
+$Output = Resolve-DnsQuery -Name 'evotec.pl' -Type DS -DnsProvider Cloudflare -Verbose -FullResponse
 $Output.Questions | Format-Table
 $Output.AnswersMinimal | Format-Table
 

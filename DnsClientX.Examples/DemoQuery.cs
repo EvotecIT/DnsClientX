@@ -108,6 +108,15 @@ namespace DnsClientX.Examples {
             }
         }
 
+        public static async Task ExampleDS() {
+            const string domain = "evotec.pl";
+            foreach (DnsEndpoint endpoint in Enum.GetValues(typeof(DnsEndpoint))) {
+                HelpersSpectre.AddLine("QueryDns", domain, DnsRecordType.DS, endpoint);
+                var data = await ClientX.QueryDns(domain, DnsRecordType.DS, endpoint);
+                data.DisplayTable();
+            }
+        }
+
         public static async Task ExampleTXTAll() {
             var domains = new[] { "disneyplus.com" };
             foreach (DnsEndpoint endpoint in Enum.GetValues(typeof(DnsEndpoint))) {
