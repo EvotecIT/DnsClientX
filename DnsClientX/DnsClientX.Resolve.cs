@@ -37,7 +37,15 @@ namespace DnsClientX {
             CancellationToken cancellationToken = default) {
             if (retryOnTransient) {
                 try {
-                    return await RetryAsync(() => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, cancellationToken), maxRetries, retryDelayMs);
+                    Action? beforeRetry = EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover
+                        ? EndpointConfiguration.AdvanceToNextHostname
+                        : null;
+
+                    return await RetryAsync(
+                        () => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, cancellationToken),
+                        maxRetries,
+                        retryDelayMs,
+                        beforeRetry);
                 } catch (DnsClientException ex) {
                     return ex.Response;
                 }
@@ -100,7 +108,7 @@ namespace DnsClientX {
         }
 
 
-        private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 100) {
+        private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 100, Action? beforeRetry = null) {
             Exception lastException = null;
             T lastResult = default(T);
 
@@ -116,6 +124,7 @@ namespace DnsClientX {
                             return result;
                         }
 
+                        beforeRetry?.Invoke();
                         int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
                         int jitter = Random.Shared.Next(0, delayMs);
                         await Task.Delay(exponentialDelay + jitter);
@@ -131,6 +140,7 @@ namespace DnsClientX {
                         throw;
                     }
 
+                    beforeRetry?.Invoke();
                     int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
                     int jitter = Random.Shared.Next(0, delayMs);
                     await Task.Delay(exponentialDelay + jitter);

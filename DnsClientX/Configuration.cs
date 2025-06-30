@@ -16,6 +16,7 @@ namespace DnsClientX {
 
         private List<string> hostnames = new List<string>();
         private string baseUriFormat;
+        private int hostnameIndex;
 
 
         /// <summary>
@@ -71,6 +72,17 @@ namespace DnsClientX {
         /// </value>
         public int Port { get; set; }
 
+        internal void AdvanceToNextHostname() {
+            if (hostnames.Count <= 1) {
+                return;
+            }
+
+            hostnameIndex++;
+            if (hostnameIndex >= hostnames.Count) {
+                hostnameIndex = 0;
+            }
+        }
+
         /// <summary>
         /// Initializes a new instance of the EndpointConfiguration class with a specific hostname and request format.
         /// </summary>
@@ -82,6 +94,7 @@ namespace DnsClientX {
             RequestFormat = requestFormat;
             baseUriFormat = "https://{0}/dns-query";
             BaseUri = new Uri(string.Format(baseUriFormat, hostname));
+            hostnameIndex = 0;
 
             if (requestFormat == DnsRequestFormat.DnsOverTLS) {
                 Port = 853;
@@ -102,6 +115,7 @@ namespace DnsClientX {
             RequestFormat = requestFormat;
             Hostname = baseUri.Host;
             hostnames = new List<string> { baseUri.Host };
+            hostnameIndex = 0;
 
             if (requestFormat == DnsRequestFormat.DnsOverTLS) {
                 Port = 853;
@@ -127,24 +141,19 @@ namespace DnsClientX {
                 // Select a hostname based on the selection strategy
                 switch (SelectionStrategy) {
                     case DnsSelectionStrategy.First:
-                        Hostname = hostnames[0];
+                        hostnameIndex = 0;
+                        Hostname = hostnames[hostnameIndex];
                         break;
                     case DnsSelectionStrategy.Random:
-                        Hostname = hostnames[random.Next(hostnames.Count)];
+                        hostnameIndex = random.Next(hostnames.Count);
+                        Hostname = hostnames[hostnameIndex];
                         break;
                     case DnsSelectionStrategy.Failover:
-                        // TODO: Implement failover strategy
-                        // Try each hostname in order until one succeeds
-                        foreach (var hostname in hostnames) {
-                            try {
-                                // Try to make a DNS request...
-                                Hostname = hostname;
-                                break;
-                            } catch {
-                                // If the request fails, try the next hostname
-                            }
+                        if (hostnameIndex >= hostnames.Count) {
+                            hostnameIndex = 0;
                         }
 
+                        Hostname = hostnames[hostnameIndex];
                         break;
                 }
 
@@ -246,6 +255,7 @@ namespace DnsClientX {
             // Select a hostname based on the selection strategy
             this.hostnames = hostnames;
             this.baseUriFormat = baseUriFormat;
+            hostnameIndex = 0;
 
             SelectHostNameStrategy();
 
