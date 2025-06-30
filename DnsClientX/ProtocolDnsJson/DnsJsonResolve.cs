@@ -22,9 +22,9 @@ namespace DnsClientX {
         /// <exception cref="DnsClientException">Thrown when the HTTP request fails or the server returns an error.</exception>
         internal static async Task<DnsResponse> ResolveJsonFormat(this HttpClient client, string name,
             DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration configuration, CancellationToken cancellationToken) {
-            string url = string.Concat($"?name={name.UrlEncode()}",
-                type == DnsRecordType.A ? "" : $"&type={type.ToString().UrlEncode()}",
-                requestDnsSec == false ? "" : $"&do=1", validateDnsSec == false ? "" : $"&cd=1");
+            string url = string.Concat($"?name={WebUtility.UrlEncode(name)}",
+                type == DnsRecordType.A ? "" : $"&type={WebUtility.UrlEncode(type.ToString())}",
+                requestDnsSec == false ? "" : "&do=1", validateDnsSec == false ? "" : "&cd=1");
 
             using HttpRequestMessage req = new(HttpMethod.Get, url);
             try {

@@ -1,19 +1,11 @@
 using System;
 using System.IO;
-using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
     internal static class DnsJson {
-        /// <summary>
-        /// Encode URL
-        /// </summary>
-        /// <param name="value">The value.</param>
-        /// <returns></returns>
-        internal static string UrlEncode(this string value) => WebUtility.UrlEncode(value);
-
         /// <summary>
         /// Deserialize a JSON HTTP response into a given type.
         /// </summary>
