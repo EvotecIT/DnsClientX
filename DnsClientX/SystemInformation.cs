@@ -135,7 +135,7 @@ namespace DnsClientX {
             var servers = new List<string>();
 
             if (!File.Exists(path)) {
-                debugPrint?.Invoke($"{path} does not exist");
+                debugPrint?.Invoke($"Skipping {path}; file not found");
                 return servers;
             }
 
