@@ -50,13 +50,32 @@ namespace DnsClientX {
 
                 return response;
             } catch (HttpRequestException ex) {
-                // If the request fails, return a response with the appropriate error code
-                // TODO: Add more specific error codes?
-                DnsResponseCode responseCode;
-                if (ex.InnerException is WebException webEx && webEx.Status == WebExceptionStatus.ConnectFailure) {
-                    responseCode = DnsResponseCode.Refused;
-                } else {
+                // Determine response code based on the underlying reason of the HttpRequestException
+                DnsResponseCode responseCode = DnsResponseCode.ServerFailure;
+
+                if (ex.InnerException is WebException webEx) {
+                    switch (webEx.Status) {
+                        case WebExceptionStatus.ConnectFailure:
+                            responseCode = DnsResponseCode.Refused;
+                            break;
+                        case WebExceptionStatus.Timeout:
+                            responseCode = DnsResponseCode.ServerFailure;
+                            break;
+                        case WebExceptionStatus.NameResolutionFailure:
+                            responseCode = DnsResponseCode.NXDomain;
+                            break;
+                        case WebExceptionStatus.TrustFailure:
+                        case WebExceptionStatus.SecureChannelFailure:
+                            responseCode = DnsResponseCode.Refused;
+                            break;
+                        default:
+                            responseCode = DnsResponseCode.ServerFailure;
+                            break;
+                    }
+                } else if (ex.InnerException is TimeoutException || ex.InnerException is TaskCanceledException) {
                     responseCode = DnsResponseCode.ServerFailure;
+                } else if (ex.InnerException is System.Security.Authentication.AuthenticationException) {
+                    responseCode = DnsResponseCode.Refused;
                 }
 
                 DnsResponse response = new DnsResponse();

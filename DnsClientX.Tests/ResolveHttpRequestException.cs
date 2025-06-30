@@ -1,5 +1,7 @@
 using System;
 using System.Net.Http;
+using System.Net;
+using System.Security.Authentication;
 using DnsClientX;
 using System.Collections.Generic;
 using System.Reflection;
@@ -23,6 +25,36 @@ namespace DnsClientX.Tests {
                 throw new HttpRequestException("network error");
             }
         }
+
+        private class TimeoutHandler : HttpMessageHandler {
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
+                throw new HttpRequestException("timeout", new WebException("timeout", WebExceptionStatus.Timeout));
+            }
+        }
+
+        private class NameResolutionFailureHandler : HttpMessageHandler {
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
+                throw new HttpRequestException("dns fail", new WebException("dns fail", WebExceptionStatus.NameResolutionFailure));
+            }
+        }
+
+        private class SslFailureHandler : HttpMessageHandler {
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
+                throw new HttpRequestException("ssl fail", new AuthenticationException("ssl error"));
+            }
+        }
+
+        private static ClientX SetupClientX(HttpMessageHandler handler) {
+            var clientX = new ClientX("1.1.1.1", DnsRequestFormat.DnsOverHttps);
+
+            var customClient = new HttpClient(handler) { BaseAddress = clientX.EndpointConfiguration.BaseUri };
+            var clientsField = typeof(ClientX).GetField("_clients", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var clients = (Dictionary<DnsSelectionStrategy, HttpClient>)clientsField.GetValue(clientX)!;
+            clients[clientX.EndpointConfiguration.SelectionStrategy] = customClient;
+            var clientField = typeof(ClientX).GetField("Client", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            clientField.SetValue(clientX, customClient);
+            return clientX;
+        }
         [Fact]
         /// <summary>
         /// Verifies that ClientX properly handles HttpRequestException by:
@@ -38,19 +70,38 @@ namespace DnsClientX.Tests {
         /// - SSL/TLS handshake failures
         /// </summary>
         public async Task ShouldHandleHttpRequestExceptionWithoutInner() {
-            var handler = new ThrowingHandler();
-            var clientX = new ClientX("1.1.1.1", DnsRequestFormat.DnsOverHttps);
-
-            var customClient = new HttpClient(handler) { BaseAddress = clientX.EndpointConfiguration.BaseUri };
-            var clientsField = typeof(ClientX).GetField("_clients", BindingFlags.NonPublic | BindingFlags.Instance)!;
-            var clients = (Dictionary<DnsSelectionStrategy, HttpClient>)clientsField.GetValue(clientX)!;
-            clients[clientX.EndpointConfiguration.SelectionStrategy] = customClient;
-            var clientField = typeof(ClientX).GetField("Client", BindingFlags.NonPublic | BindingFlags.Instance)!;
-            clientField.SetValue(clientX, customClient);
+            var clientX = SetupClientX(new ThrowingHandler());
 
             var response = await clientX.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
             Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
             Assert.Contains("network error", response.Error);
+        }
+
+        [Fact]
+        public async Task ShouldHandleTimeoutWebException() {
+            var clientX = SetupClientX(new TimeoutHandler());
+
+            var response = await clientX.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
+            Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
+            Assert.Contains("timeout", response.Error);
+        }
+
+        [Fact]
+        public async Task ShouldHandleNameResolutionFailure() {
+            var clientX = SetupClientX(new NameResolutionFailureHandler());
+
+            var response = await clientX.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
+            Assert.Equal(DnsResponseCode.NXDomain, response.Status);
+            Assert.Contains("dns fail", response.Error);
+        }
+
+        [Fact]
+        public async Task ShouldHandleSslFailure() {
+            var clientX = SetupClientX(new SslFailureHandler());
+
+            var response = await clientX.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
+            Assert.Equal(DnsResponseCode.Refused, response.Status);
+            Assert.Contains("ssl error", response.Error);
         }
     }
 }
