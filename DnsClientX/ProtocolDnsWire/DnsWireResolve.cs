@@ -50,13 +50,39 @@ namespace DnsClientX {
 
                 return response;
             } catch (HttpRequestException ex) {
-                // If the request fails, return a response with the appropriate error code
-                // TODO: Add more specific error codes?
+                // If the request fails, inspect details to determine the most appropriate DNS response code
                 DnsResponseCode responseCode;
-                if (ex.InnerException is WebException webEx && webEx.Status == WebExceptionStatus.ConnectFailure) {
-                    responseCode = DnsResponseCode.Refused;
-                } else {
+                if (ex.InnerException is TaskCanceledException || ex.InnerException is TimeoutException) {
+                    // Timeouts are treated as server failures
                     responseCode = DnsResponseCode.ServerFailure;
+                } else if (ex.InnerException is WebException webEx) {
+                    switch (webEx.Status) {
+                        case WebExceptionStatus.Timeout:
+                            responseCode = DnsResponseCode.ServerFailure;
+                            break;
+                        case WebExceptionStatus.ConnectFailure:
+                            responseCode = DnsResponseCode.Refused;
+                            break;
+                        case WebExceptionStatus.NameResolutionFailure:
+                            responseCode = DnsResponseCode.ServerFailure;
+                            break;
+                        case WebExceptionStatus.TrustFailure:
+                        case WebExceptionStatus.SecureChannelFailure:
+                            responseCode = DnsResponseCode.Refused;
+                            break;
+                        default:
+                            responseCode = DnsResponseCode.ServerFailure;
+                            break;
+                    }
+                } else {
+                    var error = (ex.InnerException?.Message ?? string.Empty).ToLowerInvariant();
+                    if (error.Contains("ssl") || error.Contains("certificate") || error.Contains("handshake")) {
+                        responseCode = DnsResponseCode.Refused;
+                    } else if (error.Contains("timeout")) {
+                        responseCode = DnsResponseCode.ServerFailure;
+                    } else {
+                        responseCode = DnsResponseCode.ServerFailure;
+                    }
                 }
 
                 DnsResponse response = new DnsResponse();
