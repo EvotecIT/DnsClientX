@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Net.NetworkInformation;
 using System.Linq;
+using System.Net.Sockets;
+using System.IO;
+using System.Net;
 
 namespace DnsClientX {
     /// <summary>
@@ -9,7 +12,7 @@ namespace DnsClientX {
     /// </summary>
     public class SystemInformation {
         /// <summary>
-        /// Gets the DNS from active network card with improved reliability.
+        /// Gets the DNS from active network card with improved cross-platform reliability.
         /// </summary>
         /// <returns></returns>
         public static List<string> GetDnsFromActiveNetworkCard() {
@@ -29,11 +32,9 @@ namespace DnsClientX {
                         if (properties.GatewayAddresses.Count > 0) {
                             var dnsAddresses = properties.DnsAddresses;
                             foreach (var dnsAddress in dnsAddresses) {
-                                // Filter out link-local and multicast addresses
-                                if (!dnsAddress.IsIPv6LinkLocal && !dnsAddress.IsIPv6Multicast &&
-                                    !dnsAddress.ToString().StartsWith("169.254.") && // IPv4 link-local
-                                    !dnsAddress.ToString().StartsWith("fec0:")) { // IPv6 site-local
-                                    dnsServers.Add(dnsAddress.ToString());
+                                var formattedAddress = FormatDnsAddress(dnsAddress);
+                                if (!string.IsNullOrWhiteSpace(formattedAddress) && IsValidDnsAddress(dnsAddress)) {
+                                    dnsServers.Add(formattedAddress);
                                 }
                             }
 
@@ -56,11 +57,9 @@ namespace DnsClientX {
                             var dnsAddresses = properties.DnsAddresses;
 
                             foreach (var dnsAddress in dnsAddresses) {
-                                // Filter out problematic addresses
-                                if (!dnsAddress.IsIPv6LinkLocal && !dnsAddress.IsIPv6Multicast &&
-                                    !dnsAddress.ToString().StartsWith("169.254.") &&
-                                    !dnsAddress.ToString().StartsWith("fec0:")) {
-                                    dnsServers.Add(dnsAddress.ToString());
+                                var formattedAddress = FormatDnsAddress(dnsAddress);
+                                if (!string.IsNullOrWhiteSpace(formattedAddress) && IsValidDnsAddress(dnsAddress)) {
+                                    dnsServers.Add(formattedAddress);
                                 }
                             }
 
@@ -71,10 +70,35 @@ namespace DnsClientX {
                     }
                 }
             } catch (Exception) {
-                // If network interface enumeration fails, fall through to fallback
+                // If network interface enumeration fails, fall through to Unix/Linux fallback
             }
 
-            // Fallback: if no system DNS servers found, use well-known public DNS
+            // Unix/Linux fallback: try reading /etc/resolv.conf
+            if (dnsServers.Count == 0) {
+                try {
+                    if (File.Exists("/etc/resolv.conf")) {
+                        foreach (var line in File.ReadAllLines("/etc/resolv.conf")) {
+                            var trimmed = line.Trim();
+                            if (trimmed.StartsWith("nameserver", StringComparison.OrdinalIgnoreCase)) {
+                                var parts = trimmed.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                                if (parts.Length > 1) {
+                                    var address = parts[1];
+                                    if (IPAddress.TryParse(address, out var ip)) {
+                                        var formattedAddress = FormatDnsAddress(ip);
+                                        if (!string.IsNullOrWhiteSpace(formattedAddress) && IsValidDnsAddress(ip)) {
+                                            dnsServers.Add(formattedAddress);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception) {
+                    // Ignore if file not accessible or other I/O errors
+                }
+            }
+
+            // Final fallback: if no system DNS servers found, use well-known public DNS
             if (dnsServers.Count == 0) {
                 // Use Cloudflare and Google as fallback - these are reliable and fast
                 dnsServers.Add("1.1.1.1");    // Cloudflare Primary
@@ -82,6 +106,54 @@ namespace DnsClientX {
             }
 
             return dnsServers;
+        }
+
+        /// <summary>
+        /// Formats a DNS address properly, handling IPv6 zone identifiers and brackets.
+        /// </summary>
+        /// <param name="address">The IP address to format</param>
+        /// <returns>Properly formatted DNS address string</returns>
+        private static string FormatDnsAddress(IPAddress address) {
+            if (address == null) return string.Empty;
+
+            var addressString = address.ToString();
+
+            if (address.AddressFamily == AddressFamily.InterNetworkV6) {
+                // Remove zone identifier (e.g., %15) for IPv6 addresses
+                addressString = addressString.Split('%')[0];
+                // Wrap IPv6 addresses in brackets for proper DNS formatting
+                addressString = $"[{addressString}]";
+            }
+
+            return addressString;
+        }
+
+        /// <summary>
+        /// Validates if an IP address is suitable for use as a DNS server.
+        /// </summary>
+        /// <param name="address">The IP address to validate</param>
+        /// <returns>True if the address is valid for DNS use</returns>
+        private static bool IsValidDnsAddress(IPAddress address) {
+            if (address == null) return false;
+
+            // Filter out problematic addresses
+            if (address.IsIPv6LinkLocal || address.IsIPv6Multicast) {
+                return false;
+            }
+
+            var addressString = address.ToString();
+
+            // Filter out IPv4 link-local addresses (169.254.x.x)
+            if (addressString.StartsWith("169.254.")) {
+                return false;
+            }
+
+            // Filter out IPv6 site-local addresses (deprecated)
+            if (addressString.StartsWith("fec0:")) {
+                return false;
+            }
+
+            return true;
         }
     }
 }
