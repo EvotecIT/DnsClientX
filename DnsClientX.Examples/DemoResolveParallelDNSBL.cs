@@ -142,7 +142,7 @@ namespace DnsClientX.Examples {
             // Start the stopwatch before the operation
             stopwatch.Start();
 
-            var client = new ClientX(endpoint) {
+            using var client = new ClientX(endpoint) {
                 Debug = false
             };
 

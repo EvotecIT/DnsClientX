@@ -94,6 +94,7 @@ This library supports multiple NET versions:
 - [x] Supports parallel queries
 - [x] No external dependencies on .NET 6, .NET 7 and .NET 8
 - [x] Minimal dependencies on .NET Standard 2.0 and .NET 4.7.2
+- [x] Implements IDisposable to release cached HttpClient resources
 
 ## Understanding DNS Query Behavior
 
@@ -343,16 +344,16 @@ data.Answers
 ### Querying DNS over HTTPS via defined endpoint using ResolveAll
 
 ```csharp
-var Client = new ClientX(DnsEndpoint.OpenDNS);
-var data = await Client.ResolveAll(domainName, type);
-data
+using var client = new ClientX(DnsEndpoint.OpenDNS);
+var data = await client.ResolveAll(domainName, type);
 ```
+Because `ClientX` implements `IDisposable`, wrapping it in a `using` statement ensures internal `HttpClient` instances are released.
 
 ### Querying DNS over HTTPS with single endpoint using ResolveAll
 
 ```csharp
-var Client = new ClientX(DnsEndpoint.OpenDNS);
-var data = await Client.ResolveAll(domainName, type);
+using var client = new ClientX(DnsEndpoint.OpenDNS);
+var data = await client.ResolveAll(domainName, type);
 data
 ```
 
@@ -401,7 +402,7 @@ foreach (var endpoint in dnsEndpoints) {
     }
 
     // Create a new client for each endpoint
-    var client = new ClientX(endpoint) {
+    using var client = new ClientX(endpoint) {
         Debug = false
     };
 

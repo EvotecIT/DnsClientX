@@ -49,7 +49,7 @@ namespace DnsClientX.Examples {
                 }
 
                 // Create a new client for each endpoint
-                var client = new ClientX(endpoint) {
+                using var client = new ClientX(endpoint) {
                     Debug = false
                 };
 

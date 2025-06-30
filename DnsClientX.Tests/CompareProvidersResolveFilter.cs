@@ -23,7 +23,7 @@ namespace DnsClientX.Tests {
             var results = new Dictionary<DnsEndpoint, (DnsResponse response, string? error)>();
 
             // Get primary endpoint result
-            var primaryClient = new ClientX(primaryEndpoint);
+            using var primaryClient = new ClientX(primaryEndpoint);
             var primaryResult = await GetResponseWithRetry(primaryClient, name, resourceRecordType, filter, primaryEndpoint, output);
             results[primaryEndpoint] = primaryResult;
 
@@ -34,7 +34,7 @@ namespace DnsClientX.Tests {
 
             // Get all other endpoint results
             foreach (var endpoint in allEndpoints) {
-                var client = new ClientX(endpoint);
+                using var client = new ClientX(endpoint);
                 var result = await GetResponseWithRetry(client, name, resourceRecordType, filter, endpoint, output);
                 results[endpoint] = result;
 
@@ -151,7 +151,7 @@ namespace DnsClientX.Tests {
 
             var primaryEndpoint = DnsEndpoint.Cloudflare;
 
-            var Client = new ClientX(primaryEndpoint);
+            using var Client = new ClientX(primaryEndpoint);
             DnsResponse aAnswersPrimary = await Client.ResolveFilter(name, resourceRecordType, filter);
 
             foreach (var endpointCompare in Enum.GetValues(typeof(DnsEndpoint)).Cast<DnsEndpoint>()) {
@@ -165,7 +165,7 @@ namespace DnsClientX.Tests {
 
                 output.WriteLine("Provider: " + endpointCompare.ToString());
 
-                var ClientToCompare = new ClientX(endpointCompare);
+                using var ClientToCompare = new ClientX(endpointCompare);
                 DnsResponse aAnswersToCompare = await ClientToCompare.ResolveFilter(name, resourceRecordType, filter);
 
                 var sortedAAnswers = aAnswersPrimary.Answers.OrderBy(a => a.Name).ThenBy(a => a.Type)
@@ -243,7 +243,7 @@ namespace DnsClientX.Tests {
         public async Task CompareRecordsMulti(string[] names, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             string filter = "v=spf1";
             var primaryEndpoint = DnsEndpoint.Cloudflare;
-            var Client = new ClientX(primaryEndpoint);
+            using var Client = new ClientX(primaryEndpoint);
 
             DnsResponse[] aAnswersPrimary = await Client.ResolveFilter(names, resourceRecordType, filter);
 
@@ -256,7 +256,7 @@ namespace DnsClientX.Tests {
                     continue;
                 }
 
-                var ClientToCompare = new ClientX(endpointCompare);
+                using var ClientToCompare = new ClientX(endpointCompare);
                 DnsResponse[] aAnswersToCompare = await ClientToCompare.ResolveFilter(names, resourceRecordType, filter);
 
                 for (int j = 0; j < aAnswersPrimary.Length; j++) {

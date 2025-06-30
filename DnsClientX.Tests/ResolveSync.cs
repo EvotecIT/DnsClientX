@@ -87,7 +87,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForTXTSync(DnsEndpoint endpoint)
         {
-            var client = new ClientX(endpoint);
+            using var client = new ClientX(endpoint);
             var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
 
             Assert.True(response.Answers.Length > 0, "Expected at least one answer");
@@ -114,7 +114,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForFirstSyncTXT(DnsEndpoint endpoint)
         {
-            var client = new ClientX(endpoint);
+            using var client = new ClientX(endpoint);
             var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
 
             Assert.True(response.Answers.Length > 0, "Expected at least one answer");
@@ -139,7 +139,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForAllSyncTXT(DnsEndpoint endpoint)
         {
-            var client = new ClientX(endpoint);
+            using var client = new ClientX(endpoint);
             var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
 
             Assert.True(response.Answers.Length > 0, "Expected at least one answer");
@@ -166,7 +166,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForASync(DnsEndpoint endpoint)
         {
-            var client = new ClientX(endpoint);
+            using var client = new ClientX(endpoint);
             var response = await TryResolveWithDiagnostics(client, "evotec.pl", DnsRecordType.A);
 
             Assert.True(response.Answers.Length > 0, "Expected at least one answer");
@@ -192,7 +192,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForPTRSync(DnsEndpoint endpoint) {
-            var client = new ClientX(endpoint);
+            using var client = new ClientX(endpoint);
             var response = client.ResolveSync("1.1.1.1", DnsRecordType.PTR);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Data == "one.one.one.one");
@@ -205,7 +205,7 @@ namespace DnsClientX.Tests {
         [Theory]
         [InlineData(DnsEndpoint.Cloudflare)]
         public void ShouldWorkForMultipleDomainsSync(DnsEndpoint endpoint) {
-            var client = new ClientX(endpoint);
+            using var client = new ClientX(endpoint);
             var domains = new[] { "evotec.pl", "google.com" };
             var responses = client.ResolveSync(domains, DnsRecordType.A);
             foreach (var domain in domains) {
@@ -221,7 +221,7 @@ namespace DnsClientX.Tests {
         [Theory]
         [InlineData(DnsEndpoint.Cloudflare)]
         public void ShouldWorkForMultipleTypesSync(DnsEndpoint endpoint) {
-            var client = new ClientX(endpoint);
+            using var client = new ClientX(endpoint);
             var types = new[] { DnsRecordType.A, DnsRecordType.TXT };
             var responses = client.ResolveSync("evotec.pl", types);
             foreach (var type in types) {
@@ -248,7 +248,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForFirstSyncA(DnsEndpoint endpoint) {
-            var client = new ClientX(endpoint);
+            using var client = new ClientX(endpoint);
             var answer = client.ResolveFirstSync("evotec.pl", DnsRecordType.A);
             Assert.True(answer != null);
             Assert.True(answer.Value.Name == "evotec.pl");
@@ -270,7 +270,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForAllSyncA(DnsEndpoint endpoint) {
-            var client = new ClientX(endpoint);
+            using var client = new ClientX(endpoint);
             var answers = client.ResolveAllSync("evotec.pl", DnsRecordType.A);
             foreach (DnsAnswer answer in answers) {
                 Assert.True(answer.Name == "evotec.pl");

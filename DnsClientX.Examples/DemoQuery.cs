@@ -154,14 +154,14 @@ namespace DnsClientX.Examples {
         public static async Task ExampleSPF() {
             var domains = new[] { "disneyplus.com" };
             HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.SPF, "1.1.1.1");
-            var client = new ClientX(DnsEndpoint.Cloudflare, DnsSelectionStrategy.First) {
+            using var client = new ClientX(DnsEndpoint.Cloudflare, DnsSelectionStrategy.First) {
                 Debug = false
             };
             var data = await client.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
             Console.WriteLine(data.Answers[0].Data);
 
             HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.SPF, DnsEndpoint.Google);
-            var client1 = new ClientX(DnsEndpoint.GoogleWireFormat, DnsSelectionStrategy.First) {
+            using var client1 = new ClientX(DnsEndpoint.GoogleWireFormat, DnsSelectionStrategy.First) {
                 Debug = false
             };
             var data1 = await client1.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
@@ -171,7 +171,7 @@ namespace DnsClientX.Examples {
         public static async Task ExampleSPFQuad() {
             var domains = new[] { "disneyplus.com" };
             HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.SPF, "1.1.1.1");
-            var client = new ClientX(DnsEndpoint.Cloudflare, DnsSelectionStrategy.First) {
+            using var client = new ClientX(DnsEndpoint.Cloudflare, DnsSelectionStrategy.First) {
                 Debug = false
             };
             var data = await client.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
@@ -179,7 +179,7 @@ namespace DnsClientX.Examples {
 
             foreach (DnsEndpoint endpoint in Enum.GetValues(typeof(DnsEndpoint))) {
                 HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.SPF, endpoint);
-                var client1 = new ClientX(endpoint, DnsSelectionStrategy.First) {
+                using var client1 = new ClientX(endpoint, DnsSelectionStrategy.First) {
                     Debug = false
                 };
                 var data1 = await client1.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
