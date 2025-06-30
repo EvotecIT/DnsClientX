@@ -115,8 +115,10 @@ namespace DnsClientX {
                         // This was the last attempt, rethrow the exception
                         throw;
                     }
+
                     // Not the last attempt, wait and retry with normal delay
                     await Task.Delay(delayMs);
+                    continue;
                 }
             }
 
