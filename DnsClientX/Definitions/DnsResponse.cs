@@ -61,10 +61,16 @@ namespace DnsClientX {
         public DnsAnswer[] Answers { get; set; }
 
         /// <summary>
-        /// Gets the answers in their minimal form
+        /// Gets the answers in their minimal form.
         /// </summary>
         [JsonIgnore]
-        public DnsAnswerMinimal[] AnswersMinimal => Answers.Select(answer => (DnsAnswerMinimal)answer).ToArray();
+        private DnsAnswerMinimal[] _answersMinimal;
+
+        /// <summary>
+        /// Gets the answers in their minimal form.
+        /// </summary>
+        [JsonIgnore]
+        public DnsAnswerMinimal[] AnswersMinimal => _answersMinimal ?? Answers.Select(answer => (DnsAnswerMinimal)answer).ToArray();
 
         /// <summary>
         /// The authority records provided by the DNS server.
@@ -117,6 +123,17 @@ namespace DnsClientX {
                 Questions[i].BaseUri = configuration.BaseUri;
                 Questions[i].RequestFormat = configuration.RequestFormat;
                 Questions[i].Port = configuration.Port;
+            }
+
+            if (Answers != null) {
+                _answersMinimal = Answers.Select(answer => new DnsAnswerMinimal {
+                    Name = answer.Name,
+                    TTL = answer.TTL,
+                    Type = answer.Type,
+                    Data = answer.Data,
+                    Port = configuration.Port,
+                    RequestFormat = configuration.RequestFormat
+                }).ToArray();
             }
         }
     }
