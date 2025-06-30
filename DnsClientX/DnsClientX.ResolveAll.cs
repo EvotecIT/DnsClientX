@@ -22,7 +22,11 @@ namespace DnsClientX {
             DnsResponse res;
             try {
                 res = retryOnTransient
-                    ? await RetryAsync(() => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0), maxRetries, retryDelayMs)
+                    ? await RetryAsync(
+                        () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0),
+                        maxRetries,
+                        retryDelayMs,
+                        EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover ? EndpointConfiguration.AdvanceToNextHostname : null)
                     : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0);
             } catch (DnsClientException ex) {
                 res = ex.Response;
@@ -51,7 +55,11 @@ namespace DnsClientX {
             DnsResponse res;
             try {
                 res = retryOnTransient
-                    ? await RetryAsync(() => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0), maxRetries, retryDelayMs)
+                    ? await RetryAsync(
+                        () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0),
+                        maxRetries,
+                        retryDelayMs,
+                        EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover ? EndpointConfiguration.AdvanceToNextHostname : null)
                     : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0);
             } catch (DnsClientException ex) {
                 res = ex.Response;
@@ -82,7 +90,11 @@ namespace DnsClientX {
             DnsResponse res;
             try {
                 res = retryOnTransient
-                    ? await RetryAsync(() => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0), maxRetries, retryDelayMs)
+                    ? await RetryAsync(
+                        () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0),
+                        maxRetries,
+                        retryDelayMs,
+                        EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover ? EndpointConfiguration.AdvanceToNextHostname : null)
                     : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0);
             } catch (DnsClientException ex) {
                 res = ex.Response;

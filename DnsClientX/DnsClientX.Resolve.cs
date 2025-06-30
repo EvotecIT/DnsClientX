@@ -37,7 +37,15 @@ namespace DnsClientX {
             CancellationToken cancellationToken = default) {
             if (retryOnTransient) {
                 try {
-                    return await RetryAsync(() => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, cancellationToken), maxRetries, retryDelayMs);
+                    Action? beforeRetry = EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover
+                        ? EndpointConfiguration.AdvanceToNextHostname
+                        : null;
+
+                    return await RetryAsync(
+                        () => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, cancellationToken),
+                        maxRetries,
+                        retryDelayMs,
+                        beforeRetry);
                 } catch (DnsClientException ex) {
                     return ex.Response;
                 }
@@ -101,7 +109,7 @@ namespace DnsClientX {
 
         private static readonly Random _jitterRandom = new();
 
-        private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 100) {
+        private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 100, Action? beforeRetry = null) {
             Exception lastException = null;
             T lastResult = default(T);
 
@@ -117,6 +125,7 @@ namespace DnsClientX {
                             return result;
                         }
 
+                        beforeRetry?.Invoke();
                         int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
                         int jitter;
                         lock (_jitterRandom) {
@@ -135,6 +144,7 @@ namespace DnsClientX {
                         throw;
                     }
 
+                    beforeRetry?.Invoke();
                     int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
                     int jitter;
                     lock (_jitterRandom) {
