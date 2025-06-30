@@ -196,6 +196,7 @@ namespace DnsClientX {
             client.DefaultRequestVersion = EndpointConfiguration.HttpVersion;
 #endif
             // Set the user agent to the default value
+            client.DefaultRequestHeaders.UserAgent.Clear();
             client.DefaultRequestHeaders.UserAgent.ParseAdd(EndpointConfiguration.UserAgent);
             client.DefaultRequestHeaders.Accept.Clear();
 
