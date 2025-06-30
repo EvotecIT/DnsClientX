@@ -66,7 +66,7 @@ namespace DnsClientX {
             stream.Write(buffer.ToArray(), 0, buffer.Length);
 
             // Write the additional count
-            BinaryPrimitives.WriteUInt16BigEndian(buffer, 0);
+            BinaryPrimitives.WriteUInt16BigEndian(buffer, _requestDnsSec ? (ushort)1 : (ushort)0);
             stream.Write(buffer.ToArray(), 0, buffer.Length);
 
             // Write the question name
@@ -84,6 +84,20 @@ namespace DnsClientX {
             // Write the question class
             BinaryPrimitives.WriteUInt16BigEndian(buffer, 1);
             stream.Write(buffer.ToArray(), 0, buffer.Length);
+
+            if (_requestDnsSec)
+            {
+                stream.WriteByte(0);
+                BinaryPrimitives.WriteUInt16BigEndian(buffer, (ushort)DnsRecordType.OPT);
+                stream.Write(buffer.ToArray(), 0, buffer.Length);
+                BinaryPrimitives.WriteUInt16BigEndian(buffer, 4096);
+                stream.Write(buffer.ToArray(), 0, buffer.Length);
+                Span<byte> ttl = stackalloc byte[4];
+                BinaryPrimitives.WriteUInt32BigEndian(ttl, 0x00008000);
+                stream.Write(ttl.ToArray(), 0, ttl.Length);
+                BinaryPrimitives.WriteUInt16BigEndian(buffer, 0);
+                stream.Write(buffer.ToArray(), 0, buffer.Length);
+            }
 
             // Convert to base64url format
             var dnsMessageBytes = stream.ToArray();
@@ -121,7 +135,7 @@ namespace DnsClientX {
                 ms.Write(bytes, 0, bytes.Length);
 
                 // Additional RRs
-                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)0));
+                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)(_requestDnsSec ? 1 : 0)));
                 ms.Write(bytes, 0, bytes.Length);
 
                 // Queries
@@ -139,6 +153,19 @@ namespace DnsClientX {
                 // Class
                 bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)1)); // IN
                 ms.Write(bytes, 0, bytes.Length);
+
+                if (_requestDnsSec)
+                {
+                    ms.WriteByte(0);
+                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)DnsRecordType.OPT));
+                    ms.Write(bytes, 0, bytes.Length);
+                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)4096));
+                    ms.Write(bytes, 0, bytes.Length);
+                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((int)0x00008000));
+                    ms.Write(bytes, 0, bytes.Length);
+                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)0));
+                    ms.Write(bytes, 0, bytes.Length);
+                }
 
                 return ms.ToArray();
             }
