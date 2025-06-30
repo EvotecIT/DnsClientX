@@ -104,6 +104,12 @@ namespace DnsClientX {
                     string validationError = "DNSSEC validation failed.";
                     response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
                 }
+                if (EndpointConfiguration.ValidateRootDnsSec && (type == DnsRecordType.DS || type == DnsRecordType.DNSKEY)) {
+                    if (!DnsSecValidator.ValidateAgainstRoot(response)) {
+                        string validationError = "Root DNSSEC validation failed.";
+                        response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
+                    }
+                }
             }
 
             return response;
