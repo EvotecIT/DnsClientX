@@ -16,6 +16,10 @@ namespace DnsClientX.Tests {
 
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
+#if DNS_OVER_QUIC
+        [InlineData(DnsEndpoint.CloudflareQuic)]
+        [InlineData(DnsEndpoint.GoogleQuic)]
+#endif
         public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = await Client.ResolveAll("github.com", DnsRecordType.TXT);
@@ -42,6 +46,10 @@ namespace DnsClientX.Tests {
 
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
+#if DNS_OVER_QUIC
+        [InlineData(DnsEndpoint.CloudflareQuic)]
+        [InlineData(DnsEndpoint.GoogleQuic)]
+#endif
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = await Client.ResolveAll("evotec.pl", DnsRecordType.A);
@@ -67,6 +75,10 @@ namespace DnsClientX.Tests {
 
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
+#if DNS_OVER_QUIC
+        [InlineData(DnsEndpoint.CloudflareQuic)]
+        [InlineData(DnsEndpoint.GoogleQuic)]
+#endif
         public void ShouldWorkForTXT_Sync(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = Client.ResolveAllSync("github.com", DnsRecordType.TXT);
@@ -93,6 +105,10 @@ namespace DnsClientX.Tests {
 
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
+#if DNS_OVER_QUIC
+        [InlineData(DnsEndpoint.CloudflareQuic)]
+        [InlineData(DnsEndpoint.GoogleQuic)]
+#endif
         public void ShouldWorkForA_Sync(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = Client.ResolveAllSync("evotec.pl", DnsRecordType.A);

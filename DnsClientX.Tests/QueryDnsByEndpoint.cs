@@ -13,6 +13,10 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
+#if DNS_OVER_QUIC
+        [InlineData(DnsEndpoint.CloudflareQuic)]
+        [InlineData(DnsEndpoint.GoogleQuic)]
+#endif
         public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
             var response = await ClientX.QueryDns("github.com", DnsRecordType.TXT, endpoint);
             foreach (DnsAnswer answer in response.Answers) {
@@ -35,6 +39,10 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
+#if DNS_OVER_QUIC
+        [InlineData(DnsEndpoint.CloudflareQuic)]
+        [InlineData(DnsEndpoint.GoogleQuic)]
+#endif
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, endpoint);
             foreach (DnsAnswer answer in response.Answers) {
@@ -57,6 +65,10 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
+#if DNS_OVER_QUIC
+        [InlineData(DnsEndpoint.CloudflareQuic)]
+        [InlineData(DnsEndpoint.GoogleQuic)]
+#endif
         public async Task ShouldWorkForPTR(DnsEndpoint endpoint) {
             var response = await ClientX.QueryDns("1.1.1.1", DnsRecordType.PTR, endpoint);
             foreach (DnsAnswer answer in response.Answers) {
