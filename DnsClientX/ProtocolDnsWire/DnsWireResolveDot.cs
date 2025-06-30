@@ -63,13 +63,13 @@ namespace DnsClientX {
             }
 
             // Create a new TCP client and connect to the DNS server
-            var client = new TcpClient();
+            using var client = new TcpClient();
             await ConnectAsync(client, dnsServer, port, cancellationToken);
 
             // Create a new SSL stream for the secure connection
             //var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) => true);
 
-            var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) => {
+            using var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) => {
                 //Console.WriteLine($"SSL policy errors: {sslPolicyErrors}");
                 return true; // Always accept the certificate for now
             });
@@ -103,10 +103,6 @@ namespace DnsClientX {
             // Deserialize the response from DNS wire format
             var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer);
             response.AddServerDetails(endpointConfiguration);
-            // Close the SSL stream and the TCP client
-            sslStream.Close();
-            client.Close();
-
             return response;
         }
 
