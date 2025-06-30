@@ -95,6 +95,7 @@ This library supports multiple NET versions:
 - [x] No external dependencies on .NET 6, .NET 7 and .NET 8
 - [x] Minimal dependencies on .NET Standard 2.0 and .NET 4.7.2
 - [x] Implements IDisposable to release cached HttpClient resources
+- [x] Multi-line record data normalized to use `\n` line endings
 
 ## Understanding DNS Query Behavior
 
