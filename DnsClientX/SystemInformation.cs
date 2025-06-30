@@ -17,6 +17,9 @@ namespace DnsClientX {
         /// <returns></returns>
         public static List<string> GetDnsFromActiveNetworkCard() {
             var dnsServers = new List<string>();
+            bool debug = Environment.GetEnvironmentVariable("DNSCLIENTX_DEBUG_SYSTEMDNS") == "1";
+
+            void DebugPrint(string msg) { if (debug) Console.WriteLine($"[DnsClientX:SystemDNS] {msg}"); }
 
             try {
                 var networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
@@ -33,8 +36,13 @@ namespace DnsClientX {
                             var dnsAddresses = properties.DnsAddresses;
                             foreach (var dnsAddress in dnsAddresses) {
                                 var formattedAddress = FormatDnsAddress(dnsAddress);
-                                if (!string.IsNullOrWhiteSpace(formattedAddress) && IsValidDnsAddress(dnsAddress)) {
-                                    dnsServers.Add(formattedAddress);
+                                if (!string.IsNullOrWhiteSpace(formattedAddress)) {
+                                    if (IsValidDnsAddress(dnsAddress)) {
+                                        DebugPrint($"[Interface-Gateway] Found DNS: {dnsAddress}");
+                                        dnsServers.Add(formattedAddress);
+                                    } else {
+                                        DebugPrint($"[Interface-Gateway] Filtered out DNS: {dnsAddress}");
+                                    }
                                 }
                             }
 
@@ -58,8 +66,13 @@ namespace DnsClientX {
 
                             foreach (var dnsAddress in dnsAddresses) {
                                 var formattedAddress = FormatDnsAddress(dnsAddress);
-                                if (!string.IsNullOrWhiteSpace(formattedAddress) && IsValidDnsAddress(dnsAddress)) {
-                                    dnsServers.Add(formattedAddress);
+                                if (!string.IsNullOrWhiteSpace(formattedAddress)) {
+                                    if (IsValidDnsAddress(dnsAddress)) {
+                                        DebugPrint($"[Interface-Any] Found DNS: {dnsAddress}");
+                                        dnsServers.Add(formattedAddress);
+                                    } else {
+                                        DebugPrint($"[Interface-Any] Filtered out DNS: {dnsAddress}");
+                                    }
                                 }
                             }
 
@@ -69,7 +82,8 @@ namespace DnsClientX {
                         }
                     }
                 }
-            } catch (Exception) {
+            } catch (Exception ex) {
+                DebugPrint($"Exception in network interface enumeration: {ex.Message}");
                 // If network interface enumeration fails, fall through to Unix/Linux fallback
             }
 
@@ -83,28 +97,40 @@ namespace DnsClientX {
                                 var parts = trimmed.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                                 if (parts.Length > 1) {
                                     var address = parts[1];
+                                    DebugPrint($"[resolv.conf] Found nameserver: {address}");
                                     if (IPAddress.TryParse(address, out var ip)) {
                                         var formattedAddress = FormatDnsAddress(ip);
-                                        if (!string.IsNullOrWhiteSpace(formattedAddress) && IsValidDnsAddress(ip)) {
-                                            dnsServers.Add(formattedAddress);
+                                        if (!string.IsNullOrWhiteSpace(formattedAddress)) {
+                                            if (IsValidDnsAddress(ip)) {
+                                                DebugPrint($"[resolv.conf] Accepted: {address}");
+                                                dnsServers.Add(formattedAddress);
+                                            } else {
+                                                DebugPrint($"[resolv.conf] Filtered out: {address}");
+                                            }
                                         }
+                                    } else {
+                                        DebugPrint($"[resolv.conf] Not a valid IP: {address}");
                                     }
                                 }
                             }
                         }
+                    } else {
+                        DebugPrint("/etc/resolv.conf does not exist");
                     }
-                } catch (Exception) {
+                } catch (Exception ex) {
+                    DebugPrint($"Exception reading /etc/resolv.conf: {ex.Message}");
                     // Ignore if file not accessible or other I/O errors
                 }
             }
 
             // Final fallback: if no system DNS servers found, use well-known public DNS
             if (dnsServers.Count == 0) {
-                // Use Cloudflare and Google as fallback - these are reliable and fast
+                DebugPrint("No system DNS found, using fallback public DNS: 1.1.1.1, 8.8.8.8");
                 dnsServers.Add("1.1.1.1");    // Cloudflare Primary
                 dnsServers.Add("8.8.8.8");    // Google Primary
             }
 
+            DebugPrint($"Returning DNS servers: {string.Join(", ", dnsServers)}");
             return dnsServers;
         }
 

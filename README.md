@@ -2,34 +2,47 @@
 
 DnsClientX is available as NuGet from the Nuget Gallery and as PowerShell module from PSGallery
 
-<p align="center">
-  <a href="https://www.nuget.org/packages/DnsClientX"><img src="https://img.shields.io/nuget/dt/DnsClientX?label=nuget%20downloads" alt="nuget downloads"></a>
-  <a href="https://www.nuget.org/packages/DnsClientX"><img src="https://img.shields.io/nuget/v/DnsClientX" alt="nuget version"></a>
-</p>
+### 📦 NuGet Package
 
 <p align="center">
-  <!-- <a href="https://dev.azure.com/evotecpl/DnsClientX/_build/latest?definitionId=3"><img src="https://dev.azure.com/evotecpl/DnsClientX/_apis/build/status/EvotecIT.DnsClientX"></a> -->
-  <a href="https://www.powershellgallery.com/packages/DnsClientX"><img src="https://img.shields.io/powershellgallery/v/DnsClientX.svg"></a>
-  <a href="https://www.powershellgallery.com/packages/DnsClientX"><img src="https://img.shields.io/powershellgallery/vpre/DnsClientX.svg?label=powershell%20gallery%20preview&colorB=yellow"></a>
-  <a href="https://www.powershellgallery.com/packages/DnsClientX"><img src="https://img.shields.io/powershellgallery/p/DnsClientX.svg"></a>
-  <a href="https://www.powershellgallery.com/packages/DnsClientX"><img src="https://img.shields.io/powershellgallery/dt/DnsClientX.svg"></a>
+
+[![nuget downloads](https://img.shields.io/nuget/dt/DnsClientX?label=nuget%20downloads)](https://www.nuget.org/packages/DnsClientX)
+[![nuget version](https://img.shields.io/nuget/v/DnsClientX)](https://www.nuget.org/packages/DnsClientX)
+
 </p>
 
-<p align="center">
-  <a href="https://github.com/EvotecIT/DnsClientX"><img src="https://img.shields.io/github/languages/top/evotecit/DnsClientX.svg"></a>
-  <a href="https://github.com/EvotecIT/DnsClientX"><img src="https://img.shields.io/github/license/EvotecIT/DnsClientX.svg"></a>
-</p>
+### 💻 PowerShell Module
 
 <p align="center">
-  <a href="https://twitter.com/PrzemyslawKlys"><img src="https://img.shields.io/twitter/follow/PrzemyslawKlys.svg?label=Twitter%20%40PrzemyslawKlys&style=social"></a>
-  <a href="https://evotec.xyz/hub"><img src="https://img.shields.io/badge/Blog-evotec.xyz-2A6496.svg"></a>
-  <a href="https://www.linkedin.com/in/pklys"><img src="https://img.shields.io/badge/LinkedIn-pklys-0077B5.svg?logo=LinkedIn"></a>
-  <a href="https://www.threads.net/@przemyslaw.klys"><img src="https://img.shields.io/badge/Threads-@PrzemyslawKlys-000000.svg?logo=Threads&logoColor=White"></a>
+
+[![powershell gallery version](https://img.shields.io/powershellgallery/v/DnsClientX.svg)](https://www.powershellgallery.com/packages/DnsClientX)
+[![powershell gallery preview](https://img.shields.io/powershellgallery/vpre/DnsClientX.svg?label=powershell%20gallery%20preview&colorB=yellow)](https://www.powershellgallery.com/packages/DnsClientX)
+[![powershell gallery platforms](https://img.shields.io/powershellgallery/p/DnsClientX.svg)](https://www.powershellgallery.com/packages/DnsClientX)
+[![powershell gallery downloads](https://img.shields.io/powershellgallery/dt/DnsClientX.svg)](https://www.powershellgallery.com/packages/DnsClientX)
+
+</p>
+
+### 🛠️ Project Information
+
+<p align="center">
+
+[![top language](https://img.shields.io/github/languages/top/evotecit/DnsClientX.svg)](https://github.com/EvotecIT/DnsClientX)
+[![license](https://img.shields.io/github/license/EvotecIT/DnsClientX.svg)](https://github.com/EvotecIT/DnsClientX)
+
+</p>
+
+### 👨‍💻 Author & Social
+
+<p align="center">
+
+[![Twitter follow](https://img.shields.io/twitter/follow/PrzemyslawKlys.svg?label=Twitter%20%40PrzemyslawKlys&style=social)](https://twitter.com/PrzemyslawKlys)
+[![Blog](https://img.shields.io/badge/Blog-evotec.xyz-2A6496.svg)](https://evotec.xyz/hub)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-pklys-0077B5.svg?logo=LinkedIn)](https://www.linkedin.com/in/pklys)
+[![Threads](https://img.shields.io/badge/Threads-@PrzemyslawKlys-000000.svg?logo=Threads&logoColor=White)](https://www.threads.net/@przemyslaw.klys)
+
 </p>
 
 ## What it's all about
-
-<img width="256" height="256" align=right src="https://raw.githubusercontent.com/EvotecIT/DnsClientX/master/Assets/Icons/DnsClientX3.png">
 
 **DnsClientX** is an async C# library for DNS over UDP, TCP, HTTPS (DoH), and TLS (DoT). It also has a PowerShell module that can be used to query DNS records. It provides a simple way to query DNS records using multiple DNS providers. It supports multiple DNS record types and parallel queries. It's available for .NET 6, .NET 7, .NET 8, .NET Standard 2.0, and .NET 4.7.2.
 
@@ -44,7 +57,7 @@ If you want to learn about DNS:
 - https://www.cloudflare.com/learning/dns/what-is-dns/
 
 > [!WARNING]
-> We try to unify the responses as much as possible for common use cases by translating on the fly. This is because different providers do not store it always the same way. If you find disprepencies please **open an issue** or better **pull request**.
+> We try to unify the responses as much as possible for common use cases by translating on the fly. This is because different providers do not store it always the same way. If you find discrepancies please **open an issue** or better **pull request**.
 
 ## Supported .NET Versions
 
@@ -62,11 +75,12 @@ This library supports multiple NET versions:
 
 ## Build Status
 
-| Platform | Status                                                                                                                                                                                                              | Test Report                                                                                                                                                                                                                                   | Code Coverage                                                                                                                                                                                                                                             | .NET                                                                 |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| Windows  | <a href="https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=30"><img src="https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/30/master?compact_message&style=flat&label=Tests%20Windows"></a> | <a href="https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=30&contextType=build"><img src="https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/30/master?compact_message&style=flat&label=Test Analytics"></a> | <a href="https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=30&view=ms.vss-pipelineanalytics-web.new-build-definition-pipeline-analytics-view-cardmetrics"><img src="https://img.shields.io/azure-devops/coverage/evotecpl/DnsClientX/30"></a> | .NET 4.7.2, NET 4.8, .NET 6.0, .NET 7.0, .NET 8.0, .NET Standard 2.0 |
-| Linux    | <a href="https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=31"><img src="https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/31/master?compact_message&style=flat&label=Tests%20Linux"></a>   | <a href="https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=31&contextType=build"><img src="https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/31/master?compact_message&style=flat&label=Test Analytics"></a> |                                                                                                                                                                                                                                                           | .NET 6.0, .NET 7.0, .NET Standard 2.0, .NET 8.0                      |
-| MacOs    | <a href="https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=32"><img src="https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/32/master?compact_message&style=flat&label=Tests%20MacOs"></a>   | <a href="https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=32&contextType=build"><img src="https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/32/master?compact_message&style=flat&label=Test Analytics"></a> |                                                                                                                                                                                                                                                           | .NET 6.0, .NET 7.0, .NET Standard 2.0, .NET 8.0                      |
+| Platform | Status | Test Report | Code Coverage | .NET |
+| -------- | ------ | ----------- | ------------- | ---- |
+| Windows  | [![Tests Windows](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/30/master?compact_message&style=flat&label=Tests%20Windows)](https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=30) | [![Test Analytics](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/30/master?compact_message&style=flat&label=Test%20Analytics)](https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=30&contextType=build) | [![Coverage](https://img.shields.io/azure-devops/coverage/evotecpl/DnsClientX/30)](https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=30&view=ms.vss-pipelineanalytics-web.new-build-definition-pipeline-analytics-view-cardmetrics) | .NET 4.7.2, NET 4.8, .NET 6.0, .NET 7.0, .NET 8.0, .NET Standard 2.0 |
+| Linux    | [![Tests Linux](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/31/master?compact_message&style=flat&label=Tests%20Linux)](https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=31) | [![Test Analytics](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/31/master?compact_message&style=flat&label=Test%20Analytics)](https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=31&contextType=build) |  | .NET 6.0, .NET 7.0, .NET Standard 2.0, .NET 8.0 |
+| MacOs    | [![Tests MacOs](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/32/master?compact_message&style=flat&label=Tests%20MacOs)](https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=32) | [![Test Analytics](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/32/master?compact_message&style=flat&label=Test%20Analytics)](https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=32&contextType=build) |  | .NET 6.0, .NET 7.0, .NET Standard 2.0, .NET 8.0 |
+
 ## Features
 
 - [x] Supports multiple built-in DNS Providers (System, Cloudflare, Google, Quad9, OpenDNS, etc.)
@@ -81,6 +95,209 @@ This library supports multiple NET versions:
 - [x] No external dependencies on .NET 6, .NET 7 and .NET 8
 - [x] Minimal dependencies on .NET Standard 2.0 and .NET 4.7.2
 
+## Understanding DNS Query Behavior
+
+### Different Results from Different Providers
+
+When querying DNS records using DnsClientX, you may notice that different DNS providers can return different results for the same domain. This is **normal behavior** and occurs for several legitimate reasons:
+
+#### Content Delivery Networks (CDNs)
+
+Many popular websites use CDNs (like Cloudflare, Akamai, AWS CloudFront) to serve content from servers geographically closer to users. CDN-backed domains will return different IP addresses based on:
+
+- **Geographic location**: Providers route queries to the nearest edge server
+- **Provider routing policies**: Different DNS providers may have different relationships with CDNs
+- **Load balancing**: CDNs dynamically distribute traffic across multiple servers
+
+**Example**: A domain like `www.example.com` might return:
+- From Cloudflare: `23.47.124.71`, `23.47.124.85`
+- From OpenDNS: `185.225.251.105`, `185.225.251.40`
+
+Both responses are **correct** - they're just optimized for different network paths.
+
+#### DNS Provider Characteristics
+
+Different DNS providers have distinct characteristics:
+
+- **Cloudflare (1.1.1.1)**: Privacy-focused, fast, global Anycast network
+- **Google (8.8.8.8)**: Extensive caching, Google's global infrastructure
+- **Quad9 (9.9.9.9)**: Security-focused, blocks malicious domains
+- **OpenDNS**: Content filtering options, enterprise features
+
+These differences can result in:
+- Varying response times (typically 10-500ms)
+- Different cached TTL values
+- Different IP addresses for CDN domains
+- Slightly different DNSSEC validation results
+
+#### When to Expect Consistent Results
+
+You should expect **consistent results** for:
+- **Non-CDN domains**: Simple domains with static IP assignments
+- **Infrastructure domains**: DNS servers, mail servers, etc.
+- **Record types other than A/AAAA**: TXT, MX, NS records are usually consistent
+
+#### When to Expect Different Results
+
+You should expect **different results** for:
+- **CDN-backed websites**: Major websites, cloud services, media platforms
+- **Geographically distributed services**: Global services with regional presence
+- **Load-balanced applications**: Services with multiple server endpoints
+
+### Performance Considerations
+
+#### Response Times
+
+DNS query response times can vary significantly:
+- **Local/ISP DNS**: 1-50ms (but may have outdated records)
+- **Public DNS providers**: 10-200ms (usually more up-to-date)
+- **International queries**: 100-500ms (depending on geographic distance)
+
+#### Timeout and Retry Behavior
+
+DnsClientX implements intelligent timeout and retry logic:
+- **Default timeout**: 1000ms (1 second) - optimized for fast responses
+- **Automatic retry**: Failed queries are retried with exponential backoff
+- **Provider fallback**: Can automatically switch between providers
+- **Protocol fallback**: UDP → TCP → HTTPS/TLS as needed
+
+### Best Practices for Testing
+
+When testing DNS resolution:
+
+1. **Use stable domains** for consistency tests (e.g., `google.com`, `github.com`)
+2. **Use CDN domains** to test geographic/provider differences
+3. **Test multiple record types** (A, AAAA, TXT, MX, NS)
+4. **Allow for reasonable response time variation** (50-500ms)
+5. **Validate structure, not exact content** for CDN domains
+
+### Troubleshooting Common Issues
+
+#### "Different IP addresses returned"
+- ✅ **Normal for CDN domains** - indicates proper geographic optimization
+- ⚠️ **Investigate for non-CDN domains** - may indicate DNS propagation issues
+
+#### "Slow response times"
+- Check network connectivity to the DNS provider
+- Consider using geographically closer DNS servers
+- Verify firewall/proxy settings aren't interfering
+
+#### "Intermittent failures"
+- Enable retry logic and exponential backoff
+- Test with multiple DNS providers
+- Check for rate limiting or blocking
+
+This behavior is by design and reflects the modern, distributed nature of internet infrastructure. DnsClientX provides tools to work effectively with this reality while maintaining reliable DNS resolution.
+
+## System DNS Fallback Mechanism
+
+DnsClientX provides robust system DNS resolution through `DnsEndpoint.System` (UDP) and `DnsEndpoint.SystemTcp` (TCP) endpoints. These endpoints automatically discover and use your system's configured DNS servers with intelligent cross-platform fallback behavior.
+
+### How System DNS Discovery Works
+
+#### 1. Windows and Cross-Platform (.NET)
+**Primary Method**: Network Interface Detection
+- Enumerates all active network interfaces using `NetworkInterface.GetAllNetworkInterfaces()`
+- **Prioritizes interfaces with default gateways** (internet-connected interfaces)
+- Extracts DNS server addresses from interface properties
+- Filters out invalid addresses (link-local, multicast, etc.)
+- **Fallback**: If no DNS servers found from gateway interfaces, checks all active interfaces
+
+#### 2. Unix/Linux Systems
+**Fallback Method**: `/etc/resolv.conf` Parsing
+- If network interface enumeration fails or returns no results
+- Reads and parses `/etc/resolv.conf` file
+- Extracts `nameserver` entries
+- Validates IP addresses and formats them properly
+- Handles both IPv4 and IPv6 addresses
+
+#### 3. Final Safety Net
+**Public DNS Fallback**: If no system DNS servers are discovered
+- **Cloudflare Primary**: `1.1.1.1`
+- **Google Primary**: `8.8.8.8`
+- Ensures DNS resolution always works, even in misconfigured environments
+
+### Address Validation and Formatting
+
+The system applies intelligent filtering to ensure reliable DNS servers:
+
+#### IPv4 Filtering
+- ✅ **Valid**: Public and private IP ranges
+- ❌ **Filtered**: Link-local addresses (`169.254.x.x`)
+- ❌ **Filtered**: Loopback addresses
+
+#### IPv6 Filtering
+- ✅ **Valid**: Global and unique local addresses
+- ❌ **Filtered**: Link-local addresses (`fe80::`)
+- ❌ **Filtered**: Multicast addresses
+- ❌ **Filtered**: Site-local addresses (`fec0::` - deprecated)
+- **Auto-formatting**: Removes zone identifiers (`%15`) and adds brackets (`[::1]`)
+
+### Protocol Support
+
+#### System UDP (`DnsEndpoint.System`)
+- **Primary protocol**: DNS over UDP (port 53)
+- **Automatic fallback**: Switches to TCP when UDP packet size limit exceeded
+- **Timeout**: 1000ms default (configurable)
+- **Best for**: General DNS queries, fastest response times
+
+#### System TCP (`DnsEndpoint.SystemTcp`)
+- **Primary protocol**: DNS over TCP (port 53)
+- **Connection management**: Efficient connection pooling
+- **Timeout**: 1000ms default (configurable)
+- **Best for**: Large responses, firewall-restricted environments
+
+### Platform-Specific Behavior
+
+| Platform | Primary Method | Fallback Method | Final Fallback |
+|----------|---------------|-----------------|----------------|
+| **Windows** | Network Interface APIs | *(Not applicable)* | Public DNS |
+| **Linux** | Network Interface APIs | `/etc/resolv.conf` | Public DNS |
+| **macOS** | Network Interface APIs | `/etc/resolv.conf` | Public DNS |
+| **Docker/Container** | Network Interface APIs | `/etc/resolv.conf` | Public DNS |
+
+### Example Usage
+
+```csharp
+// Use system DNS with UDP (auto-fallback to TCP)
+var response = await ClientX.QueryDns("google.com", DnsRecordType.A, DnsEndpoint.System);
+
+// Use system DNS with TCP only
+var response = await ClientX.QueryDns("google.com", DnsRecordType.A, DnsEndpoint.SystemTcp);
+
+// Get system DNS servers programmatically
+var systemDnsServers = SystemInformation.GetDnsFromActiveNetworkCard();
+```
+
+### Advantages of System DNS
+
+1. **Respects local configuration**: Uses DNS servers configured by network admin/DHCP
+2. **Corporate environment friendly**: Works with internal DNS servers and split-horizon DNS
+3. **VPN compatibility**: Automatically uses VPN-provided DNS servers
+4. **No external dependencies**: Works even when public DNS is blocked
+5. **Platform native**: Leverages OS-specific network configuration
+
+### Troubleshooting System DNS
+
+#### Common Issues and Solutions
+
+**"No DNS servers found"**
+- Check network connectivity (`ipconfig /all` on Windows, `cat /etc/resolv.conf` on Linux)
+- Verify network interfaces are up and have gateways
+- Falls back to public DNS (1.1.1.1, 8.8.8.8) automatically
+
+**"Slow response times"**
+- System DNS may be slower than public DNS providers
+- Consider using specific endpoints like `DnsEndpoint.Cloudflare` for better performance
+- Check if system DNS servers are geographically distant
+
+**"Resolution failures in containers"**
+- Ensure container has proper network configuration
+- Docker containers should inherit host DNS or have DNS configured
+- `/etc/resolv.conf` should be readable in Linux containers
+
+The system DNS endpoints provide the most compatible and network-environment-aware DNS resolution, making them excellent default choices for applications that need to work across diverse network configurations.
+
 ## TO DO
 
 > [!IMPORTANT]
@@ -91,7 +308,6 @@ This library supports multiple NET versions:
 - [ ] [Add more providers](https://dnscrypt.info/public-servers/)
 - [ ] Add more tests
 - [ ] Go thru all additional parameters and make sure they have proper responses
-
 
 ## Usage in .NET
 
