@@ -7,6 +7,12 @@ namespace DnsClientX {
         private bool _disposed;
         private readonly HashSet<HttpClient> _disposedClients = new();
 
+        private bool TryAddDisposedClient(HttpClient client) {
+            lock (_lock) {
+                return _disposedClients.Add(client);
+            }
+        }
+
         /// <inheritdoc/>
         public void Dispose() {
             Dispose(disposing: true);
@@ -20,20 +26,31 @@ namespace DnsClientX {
         protected virtual void Dispose(bool disposing) {
             if (!_disposed) {
                 if (disposing) {
+                    HttpClientHandler? handlerLocal;
+                    List<HttpClient> clients;
+                    HttpClient? mainClient;
+
                     lock (_lock) {
-                        foreach (HttpClient client in _clients.Values) {
-                            if (_disposedClients.Add(client)) {
-                                client.Dispose();
-                            }
-                        }
+                        clients = new List<HttpClient>(_clients.Values);
                         _clients.Clear();
 
-                        if (Client != null && _disposedClients.Add(Client)) {
-                            Client.Dispose();
-                        }
-
-                        handler?.Dispose();
+                        mainClient = Client;
+                        handlerLocal = handler;
+                        Client = null;
+                        handler = null;
                     }
+
+                    foreach (HttpClient client in clients) {
+                        if (TryAddDisposedClient(client)) {
+                            client.Dispose();
+                        }
+                    }
+
+                    if (mainClient != null && TryAddDisposedClient(mainClient)) {
+                        mainClient.Dispose();
+                    }
+
+                    handlerLocal?.Dispose();
                 }
 
                 _disposed = true;
