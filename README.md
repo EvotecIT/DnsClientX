@@ -341,6 +341,13 @@ var data = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, new Uri("https:/
 data.Answers
 ```
 
+### Customizing HTTP settings
+
+```csharp
+using var client = new ClientX(DnsEndpoint.Cloudflare, userAgent: "MyApp/1.0", httpVersion: new Version(1, 1));
+```
+You can also modify `client.EndpointConfiguration.UserAgent` and `client.EndpointConfiguration.HttpVersion` after construction.
+
 ### Querying DNS over HTTPS via defined endpoint using ResolveAll
 
 ```csharp

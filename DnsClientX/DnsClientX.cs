@@ -93,10 +93,21 @@ namespace DnsClientX {
         /// <param name="endpoint">The endpoint.</param>
         /// <param name="dnsSelectionStrategy">Dns selection strategy</param>
         /// <param name="timeOutMilliseconds"></param>
-        public ClientX(DnsEndpoint endpoint = DnsEndpoint.Cloudflare, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = 1000) {
+        public ClientX(
+            DnsEndpoint endpoint = DnsEndpoint.Cloudflare,
+            DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First,
+            int timeOutMilliseconds = 1000,
+            string? userAgent = null,
+            Version? httpVersion = null) {
             EndpointConfiguration = new Configuration(endpoint, dnsSelectionStrategy) {
                 TimeOut = timeOutMilliseconds
             };
+            if (userAgent != null) {
+                EndpointConfiguration.UserAgent = userAgent;
+            }
+            if (httpVersion != null) {
+                EndpointConfiguration.HttpVersion = httpVersion;
+            }
             ConfigureClient();
         }
 
@@ -106,10 +117,21 @@ namespace DnsClientX {
         /// <param name="hostname">The hostname.</param>
         /// <param name="requestFormat">The request format.</param>
         /// <param name="timeOutMilliseconds"></param>
-        public ClientX(string hostname, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000) {
+        public ClientX(
+            string hostname,
+            DnsRequestFormat requestFormat,
+            int timeOutMilliseconds = 1000,
+            string? userAgent = null,
+            Version? httpVersion = null) {
             EndpointConfiguration = new Configuration(hostname, requestFormat) {
                 TimeOut = timeOutMilliseconds
             };
+            if (userAgent != null) {
+                EndpointConfiguration.UserAgent = userAgent;
+            }
+            if (httpVersion != null) {
+                EndpointConfiguration.HttpVersion = httpVersion;
+            }
             ConfigureClient();
         }
 
@@ -119,10 +141,21 @@ namespace DnsClientX {
         /// <param name="baseUri">The base URI.</param>
         /// <param name="requestFormat">The request format.</param>
         /// <param name="timeOutMilliseconds"></param>
-        public ClientX(Uri baseUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000) {
+        public ClientX(
+            Uri baseUri,
+            DnsRequestFormat requestFormat,
+            int timeOutMilliseconds = 1000,
+            string? userAgent = null,
+            Version? httpVersion = null) {
             EndpointConfiguration = new Configuration(baseUri, requestFormat) {
                 TimeOut = timeOutMilliseconds
             };
+            if (userAgent != null) {
+                EndpointConfiguration.UserAgent = userAgent;
+            }
+            if (httpVersion != null) {
+                EndpointConfiguration.HttpVersion = httpVersion;
+            }
             ConfigureClient();
         }
 
@@ -160,7 +193,7 @@ namespace DnsClientX {
             };
 
 #if NETCOREAPP2_1_OR_GREATER || NET5_0_OR_GREATER
-            client.DefaultRequestVersion = Configuration.HttpVersion;
+            client.DefaultRequestVersion = EndpointConfiguration.HttpVersion;
 #endif
             // Set the user agent to the default value
             client.DefaultRequestHeaders.UserAgent.ParseAdd(EndpointConfiguration.UserAgent);
