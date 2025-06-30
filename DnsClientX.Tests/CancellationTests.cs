@@ -10,7 +10,7 @@ namespace DnsClientX.Tests {
     public class CancellationTests {
         private class DelayingHandler : HttpMessageHandler {
             protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
-                await Task.Delay(5000, cancellationToken);
+                await Task.Delay(5000, cancellationToken).ConfigureAwait(false);
                 return new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
                     Content = new ByteArrayContent(Array.Empty<byte>())
                 };
@@ -30,7 +30,7 @@ namespace DnsClientX.Tests {
             clientField.SetValue(clientX, customClient);
 
             using var cts = new CancellationTokenSource(100);
-            await Assert.ThrowsAsync<TaskCanceledException>(() => clientX.Resolve("example.com", DnsRecordType.A, cancellationToken: cts.Token));
+            await Assert.ThrowsAsync<TaskCanceledException>(() => clientX.Resolve("example.com", DnsRecordType.A, cancellationToken: cts.Token)).ConfigureAwait(false);
         }
     }
 }

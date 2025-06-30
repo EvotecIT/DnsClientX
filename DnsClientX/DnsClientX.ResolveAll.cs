@@ -21,7 +21,7 @@ namespace DnsClientX {
         public async Task<DnsAnswer[]> ResolveAll(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100) {
             DnsResponse res = retryOnTransient
                 ? await RetryAsync(() => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0), maxRetries, retryDelayMs)
-                : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0);
+                : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0).ConfigureAwait(false);
 
             // If the response is null, return an empty array
             if (res.Answers is null) return Array.Empty<DnsAnswer>();
@@ -45,7 +45,7 @@ namespace DnsClientX {
         public async Task<DnsAnswer[]> ResolveAll(string name, string filter, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100) {
             DnsResponse res = retryOnTransient
                 ? await RetryAsync(() => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0), maxRetries, retryDelayMs)
-                : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0);
+                : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0).ConfigureAwait(false);
 
             // If the response is null, return an empty array
             if (res.Answers is null) return Array.Empty<DnsAnswer>();
@@ -71,7 +71,7 @@ namespace DnsClientX {
         public async Task<DnsAnswer[]> ResolveAll(string name, Regex regexPattern, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100) {
             DnsResponse res = retryOnTransient
                 ? await RetryAsync(() => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0), maxRetries, retryDelayMs)
-                : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0);
+                : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0).ConfigureAwait(false);
 
             // If the response is null, return an empty array
             if (res.Answers is null) return Array.Empty<DnsAnswer>();

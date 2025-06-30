@@ -28,7 +28,7 @@ namespace DnsClientX {
                 returnAllTypes: false,
                 retryOnTransient: retryOnTransient,
                 maxRetries: maxRetries,
-                retryDelayMs: retryDelayMs);
+                retryDelayMs: retryDelayMs).ConfigureAwait(false);
 
             return res.Answers?.FirstOrDefault(x => x.Type == type);
         }

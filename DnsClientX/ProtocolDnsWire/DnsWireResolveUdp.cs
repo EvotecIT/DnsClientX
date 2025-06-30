@@ -44,14 +44,14 @@ namespace DnsClientX {
 
             try {
                 // Send the DNS query over UDP and receive the response
-                var responseBuffer = await SendQueryOverUdp(queryBytes, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken);
+                var responseBuffer = await SendQueryOverUdp(queryBytes, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
                 // Deserialize the response from DNS wire format
-                var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer);
+                var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
                 if (response.IsTruncated) {
                     // If the response is truncated, retry the query over TCP
                     response = await DnsWireResolveTcp.ResolveWireFormatTcp(dnsServer, port, name, type, requestDnsSec,
-                        validateDnsSec, debug, endpointConfiguration, cancellationToken);
+                        validateDnsSec, debug, endpointConfiguration, cancellationToken).ConfigureAwait(false);
                 }
                 response.AddServerDetails(endpointConfiguration);
                 return response;
@@ -98,7 +98,7 @@ namespace DnsClientX {
                 var serverEndpoint = new IPEndPoint(IPAddress.Parse(dnsServer), port);
 
                 // Send the query
-                await udpClient.SendAsync(query, query.Length, serverEndpoint);
+                await udpClient.SendAsync(query, query.Length, serverEndpoint).ConfigureAwait(false);
 
                 // Set up the cancellation token for the timeout
                 using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)) {
@@ -106,7 +106,7 @@ namespace DnsClientX {
                     try {
                         // Receive the response with a timeout
                         var responseTask = udpClient.ReceiveAsync();
-                        var completedTask = await Task.WhenAny(responseTask, Task.Delay(timeoutMilliseconds, cts.Token));
+                        var completedTask = await Task.WhenAny(responseTask, Task.Delay(timeoutMilliseconds, cts.Token)).ConfigureAwait(false);
 
                         if (completedTask == responseTask) {
                             // If the response task completed, return the response buffer

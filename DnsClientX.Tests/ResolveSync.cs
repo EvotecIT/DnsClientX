@@ -60,7 +60,7 @@ namespace DnsClientX.Tests {
 
                 if (attempt < maxRetries)
                 {
-                    await Task.Delay(1000 * attempt); // Exponential backoff
+                    await Task.Delay(1000 * attempt).ConfigureAwait(false); // Exponential backoff
                 }
             }
 
@@ -88,7 +88,7 @@ namespace DnsClientX.Tests {
         public async Task ShouldWorkForTXTSync(DnsEndpoint endpoint)
         {
             using var client = new ClientX(endpoint);
-            var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
+            var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT).ConfigureAwait(false);
 
             Assert.True(response.Answers.Length > 0, "Expected at least one answer");
             foreach (DnsAnswer answer in response.Answers)
@@ -115,7 +115,7 @@ namespace DnsClientX.Tests {
         public async Task ShouldWorkForFirstSyncTXT(DnsEndpoint endpoint)
         {
             using var client = new ClientX(endpoint);
-            var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
+            var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT).ConfigureAwait(false);
 
             Assert.True(response.Answers.Length > 0, "Expected at least one answer");
             var answer = response.Answers[0];
@@ -140,7 +140,7 @@ namespace DnsClientX.Tests {
         public async Task ShouldWorkForAllSyncTXT(DnsEndpoint endpoint)
         {
             using var client = new ClientX(endpoint);
-            var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
+            var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT).ConfigureAwait(false);
 
             Assert.True(response.Answers.Length > 0, "Expected at least one answer");
             foreach (DnsAnswer answer in response.Answers)
@@ -167,7 +167,7 @@ namespace DnsClientX.Tests {
         public async Task ShouldWorkForASync(DnsEndpoint endpoint)
         {
             using var client = new ClientX(endpoint);
-            var response = await TryResolveWithDiagnostics(client, "evotec.pl", DnsRecordType.A);
+            var response = await TryResolveWithDiagnostics(client, "evotec.pl", DnsRecordType.A).ConfigureAwait(false);
 
             Assert.True(response.Answers.Length > 0, "Expected at least one answer");
             foreach (DnsAnswer answer in response.Answers)

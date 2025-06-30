@@ -147,7 +147,7 @@ namespace DnsClientX.Examples {
             };
 
             HelpersSpectre.AddLine("Resolve (Parallel)", $"{ipAddress} => {queries.Count} queries", DnsRecordType.A, endpoint);
-            var responses = await client.Resolve(queries.ToArray(), DnsRecordType.A);
+            var responses = await client.Resolve(queries.ToArray(), DnsRecordType.A).ConfigureAwait(false);
             stopwatch.Stop();
             HelpersSpectre.AddLine($"Time to resolve {stopwatch.ElapsedMilliseconds} ms", $"{ipAddress} => {queries.Count} queries", DnsRecordType.A, endpoint);
             responses.DisplayTable();

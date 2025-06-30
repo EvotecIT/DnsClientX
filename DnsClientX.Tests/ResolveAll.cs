@@ -18,7 +18,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
-            DnsAnswer[] aAnswers = await Client.ResolveAll("github.com", DnsRecordType.TXT);
+            DnsAnswer[] aAnswers = await Client.ResolveAll("github.com", DnsRecordType.TXT).ConfigureAwait(false);
             foreach (DnsAnswer answer in aAnswers) {
                 Assert.True(answer.Name == "github.com");
                 Assert.True((bool)(answer.Type == DnsRecordType.TXT));
@@ -44,7 +44,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
-            DnsAnswer[] aAnswers = await Client.ResolveAll("evotec.pl", DnsRecordType.A);
+            DnsAnswer[] aAnswers = await Client.ResolveAll("evotec.pl", DnsRecordType.A).ConfigureAwait(false);
             foreach (DnsAnswer answer in aAnswers) {
                 Assert.True(answer.Name == "evotec.pl");
                 Assert.True((bool)(answer.Type == DnsRecordType.A));

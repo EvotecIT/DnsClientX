@@ -8,14 +8,14 @@ namespace DnsClientX.Examples {
             // await DemoQuery.ExamplePTR2();
             // await DemoQuery.ExamplePTR3();
 
-            await DemoDnsAnswer.ExampleDnsAnswerParsing();
+            await DemoDnsAnswer.ExampleDnsAnswerParsing().ConfigureAwait(false);
 
             //await DemoQuery.ExampleTXTAll();
             return;
-            await DemoQuery.ExampleTXT();
-            await DemoQuery.ExampleSPF();
-            await DemoQuery.ExampleTXTQuad();
-            await DemoQuery.ExampleSPFQuad();
+            await DemoQuery.ExampleTXT().ConfigureAwait(false);
+            await DemoQuery.ExampleSPF().ConfigureAwait(false);
+            await DemoQuery.ExampleTXTQuad().ConfigureAwait(false);
+            await DemoQuery.ExampleSPFQuad().ConfigureAwait(false);
             return;
 
             // await ConvertToDnsClient.ExampleConvertToDnsClientFromX();
@@ -31,14 +31,14 @@ namespace DnsClientX.Examples {
             //await DemoQuery.Example0();
             //await DemoQuery.ExampleTLSA();
 
-            await DemoResolveUdpTcp.ExampleTestingUdpWrongServer();
-            await DemoResolveUdpTcp.ExampleTestingUdpWrongServer1();
+            await DemoResolveUdpTcp.ExampleTestingUdpWrongServer().ConfigureAwait(false);
+            await DemoResolveUdpTcp.ExampleTestingUdpWrongServer1().ConfigureAwait(false);
 
             return;
-            await DemoQuery.Example1();
-            await DemoQuery.ExampleGoogleOverWire();
-            await DemoQuery.ExampleGoogleOverWirePost();
-            await DemoQuery.ExampleCloudflareSelection();
+            await DemoQuery.Example1().ConfigureAwait(false);
+            await DemoQuery.ExampleGoogleOverWire().ConfigureAwait(false);
+            await DemoQuery.ExampleGoogleOverWirePost().ConfigureAwait(false);
+            await DemoQuery.ExampleCloudflareSelection().ConfigureAwait(false);
             //await DemoQuery.ExampleSystemDns();
 
 

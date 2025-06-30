@@ -55,7 +55,7 @@ namespace DnsClientX.Examples {
 
                 foreach (var domain in domains) {
                     HelpersSpectre.AddLine("Resolve (Parallel)", domain, string.Join(",", recordTypes), endpoint);
-                    var responses = await client.Resolve(domain, recordTypes.ToArray());
+                    var responses = await client.Resolve(domain, recordTypes.ToArray()).ConfigureAwait(false);
                     responses?.DisplayTable();
                 }
             }

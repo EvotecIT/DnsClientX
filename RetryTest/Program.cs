@@ -28,12 +28,12 @@ namespace RetryTest {
                         var client = new ClientX(endpoint);
 
                         // Test ResolveAll which is what the failing test uses
-                        var answers = await client.ResolveAll(domain, recordType);
+                        var answers = await client.ResolveAll(domain, recordType).ConfigureAwait(false);
 
                         Console.WriteLine($"{name}: {answers.Length} records");
                         if (answers.Length == 0) {
                             // Get the full response to see status code
-                            var fullResponse = await client.Resolve(domain, recordType);
+                            var fullResponse = await client.Resolve(domain, recordType).ConfigureAwait(false);
                             Console.WriteLine($"  Status: {fullResponse.Status}");
                             Console.WriteLine($"  Error: {fullResponse.Error ?? "None"}");
                         } else {

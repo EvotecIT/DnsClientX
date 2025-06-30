@@ -52,7 +52,7 @@ namespace DnsClientX.Examples {
                 foreach (var domain in domains) {
                     foreach (var recordType in recordTypes) {
                         HelpersSpectre.AddLine("Resolve", domain, recordType, endpoint);
-                        DnsResponse? response = await client.ResolveFilter(domain, recordType, filter);
+                        DnsResponse? response = await client.ResolveFilter(domain, recordType, filter).ConfigureAwait(false);
                         response?.DisplayTable();
                     }
                 }
@@ -104,7 +104,7 @@ namespace DnsClientX.Examples {
 
 
                 HelpersSpectre.AddLine("Resolve", "Multiple Domains", recordType, endpoint);
-                var response = await client.ResolveFilter(domains, recordType, filter);
+                var response = await client.ResolveFilter(domains, recordType, filter).ConfigureAwait(false);
                 response?.DisplayTable();
             }
         }

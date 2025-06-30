@@ -32,7 +32,7 @@ namespace DnsClientX.Tests {
                         Debug = false
                     };
 
-                    var response = await client.Resolve(domain, DnsRecordType.A);
+                    var response = await client.Resolve(domain, DnsRecordType.A).ConfigureAwait(false);
 
                     if (response.Status == DnsResponseCode.NoError && response.Answers?.Length > 0) {
                         success = true;
@@ -48,7 +48,7 @@ namespace DnsClientX.Tests {
                     // Exponential backoff: 500ms, 1s, 2s, 4s
                     var delay = (int)(500 * Math.Pow(2, attempt - 1));
                     output.WriteLine($"  ⏱️ Waiting {delay}ms before retry...");
-                    await Task.Delay(delay);
+                    await Task.Delay(delay).ConfigureAwait(false);
                 }
             }
 
@@ -76,7 +76,7 @@ namespace DnsClientX.Tests {
                 using var client = new ClientX(provider) { Debug = false };
 
                 try {
-                    var response = await client.Resolve(domain, DnsRecordType.A);
+                    var response = await client.Resolve(domain, DnsRecordType.A).ConfigureAwait(false);
                     var success = response.Status == DnsResponseCode.NoError && response.Answers?.Length > 0;
 
                     output.WriteLine($"{provider}: {(success ? "✅ Reliable" : "❌ Failed")} " +

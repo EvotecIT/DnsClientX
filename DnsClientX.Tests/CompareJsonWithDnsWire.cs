@@ -9,10 +9,10 @@ namespace DnsClientX.Tests {
         [InlineData("www.microsoft.com", DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS, DnsRecordType.CNAME)]
         public async Task CompareAnswersRecord(string name, DnsEndpoint endpoint, DnsEndpoint endpointCompare, DnsRecordType resourceRecordType) {
             using var Client = new ClientX(endpoint);
-            DnsAnswer[] aAnswers = await Client.ResolveAll(name, resourceRecordType);
+            DnsAnswer[] aAnswers = await Client.ResolveAll(name, resourceRecordType).ConfigureAwait(false);
 
             using var ClientWire = new ClientX(endpointCompare);
-            DnsAnswer[] aAnswersWire = await ClientWire.ResolveAll(name, resourceRecordType);
+            DnsAnswer[] aAnswersWire = await ClientWire.ResolveAll(name, resourceRecordType).ConfigureAwait(false);
 
             // Sort the arrays by Name, Type, and Data
             var sortedAAnswers = aAnswers.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();

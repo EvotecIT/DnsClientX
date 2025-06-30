@@ -22,7 +22,7 @@ namespace DnsClientX {
         public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
             ClientX client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy);
             client.EndpointConfiguration.TimeOut = timeOutMilliseconds;
-            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
+            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs).ConfigureAwait(false);
             return data;
         }
 
@@ -65,7 +65,7 @@ namespace DnsClientX {
                     TimeOut = timeOutMilliseconds
                 }
             };
-            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
+            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs).ConfigureAwait(false);
             return data;
         }
 
@@ -111,7 +111,7 @@ namespace DnsClientX {
                     TimeOut = timeOutMilliseconds
                 }
             };
-            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
+            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs).ConfigureAwait(false);
             return data;
         }
 
@@ -156,7 +156,7 @@ namespace DnsClientX {
                     TimeOut = timeOutMilliseconds
                 }
             };
-            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
+            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs).ConfigureAwait(false);
             return data;
         }
 
@@ -201,7 +201,7 @@ namespace DnsClientX {
                     TimeOut = timeOutMilliseconds
                 }
             };
-            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
+            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs).ConfigureAwait(false);
             return data;
         }
 
@@ -246,7 +246,7 @@ namespace DnsClientX {
                     TimeOut = timeOutMilliseconds
                 }
             };
-            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
+            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs).ConfigureAwait(false);
             return data;
         }
 
@@ -268,7 +268,7 @@ namespace DnsClientX {
                     TimeOut = timeOutMilliseconds
                 }
             };
-            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
+            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs).ConfigureAwait(false);
             return data;
         }
 
@@ -311,7 +311,7 @@ namespace DnsClientX {
                     TimeOut = timeOutMilliseconds
                 }
             };
-            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
+            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs).ConfigureAwait(false);
             return data;
         }
 

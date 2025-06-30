@@ -24,7 +24,7 @@ namespace DnsClientX.Tests {
 
             // Get primary endpoint result
             using var primaryClient = new ClientX(primaryEndpoint);
-            var primaryResult = await GetResponseWithRetry(primaryClient, name, resourceRecordType, filter, primaryEndpoint, output);
+            var primaryResult = await GetResponseWithRetry(primaryClient, name, resourceRecordType, filter, primaryEndpoint, output).ConfigureAwait(false);
             results[primaryEndpoint] = primaryResult;
 
             output.WriteLine($"Primary ({primaryEndpoint}): {primaryResult.response.Answers?.Length ?? 0} records, Status: {primaryResult.response.Status}");
@@ -35,7 +35,7 @@ namespace DnsClientX.Tests {
             // Get all other endpoint results
             foreach (var endpoint in allEndpoints) {
                 using var client = new ClientX(endpoint);
-                var result = await GetResponseWithRetry(client, name, resourceRecordType, filter, endpoint, output);
+                var result = await GetResponseWithRetry(client, name, resourceRecordType, filter, endpoint, output).ConfigureAwait(false);
                 results[endpoint] = result;
 
                 output.WriteLine($"Provider {endpoint}: {result.response.Answers?.Length ?? 0} records, Status: {result.response.Status}");
@@ -106,11 +106,11 @@ namespace DnsClientX.Tests {
 
             for (int attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
-                    var response = await client.ResolveFilter(name, type, filter);
+                    var response = await client.ResolveFilter(name, type, filter).ConfigureAwait(false);
 
                     if ((response.Answers?.Length ?? 0) == 0 && response.Status == DnsResponseCode.NoError && attempt < maxRetries) {
                         output.WriteLine($"  {endpoint}: Attempt {attempt} returned 0 records with NoError status, retrying...");
-                        await Task.Delay(delayMs);
+                        await Task.Delay(delayMs).ConfigureAwait(false);
                         continue;
                     }
 
@@ -126,7 +126,7 @@ namespace DnsClientX.Tests {
                         return (emptyResponse, $"Exception after {maxRetries} attempts: {ex.Message}");
                     }
                     output.WriteLine($"  {endpoint}: Attempt {attempt} failed: {ex.Message}, retrying...");
-                    await Task.Delay(delayMs);
+                    await Task.Delay(delayMs).ConfigureAwait(false);
                 }
             }
 
@@ -152,7 +152,7 @@ namespace DnsClientX.Tests {
             var primaryEndpoint = DnsEndpoint.Cloudflare;
 
             using var Client = new ClientX(primaryEndpoint);
-            DnsResponse aAnswersPrimary = await Client.ResolveFilter(name, resourceRecordType, filter);
+            DnsResponse aAnswersPrimary = await Client.ResolveFilter(name, resourceRecordType, filter).ConfigureAwait(false);
 
             foreach (var endpointCompare in Enum.GetValues(typeof(DnsEndpoint)).Cast<DnsEndpoint>()) {
                 if (endpointCompare == primaryEndpoint) {
@@ -166,7 +166,7 @@ namespace DnsClientX.Tests {
                 output.WriteLine("Provider: " + endpointCompare.ToString());
 
                 using var ClientToCompare = new ClientX(endpointCompare);
-                DnsResponse aAnswersToCompare = await ClientToCompare.ResolveFilter(name, resourceRecordType, filter);
+                DnsResponse aAnswersToCompare = await ClientToCompare.ResolveFilter(name, resourceRecordType, filter).ConfigureAwait(false);
 
                 var sortedAAnswers = aAnswersPrimary.Answers.OrderBy(a => a.Name).ThenBy(a => a.Type)
                     .ThenBy(a => a.Data).ToArray();
@@ -245,7 +245,7 @@ namespace DnsClientX.Tests {
             var primaryEndpoint = DnsEndpoint.Cloudflare;
             using var Client = new ClientX(primaryEndpoint);
 
-            DnsResponse[] aAnswersPrimary = await Client.ResolveFilter(names, resourceRecordType, filter);
+            DnsResponse[] aAnswersPrimary = await Client.ResolveFilter(names, resourceRecordType, filter).ConfigureAwait(false);
 
             foreach (var endpointCompare in Enum.GetValues(typeof(DnsEndpoint)).Cast<DnsEndpoint>()) {
                 if (endpointCompare == primaryEndpoint) {
@@ -257,7 +257,7 @@ namespace DnsClientX.Tests {
                 }
 
                 using var ClientToCompare = new ClientX(endpointCompare);
-                DnsResponse[] aAnswersToCompare = await ClientToCompare.ResolveFilter(names, resourceRecordType, filter);
+                DnsResponse[] aAnswersToCompare = await ClientToCompare.ResolveFilter(names, resourceRecordType, filter).ConfigureAwait(false);
 
                 for (int j = 0; j < aAnswersPrimary.Length; j++) {
                     var sortedAAnswers = aAnswersPrimary[j].Answers.OrderBy(a => a.Name).ThenBy(a => a.Type)

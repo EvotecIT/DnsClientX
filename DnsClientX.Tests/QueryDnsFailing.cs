@@ -4,7 +4,7 @@ namespace DnsClientX.Tests {
         [InlineData("8.8.1.1", DnsRequestFormat.DnsOverUDP)]
         [InlineData("a1akam1.net", DnsRequestFormat.DnsOverUDP)]
         public async Task ShouldFailWithTimeout(string hostName, DnsRequestFormat requestFormat) {
-            var response = await ClientX.QueryDns("github.com", DnsRecordType.A, hostName, requestFormat, timeOutMilliseconds: 500);
+            var response = await ClientX.QueryDns("github.com", DnsRecordType.A, hostName, requestFormat, timeOutMilliseconds: 500).ConfigureAwait(false);
             Assert.True(response.Status != DnsResponseCode.NoError);
         }
 
@@ -16,7 +16,7 @@ namespace DnsClientX.Tests {
             ClientX client = new ClientX(hostName, requestFormat) {
                 Debug = true
             };
-            var response = await client.Resolve("github.com", DnsRecordType.A);
+            var response = await client.Resolve("github.com", DnsRecordType.A).ConfigureAwait(false);
             Assert.True(response.Status != DnsResponseCode.NoError);
         }
     }

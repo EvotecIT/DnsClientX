@@ -20,7 +20,7 @@ namespace DnsClientX.Tests {
                 return (Task<int>)generic.Invoke(null, new object[] { action, 3, 1 })!;
             }
 
-            await Assert.ThrowsAsync<TimeoutException>(Invoke);
+            await Assert.ThrowsAsync<TimeoutException>(Invoke).ConfigureAwait(false);
             Assert.Equal(3, attempts);
         }
 
@@ -39,7 +39,7 @@ namespace DnsClientX.Tests {
             }
 
             var sw = Stopwatch.StartNew();
-            await Assert.ThrowsAsync<TimeoutException>(Invoke);
+            await Assert.ThrowsAsync<TimeoutException>(Invoke).ConfigureAwait(false);
             sw.Stop();
 
             Assert.Equal(3, attempts);

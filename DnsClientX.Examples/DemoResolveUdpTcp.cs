@@ -7,7 +7,7 @@ namespace DnsClientX.Examples {
             using var client = new ClientX("192.168.241.6", DnsRequestFormat.DnsOverUDP) {
                 Debug = true
             };
-            var data = await client.Resolve("github.com", DnsRecordType.TXT);
+            var data = await client.Resolve("github.com", DnsRecordType.TXT).ConfigureAwait(false);
             data.DisplayTable();
         }
 
@@ -16,7 +16,7 @@ namespace DnsClientX.Examples {
             using var client = new ClientX("192.168.241.5", DnsRequestFormat.DnsOverTCP) {
                 Debug = true
             };
-            var data = await client.Resolve("github.com", DnsRecordType.TXT);
+            var data = await client.Resolve("github.com", DnsRecordType.TXT).ConfigureAwait(false);
             data.DisplayTable();
         }
 
@@ -25,7 +25,7 @@ namespace DnsClientX.Examples {
             using var client = new ClientX("8.8.1.1", DnsRequestFormat.DnsOverUDP) {
                 Debug = true
             };
-            var data = await client.Resolve("github.com", DnsRecordType.TXT);
+            var data = await client.Resolve("github.com", DnsRecordType.TXT).ConfigureAwait(false);
             data.DisplayTable();
         }
 
@@ -34,7 +34,7 @@ namespace DnsClientX.Examples {
             using var client = new ClientX("a1akam1.net", DnsRequestFormat.DnsOverUDP) {
                 Debug = true
             };
-            var data = await client.Resolve("github.com", DnsRecordType.TXT);
+            var data = await client.Resolve("github.com", DnsRecordType.TXT).ConfigureAwait(false);
             data.DisplayTable();
         }
     }

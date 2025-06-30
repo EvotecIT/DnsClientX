@@ -30,26 +30,26 @@ namespace DnsClientX.Tests {
 
         private static async Task RunUdpServerAsync(int port, byte[] response, CancellationToken token) {
             using var udp = new UdpClient(port);
-            UdpReceiveResult result = await udp.ReceiveAsync();
-            await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
+            UdpReceiveResult result = await udp.ReceiveAsync().ConfigureAwait(false);
+            await udp.SendAsync(response, response.Length, result.RemoteEndPoint).ConfigureAwait(false);
         }
 
         private static async Task RunTcpServerAsync(int port, byte[] response, Action onReceived, CancellationToken token) {
             TcpListener listener = new TcpListener(IPAddress.Loopback, port);
             listener.Start();
-            using TcpClient client = await listener.AcceptTcpClientAsync();
+            using TcpClient client = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
             NetworkStream stream = client.GetStream();
             byte[] lengthBuffer = new byte[2];
-            await stream.ReadAsync(lengthBuffer, 0, 2, token);
+            await stream.ReadAsync(lengthBuffer, 0, 2, token).ConfigureAwait(false);
             if (BitConverter.IsLittleEndian) Array.Reverse(lengthBuffer);
             int length = BitConverter.ToUInt16(lengthBuffer, 0);
             byte[] queryBuffer = new byte[length];
-            await stream.ReadAsync(queryBuffer, 0, length, token);
+            await stream.ReadAsync(queryBuffer, 0, length, token).ConfigureAwait(false);
             onReceived();
             byte[] prefix = BitConverter.GetBytes((ushort)response.Length);
             if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
-            await stream.WriteAsync(prefix, 0, prefix.Length, token);
-            await stream.WriteAsync(response, 0, response.Length, token);
+            await stream.WriteAsync(prefix, 0, prefix.Length, token).ConfigureAwait(false);
+            await stream.WriteAsync(response, 0, response.Length, token).ConfigureAwait(false);
             listener.Stop();
         }
 
@@ -67,9 +67,9 @@ namespace DnsClientX.Tests {
             Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
             MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
             var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, cts.Token })!;
-            DnsResponse response = await task;
+            DnsResponse response = await task.ConfigureAwait(false);
 
-            await Task.WhenAll(udpTask, tcpTask);
+            await Task.WhenAll(udpTask, tcpTask).ConfigureAwait(false);
             Assert.True(tcpCalled, "Expected TCP fallback to be used");
             Assert.False(response.IsTruncated);
         }

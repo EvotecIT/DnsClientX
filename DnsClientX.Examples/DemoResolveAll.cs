@@ -55,7 +55,7 @@ namespace DnsClientX.Examples {
                 foreach (var domain in domains) {
                     foreach (var recordType in recordTypes) {
                         HelpersSpectre.AddLine("ResolveAll", domain, recordType, endpoint);
-                        var response = await client.ResolveAll(domain, recordType);
+                        var response = await client.ResolveAll(domain, recordType).ConfigureAwait(false);
                         response.DisplayToConsole();
                     }
                 }
@@ -101,7 +101,7 @@ namespace DnsClientX.Examples {
                 foreach (var domain in domains) {
                     foreach (var recordType in recordTypes) {
                         HelpersSpectre.AddLine("ResolveAll", domain, recordType, endpoint);
-                        var response = await client.ResolveAll(domain, recordType);
+                        var response = await client.ResolveAll(domain, recordType).ConfigureAwait(false);
                         response.DisplayToConsole();
                     }
                 }

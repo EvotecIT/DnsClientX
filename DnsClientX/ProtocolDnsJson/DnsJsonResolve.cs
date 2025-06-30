@@ -28,9 +28,9 @@ namespace DnsClientX {
 
             using HttpRequestMessage req = new(HttpMethod.Get, url);
             try {
-                using HttpResponseMessage res = await client.SendAsync(req, cancellationToken);
+                using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
 
-                DnsResponse response = await res.Deserialize<DnsResponse>(debug);
+                DnsResponse response = await res.Deserialize<DnsResponse>(debug).ConfigureAwait(false);
                 response.AddServerDetails(configuration);
                 return response;
             } catch (Exception ex) {

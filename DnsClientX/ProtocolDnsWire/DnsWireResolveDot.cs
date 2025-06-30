@@ -64,7 +64,7 @@ namespace DnsClientX {
 
             // Create a new TCP client and connect to the DNS server
             var client = new TcpClient();
-            await ConnectAsync(client, dnsServer, port, cancellationToken);
+            await ConnectAsync(client, dnsServer, port, cancellationToken).ConfigureAwait(false);
 
             // Create a new SSL stream for the secure connection
             //var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) => true);
@@ -76,15 +76,15 @@ namespace DnsClientX {
 
 
             // Authenticate the client using the DNS server's name and the TLS protocol
-            await sslStream.AuthenticateAsClientAsync(dnsServer, null, SslProtocols.Tls12, false);
+            await sslStream.AuthenticateAsClientAsync(dnsServer, null, SslProtocols.Tls12, false).ConfigureAwait(false);
 
             // Write the combined query bytes to the SSL stream and flush it
-            await sslStream.WriteAsync(combinedQueryBytes, 0, combinedQueryBytes.Length, cancellationToken);
-            await sslStream.FlushAsync(cancellationToken);
+            await sslStream.WriteAsync(combinedQueryBytes, 0, combinedQueryBytes.Length, cancellationToken).ConfigureAwait(false);
+            await sslStream.FlushAsync(cancellationToken).ConfigureAwait(false);
 
             // Prepare to read the response with handling for length prefix
             var lengthPrefixBuffer = new byte[2];
-            int prefixBytesRead = await sslStream.ReadAsync(lengthPrefixBuffer, 0, 2, cancellationToken);
+            int prefixBytesRead = await sslStream.ReadAsync(lengthPrefixBuffer, 0, 2, cancellationToken).ConfigureAwait(false);
             if (prefixBytesRead != 2) {
                 throw new Exception("Failed to read the length prefix of the response.");
             }
@@ -93,7 +93,7 @@ namespace DnsClientX {
             var responseBuffer = new byte[responseLength];
             int totalBytesRead = 0;
             while (totalBytesRead < responseLength) {
-                int bytesRead = await sslStream.ReadAsync(responseBuffer, totalBytesRead, responseLength - totalBytesRead, cancellationToken);
+                int bytesRead = await sslStream.ReadAsync(responseBuffer, totalBytesRead, responseLength - totalBytesRead, cancellationToken).ConfigureAwait(false);
                 if (bytesRead == 0) {
                     throw new Exception("The stream was closed before the entire response could be read.");
                 }
@@ -101,7 +101,7 @@ namespace DnsClientX {
             }
 
             // Deserialize the response from DNS wire format
-            var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer);
+            var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
             response.AddServerDetails(endpointConfiguration);
             // Close the SSL stream and the TCP client
             sslStream.Close();
@@ -121,13 +121,13 @@ namespace DnsClientX {
             var connectTask = client.ConnectAsync(host, port);
             var delayTask = Task.Delay(Timeout.Infinite, cancellationToken);
 
-            var completed = await Task.WhenAny(connectTask, delayTask);
+            var completed = await Task.WhenAny(connectTask, delayTask).ConfigureAwait(false);
             if (completed != connectTask) {
                 client.Close();
                 throw new OperationCanceledException(cancellationToken);
             }
 
-            await connectTask;
+            await connectTask.ConfigureAwait(false);
         }
     }
 }

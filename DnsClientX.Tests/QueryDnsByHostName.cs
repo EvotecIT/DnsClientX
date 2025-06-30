@@ -7,7 +7,7 @@ namespace DnsClientX.Tests {
         // [InlineData("8.8.8.8", DnsRequestFormat.JSON)]
         [InlineData("208.67.222.222", DnsRequestFormat.DnsOverHttps)]
         public async Task ShouldWorkForTXT(string hostName, DnsRequestFormat requestFormat) {
-            var response = await ClientX.QueryDns("github.com", DnsRecordType.TXT, hostName, requestFormat);
+            var response = await ClientX.QueryDns("github.com", DnsRecordType.TXT, hostName, requestFormat).ConfigureAwait(false);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "github.com");
                 Assert.True(answer.Type == DnsRecordType.TXT);
@@ -24,7 +24,7 @@ namespace DnsClientX.Tests {
         // [InlineData("8.8.8.8", DnsRequestFormat.JSON)]
         [InlineData("208.67.222.222", DnsRequestFormat.DnsOverHttps)]
         public async Task ShouldWorkForA(string hostName, DnsRequestFormat requestFormat) {
-            var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, hostName, requestFormat);
+            var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, hostName, requestFormat).ConfigureAwait(false);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "evotec.pl");
                 Assert.True(answer.Type == DnsRecordType.A);
@@ -42,7 +42,7 @@ namespace DnsClientX.Tests {
         [InlineData("208.67.222.222", DnsRequestFormat.DnsOverHttps)]
         public async Task ShouldWorkForMultipleDomains(string hostName, DnsRequestFormat requestFormat) {
             var domains = new[] { "evotec.pl", "google.com" };
-            var responses = await ClientX.QueryDns(domains, DnsRecordType.A, hostName, requestFormat);
+            var responses = await ClientX.QueryDns(domains, DnsRecordType.A, hostName, requestFormat).ConfigureAwait(false);
             foreach (var domain in domains) {
                 var response = responses.First(r => r.Questions?.Any(q => q.Name == domain) == true);
                 foreach (DnsAnswer answer in response.Answers) {

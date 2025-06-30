@@ -21,13 +21,13 @@ namespace DnsClientX {
         /// <param name="response">The HTTP response message with JSON as a body.</param>
         /// <param name="debug">Whether to print the JSON data to the console.</param>
         internal static async Task<T> Deserialize<T>(this HttpResponseMessage response, bool debug = false) {
-            using Stream stream = await response.Content.ReadAsStreamAsync();
+            using Stream stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
             if (stream.Length == 0) throw new DnsClientException("Response content is empty, can't parse as JSON.");
             try {
                 if (debug) {
                     // Read the stream as a string
                     StreamReader reader = new StreamReader(stream);
-                    string json = await reader.ReadToEndAsync();
+                    string json = await reader.ReadToEndAsync().ConfigureAwait(false);
                     // Print the JSON data to the console
                     Console.WriteLine(json);
                     // Deserialize the JSON data

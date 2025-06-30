@@ -14,7 +14,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
-            var response = await ClientX.QueryDns("github.com", DnsRecordType.TXT, endpoint);
+            var response = await ClientX.QueryDns("github.com", DnsRecordType.TXT, endpoint).ConfigureAwait(false);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "github.com");
                 Assert.True(answer.Type == DnsRecordType.TXT);
@@ -36,7 +36,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
-            var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, endpoint);
+            var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, endpoint).ConfigureAwait(false);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "evotec.pl");
                 Assert.True(answer.Type == DnsRecordType.A);
@@ -58,7 +58,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForPTR(DnsEndpoint endpoint) {
-            var response = await ClientX.QueryDns("1.1.1.1", DnsRecordType.PTR, endpoint);
+            var response = await ClientX.QueryDns("1.1.1.1", DnsRecordType.PTR, endpoint).ConfigureAwait(false);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Data == "one.one.one.one");
                 Assert.True(answer.Name == "1.1.1.1.in-addr.arpa");

@@ -48,7 +48,7 @@ namespace DnsClientX.Tests {
             var clientField = typeof(ClientX).GetField("Client", BindingFlags.NonPublic | BindingFlags.Instance)!;
             clientField.SetValue(clientX, customClient);
 
-            var response = await clientX.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
+            var response = await clientX.Resolve("example.com", DnsRecordType.A, retryOnTransient: false).ConfigureAwait(false);
             Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
             Assert.Contains("network error", response.Error);
         }

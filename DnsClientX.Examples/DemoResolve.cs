@@ -55,7 +55,7 @@ namespace DnsClientX.Examples {
                 foreach (var domain in domains) {
                     foreach (var recordType in recordTypes) {
                         HelpersSpectre.AddLine("Resolve", domain, recordType, endpoint);
-                        DnsResponse? response = await client.Resolve(domain, recordType);
+                        DnsResponse? response = await client.Resolve(domain, recordType).ConfigureAwait(false);
                         response?.DisplayTable();
                     }
                 }

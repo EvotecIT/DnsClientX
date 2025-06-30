@@ -17,7 +17,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
-            var response = await ClientX.QueryDns("www.bücher.de", DnsRecordType.A, endpoint);
+            var response = await ClientX.QueryDns("www.bücher.de", DnsRecordType.A, endpoint).ConfigureAwait(false);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "www.xn--bcher-kva.de");
                 Assert.True(answer.Type == DnsRecordType.A);
