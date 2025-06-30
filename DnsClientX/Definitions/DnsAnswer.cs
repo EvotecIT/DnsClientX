@@ -13,6 +13,18 @@ namespace DnsClientX {
     /// </summary>
     public struct DnsAnswer {
         private string _name;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DnsAnswer"/> struct.
+        /// </summary>
+        public DnsAnswer() {
+            _name = string.Empty;
+            OriginalName = string.Empty;
+            Type = DnsRecordType.A;
+            TTL = 0;
+            DataRaw = string.Empty;
+            _filteredData = null;
+        }
         /// <summary>
         /// This is the name of the record.
         /// Retains original name as returned by the server.
@@ -36,7 +48,11 @@ namespace DnsClientX {
             get => _name;
             set {
                 OriginalName = value;
-                _name = value.EndsWith(".") ? value.TrimEnd('.') : value;
+                if (string.IsNullOrEmpty(value)) {
+                    _name = value;
+                } else {
+                    _name = value.EndsWith(".") ? value.TrimEnd('.') : value;
+                }
             }
         }
 
