@@ -1,7 +1,8 @@
 namespace DnsClientX {
     /// <summary>
-    /// Enumerates the possible status codes (DNS RCODEs) for a DNS query.
-    /// For more information, see the <a href="https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml">IANA DNS Parameters</a> and the relevant RFCs: <a href="https://www.iana.org/go/rfc6895">RFC 6895</a> and <a href="https://www.iana.org/go/rfc1035">RFC 1035</a>.
+    /// Enumerates the DNS RCODE values returned in a response.
+    /// See <a href="https://www.rfc-editor.org/rfc/rfc1035#section-4.1.1">RFC 1035 section 4.1.1</a>
+    /// and <a href="https://www.rfc-editor.org/rfc/rfc6895">RFC 6895</a> for details.
     /// </summary>
     public enum DnsResponseCode : byte {
         /// <summary>

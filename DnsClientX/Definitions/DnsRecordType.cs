@@ -1,7 +1,8 @@
 namespace DnsClientX;
 /// <summary>
-/// Type of DNS record as defined in RFC 1035.
-/// c.f. https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-4
+/// Enumerates DNS record types as defined in
+/// <a href="https://www.rfc-editor.org/rfc/rfc1035#section-3.2.2">RFC 1035 section 3.2.2</a>.
+/// See also the <a href="https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-4">IANA DNS Parameters</a> registry.
 /// </summary>
 public enum DnsRecordType : ushort {
     /// <summary>

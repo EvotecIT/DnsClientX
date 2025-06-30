@@ -7,7 +7,9 @@ using System.Text.RegularExpressions;
 
 namespace DnsClientX {
     /// <summary>
-    /// DNS answer sent by the server.
+    /// Represents a DNS resource record returned by the server.
+    /// See <a href="https://www.rfc-editor.org/rfc/rfc1035">RFC 1035</a>
+    /// for the resource record format.
     /// </summary>
     public struct DnsAnswer {
         private string _name;

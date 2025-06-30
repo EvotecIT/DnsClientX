@@ -2,8 +2,9 @@ using System;
 using System.Text.Json.Serialization;
 
 namespace DnsClientX {
-    /// <summary>   
-    /// DNS question sent by the client.
+    /// <summary>
+    /// Represents a DNS question as defined in
+    /// <a href="https://www.rfc-editor.org/rfc/rfc1035#section-4.1.2">RFC 1035 section 4.1.2</a>.
     /// </summary>
     public struct DnsQuestion {
         private string _name;

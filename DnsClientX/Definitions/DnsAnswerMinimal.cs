@@ -2,8 +2,10 @@ using System.Linq;
 
 namespace DnsClientX {
     /// <summary>
-    /// DnsAnswerMinimal is a minimal representation of a DNS answer.
-    /// Since DnsAnswer is much larger, this struct is used to reduce the size of the data sent to the client.
+    /// Provides a lightweight representation of a DNS resource record.
+    /// Useful for reducing the payload size returned to callers.
+    /// See <a href="https://www.rfc-editor.org/rfc/rfc1035">RFC 1035</a>
+    /// for the resource record definition.
     /// </summary>
     public struct DnsAnswerMinimal {
         /// <summary>
