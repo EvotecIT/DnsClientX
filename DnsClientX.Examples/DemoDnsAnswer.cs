@@ -14,6 +14,6 @@ internal class DemoDnsAnswer {
             DataRaw = dkimRecord,
             Type = DnsRecordType.TXT
         };
-        Console.WriteLine(answer.Data);
+        Settings.Logger.WriteInformation(answer.Data);
     }
 }

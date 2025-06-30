@@ -28,8 +28,8 @@ namespace DnsClientX {
                     // Read the stream as a string
                     StreamReader reader = new StreamReader(stream);
                     string json = await reader.ReadToEndAsync();
-                    // Print the JSON data to the console
-                    Console.WriteLine(json);
+                    // Write the JSON data using logger
+                    Settings.Logger.WriteDebug(json);
                     // Deserialize the JSON data
                     return JsonSerializer.Deserialize<T>(json);
                 }

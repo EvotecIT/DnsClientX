@@ -10,9 +10,9 @@ namespace DnsClientX.Examples {
         /// </summary>
         /// <param name="responses">The array of DNS responses to display.</param>
         public static void DisplayToConsole(this DnsResponse[] responses) {
-            Console.WriteLine($"Result:");
+            Settings.Logger.WriteInformation($"Result:");
             if (responses.Length == 0) {
-                Console.WriteLine("\tResponses: No responses");
+                Settings.Logger.WriteInformation("\tResponses: No responses");
                 return;
             }
             foreach (DnsResponse response in responses) {
@@ -25,22 +25,22 @@ namespace DnsClientX.Examples {
         /// </summary>
         /// <param name="response">The DNS response to display.</param>
         public static void DisplayToConsole(this DnsResponse? response) {
-            Console.WriteLine($"Result:");
+            Settings.Logger.WriteInformation($"Result:");
             if (response is null) {
-                Console.WriteLine("\tResponse: Null");
+                Settings.Logger.WriteInformation("\tResponse: Null");
                 return;
             }
-            Console.WriteLine($"\tResponse: {response.Value.Status}");
+            Settings.Logger.WriteInformation($"\tResponse: {response.Value.Status}");
             if (response.Value.Answers is null) {
-                Console.WriteLine("\tAnswers: No answers");
+                Settings.Logger.WriteInformation("\tAnswers: No answers");
                 return;
             }
             if (response.Value.Questions != null) {
                 foreach (DnsQuestion question in response.Value.Questions) {
-                    Console.WriteLine($"\tQuestion: {question.Name} => {question.Type}");
+                    Settings.Logger.WriteInformation($"\tQuestion: {question.Name} => {question.Type}");
                 }
             }
-            Console.WriteLine($"\tAnswers: ");
+            Settings.Logger.WriteInformation($"\tAnswers: ");
             foreach (DnsAnswer answer in response.Value.Answers) {
                 DisplayToConsole(answer);
             }
@@ -51,9 +51,9 @@ namespace DnsClientX.Examples {
         /// </summary>
         /// <param name="answers">The array of DNS answers to display.</param>
         public static void DisplayToConsole(this DnsAnswer[] answers) {
-            Console.WriteLine($"Result:");
+            Settings.Logger.WriteInformation($"Result:");
             if (answers.Length == 0) {
-                Console.WriteLine("\tAnswers: No answers");
+                Settings.Logger.WriteInformation("\tAnswers: No answers");
                 return;
             }
             foreach (DnsAnswer answer in answers) {
@@ -68,18 +68,18 @@ namespace DnsClientX.Examples {
         /// <param name="announce">If set to true, an additional "Result:" line is printed before the answer.</param>
         public static void DisplayToConsole(this DnsAnswer? answer, bool announce = false) {
             if (announce) {
-                Console.WriteLine($"Result:");
+                Settings.Logger.WriteInformation($"Result:");
             }
 
             if (answer == null) {
-                Console.WriteLine("\tAnswer: Null");
+                Settings.Logger.WriteInformation("\tAnswer: Null");
                 return;
             }
-            Console.WriteLine($"\tType: {answer.Value.Type}; TTL: '{answer.Value.TTL}'; Name: '{answer.Value.Name}' => '{answer.Value.Data}'");
+            Settings.Logger.WriteInformation($"\tType: {answer.Value.Type}; TTL: '{answer.Value.TTL}'; Name: '{answer.Value.Name}' => '{answer.Value.Data}'");
             if (answer.Value.DataStrings.Length > 1) {
-                Console.WriteLine($"\t\tDataStrings: ");
+                Settings.Logger.WriteInformation($"\t\tDataStrings: ");
                 foreach (string dataString in answer.Value.DataStrings) {
-                    Console.WriteLine($"\t\t{dataString}");
+                    Settings.Logger.WriteInformation($"\t\t{dataString}");
                 }
             }
         }

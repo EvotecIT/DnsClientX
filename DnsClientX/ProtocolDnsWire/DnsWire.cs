@@ -46,11 +46,11 @@ namespace DnsClientX {
 
                 if (debug) {
                     if (res != null) {
-                        // Print the DNS wire format bytes to the console
-                        Console.WriteLine("Response Uri: " + res.RequestMessage.RequestUri);
+                        // Print the DNS wire format bytes to the logger
+                        Settings.Logger.WriteDebug("Response Uri: " + res.RequestMessage.RequestUri);
                     }
 
-                    Console.WriteLine("Response DnsWireFormatBytes: " + BitConverter.ToString(dnsWireFormatBytes));
+                    Settings.Logger.WriteDebug("Response DnsWireFormatBytes: " + BitConverter.ToString(dnsWireFormatBytes));
                 }
 
                 // Extract the RCODE from the DNS message header

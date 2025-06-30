@@ -13,7 +13,9 @@ namespace DnsClientX {
         /// <returns></returns>
         internal static ushort TroubleshootingDnsWire2(BinaryReader reader, string description, bool display = true) {
             byte[] bytes = reader.ReadBytes(2);
-            Console.WriteLine(description + ": " + BitConverter.ToString(bytes));
+            if (display) {
+                Settings.Logger.WriteDebug(description + ": " + BitConverter.ToString(bytes));
+            }
             return BinaryPrimitives.ReadUInt16BigEndian(bytes);
         }
 
@@ -26,7 +28,9 @@ namespace DnsClientX {
         /// <returns></returns>
         internal static uint TroubleshootingDnsWire4(BinaryReader reader, string description, bool display = true) {
             byte[] bytes = reader.ReadBytes(4);
-            Console.WriteLine(description + ": " + BitConverter.ToString(bytes));
+            if (display) {
+                Settings.Logger.WriteDebug(description + ": " + BitConverter.ToString(bytes));
+            }
             return BinaryPrimitives.ReadUInt32BigEndian(bytes);
         }
     }

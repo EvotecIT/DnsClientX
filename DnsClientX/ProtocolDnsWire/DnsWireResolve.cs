@@ -30,9 +30,9 @@ namespace DnsClientX {
             using HttpRequestMessage req = new(HttpMethod.Get, url);
 
             if (debug) {
-                // Print the DNS wire format bytes to the console
-                Console.WriteLine("Query Name: " + name + " type: " + type + " url: " + req.RequestUri);
-                Console.WriteLine("Query DnsWireFormatBytes: " + (base64UrlDnsMessage));
+                // Print the DNS wire format bytes to the logger
+                Settings.Logger.WriteDebug("Query Name: " + name + " type: " + type + " url: " + req.RequestUri);
+                Settings.Logger.WriteDebug("Query DnsWireFormatBytes: " + (base64UrlDnsMessage));
             }
 
             try {

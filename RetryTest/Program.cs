@@ -5,7 +5,8 @@ using DnsClientX;
 namespace RetryTest {
     class Program {
         static async Task Main(string[] args) {
-            Console.WriteLine("Testing Quad9 DNS servers for empty response patterns...");
+            var logger = new InternalLogger(true) { IsInformation = true };
+            logger.WriteInformation("Testing Quad9 DNS servers for empty response patterns...");
 
             var endpoints = new[] {
                 ("Cloudflare", DnsEndpoint.Cloudflare),
@@ -21,7 +22,7 @@ namespace RetryTest {
             };
 
             foreach (var (domain, recordType) in testCases) {
-                Console.WriteLine($"\n=== Testing {domain} / {recordType} ===");
+                logger.WriteInformation($"\n=== Testing {domain} / {recordType} ===");
 
                 foreach (var (name, endpoint) in endpoints) {
                     try {
@@ -30,25 +31,25 @@ namespace RetryTest {
                         // Test ResolveAll which is what the failing test uses
                         var answers = await client.ResolveAll(domain, recordType);
 
-                        Console.WriteLine($"{name}: {answers.Length} records");
+                        logger.WriteInformation($"{name}: {answers.Length} records");
                         if (answers.Length == 0) {
                             // Get the full response to see status code
                             var fullResponse = await client.Resolve(domain, recordType);
-                            Console.WriteLine($"  Status: {fullResponse.Status}");
-                            Console.WriteLine($"  Error: {fullResponse.Error ?? "None"}");
+                            logger.WriteInformation($"  Status: {fullResponse.Status}");
+                            logger.WriteInformation($"  Error: {fullResponse.Error ?? "None"}");
                         } else {
                             foreach (var answer in answers) {
-                                Console.WriteLine($"  - {answer.Data}");
+                                logger.WriteInformation($"  - {answer.Data}");
                             }
                         }
 
                     } catch (Exception ex) {
-                        Console.WriteLine($"{name}: EXCEPTION - {ex.Message}");
+                        logger.WriteError($"{name}: EXCEPTION - {ex.Message}");
                     }
                 }
             }
 
-            Console.WriteLine("\nDone testing empty response patterns.");
+            logger.WriteInformation("\nDone testing empty response patterns.");
         }
     }
 }

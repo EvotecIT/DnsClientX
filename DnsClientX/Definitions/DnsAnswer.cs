@@ -310,7 +310,7 @@ namespace DnsClientX {
                         }
                     }
                 } catch (Exception ex) {
-                    Console.WriteLine($"Error parsing NAPTR record from Hex: {ex.Message} for DataRaw: {DataRaw}");
+                    Settings.Logger.WriteDebug($"Error parsing NAPTR record from Hex: {ex.Message} for DataRaw: {DataRaw}");
                     // Fall through to try other formats or return DataRaw at the end
                 }
 
@@ -323,7 +323,7 @@ namespace DnsClientX {
                 } catch (FormatException) {
                     // Not Base64, try parsing as plain text
                 } catch (Exception ex) {
-                    Console.WriteLine($"Error parsing NAPTR record from Base64: {ex.Message} for DataRaw: {DataRaw}");
+                    Settings.Logger.WriteDebug($"Error parsing NAPTR record from Base64: {ex.Message} for DataRaw: {DataRaw}");
                     // Fall through or return DataRaw at the end
                 }
 
@@ -373,11 +373,11 @@ namespace DnsClientX {
                         }
                     }
                 } catch (Exception ex) {
-                    Console.WriteLine($"Error parsing NAPTR record from plain text: {ex.Message} for DataRaw: {DataRaw}");
+                    Settings.Logger.WriteDebug($"Error parsing NAPTR record from plain text: {ex.Message} for DataRaw: {DataRaw}");
                 }
 
                 // If all parsing attempts fail or if it's an unrecognized format for NAPTR that didn't cleanly parse
-                Console.WriteLine($"NAPTR DataRaw '{DataRaw}' did not match known Hex, Base64, or plain text patterns, or failed parsing.");
+                Settings.Logger.WriteDebug($"NAPTR DataRaw '{DataRaw}' did not match known Hex, Base64, or plain text patterns, or failed parsing.");
                 return DataRaw; // Fallback
             } else {
                 // Some records return the data in a higher case (microsoft.com/NS/Quad9ECS) which needs to be fixed
