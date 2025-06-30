@@ -6,14 +6,14 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace DnsClientX {
     /// <summary>
     /// Defines the class for getting system information.
     /// </summary>
     public class SystemInformation {
-        private static readonly object cacheLock = new();
-        private static List<string> cachedDnsServers;
+        private static Lazy<List<string>> cachedDnsServers = new(LoadDnsServers, LazyThreadSafetyMode.ExecutionAndPublication);
 
         /// <summary>
         /// Gets the DNS from active network card with improved cross-platform reliability.
@@ -22,12 +22,14 @@ namespace DnsClientX {
         /// <param name="refresh">Set to <c>true</c> to force cache refresh.</param>
         /// <returns></returns>
         public static List<string> GetDnsFromActiveNetworkCard(bool refresh = false) {
-            lock (cacheLock) {
-                if (!refresh && cachedDnsServers != null) {
-                    return new List<string>(cachedDnsServers);
-                }
+            if (refresh) {
+                cachedDnsServers = new Lazy<List<string>>(LoadDnsServers, LazyThreadSafetyMode.ExecutionAndPublication);
             }
 
+            return new List<string>(cachedDnsServers.Value);
+        }
+
+        private static List<string> LoadDnsServers() {
             var dnsServers = new List<string>();
             bool debug = Environment.GetEnvironmentVariable("DNSCLIENTX_DEBUG_SYSTEMDNS") == "1";
 
@@ -125,10 +127,6 @@ namespace DnsClientX {
             }
 
             DebugPrint($"Final DNS server list: {string.Join(", ", dnsServers)}");
-
-            lock (cacheLock) {
-                cachedDnsServers = new List<string>(dnsServers);
-            }
 
             return dnsServers;
         }
