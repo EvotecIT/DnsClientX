@@ -26,7 +26,7 @@ namespace DnsClientX {
             try {
                 if (debug) {
                     // Read the stream as a string
-                    StreamReader reader = new StreamReader(stream);
+                    using StreamReader reader = new StreamReader(stream);
                     string json = await reader.ReadToEndAsync();
                     // Write the JSON data using logger
                     Settings.Logger.WriteDebug(json);
