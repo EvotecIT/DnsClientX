@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Net.NetworkInformation;
-using System.Linq;
-using System.Net.Sockets;
 using System.IO;
+using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 
 namespace DnsClientX {
@@ -12,11 +12,22 @@ namespace DnsClientX {
     /// Defines the class for getting system information.
     /// </summary>
     public class SystemInformation {
+        private static readonly object cacheLock = new();
+        private static List<string> cachedDnsServers;
+
         /// <summary>
         /// Gets the DNS from active network card with improved cross-platform reliability.
+        /// The results are cached for subsequent calls unless <paramref name="refresh"/> is <c>true</c>.
         /// </summary>
+        /// <param name="refresh">Set to <c>true</c> to force cache refresh.</param>
         /// <returns></returns>
-        public static List<string> GetDnsFromActiveNetworkCard() {
+        public static List<string> GetDnsFromActiveNetworkCard(bool refresh = false) {
+            lock (cacheLock) {
+                if (!refresh && cachedDnsServers != null) {
+                    return new List<string>(cachedDnsServers);
+                }
+            }
+
             var dnsServers = new List<string>();
             bool debug = Environment.GetEnvironmentVariable("DNSCLIENTX_DEBUG_SYSTEMDNS") == "1";
 
@@ -146,6 +157,11 @@ namespace DnsClientX {
             }
 
             DebugPrint($"Final DNS server list: {string.Join(", ", dnsServers)}");
+
+            lock (cacheLock) {
+                cachedDnsServers = new List<string>(dnsServers);
+            }
+
             return dnsServers;
         }
 
@@ -198,8 +214,7 @@ namespace DnsClientX {
                 }
 
                 return true;
-            }
-            else if (address.AddressFamily == AddressFamily.InterNetworkV6) {
+            } else if (address.AddressFamily == AddressFamily.InterNetworkV6) {
                 // IPv6 filtering
 
                 // Filter out link-local addresses (fe80:)
