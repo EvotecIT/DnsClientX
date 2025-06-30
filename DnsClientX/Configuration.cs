@@ -77,6 +77,7 @@ namespace DnsClientX {
         /// <param name="hostname">The hostname of the DNS-over-HTTPS resolver.</param>
         /// <param name="requestFormat">The format of the DNS requests.</param>
         public Configuration(string hostname, DnsRequestFormat requestFormat) {
+            if (string.IsNullOrWhiteSpace(hostname)) throw new ArgumentException("Hostname is null or whitespace.", nameof(hostname));
             hostnames = new List<string> { hostname };
             RequestFormat = requestFormat;
             baseUriFormat = "https://{0}/dns-query";
