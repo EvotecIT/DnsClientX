@@ -161,7 +161,11 @@ namespace DnsClientX {
 
             if (address.AddressFamily == AddressFamily.InterNetworkV6) {
                 // Remove zone identifier (e.g., %15) for IPv6 addresses
-                addressString = addressString.Split('%')[0];
+                int zoneIndex = addressString.IndexOf('%');
+                if (zoneIndex > -1) {
+                    addressString = addressString.Substring(0, zoneIndex);
+                }
+
                 // Wrap IPv6 addresses in brackets for proper DNS formatting
                 addressString = $"[{addressString}]";
             }
