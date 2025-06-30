@@ -31,7 +31,7 @@ namespace DnsClientX {
             var dnsServers = new List<string>();
             bool debug = Environment.GetEnvironmentVariable("DNSCLIENTX_DEBUG_SYSTEMDNS") == "1";
 
-            void DebugPrint(string msg) { if (debug) Console.WriteLine($"[DnsClientX:SystemDNS] {msg}"); }
+            void DebugPrint(string msg) { if (debug) Settings.Logger.WriteDebug($"[DnsClientX:SystemDNS] {msg}"); }
 
             try {
                 DebugPrint("Starting DNS server discovery...");
@@ -225,7 +225,7 @@ namespace DnsClientX {
                 // Filter out macOS virtual network interface addresses (192.168.64.x)
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && ipString.StartsWith("192.168.64.")) {
                     bool debug = Environment.GetEnvironmentVariable("DNSCLIENTX_DEBUG_SYSTEMDNS") == "1";
-                    if (debug) Console.WriteLine($"[DnsClientX:SystemDNS] Filtering out macOS virtual network DNS: {ipString}");
+                    if (debug) Settings.Logger.WriteDebug($"[DnsClientX:SystemDNS] Filtering out macOS virtual network DNS: {ipString}");
                     return false;
                 }
 

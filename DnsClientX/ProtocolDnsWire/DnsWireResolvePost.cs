@@ -27,9 +27,9 @@ namespace DnsClientX {
             var queryBytes = query.SerializeDnsWireFormat();
 
             if (debug) {
-                // Print the DNS wire format bytes to the console
-                Console.WriteLine("Query    Name: " + name + " type: " + type);
-                Console.WriteLine($"Sending query: {BitConverter.ToString(queryBytes)}");
+                // Print the DNS wire format bytes to the logger
+                Settings.Logger.WriteDebug("Query    Name: " + name + " type: " + type);
+                Settings.Logger.WriteDebug($"Sending query: {BitConverter.ToString(queryBytes)}");
             }
 
             var content = new ByteArrayContent(queryBytes);

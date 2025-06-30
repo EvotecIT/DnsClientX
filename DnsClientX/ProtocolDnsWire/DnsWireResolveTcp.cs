@@ -27,19 +27,19 @@ namespace DnsClientX {
             var queryBytes = query.SerializeDnsWireFormat();
 
             if (debug) {
-                // Print the DNS query bytes to the console
-                Console.WriteLine($"Query Name: " + name + " type: " + type);
-                Console.WriteLine($"Sending query: {BitConverter.ToString(queryBytes)}");
+                // Print the DNS query bytes to the logger
+                Settings.Logger.WriteDebug($"Query Name: " + name + " type: " + type);
+                Settings.Logger.WriteDebug($"Sending query: {BitConverter.ToString(queryBytes)}");
 
-                Console.WriteLine($"Transaction ID: {BitConverter.ToString(queryBytes, 0, 2)}");
-                Console.WriteLine($"Flags: {BitConverter.ToString(queryBytes, 2, 2)}");
-                Console.WriteLine($"Question count: {BitConverter.ToString(queryBytes, 4, 2)}");
-                Console.WriteLine($"Answer count: {BitConverter.ToString(queryBytes, 6, 2)}");
-                Console.WriteLine($"Authority records count: {BitConverter.ToString(queryBytes, 8, 2)}");
-                Console.WriteLine($"Additional records count: {BitConverter.ToString(queryBytes, 10, 2)}");
-                Console.WriteLine($"Question name: {BitConverter.ToString(queryBytes, 12, queryBytes.Length - 12 - 4)}");
-                Console.WriteLine($"Question type: {BitConverter.ToString(queryBytes, queryBytes.Length - 4, 2)}");
-                Console.WriteLine($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
+                Settings.Logger.WriteDebug($"Transaction ID: {BitConverter.ToString(queryBytes, 0, 2)}");
+                Settings.Logger.WriteDebug($"Flags: {BitConverter.ToString(queryBytes, 2, 2)}");
+                Settings.Logger.WriteDebug($"Question count: {BitConverter.ToString(queryBytes, 4, 2)}");
+                Settings.Logger.WriteDebug($"Answer count: {BitConverter.ToString(queryBytes, 6, 2)}");
+                Settings.Logger.WriteDebug($"Authority records count: {BitConverter.ToString(queryBytes, 8, 2)}");
+                Settings.Logger.WriteDebug($"Additional records count: {BitConverter.ToString(queryBytes, 10, 2)}");
+                Settings.Logger.WriteDebug($"Question name: {BitConverter.ToString(queryBytes, 12, queryBytes.Length - 12 - 4)}");
+                Settings.Logger.WriteDebug($"Question type: {BitConverter.ToString(queryBytes, queryBytes.Length - 4, 2)}");
+                Settings.Logger.WriteDebug($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
             try {
                 // Send the DNS query over TCP and receive the response

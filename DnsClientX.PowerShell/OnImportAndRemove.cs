@@ -51,7 +51,7 @@ public class OnModuleImportAndRemove : IModuleAssemblyInitializer, IModuleAssemb
                 try {
                     return Assembly.LoadFrom(assemblyPath);
                 } catch (Exception ex) {
-                    Console.WriteLine($"Failed to load assembly from {assemblyPath}: {ex.Message}");
+                    DnsClientX.Settings.Logger.WriteError($"Failed to load assembly from {assemblyPath}: {ex.Message}");
                 }
             }
         }

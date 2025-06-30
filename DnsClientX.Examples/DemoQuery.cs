@@ -114,7 +114,7 @@ namespace DnsClientX.Examples {
                 HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.TXT, endpoint);
                 var data = await ClientX.QueryDns(domains, DnsRecordType.TXT, endpoint);
                 foreach (var d in data[0].Answers) {
-                    Console.WriteLine(d.Data);
+                    Settings.Logger.WriteInformation(d.Data);
                 }
             }
         }
@@ -124,14 +124,14 @@ namespace DnsClientX.Examples {
             HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.TXT, "1.1.1.1");
             var data = await ClientX.QueryDns(domains, DnsRecordType.TXT, "1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON);
             foreach (var d in data[0].Answers) {
-                Console.WriteLine(d.Data);
+                Settings.Logger.WriteInformation(d.Data);
             }
 
 
             HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.TXT, DnsEndpoint.GoogleWireFormat);
             var dataGoogle = await ClientX.QueryDns(domains, DnsRecordType.TXT, DnsEndpoint.GoogleWireFormat);
             foreach (var d in dataGoogle[0].Answers) {
-                Console.WriteLine(d.Data);
+                Settings.Logger.WriteInformation(d.Data);
             }
         }
 
@@ -140,14 +140,14 @@ namespace DnsClientX.Examples {
             HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.TXT, "1.1.1.1");
             var data = await ClientX.QueryDns(domains, DnsRecordType.TXT, "1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON);
             foreach (var d in data[0].Answers) {
-                Console.WriteLine(d.Data);
+                Settings.Logger.WriteInformation(d.Data);
             }
 
 
             HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.TXT, DnsEndpoint.Quad9);
             var dataGoogle = await ClientX.QueryDns(domains, DnsRecordType.TXT, DnsEndpoint.Quad9);
             foreach (var d in dataGoogle[0].Answers) {
-                Console.WriteLine(d.Data);
+                Settings.Logger.WriteInformation(d.Data);
             }
         }
 
@@ -158,14 +158,14 @@ namespace DnsClientX.Examples {
                 Debug = false
             };
             var data = await client.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
-            Console.WriteLine(data.Answers[0].Data);
+            Settings.Logger.WriteInformation(data.Answers[0].Data);
 
             HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.SPF, DnsEndpoint.Google);
             using var client1 = new ClientX(DnsEndpoint.GoogleWireFormat, DnsSelectionStrategy.First) {
                 Debug = false
             };
             var data1 = await client1.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
-            Console.WriteLine(data1.Answers[0].Data);
+            Settings.Logger.WriteInformation(data1.Answers[0].Data);
         }
 
         public static async Task ExampleSPFQuad() {
@@ -175,7 +175,7 @@ namespace DnsClientX.Examples {
                 Debug = false
             };
             var data = await client.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
-            Console.WriteLine(data.Answers[0].Data);
+            Settings.Logger.WriteInformation(data.Answers[0].Data);
 
             foreach (DnsEndpoint endpoint in Enum.GetValues(typeof(DnsEndpoint))) {
                 HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.SPF, endpoint);
@@ -183,9 +183,9 @@ namespace DnsClientX.Examples {
                     Debug = false
                 };
                 var data1 = await client1.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
-                Console.WriteLine(data1.Answers[0].Data);
-                Console.WriteLine(data1.Answers[0].DataStrings.Length);
-                Console.WriteLine(data1.Answers[0].DataStrings[0]);
+                Settings.Logger.WriteInformation(data1.Answers[0].Data);
+                Settings.Logger.WriteInformation(data1.Answers[0].DataStrings.Length.ToString());
+                Settings.Logger.WriteInformation(data1.Answers[0].DataStrings[0]);
             }
         }
     }

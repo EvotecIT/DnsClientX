@@ -10,6 +10,11 @@ namespace DnsClientX {
         protected static InternalLogger _logger = new InternalLogger();
 
         /// <summary>
+        /// Gets the internal logger instance.
+        /// </summary>
+        public static InternalLogger Logger => _logger;
+
+        /// <summary>
         /// Gets or sets a value indicating whether error logging is enabled.
         /// </summary>
         public bool Error {
