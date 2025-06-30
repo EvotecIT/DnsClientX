@@ -126,6 +126,10 @@ namespace DnsClientX {
             var filteredAnswers = new List<DnsAnswer>();
 
             foreach (var answer in answers) {
+                if (string.IsNullOrEmpty(answer.Data)) {
+                    continue;
+                }
+
                 if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
                     // For TXT records, check if any line contains the filter
                     var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
@@ -165,6 +169,10 @@ namespace DnsClientX {
             var filteredAnswers = new List<DnsAnswer>();
 
             foreach (var answer in answers) {
+                if (string.IsNullOrEmpty(answer.Data)) {
+                    continue;
+                }
+
                 if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
                     // For TXT records, check if any line matches the regex
                     var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
@@ -206,6 +214,10 @@ namespace DnsClientX {
             }
 
             foreach (var answer in answers) {
+                if (string.IsNullOrEmpty(answer.Data)) {
+                    continue;
+                }
+
                 if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
                     var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
                     var matchingLines = lines.Where(line => line.ToLower().Contains(filter.ToLower())).ToArray();
@@ -234,6 +246,10 @@ namespace DnsClientX {
             }
 
             foreach (var answer in answers) {
+                if (string.IsNullOrEmpty(answer.Data)) {
+                    continue;
+                }
+
                 if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
                     var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
                     var matchingLines = lines.Where(line => regexFilter.IsMatch(line)).ToArray();
