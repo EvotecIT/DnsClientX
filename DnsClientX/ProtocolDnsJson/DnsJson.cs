@@ -7,12 +7,15 @@ using System.Threading.Tasks;
 
 namespace DnsClientX {
     internal static class DnsJson {
+        internal static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
         /// <summary>
         /// Encode URL
         /// </summary>
         /// <param name="value">The value.</param>
         /// <returns></returns>
         internal static string UrlEncode(this string value) => WebUtility.UrlEncode(value);
+
+        internal static string Serialize<T>(T value) => JsonSerializer.Serialize(value, JsonOptions);
 
         /// <summary>
         /// Deserialize a JSON HTTP response into a given type.
@@ -31,9 +34,9 @@ namespace DnsClientX {
                     // Write the JSON data using logger
                     Settings.Logger.WriteDebug(json);
                     // Deserialize the JSON data
-                    return JsonSerializer.Deserialize<T>(json);
+                    return JsonSerializer.Deserialize<T>(json, JsonOptions);
                 }
-                return JsonSerializer.Deserialize<T>(stream);
+                return JsonSerializer.Deserialize<T>(stream, JsonOptions);
             } catch (JsonException jsonEx) {
                 throw new DnsClientException($"Failed to parse JSON due to a JsonException: {jsonEx.Message}");
             } catch (IOException ioEx) {
