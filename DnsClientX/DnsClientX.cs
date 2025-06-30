@@ -279,6 +279,7 @@ namespace DnsClientX {
         /// <param name="ipAddress"></param>
         /// <returns></returns>
         private string ConvertToPtrFormat(string ipAddress) {
+            ipAddress = ipAddress.Trim();
             if (IPAddress.TryParse(ipAddress, out IPAddress? ip)) {
                 if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) {
                     // IPv4
