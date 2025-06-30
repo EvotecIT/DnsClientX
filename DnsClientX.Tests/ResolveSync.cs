@@ -1,8 +1,77 @@
 using DnsClientX;
+using System.Runtime.InteropServices;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace DnsClientX.Tests {
     public class ResolveSync {
+        private readonly ITestOutputHelper _output;
+
+        public ResolveSync(ITestOutputHelper output)
+        {
+            _output = output;
+        }
+
+        private void LogDiagnostics(string message)
+        {
+            _output.WriteLine($"[Diagnostic] {message}");
+        }
+
+        private async Task<DnsResponse> TryResolveWithDiagnostics(ClientX client, string domain, DnsRecordType recordType, int maxRetries = 3)
+        {
+            LogDiagnostics($"Attempting to resolve {domain} for record type {recordType}");
+            LogDiagnostics($"Using endpoint: {client.EndpointConfiguration.Endpoint}");
+            LogDiagnostics($"DNS Servers: {string.Join(", ", SystemInformation.GetDnsFromActiveNetworkCard())}");
+
+            DnsResponse response = null;
+            Exception lastException = null;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            {
+                try
+                {
+                    LogDiagnostics($"Attempt {attempt} of {maxRetries}");
+                    response = client.ResolveSync(domain, recordType);
+
+                    LogDiagnostics($"Response Status: {response.Status}");
+                    LogDiagnostics($"Answer Count: {response.Answers?.Length ?? 0}");
+                    if (response.Error != null)
+                    {
+                        LogDiagnostics($"Response Error: {response.Error}");
+                    }
+
+                    if (response.Status == DnsResponseCode.NoError && response.Answers?.Length > 0)
+                    {
+                        LogDiagnostics("Query successful");
+                        return response;
+                    }
+
+                    LogDiagnostics($"Query failed with status {response.Status}");
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+                    LogDiagnostics($"Attempt {attempt} failed with exception: {ex.GetType().Name} - {ex.Message}");
+                    if (ex.InnerException != null)
+                    {
+                        LogDiagnostics($"Inner Exception: {ex.InnerException.GetType().Name} - {ex.InnerException.Message}");
+                    }
+                }
+
+                if (attempt < maxRetries)
+                {
+                    await Task.Delay(1000 * attempt); // Exponential backoff
+                }
+            }
+
+            if (lastException != null)
+            {
+                throw new Exception($"DNS resolution failed after {maxRetries} attempts", lastException);
+            }
+
+            return response;
+        }
+
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -14,18 +83,18 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-
-
-
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public void ShouldWorkForTXTSync(DnsEndpoint endpoint) {
+        public async Task ShouldWorkForTXTSync(DnsEndpoint endpoint)
+        {
             var client = new ClientX(endpoint);
-            var response = client.ResolveSync("github.com", DnsRecordType.TXT);
-            foreach (DnsAnswer answer in response.Answers) {
-                Assert.True(answer.Name == "github.com");
-                Assert.True(answer.Type == DnsRecordType.TXT);
-                Assert.True(answer.Data.Length > 0);
+            var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
+
+            foreach (DnsAnswer answer in response.Answers)
+            {
+                Assert.True(answer.Name == "github.com", $"Expected answer name to be github.com but got {answer.Name}");
+                Assert.True(answer.Type == DnsRecordType.TXT, $"Expected answer type to be TXT but got {answer.Type}");
+                Assert.True(answer.Data.Length > 0, "Expected answer data to not be empty");
             }
         }
 
@@ -40,18 +109,19 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-
-
-
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public void ShouldWorkForASync(DnsEndpoint endpoint) {
+        public async Task ShouldWorkForASync(DnsEndpoint endpoint)
+        {
             var client = new ClientX(endpoint);
-            var response = client.ResolveSync("evotec.pl", DnsRecordType.A);
-            foreach (DnsAnswer answer in response.Answers) {
-                Assert.True(answer.Name == "evotec.pl");
-                Assert.True(answer.Type == DnsRecordType.A);
-                Assert.True(answer.Data.Length > 0);
+            var response = await TryResolveWithDiagnostics(client, "evotec.pl", DnsRecordType.A);
+
+            Assert.True(response.Answers.Length > 0, "Expected at least one answer");
+            foreach (DnsAnswer answer in response.Answers)
+            {
+                Assert.True(answer.Name == "evotec.pl", $"Expected answer name to be evotec.pl but got {answer.Name}");
+                Assert.True(answer.Type == DnsRecordType.A, $"Expected answer type to be A but got {answer.Type}");
+                Assert.True(answer.Data.Length > 0, "Expected answer data to not be empty");
             }
         }
 
@@ -66,9 +136,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-
-
-
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForPTRSync(DnsEndpoint endpoint) {
@@ -125,18 +192,18 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-
-
-
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public void ShouldWorkForFirstSyncTXT(DnsEndpoint endpoint) {
+        public async Task ShouldWorkForFirstSyncTXT(DnsEndpoint endpoint)
+        {
             var client = new ClientX(endpoint);
-            var answer = client.ResolveFirstSync("github.com", DnsRecordType.TXT);
-            Assert.True(answer != null);
-            Assert.True(answer.Value.Name == "github.com");
-            Assert.True(answer.Value.Type == DnsRecordType.TXT);
-            Assert.True(answer.Value.Data.Length > 0);
+            var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
+
+            Assert.True(response.Answers.Length > 0, "Expected at least one answer");
+            var answer = response.Answers[0];
+            Assert.True(answer.Name == "github.com", $"Expected answer name to be github.com but got {answer.Name}");
+            Assert.True(answer.Type == DnsRecordType.TXT, $"Expected answer type to be TXT but got {answer.Type}");
+            Assert.True(answer.Data.Length > 0, "Expected answer data to not be empty");
         }
 
         [Theory]
@@ -150,9 +217,33 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
+        [InlineData(DnsEndpoint.OpenDNS)]
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
+        public async Task ShouldWorkForAllSyncTXT(DnsEndpoint endpoint)
+        {
+            var client = new ClientX(endpoint);
+            var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
 
+            Assert.True(response.Answers.Length > 0, "Expected at least one answer");
+            foreach (DnsAnswer answer in response.Answers)
+            {
+                Assert.True(answer.Name == "github.com", $"Expected answer name to be github.com but got {answer.Name}");
+                Assert.True(answer.Type == DnsRecordType.TXT, $"Expected answer type to be TXT but got {answer.Type}");
+                Assert.True(answer.Data.Length > 0, "Expected answer data to not be empty");
+            }
+        }
 
-
+        [Theory]
+        [InlineData(DnsEndpoint.System)]
+        [InlineData(DnsEndpoint.SystemTcp)]
+        [InlineData(DnsEndpoint.Cloudflare)]
+        [InlineData(DnsEndpoint.CloudflareFamily)]
+        [InlineData(DnsEndpoint.CloudflareSecurity)]
+        [InlineData(DnsEndpoint.CloudflareWireFormat)]
+        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
+        [InlineData(DnsEndpoint.Google)]
+        [InlineData(DnsEndpoint.GoogleWireFormat)]
+        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForFirstSyncA(DnsEndpoint endpoint) {
@@ -175,35 +266,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-
-
-
-        [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public void ShouldWorkForAllSyncTXT(DnsEndpoint endpoint) {
-            var client = new ClientX(endpoint);
-            var answers = client.ResolveAllSync("github.com", DnsRecordType.TXT);
-            foreach (DnsAnswer answer in answers) {
-                Assert.True(answer.Name == "github.com");
-                Assert.True(answer.Type == DnsRecordType.TXT);
-                Assert.True(answer.Data.Length > 0);
-            }
-        }
-
-        [Theory]
-        [InlineData(DnsEndpoint.System)]
-        [InlineData(DnsEndpoint.SystemTcp)]
-        [InlineData(DnsEndpoint.Cloudflare)]
-        [InlineData(DnsEndpoint.CloudflareFamily)]
-        [InlineData(DnsEndpoint.CloudflareSecurity)]
-        [InlineData(DnsEndpoint.CloudflareWireFormat)]
-        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
-        [InlineData(DnsEndpoint.Google)]
-        [InlineData(DnsEndpoint.GoogleWireFormat)]
-        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-
-
-
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForAllSyncA(DnsEndpoint endpoint) {

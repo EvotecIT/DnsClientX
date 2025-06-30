@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Sockets;
 using System.IO;
 using System.Net;
+using System.Runtime.InteropServices;
 
 namespace DnsClientX {
     /// <summary>
@@ -22,45 +23,56 @@ namespace DnsClientX {
             void DebugPrint(string msg) { if (debug) Console.WriteLine($"[DnsClientX:SystemDNS] {msg}"); }
 
             try {
+                DebugPrint("Starting DNS server discovery...");
                 var networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
+                DebugPrint($"Found {networkInterfaces.Length} network interfaces");
 
                 // First, try to find interfaces with both gateway and DNS servers
                 foreach (var networkInterface in networkInterfaces) {
                     if (networkInterface.OperationalStatus == OperationalStatus.Up &&
                         networkInterface.NetworkInterfaceType != NetworkInterfaceType.Loopback) {
 
+                        DebugPrint($"Checking interface: {networkInterface.Name} ({networkInterface.NetworkInterfaceType})");
                         var properties = networkInterface.GetIPProperties();
 
                         // Prefer interfaces with default gateways (internet-connected)
                         if (properties.GatewayAddresses.Count > 0) {
+                            DebugPrint($"Interface {networkInterface.Name} has {properties.GatewayAddresses.Count} gateways");
                             var dnsAddresses = properties.DnsAddresses;
                             foreach (var dnsAddress in dnsAddresses) {
                                 var formattedAddress = FormatDnsAddress(dnsAddress);
                                 if (!string.IsNullOrWhiteSpace(formattedAddress)) {
                                     if (IsValidDnsAddress(dnsAddress)) {
-                                        DebugPrint($"[Interface-Gateway] Found DNS: {dnsAddress}");
+                                        DebugPrint($"[Interface-Gateway] Found DNS: {dnsAddress} on interface {networkInterface.Name}");
                                         dnsServers.Add(formattedAddress);
                                     } else {
-                                        DebugPrint($"[Interface-Gateway] Filtered out DNS: {dnsAddress}");
+                                        DebugPrint($"[Interface-Gateway] Filtered out DNS: {dnsAddress} on interface {networkInterface.Name}");
                                     }
                                 }
                             }
 
                             // If we found DNS servers from an interface with gateway, use them
                             if (dnsServers.Count > 0) {
+                                DebugPrint($"Using DNS servers from interface {networkInterface.Name} with gateway");
                                 break;
                             }
+                        } else {
+                            DebugPrint($"Interface {networkInterface.Name} has no gateways");
                         }
+                    } else {
+                        DebugPrint($"Skipping interface {networkInterface.Name} (Status: {networkInterface.OperationalStatus}, Type: {networkInterface.NetworkInterfaceType})");
                     }
                 }
 
                 // If no DNS servers found from interfaces with gateways,
                 // try any active interface with DNS servers
                 if (dnsServers.Count == 0) {
+                    DebugPrint("No DNS servers found from interfaces with gateways, checking all active interfaces");
                     foreach (var networkInterface in networkInterfaces) {
                         if (networkInterface.OperationalStatus == OperationalStatus.Up &&
                             networkInterface.NetworkInterfaceType != NetworkInterfaceType.Loopback) {
 
+                            DebugPrint($"Checking interface without gateway: {networkInterface.Name}");
                             var properties = networkInterface.GetIPProperties();
                             var dnsAddresses = properties.DnsAddresses;
 
@@ -68,15 +80,16 @@ namespace DnsClientX {
                                 var formattedAddress = FormatDnsAddress(dnsAddress);
                                 if (!string.IsNullOrWhiteSpace(formattedAddress)) {
                                     if (IsValidDnsAddress(dnsAddress)) {
-                                        DebugPrint($"[Interface-Any] Found DNS: {dnsAddress}");
+                                        DebugPrint($"[Interface-Any] Found DNS: {dnsAddress} on interface {networkInterface.Name}");
                                         dnsServers.Add(formattedAddress);
                                     } else {
-                                        DebugPrint($"[Interface-Any] Filtered out DNS: {dnsAddress}");
+                                        DebugPrint($"[Interface-Any] Filtered out DNS: {dnsAddress} on interface {networkInterface.Name}");
                                     }
                                 }
                             }
 
                             if (dnsServers.Count > 0) {
+                                DebugPrint($"Using DNS servers from interface {networkInterface.Name}");
                                 break;
                             }
                         }
@@ -89,8 +102,10 @@ namespace DnsClientX {
 
             // Unix/Linux fallback: try reading /etc/resolv.conf
             if (dnsServers.Count == 0) {
+                DebugPrint("No DNS servers found from network interfaces, trying /etc/resolv.conf");
                 try {
                     if (File.Exists("/etc/resolv.conf")) {
+                        DebugPrint("Reading /etc/resolv.conf");
                         foreach (var line in File.ReadAllLines("/etc/resolv.conf")) {
                             var trimmed = line.Trim();
                             if (trimmed.StartsWith("nameserver", StringComparison.OrdinalIgnoreCase)) {
@@ -130,7 +145,7 @@ namespace DnsClientX {
                 dnsServers.Add("8.8.8.8");    // Google Primary
             }
 
-            DebugPrint($"Returning DNS servers: {string.Join(", ", dnsServers)}");
+            DebugPrint($"Final DNS server list: {string.Join(", ", dnsServers)}");
             return dnsServers;
         }
 
@@ -162,24 +177,44 @@ namespace DnsClientX {
         private static bool IsValidDnsAddress(IPAddress address) {
             if (address == null) return false;
 
-            // Filter out problematic addresses
-            if (address.IsIPv6LinkLocal || address.IsIPv6Multicast) {
-                return false;
+            // Convert to string for pattern matching
+            string ipString = address.ToString();
+
+            // Filter out known problematic addresses
+            if (address.AddressFamily == AddressFamily.InterNetwork) {
+                // IPv4 filtering
+
+                // Filter out link-local addresses (169.254.x.x)
+                if (ipString.StartsWith("169.254.")) return false;
+
+                // Filter out loopback addresses (127.x.x.x)
+                if (ipString.StartsWith("127.")) return false;
+
+                // Filter out macOS virtual network interface addresses (192.168.64.x)
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && ipString.StartsWith("192.168.64.")) {
+                    bool debug = Environment.GetEnvironmentVariable("DNSCLIENTX_DEBUG_SYSTEMDNS") == "1";
+                    if (debug) Console.WriteLine($"[DnsClientX:SystemDNS] Filtering out macOS virtual network DNS: {ipString}");
+                    return false;
+                }
+
+                return true;
+            }
+            else if (address.AddressFamily == AddressFamily.InterNetworkV6) {
+                // IPv6 filtering
+
+                // Filter out link-local addresses (fe80:)
+                if (ipString.StartsWith("fe80:")) return false;
+
+                // Filter out site-local addresses (fec0: - deprecated)
+                if (ipString.StartsWith("fec0:")) return false;
+
+                // Filter out multicast addresses (ff00:)
+                if (ipString.StartsWith("ff00:")) return false;
+
+                return true;
             }
 
-            var addressString = address.ToString();
-
-            // Filter out IPv4 link-local addresses (169.254.x.x)
-            if (addressString.StartsWith("169.254.")) {
-                return false;
-            }
-
-            // Filter out IPv6 site-local addresses (deprecated)
-            if (addressString.StartsWith("fec0:")) {
-                return false;
-            }
-
-            return true;
+            return false;
         }
     }
 }
