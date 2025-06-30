@@ -58,6 +58,11 @@ namespace DnsClientX {
         public int TimeOut = 1000;
 
         /// <summary>
+        /// Validates DS and DNSKEY records against a builtin root key set.
+        /// </summary>
+        public bool ValidateRootDnsSec { get; set; }
+
+        /// <summary>
         /// Gets or sets the format of the DNS requests.
         /// </summary>
         public DnsRequestFormat RequestFormat { get; set; }
