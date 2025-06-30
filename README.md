@@ -467,6 +467,12 @@ $Output.AnswersMinimal | Format-Table
 $Output = Resolve-DnsQuery -Name 'github.com', 'evotec.pl', 'google.com' -Type TXT, A -Verbose -Server "192.168.241.5" -FullResponse
 $Output.Questions | Format-Table
 $Output.AnswersMinimal | Format-Table
+
+$Output = Resolve-DnsQuery -Name 'evotec.pl' -Type A -Server '1.1.1.1','8.8.8.8' -Fallback
+$Output.AnswersMinimal | Format-Table
+
+$Output = Resolve-DnsQuery -Name 'evotec.pl' -Type A -Server '1.1.1.1','8.8.8.8' -Fallback -RandomServer
+$Output.AnswersMinimal | Format-Table
 ```
 
 ## Please share with the community

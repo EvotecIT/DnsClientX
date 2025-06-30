@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Management.Automation;
 using System.Threading.Tasks;
 
@@ -41,6 +43,26 @@ namespace DnsClientX.PowerShell {
         [Alias("ServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
         public List<string> Server = new List<string>();
+
+        /// <summary>
+        /// <para type="description">If specified, all servers listed in <paramref name="Server"/> are queried sequentially and the responses are aggregated in server order.</para>
+        /// <para type="description">When not specified, only the first server is queried for faster results.</para>
+        /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
+        public SwitchParameter AllServers;
+
+        /// <summary>
+        /// <para type="description">If specified, the cmdlet sequentially queries each server until a successful response is received.</para>
+        /// <para type="description">This option stops on the first server that returns <c>DnsResponseCode.NoError</c>.</para>
+        /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
+        public SwitchParameter Fallback;
+
+        /// <summary>
+        /// <para type="description">If specified, the order of servers defined in <paramref name="Server"/> is randomized before querying.</para>
+        /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
+        public SwitchParameter RandomServer;
         /// <summary>
         /// <para type="description">Provides the full response of the query. If not specified, only the minimal response is provided (just the answer).</para>
         /// <para type="description">If specified, the full response is provided (answer, authority, and additional sections).</para>
@@ -78,15 +100,47 @@ namespace DnsClientX.PowerShell {
             string names = string.Join(", ", Name);
             string types = string.Join(", ", Type);
             if (Server.Count > 0) {
-                string myServer = Server[0];
-                _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, myServer);
-                var result = ClientX.QueryDns(Name, Type, myServer, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut);
-                foreach (var record in result.Result) {
-                    if (record.Status == DnsResponseCode.NoError) {
-                        _logger.WriteVerbose("Query successful for {0} with type {1}, {2}", names, types, myServer);
-                    } else {
-                        _logger.WriteWarning("Query failed for {0} with type {1}, {2} and error: {3}", names, types, myServer, record.Error);
+                IEnumerable<string> serverOrder = Server;
+                if (RandomServer.IsPresent) {
+                    var random = new Random();
+                    serverOrder = serverOrder.OrderBy(_ => random.Next()).ToList();
+                }
+
+                IEnumerable<DnsResponse> results;
+                if (AllServers.IsPresent) {
+                    var aggregatedResults = new List<DnsResponse>();
+                    foreach (string serverName in serverOrder) {
+                        _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, serverName);
+                        var result = ClientX.QueryDns(Name, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut);
+                        aggregatedResults.AddRange(result.Result);
                     }
+                    results = aggregatedResults;
+                } else if (Fallback.IsPresent) {
+                    var aggregatedResults = new List<DnsResponse>();
+                    foreach (string serverName in serverOrder) {
+                        _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, serverName);
+                        var result = ClientX.QueryDns(Name, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut);
+                        aggregatedResults.AddRange(result.Result);
+                        if (aggregatedResults.Any(r => r.Status == DnsResponseCode.NoError)) {
+                            break;
+                        }
+                    }
+                    results = aggregatedResults;
+                } else {
+                    string myServer = serverOrder.First();
+                    _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, myServer);
+                    var result = ClientX.QueryDns(Name, Type, myServer, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut);
+                    results = result.Result;
+                }
+
+                foreach (var record in results) {
+                    string serverUsed = record.Questions.FirstOrDefault().HostName;
+                    if (record.Status == DnsResponseCode.NoError) {
+                        _logger.WriteVerbose("Query successful for {0} with type {1}, {2}", names, types, serverUsed);
+                    } else {
+                        _logger.WriteWarning("Query failed for {0} with type {1}, {2} and error: {3}", names, types, serverUsed, record.Error);
+                    }
+
                     if (FullResponse.IsPresent) {
                         WriteObject(record);
                     } else {
