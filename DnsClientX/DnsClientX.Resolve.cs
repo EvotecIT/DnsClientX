@@ -134,14 +134,13 @@ namespace DnsClientX {
         private static bool IsSSLConnectionError(string errorMessage) {
             if (string.IsNullOrEmpty(errorMessage)) return false;
 
-            var message = errorMessage.ToLowerInvariant();
-            return message.Contains("ssl connection could not be established") ||
-                   message.Contains("unable to read data from the transport connection") ||
-                   message.Contains("connection was forcibly closed") ||
-                   message.Contains("certificate validation") ||
-                   message.Contains("handshake") ||
-                   message.Contains("underlying connection was closed") ||
-                   message.Contains("unexpected error occurred on a send");
+            return errorMessage.IndexOf("ssl connection could not be established", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   errorMessage.IndexOf("unable to read data from the transport connection", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   errorMessage.IndexOf("connection was forcibly closed", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   errorMessage.IndexOf("certificate validation", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   errorMessage.IndexOf("handshake", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   errorMessage.IndexOf("underlying connection was closed", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   errorMessage.IndexOf("unexpected error occurred on a send", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static bool IsTransient(Exception ex) {
@@ -157,20 +156,20 @@ namespace DnsClientX {
 
             // Check for SSL/TLS and connection-related errors (these often are transient)
             if (ex is HttpRequestException httpEx) {
-                var message = httpEx.Message?.ToLowerInvariant() ?? "";
-                var innerMessage = httpEx.InnerException?.Message?.ToLowerInvariant() ?? "";
+                var message = httpEx.Message ?? string.Empty;
+                var innerMessage = httpEx.InnerException?.Message ?? string.Empty;
 
                 // SSL/TLS certificate and connection errors - these are often transient
-                if (message.Contains("ssl connection could not be established") ||
-                    message.Contains("unable to read data from the transport connection") ||
-                    message.Contains("connection was forcibly closed") ||
-                    message.Contains("certificate validation") ||
-                    message.Contains("handshake") ||
-                    innerMessage.Contains("ssl connection could not be established") ||
-                    innerMessage.Contains("unable to read data from the transport connection") ||
-                    innerMessage.Contains("connection was forcibly closed") ||
-                    innerMessage.Contains("certificate validation") ||
-                    innerMessage.Contains("handshake")) {
+                if (message.IndexOf("ssl connection could not be established", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    message.IndexOf("unable to read data from the transport connection", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    message.IndexOf("connection was forcibly closed", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    message.IndexOf("certificate validation", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    message.IndexOf("handshake", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    innerMessage.IndexOf("ssl connection could not be established", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    innerMessage.IndexOf("unable to read data from the transport connection", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    innerMessage.IndexOf("connection was forcibly closed", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    innerMessage.IndexOf("certificate validation", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    innerMessage.IndexOf("handshake", StringComparison.OrdinalIgnoreCase) >= 0) {
                     return true;
                 }
             }
@@ -205,17 +204,17 @@ namespace DnsClientX {
 
                 // Check if the error indicates a network/SSL connection issue
                 if (!string.IsNullOrEmpty(response.Error)) {
-                    var errorMessage = response.Error.ToLowerInvariant();
-                    if (errorMessage.Contains("ssl connection could not be established") ||
-                        errorMessage.Contains("unable to read data from the transport connection") ||
-                        errorMessage.Contains("connection was forcibly closed") ||
-                        errorMessage.Contains("certificate validation") ||
-                        errorMessage.Contains("handshake") ||
-                        errorMessage.Contains("network error") ||
-                        errorMessage.Contains("timeout") ||
-                        errorMessage.Contains("an error occurred while sending the request") ||
-                        errorMessage.Contains("unexpected error occurred on a send") ||
-                        errorMessage.Contains("underlying connection was closed")) {
+                    var errorMessage = response.Error;
+                    if (errorMessage.IndexOf("ssl connection could not be established", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        errorMessage.IndexOf("unable to read data from the transport connection", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        errorMessage.IndexOf("connection was forcibly closed", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        errorMessage.IndexOf("certificate validation", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        errorMessage.IndexOf("handshake", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        errorMessage.IndexOf("network error", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        errorMessage.IndexOf("timeout", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        errorMessage.IndexOf("an error occurred while sending the request", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        errorMessage.IndexOf("unexpected error occurred on a send", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        errorMessage.IndexOf("underlying connection was closed", StringComparison.OrdinalIgnoreCase) >= 0) {
                         return true;
                     }
                 }
