@@ -4,6 +4,10 @@
 
 **Full Changelog**: https://github.com/EvotecIT/DnsClientX/compare/v...v0.3.4
 
+## 0.4.0 - 2025.07.01
+### What's Changed
+* QUIC queries now automatically fall back to DNS over TLS when QUIC is not supported or connection fails
+
 ## 0.3.2/0.3.3 - 2024.11.15
 ### What's Changed
 * Few improvements, fix PTR by @PrzemyslawKlys in https://github.com/EvotecIT/DnsClientX/pull/12

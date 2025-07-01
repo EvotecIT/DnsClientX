@@ -87,7 +87,17 @@ namespace DnsClientX {
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
                 response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, IgnoreCertificateErrors, cancellationToken);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverQuic) {
-                response = await DnsWireResolveQuic.ResolveWireFormatQuic(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
+                response = await DnsWireResolveQuic.ResolveWireFormatQuic(
+                    EndpointConfiguration.Hostname,
+                    EndpointConfiguration.Port,
+                    name,
+                    type,
+                    requestDnsSec,
+                    validateDnsSec,
+                    Debug,
+                    EndpointConfiguration,
+                    IgnoreCertificateErrors,
+                    cancellationToken);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
                 response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {

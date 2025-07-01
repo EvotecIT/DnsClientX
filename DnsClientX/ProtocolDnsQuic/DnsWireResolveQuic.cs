@@ -11,7 +11,7 @@ namespace DnsClientX {
 #if NET8_0_OR_GREATER
     #pragma warning disable CA2252
     internal static class DnsWireResolveQuic {
-        internal static async Task<DnsResponse> ResolveWireFormatQuic(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, CancellationToken cancellationToken) {
+        internal static async Task<DnsResponse> ResolveWireFormatQuic(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, bool ignoreCertificateErrors, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             var query = new DnsMessage(name, type, requestDnsSec);
@@ -78,14 +78,30 @@ namespace DnsClientX {
                 var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer);
                 response.AddServerDetails(endpointConfiguration);
                 return response;
-            } catch (PlatformNotSupportedException ex) {
-                var response = new DnsResponse {
-                    Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverQuic, Type = type, OriginalName = name } ],
-                    Status = DnsResponseCode.NotImplemented
-                };
-                response.AddServerDetails(endpointConfiguration);
-                response.Error = $"DNS over QUIC is not supported on this platform: {ex.Message}";
-                return response;
+            } catch (PlatformNotSupportedException) {
+                return await DnsWireResolveDot.ResolveWireFormatDoT(
+                    dnsServer,
+                    port,
+                    name,
+                    type,
+                    requestDnsSec,
+                    validateDnsSec,
+                    debug,
+                    endpointConfiguration,
+                    ignoreCertificateErrors,
+                    cancellationToken);
+            } catch (Exception ex) when (ex is QuicException || ex is SocketException || ex is TimeoutException || ex is AuthenticationException) {
+                return await DnsWireResolveDot.ResolveWireFormatDoT(
+                    dnsServer,
+                    port,
+                    name,
+                    type,
+                    requestDnsSec,
+                    validateDnsSec,
+                    debug,
+                    endpointConfiguration,
+                    ignoreCertificateErrors,
+                    cancellationToken);
             } catch (Exception ex) {
                 DnsResponseCode responseCode = ex is TimeoutException ? DnsResponseCode.ServerFailure : DnsResponseCode.Refused;
                 var response = new DnsResponse {
