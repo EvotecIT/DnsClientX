@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
+using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,7 +31,26 @@ namespace DnsClientX {
                 Settings.Logger.WriteDebug($"Sending combined query: {BitConverter.ToString(payload)}");
             }
 
-            var endPoint = new IPEndPoint(IPAddress.Parse(dnsServer), port);
+            // Normalize the DNS server address. If it's not an IP address,
+            // resolve it using DNS. IPv6 addresses should be wrapped in
+            // brackets when constructing the endpoint string.
+            IPAddress ipAddress;
+            if (!IPAddress.TryParse(dnsServer, out ipAddress)) {
+                var hostEntry = await Dns.GetHostEntryAsync(dnsServer, cancellationToken);
+                ipAddress = hostEntry.AddressList[0];
+            }
+
+            var ipString = ipAddress.ToString();
+            int zoneIndex = ipString.IndexOf('%');
+            if (zoneIndex >= 0) {
+                ipString = ipString[..zoneIndex];
+            }
+
+            if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6) {
+                ipString = $"[{ipString}]";
+            }
+
+            var endPoint = IPEndPoint.Parse($"{ipString}:{port}");
             var options = new QuicClientConnectionOptions {
                 RemoteEndPoint = endPoint,
                 ClientAuthenticationOptions = new SslClientAuthenticationOptions {
