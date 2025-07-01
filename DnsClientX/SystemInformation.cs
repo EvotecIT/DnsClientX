@@ -144,6 +144,9 @@ namespace DnsClientX {
             try {
                 foreach (var line in File.ReadAllLines(path)) {
                     var trimmed = line.Trim();
+                    if (trimmed.StartsWith("#")) {
+                        continue;
+                    }
                     if (trimmed.StartsWith("nameserver", StringComparison.OrdinalIgnoreCase)) {
                         var parts = trimmed.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                         if (parts.Length > 1) {
