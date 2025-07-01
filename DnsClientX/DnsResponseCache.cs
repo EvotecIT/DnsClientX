@@ -5,7 +5,15 @@ namespace DnsClientX {
     internal class DnsResponseCache {
         private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
 
-        private record CacheEntry(DnsResponse Response, DateTimeOffset Expiration);
+        private class CacheEntry {
+            public CacheEntry(DnsResponse response, DateTimeOffset expiration) {
+                Response = response;
+                Expiration = expiration;
+            }
+
+            public DnsResponse Response { get; }
+            public DateTimeOffset Expiration { get; }
+        }
 
         public bool TryGet(string key, out DnsResponse response) {
             if (_cache.TryGetValue(key, out var entry)) {

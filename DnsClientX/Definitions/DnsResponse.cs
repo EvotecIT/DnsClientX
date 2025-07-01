@@ -10,7 +10,7 @@ namespace DnsClientX {
     /// The structure mirrors the response format described in
     /// <a href="https://www.rfc-editor.org/rfc/rfc1035">RFC 1035</a>.
     /// </summary>
-    public struct DnsResponse {
+    public class DnsResponse {
         /// <summary>
         /// The status code of the DNS response.
         /// </summary>

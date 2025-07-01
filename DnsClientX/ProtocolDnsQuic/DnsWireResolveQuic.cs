@@ -1,6 +1,8 @@
 using System;
 using System.Net;
+#if NET8_0_OR_GREATER
 using System.Net.Quic;
+#endif
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;

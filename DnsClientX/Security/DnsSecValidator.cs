@@ -36,7 +36,7 @@ namespace DnsClientX {
             if (string.IsNullOrWhiteSpace(dataRaw)) {
                 return false;
             }
-            string[] parts = dataRaw.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string[] parts = dataRaw.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length < 4) {
                 return false;
             }
@@ -68,7 +68,7 @@ namespace DnsClientX {
             if (string.IsNullOrWhiteSpace(dataRaw)) {
                 return false;
             }
-            string[] parts = dataRaw.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string[] parts = dataRaw.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length < 4) {
                 return false;
             }
