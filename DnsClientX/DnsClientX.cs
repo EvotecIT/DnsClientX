@@ -59,6 +59,11 @@ namespace DnsClientX {
         private HttpClientHandler handler;
 
         /// <summary>
+        /// Optional proxy used for HTTP requests
+        /// </summary>
+        private readonly IWebProxy? _webProxy;
+
+        /// <summary>
         /// The lock for thread safety
         /// </summary>
         private readonly object _lock = new object();
@@ -100,6 +105,7 @@ namespace DnsClientX {
         /// <param name="timeOutMilliseconds"></param>
         /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
         /// <param name="enableCache">Enable in-memory caching of responses.</param>
+        /// <param name="webProxy">Optional HTTP proxy.</param>
         public ClientX(
             DnsEndpoint endpoint = DnsEndpoint.Cloudflare,
             DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First,
@@ -107,7 +113,8 @@ namespace DnsClientX {
             string? userAgent = null,
             Version? httpVersion = null,
             bool ignoreCertificateErrors = false,
-            bool enableCache = false) {
+            bool enableCache = false,
+            IWebProxy? webProxy = null) {
             EndpointConfiguration = new Configuration(endpoint, dnsSelectionStrategy) {
                 TimeOut = timeOutMilliseconds
             };
@@ -119,6 +126,7 @@ namespace DnsClientX {
             }
             IgnoreCertificateErrors = ignoreCertificateErrors;
             _cacheEnabled = enableCache;
+            _webProxy = webProxy;
             ConfigureClient();
         }
 
@@ -130,6 +138,7 @@ namespace DnsClientX {
         /// <param name="timeOutMilliseconds"></param>
         /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
         /// <param name="enableCache">Enable in-memory caching of responses.</param>
+        /// <param name="webProxy">Optional HTTP proxy.</param>
         public ClientX(
             string hostname,
             DnsRequestFormat requestFormat,
@@ -137,7 +146,8 @@ namespace DnsClientX {
             string? userAgent = null,
             Version? httpVersion = null,
             bool ignoreCertificateErrors = false,
-            bool enableCache = false) {
+            bool enableCache = false,
+            IWebProxy? webProxy = null) {
             EndpointConfiguration = new Configuration(hostname, requestFormat) {
                 TimeOut = timeOutMilliseconds
             };
@@ -149,6 +159,7 @@ namespace DnsClientX {
             }
             IgnoreCertificateErrors = ignoreCertificateErrors;
             _cacheEnabled = enableCache;
+            _webProxy = webProxy;
             ConfigureClient();
         }
 
@@ -160,6 +171,7 @@ namespace DnsClientX {
         /// <param name="timeOutMilliseconds"></param>
         /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
         /// <param name="enableCache">Enable in-memory caching of responses.</param>
+        /// <param name="webProxy">Optional HTTP proxy.</param>
         public ClientX(
             Uri baseUri,
             DnsRequestFormat requestFormat,
@@ -167,7 +179,8 @@ namespace DnsClientX {
             string? userAgent = null,
             Version? httpVersion = null,
             bool ignoreCertificateErrors = false,
-            bool enableCache = false) {
+            bool enableCache = false,
+            IWebProxy? webProxy = null) {
             EndpointConfiguration = new Configuration(baseUri, requestFormat) {
                 TimeOut = timeOutMilliseconds
             };
@@ -179,6 +192,7 @@ namespace DnsClientX {
             }
             IgnoreCertificateErrors = ignoreCertificateErrors;
             _cacheEnabled = enableCache;
+            _webProxy = webProxy;
             ConfigureClient();
         }
 
@@ -205,6 +219,12 @@ namespace DnsClientX {
             }
 
             handler.SslProtocols = (SslProtocols)SecurityProtocol;
+            if (_webProxy != null) {
+                handler.Proxy = _webProxy;
+                handler.UseProxy = true;
+            } else {
+                handler.UseProxy = false;
+            }
 
             // Optimize connection settings for DNS workloads
             handler.MaxConnectionsPerServer = 10; // Allow multiple connections for parallel requests
