@@ -6,7 +6,7 @@ namespace DnsClientX;
 /// </summary>
 public enum DnsRecordType : ushort {
     /// <summary>
-    /// The reserved record type.
+    /// Reserved record type.
     /// </summary>
     Reserved = 0,
     /// <summary>
@@ -18,11 +18,11 @@ public enum DnsRecordType : ushort {
     /// </summary>
     NS = 2,
     /// <summary>
-    /// A mail destination (OBSOLETE - use MX).
+    /// A mail destination (obsolete, use MX).
     /// </summary>
     MD = 3,
     /// <summary>
-    /// A mail forwarder (OBSOLETE - use MX).
+    /// A mail forwarder (obsolete, use MX).
     /// </summary>
     MF = 4,
     /// <summary>
@@ -34,23 +34,23 @@ public enum DnsRecordType : ushort {
     /// </summary>
     SOA = 6,
     /// <summary>
-    /// A mailbox domain name (EXPERIMENTAL).
+    /// A mailbox domain name (experimental).
     /// </summary>
     MB = 7,
     /// <summary>
-    /// A mail group member (EXPERIMENTAL).
+    /// A mail group member (experimental).
     /// </summary>
     MG = 8,
     /// <summary>
-    /// A mail rename domain name (EXPERIMENTAL).
+    /// A mail rename domain name (experimental).
     /// </summary>
     MR = 9,
     /// <summary>
-    /// A null RR (EXPERIMENTAL).
+    /// A null record (experimental).
     /// </summary>
     NULL = 10,
     /// <summary>
-    /// A well known service description.
+    /// Well-known service description.
     /// </summary>
     WKS = 11,
     /// <summary>
@@ -74,15 +74,15 @@ public enum DnsRecordType : ushort {
     /// </summary>
     TXT = 16,
     /// <summary>
-    /// For responsible person.
+    /// Responsible person.
     /// </summary>
     RP = 17,
     /// <summary>
-    /// AFS Data Base location.
+    /// AFS database location.
     /// </summary>
     AFSDB = 18,
     /// <summary>
-    /// for X.25 PSDN address
+    /// X.25 PSDN address.
     /// </summary>
     X25 = 19,
     /// <summary>
@@ -90,23 +90,23 @@ public enum DnsRecordType : ushort {
     /// </summary>
     ISDN = 20,
     /// <summary>
-    /// for Route Through.
+    /// Route through.
     /// </summary>
     RT = 21,
     /// <summary>
-    /// for NSAP address, NSAP style A record (DEPRECATED)
+    /// NSAP address record (deprecated).
     /// </summary>
     NSAP = 22,
     /// <summary>
-    /// for domain name pointer, NSAP style (DEPRECATED)
+    /// Domain name pointer, NSAP style (deprecated).
     /// </summary>
     NSAP_PTR = 23,
     /// <summary>
-    /// For a security signature.
+    /// Security signature.
     /// </summary>
     SIG = 24,
     /// <summary>
-    /// IPv6 Address.
+    /// IPv6 address.
     /// </summary>
     AAAA = 28,
     /// <summary>
@@ -118,99 +118,99 @@ public enum DnsRecordType : ushort {
     /// </summary>
     SRV = 33,
     /// <summary>
-    /// ATM Address
+    /// ATM address.
     /// </summary>
     ATMA = 34,
     /// <summary>
-    /// Naming Authority Pointer.
+    /// Naming authority pointer.
     /// </summary>
     NAPTR = 35,
     /// <summary>
-    /// Key Exchanger.
+    /// Key exchanger.
     /// </summary>
     KX = 36,
     /// <summary>
-    /// CERT
+    /// Certificate record.
     /// </summary>
     CERT = 37,
     /// <summary>
-    /// A6 (OBSOLETE - use AAAA).
+    /// A6 record (obsolete, use AAAA).
     /// </summary>
     A6 = 38,
     /// <summary>
-    /// DNAME Record.
+    /// Non-terminal DNAME redirection.
     /// </summary>
     DNAME = 39,
     /// <summary>
-    /// The sink
+    /// Kitchen sink (experimental).
     /// </summary>
     SINK = 40,
     /// <summary>
-    /// The opt
+    /// Option pseudo-record.
     /// </summary>
     OPT = 41,
     /// <summary>
-    /// The apl
+    /// Address prefix list.
     /// </summary>
     APL = 42,
     /// <summary>
-    /// The ds
+    /// Delegation signer.
     /// </summary>
     DS = 43,
     /// <summary>
-    /// The SSHFP
+    /// SSH key fingerprint.
     /// </summary>
     SSHFP = 44,
     /// <summary>
-    /// IPSECKEY Record.
+    /// IPSECKEY record.
     /// </summary>
     IPSECKEY = 45,
     /// <summary>
-    /// RRset Signature.
+    /// RRset signature.
     /// </summary>
     RRSIG = 46,
     /// <summary>
-    /// NSEC
+    /// Next secure record.
     /// </summary>
     NSEC = 47,
     /// <summary>
-    /// DNSKEY Record.
+    /// DNS public key.
     /// </summary>
     DNSKEY = 48,
     /// <summary>
-    /// The dhcid
+    /// DHCP identifier.
     /// </summary>
     DHCID = 49,
     /// <summary>
-    /// The nse c3
+    /// NSEC3 record.
     /// </summary>
     NSEC3 = 50,
     /// <summary>
-    /// The nse c3 parameter
+    /// NSEC3 parameters.
     /// </summary>
     NSEC3PARAM = 51,
     /// <summary>
-    /// The tlsa
+    /// TLSA certificate association.
     /// </summary>
     TLSA = 52,
     /// <summary>
-    /// The smimea
+    /// S/MIME certificate association.
     /// </summary>
     SMIMEA = 53,
     /// <summary>
-    /// The hip
+    /// Host identity protocol.
     /// </summary>
     HIP = 55,
     /// <summary>
-    /// The ninfo
+    /// NINFO record.
     /// </summary>
     NINFO = 56,
     /// <summary>
-    /// The rkey
+    /// RKEY record.
     /// </summary>
     RKEY = 57,
     /// <summary>
-    /// Trust Anchor LINK.
+    /// Trust anchor link.
     /// </summary>
     TALINK = 58,
     /// <summary>
@@ -218,39 +218,39 @@ public enum DnsRecordType : ushort {
     /// </summary>
     CDS = 59,
     /// <summary>
-    /// DNSKEY(s) the Child wants reflected in DS.
+    /// Child DNSKEY(s) to be published as DS.
     /// </summary>
     CDNSKEY = 60,
     /// <summary>
-    /// OpenPGP public key record.
+    /// OpenPGP key.
     /// </summary>
     OPENPGPKEY = 61,
     /// <summary>
-    /// Child to Parent Synchronization.
+    /// Child-to-parent synchronization.
     /// </summary>
     CSYNC = 62,
     /// <summary>
-    /// Message Digest for DNS Zones.
+    /// Message digest over zone data.
     /// </summary>
     ZONEMD = 63,
     /// <summary>
-    /// Service Binding.
+    /// General-purpose service binding.
     /// </summary>
     SVCB = 64,
     /// <summary>
-    /// Service Binding compatible type for use with HTTP
+    /// Service binding compatible with HTTP.
     /// </summary>
     HTTPS = 65,
     /// <summary>
-    /// For the sender policy framework.
+    /// Sender Policy Framework.
     /// </summary>
     SPF = 99,
     /// <summary>
-    /// URI
+    /// Uniform Resource Identifier.
     /// </summary>
     URI = 256,
     /// <summary>
-    /// Certification Authority Authorization.
+    /// Certification Authority Restriction.
     /// </summary>
     CAA = 257,
     /// <summary>
@@ -266,15 +266,15 @@ public enum DnsRecordType : ushort {
     /// </summary>
     AMTRELAY = 260,
     /// <summary>
-    /// Resolver information as KEY/VALUE pairs.
+    /// Resolver information as key/value pairs.
     /// </summary>
     RESINFO = 261,
     /// <summary>
-    /// DNSSEC Trust Authorities.
+    /// DNSSEC trust authorities.
     /// </summary>
     TA = 32768,
     /// <summary>
-    /// DNSSEC Lookaside Validation. (OBSOLETE)
+    /// DNSSEC Lookaside Validation (obsolete).
     /// </summary>
     DLV = 32769
 }
