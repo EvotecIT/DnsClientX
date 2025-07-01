@@ -351,6 +351,13 @@ using var client = new ClientX(DnsEndpoint.Cloudflare, userAgent: "MyApp/1.0", h
 ```
 You can also modify `client.EndpointConfiguration.UserAgent` and `client.EndpointConfiguration.HttpVersion` after construction.
 
+### Querying DNS over QUIC via Cloudflare
+
+```csharp
+var data = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, DnsEndpoint.CloudflareQuic);
+data.Answers
+```
+
 ### Querying DS record with DNSSEC
 
 ```csharp
