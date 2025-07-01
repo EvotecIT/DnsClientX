@@ -11,7 +11,7 @@ namespace DnsClientX {
         /// <summary>
         /// The random number generator.
         /// </summary>
-        private static readonly Random random = Random.Shared;
+        private static readonly Random random = new Random();
 
 
         private List<string> hostnames = new List<string>();

@@ -213,7 +213,7 @@ namespace DnsClientX {
 #endif
 
             // Create handler with proper connection management
-            var handler = new HttpClientHandler();
+            handler = new HttpClientHandler();
             if (IgnoreCertificateErrors) {
                 handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
             }
@@ -265,9 +265,6 @@ namespace DnsClientX {
                 handler?.Dispose();
 
                 Client = CreateOptimizedHttpClient();
-                handler = (HttpClientHandler)((HttpClient)Client).GetType()
-                    .GetField("_handler", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                    ?.GetValue(Client) as HttpClientHandler;
             }
         }
 
@@ -298,6 +295,14 @@ namespace DnsClientX {
         private static string ConvertToPunycode(string domainName) {
             if (string.IsNullOrWhiteSpace(domainName)) {
                 return domainName;
+            }
+            foreach (char c in domainName) {
+                UnicodeCategory cat = char.GetUnicodeCategory(c);
+                if (cat is UnicodeCategory.OtherSymbol
+                    or UnicodeCategory.PrivateUse
+                    or UnicodeCategory.Surrogate) {
+                    return domainName;
+                }
             }
 
             IdnMapping idn = new IdnMapping();
