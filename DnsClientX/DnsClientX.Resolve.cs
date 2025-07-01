@@ -297,7 +297,7 @@ namespace DnsClientX {
         /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
         public DnsResponse ResolveSync(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100) {
-            return Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs).GetAwaiter().GetResult();
+            return Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs).RunSync();
         }
 
         /// <summary>
@@ -347,7 +347,7 @@ namespace DnsClientX {
         /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
         public DnsResponse[] ResolveSync(string name, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            return Resolve(name, types, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs).GetAwaiter().GetResult();
+            return Resolve(name, types, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs).RunSync();
         }
 
         /// <summary>
@@ -390,7 +390,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>An array of DNS responses.</returns>
         public DnsResponse[] ResolveSync(string[] names, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            return Resolve(names, types, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs).GetAwaiter().GetResult();
+            return Resolve(names, types, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs).RunSync();
         }
 
         /// <summary>
@@ -431,7 +431,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>An array of DNS responses.</returns>
         public DnsResponse[] ResolveSync(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            return Resolve(names, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs).GetAwaiter().GetResult();
+            return Resolve(names, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs).RunSync();
         }
     }
 }
