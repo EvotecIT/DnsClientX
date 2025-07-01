@@ -43,19 +43,19 @@ namespace DnsClientX {
             if (!ushort.TryParse(parts[0], out ushort keyTag)) {
                 return false;
             }
-            byte algVal;
-            if (Enum.TryParse(typeof(DnsKeyAlgorithm), parts[1], true, out object? algEnum)) {
-                algVal = (byte)(DnsKeyAlgorithm)algEnum;
-            } else if (!byte.TryParse(parts[1], out algVal)) {
-                return false;
-            }
-            if (!Enum.IsDefined(typeof(DnsKeyAlgorithm), (int)algVal)) {
+            DnsKeyAlgorithm parsedAlgorithm;
+            if (Enum.TryParse(parts[1], true, out DnsKeyAlgorithm algEnum)) {
+                parsedAlgorithm = algEnum;
+            } else if (byte.TryParse(parts[1], out byte algVal) &&
+                       Enum.IsDefined(typeof(DnsKeyAlgorithm), (int)algVal)) {
+                parsedAlgorithm = (DnsKeyAlgorithm)algVal;
+            } else {
                 return false;
             }
             if (!byte.TryParse(parts[2], out byte digestType)) {
                 return false;
             }
-            record = new RootDsRecord(keyTag, (DnsKeyAlgorithm)algVal, digestType, parts[3].ToUpperInvariant());
+            record = new RootDsRecord(keyTag, parsedAlgorithm, digestType, parts[3].ToUpperInvariant());
             return true;
         }
 
@@ -78,16 +78,14 @@ namespace DnsClientX {
             if (!byte.TryParse(parts[1], out protocol)) {
                 return false;
             }
-            byte algVal;
-            if (Enum.TryParse(typeof(DnsKeyAlgorithm), parts[2], true, out object? algEnum)) {
-                algVal = (byte)(DnsKeyAlgorithm)algEnum;
-            } else if (!byte.TryParse(parts[2], out algVal)) {
+            if (Enum.TryParse(parts[2], true, out DnsKeyAlgorithm algEnum)) {
+                algorithm = algEnum;
+            } else if (byte.TryParse(parts[2], out byte algVal) &&
+                       Enum.IsDefined(typeof(DnsKeyAlgorithm), (int)algVal)) {
+                algorithm = (DnsKeyAlgorithm)algVal;
+            } else {
                 return false;
             }
-            if (!Enum.IsDefined(typeof(DnsKeyAlgorithm), (int)algVal)) {
-                return false;
-            }
-            algorithm = (DnsKeyAlgorithm)algVal;
             string keyBase64 = string.Join(string.Empty, parts, 3, parts.Length - 3);
             try {
                 publicKey = Convert.FromBase64String(keyBase64);
