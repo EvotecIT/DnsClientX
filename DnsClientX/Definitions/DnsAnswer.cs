@@ -96,7 +96,11 @@ namespace DnsClientX {
             get {
                 var data = new List<string>();
                 foreach (var item in DataStrings) {
-                    data.Add(item.StartsWith("\"") ? item.Replace("\"", "") : item);
+                    if (item.StartsWith("\\\"")) {
+                        data.Add(item.Replace("\\\"", string.Empty).Replace("\"", string.Empty));
+                    } else {
+                        data.Add(item);
+                    }
                 }
                 return data.ToArray();
             }
