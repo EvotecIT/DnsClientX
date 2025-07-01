@@ -87,7 +87,11 @@ namespace DnsClientX {
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
                 response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, IgnoreCertificateErrors, cancellationToken);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverQuic) {
+#if NET8_0_OR_GREATER
                 response = await DnsWireResolveQuic.ResolveWireFormatQuic(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
+#else
+                throw new DnsClientException("DNS over QUIC is not supported on this platform.");
+#endif
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
                 response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
@@ -127,6 +131,8 @@ namespace DnsClientX {
         }
 
 
+        private static readonly Random _random = new Random();
+
         private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 100, Action? beforeRetry = null) {
             Exception lastException = null;
             T lastResult = default(T);
@@ -145,7 +151,7 @@ namespace DnsClientX {
 
                         beforeRetry?.Invoke();
                         int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
-                        int jitter = Random.Shared.Next(0, delayMs);
+                        int jitter = _random.Next(0, delayMs);
                         await Task.Delay(exponentialDelay + jitter);
                         continue;
                     }
@@ -161,7 +167,7 @@ namespace DnsClientX {
 
                     beforeRetry?.Invoke();
                     int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
-                    int jitter = Random.Shared.Next(0, delayMs);
+                    int jitter = _random.Next(0, delayMs);
                     await Task.Delay(exponentialDelay + jitter);
                     continue;
                 }
