@@ -85,13 +85,13 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>Raw DNS response bytes.</returns>
         private static async Task<byte[]> SendQueryOverTcp(byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
-            using var tcpClient = new TcpClient();
+            TcpClient tcpClient = await TcpConnectionStore.GetConnectionAsync(
+                dnsServer,
+                port,
+                client => ConnectAsync(client, dnsServer, port, timeoutMilliseconds, cancellationToken));
             try {
-                // Connect to the server with timeout
-                await ConnectAsync(tcpClient, dnsServer, port, timeoutMilliseconds, cancellationToken);
-
-                // Stream operations wrapped in using to ensure disposal on exceptions
-                using var stream = tcpClient.GetStream();
+                // Stream for the existing connection
+                var stream = tcpClient.GetStream();
 
                 // Write the length of the query as a 16-bit big-endian integer
                 var lengthBytes = BitConverter.GetBytes((ushort)query.Length);

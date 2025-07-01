@@ -62,12 +62,14 @@ namespace DnsClientX {
                 Settings.Logger.WriteDebug($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
 
-            // Create a new TCP client and connect to the DNS server
-            using var client = new TcpClient();
-            await ConnectAsync(client, dnsServer, port, cancellationToken);
+            // Get or create TCP connection to the DNS server
+            TcpClient client = await TcpConnectionStore.GetConnectionAsync(
+                dnsServer,
+                port,
+                c => ConnectAsync(c, dnsServer, port, cancellationToken));
 
             // Create a new SSL stream for the secure connection
-            using var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) =>
+            using var sslStream = new SslStream(client.GetStream(), true, (sender, certificate, chain, sslPolicyErrors) =>
                 sslPolicyErrors == SslPolicyErrors.None || ignoreCertificateErrors);
 
 
