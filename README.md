@@ -349,6 +349,11 @@ data.Answers
 ```csharp
 using var client = new ClientX(DnsEndpoint.Cloudflare, userAgent: "MyApp/1.0", httpVersion: new Version(1, 1));
 ```
+You can also pass a custom `IWebProxy`:
+```csharp
+var proxy = new WebProxy("http://proxy:3128");
+using var client = new ClientX(DnsEndpoint.Cloudflare, proxy: proxy);
+```
 You can also modify `client.EndpointConfiguration.UserAgent` and `client.EndpointConfiguration.HttpVersion` after construction.
 
 ### Querying DS record with DNSSEC

@@ -69,6 +69,11 @@ namespace DnsClientX {
         private readonly Dictionary<DnsSelectionStrategy, HttpClient> _clients = new Dictionary<DnsSelectionStrategy, HttpClient>();
 
         /// <summary>
+        /// Optional proxy to use for HTTP requests
+        /// </summary>
+        private readonly IWebProxy? _proxy;
+
+        /// <summary>
         /// Gets or sets the security protocol. The default value is <see cref="SecurityProtocolType.Tls12"/> which is required by Quad 9.
         /// </summary>
         /// <value>
@@ -100,7 +105,8 @@ namespace DnsClientX {
             int timeOutMilliseconds = 1000,
             string? userAgent = null,
             Version? httpVersion = null,
-            bool ignoreCertificateErrors = false) {
+            bool ignoreCertificateErrors = false,
+            IWebProxy? proxy = null) {
             EndpointConfiguration = new Configuration(endpoint, dnsSelectionStrategy) {
                 TimeOut = timeOutMilliseconds
             };
@@ -111,6 +117,7 @@ namespace DnsClientX {
                 EndpointConfiguration.HttpVersion = httpVersion;
             }
             IgnoreCertificateErrors = ignoreCertificateErrors;
+            _proxy = proxy;
             ConfigureClient();
         }
 
@@ -127,7 +134,8 @@ namespace DnsClientX {
             int timeOutMilliseconds = 1000,
             string? userAgent = null,
             Version? httpVersion = null,
-            bool ignoreCertificateErrors = false) {
+            bool ignoreCertificateErrors = false,
+            IWebProxy? proxy = null) {
             EndpointConfiguration = new Configuration(hostname, requestFormat) {
                 TimeOut = timeOutMilliseconds
             };
@@ -138,6 +146,7 @@ namespace DnsClientX {
                 EndpointConfiguration.HttpVersion = httpVersion;
             }
             IgnoreCertificateErrors = ignoreCertificateErrors;
+            _proxy = proxy;
             ConfigureClient();
         }
 
@@ -154,7 +163,8 @@ namespace DnsClientX {
             int timeOutMilliseconds = 1000,
             string? userAgent = null,
             Version? httpVersion = null,
-            bool ignoreCertificateErrors = false) {
+            bool ignoreCertificateErrors = false,
+            IWebProxy? proxy = null) {
             EndpointConfiguration = new Configuration(baseUri, requestFormat) {
                 TimeOut = timeOutMilliseconds
             };
@@ -165,6 +175,7 @@ namespace DnsClientX {
                 EndpointConfiguration.HttpVersion = httpVersion;
             }
             IgnoreCertificateErrors = ignoreCertificateErrors;
+            _proxy = proxy;
             ConfigureClient();
         }
 
@@ -186,6 +197,10 @@ namespace DnsClientX {
 
             // Create handler with proper connection management
             var handler = new HttpClientHandler();
+            if (_proxy != null) {
+                handler.Proxy = _proxy;
+                handler.UseProxy = true;
+            }
             if (IgnoreCertificateErrors) {
                 handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
             }
