@@ -86,7 +86,7 @@ namespace DnsClientX {
             } else {
                 return false;
             }
-            string keyBase64 = string.Join(string.Empty, parts, 3, parts.Length - 3);
+            string keyBase64 = string.Concat(parts.Skip(3));
             try {
                 publicKey = Convert.FromBase64String(keyBase64);
             } catch {
