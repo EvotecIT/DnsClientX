@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Management.Automation;
+using System.Reflection;
 using System.Threading.Tasks;
+using DnsClientX;
 
 namespace DnsClientX.PowerShell {
     /// <summary>
@@ -77,7 +79,52 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
         public int TimeOut = 1000;
 
+        /// <summary>
+        /// <para type="description">Number of retry attempts on transient errors.</para>
+        /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
+        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
+        public int RetryCount = 3;
+
+        /// <summary>
+        /// <para type="description">Delay between retry attempts in milliseconds.</para>
+        /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
+        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
+        public int RetryDelayMs = 200;
+
         private InternalLogger _logger;
+
+        private static readonly MethodInfo _isTransientResponse = typeof(ClientX).GetMethod("IsTransientResponse", BindingFlags.NonPublic | BindingFlags.Static)!;
+        private static readonly MethodInfo _isTransientException = typeof(ClientX).GetMethod("IsTransient", BindingFlags.NonPublic | BindingFlags.Static)!;
+
+        private static bool IsTransientResponse(DnsResponse response) => (bool)_isTransientResponse.Invoke(null, new object[] { response })!;
+        private static bool IsTransient(Exception ex) => (bool)_isTransientException.Invoke(null, new object[] { ex })!;
+
+        private async Task<DnsResponse[]> ExecuteWithRetry(Func<Task<DnsResponse[]>> query) {
+            DnsResponse[] lastResults = Array.Empty<DnsResponse>();
+            Exception? lastException = null;
+            for (int attempt = 1; attempt <= RetryCount; attempt++) {
+                try {
+                    lastResults = await query();
+                    if (!lastResults.Any(IsTransientResponse)) {
+                        return lastResults;
+                    }
+                } catch (Exception ex) when (IsTransient(ex)) {
+                    lastException = ex;
+                }
+
+                if (attempt < RetryCount) {
+                    await Task.Delay(RetryDelayMs);
+                }
+            }
+
+            if (lastException != null) {
+                throw lastException;
+            }
+
+            return lastResults;
+        }
 
         /// <summary>
         /// Begin record asynchronously.
@@ -96,7 +143,7 @@ namespace DnsClientX.PowerShell {
         /// Process the record asynchronously.
         /// </summary>
         /// <returns></returns>
-        protected override Task ProcessRecordAsync() {
+        protected override async Task ProcessRecordAsync() {
             string names = string.Join(", ", Name);
             string types = string.Join(", ", Type);
             if (Server.Count > 0) {
@@ -111,16 +158,16 @@ namespace DnsClientX.PowerShell {
                     var aggregatedResults = new List<DnsResponse>();
                     foreach (string serverName in serverOrder) {
                         _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, serverName);
-                        var result = ClientX.QueryDns(Name, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut);
-                        aggregatedResults.AddRange(result.Result);
+                        var result = await ExecuteWithRetry(() => ClientX.QueryDns(Name, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
+                        aggregatedResults.AddRange(result);
                     }
                     results = aggregatedResults;
                 } else if (Fallback.IsPresent) {
                     var aggregatedResults = new List<DnsResponse>();
                     foreach (string serverName in serverOrder) {
                         _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, serverName);
-                        var result = ClientX.QueryDns(Name, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut);
-                        aggregatedResults.AddRange(result.Result);
+                        var result = await ExecuteWithRetry(() => ClientX.QueryDns(Name, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
+                        aggregatedResults.AddRange(result);
                         if (aggregatedResults.Any(r => r.Status == DnsResponseCode.NoError)) {
                             break;
                         }
@@ -129,8 +176,8 @@ namespace DnsClientX.PowerShell {
                 } else {
                     string myServer = serverOrder.First();
                     _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, myServer);
-                    var result = ClientX.QueryDns(Name, Type, myServer, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut);
-                    results = result.Result;
+                    var result = await ExecuteWithRetry(() => ClientX.QueryDns(Name, Type, myServer, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
+                    results = result;
                 }
 
                 foreach (var record in results) {
@@ -148,16 +195,16 @@ namespace DnsClientX.PowerShell {
                     }
                 }
             } else {
-                Task<DnsResponse[]> result;
+                DnsResponse[] result;
                 if (DnsProvider == null) {
                     _logger.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, "Default");
-                    result = ClientX.QueryDns(Name, Type, timeOutMilliseconds: TimeOut);
+                    result = await ExecuteWithRetry(() => ClientX.QueryDns(Name, Type, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
                 } else {
                     _logger.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, DnsProvider.Value);
-                    result = ClientX.QueryDns(Name, Type, DnsProvider.Value, timeOutMilliseconds: TimeOut);
+                    result = await ExecuteWithRetry(() => ClientX.QueryDns(Name, Type, DnsProvider.Value, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
                 }
 
-                foreach (var record in result.Result) {
+                foreach (var record in result) {
                     if (record.Status == DnsResponseCode.NoError) {
                         if (DnsProvider == null) {
                             _logger.WriteVerbose("Query successful for {0} with type {1}, {2}", names, types, "Default");
@@ -179,7 +226,7 @@ namespace DnsClientX.PowerShell {
                 }
             }
 
-            return Task.CompletedTask;
+            return;
         }
     }
 }
