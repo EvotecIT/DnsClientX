@@ -33,5 +33,9 @@ namespace DnsClientX {
         /// DNS over QUIC, defined in <a href="https://www.rfc-editor.org/rfc/rfc9250">RFC 9250</a>.
         /// </summary>
         DnsOverQuic,
+        /// <summary>
+        /// DNS over HTTP/3 using wire format.
+        /// </summary>
+        DnsOverHttp3,
     }
 }
