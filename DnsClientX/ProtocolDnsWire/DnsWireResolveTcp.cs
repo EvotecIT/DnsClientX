@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -6,6 +8,8 @@ using System.Threading;
 
 namespace DnsClientX {
     internal class DnsWireResolveTcp {
+        private static readonly ConcurrentDictionary<string, TcpClient> _clients = new();
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
         /// <summary>
         /// Sends a DNS query in wire format using DNS over TCP (53) and returns the response.
         /// </summary>
@@ -85,13 +89,16 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>Raw DNS response bytes.</returns>
         private static async Task<byte[]> SendQueryOverTcp(byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
-            using var tcpClient = new TcpClient();
+            string key = $"{dnsServer}:{port}";
+            TcpClient tcpClient = _clients.GetOrAdd(key, _ => new TcpClient());
+            SemaphoreSlim semaphore = _locks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+            await semaphore.WaitAsync(cancellationToken);
             try {
-                // Connect to the server with timeout
-                await ConnectAsync(tcpClient, dnsServer, port, timeoutMilliseconds, cancellationToken);
+                if (!tcpClient.Connected) {
+                    await ConnectAsync(tcpClient, dnsServer, port, timeoutMilliseconds, cancellationToken);
+                }
 
-                // Get the stream
-                using var stream = tcpClient.GetStream();
+                NetworkStream stream = tcpClient.GetStream();
 
                     // Write the length of the query as a 16-bit big-endian integer
                     var lengthBytes = BitConverter.GetBytes((ushort)query.Length);
@@ -137,6 +144,8 @@ namespace DnsClientX {
                     return responseBuffer;
                 } catch (OperationCanceledException) {
                     throw new TimeoutException($"The TCP DNS query timed out after {timeoutMilliseconds} milliseconds.");
+                } finally {
+                    semaphore.Release();
                 }
         }
 
@@ -187,6 +196,18 @@ namespace DnsClientX {
 
             await connectTask; // propagate possible exceptions
 #endif
+        }
+
+        internal static void DisposeConnections() {
+            foreach (KeyValuePair<string, TcpClient> kvp in _clients) {
+                kvp.Value.Close();
+                kvp.Value.Dispose();
+            }
+            foreach (KeyValuePair<string, SemaphoreSlim> kvp in _locks) {
+                kvp.Value.Dispose();
+            }
+            _clients.Clear();
+            _locks.Clear();
         }
     }
 }

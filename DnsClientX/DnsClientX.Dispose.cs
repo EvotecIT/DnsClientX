@@ -51,6 +51,8 @@ namespace DnsClientX {
                     }
 
                     handlerLocal?.Dispose();
+
+                    DnsWireResolveTcp.DisposeConnections();
                 }
 
                 _disposed = true;
