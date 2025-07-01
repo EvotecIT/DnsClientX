@@ -145,8 +145,8 @@ namespace DnsClientX {
                     if (result is DnsResponse response && IsTransientResponse(response)) {
                         lastResult = result;
                         if (attempt == maxRetries) {
-                            // This was the last attempt, return the result (don't throw)
-                            return result;
+                            // Break out of the loop so the transient result can be evaluated below
+                            break;
                         }
 
                         beforeRetry?.Invoke();
