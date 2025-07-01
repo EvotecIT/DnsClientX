@@ -63,6 +63,11 @@ namespace DnsClientX {
             // Get the HttpClient for the current strategy
             Client = GetClient(EndpointConfiguration.SelectionStrategy);
 
+            string cacheKey = $"{EndpointConfiguration.BaseUri}|{type}|{name}";
+            if (_cacheEnabled && _cache.TryGet(cacheKey, out var cached)) {
+                return cached;
+            }
+
             if (type == DnsRecordType.PTR) {
                 // if we have PTR we need to convert it to proper format, just in case user didn't provide as with one
                 name = ConvertToPtrFormat(name);
@@ -110,6 +115,10 @@ namespace DnsClientX {
                         response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
                     }
                 }
+            }
+
+            if (_cacheEnabled) {
+                _cache.Set(cacheKey, response, CacheExpiration);
             }
 
             return response;

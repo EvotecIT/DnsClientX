@@ -68,6 +68,11 @@ namespace DnsClientX {
         /// </summary>
         private readonly Dictionary<DnsSelectionStrategy, HttpClient> _clients = new Dictionary<DnsSelectionStrategy, HttpClient>();
 
+        private static readonly DnsResponseCache _cache = new();
+        private readonly bool _cacheEnabled;
+        public bool CacheEnabled => _cacheEnabled;
+        public TimeSpan CacheExpiration { get; set; } = TimeSpan.FromMinutes(1);
+
         /// <summary>
         /// Gets or sets the security protocol. The default value is <see cref="SecurityProtocolType.Tls12"/> which is required by Quad 9.
         /// </summary>
@@ -94,13 +99,15 @@ namespace DnsClientX {
         /// <param name="dnsSelectionStrategy">Dns selection strategy</param>
         /// <param name="timeOutMilliseconds"></param>
         /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
+        /// <param name="enableCache">Enable in-memory caching of responses.</param>
         public ClientX(
             DnsEndpoint endpoint = DnsEndpoint.Cloudflare,
             DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First,
             int timeOutMilliseconds = 1000,
             string? userAgent = null,
             Version? httpVersion = null,
-            bool ignoreCertificateErrors = false) {
+            bool ignoreCertificateErrors = false,
+            bool enableCache = false) {
             EndpointConfiguration = new Configuration(endpoint, dnsSelectionStrategy) {
                 TimeOut = timeOutMilliseconds
             };
@@ -111,6 +118,7 @@ namespace DnsClientX {
                 EndpointConfiguration.HttpVersion = httpVersion;
             }
             IgnoreCertificateErrors = ignoreCertificateErrors;
+            _cacheEnabled = enableCache;
             ConfigureClient();
         }
 
@@ -121,13 +129,15 @@ namespace DnsClientX {
         /// <param name="requestFormat">The request format.</param>
         /// <param name="timeOutMilliseconds"></param>
         /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
+        /// <param name="enableCache">Enable in-memory caching of responses.</param>
         public ClientX(
             string hostname,
             DnsRequestFormat requestFormat,
             int timeOutMilliseconds = 1000,
             string? userAgent = null,
             Version? httpVersion = null,
-            bool ignoreCertificateErrors = false) {
+            bool ignoreCertificateErrors = false,
+            bool enableCache = false) {
             EndpointConfiguration = new Configuration(hostname, requestFormat) {
                 TimeOut = timeOutMilliseconds
             };
@@ -138,6 +148,7 @@ namespace DnsClientX {
                 EndpointConfiguration.HttpVersion = httpVersion;
             }
             IgnoreCertificateErrors = ignoreCertificateErrors;
+            _cacheEnabled = enableCache;
             ConfigureClient();
         }
 
@@ -148,13 +159,15 @@ namespace DnsClientX {
         /// <param name="requestFormat">The request format.</param>
         /// <param name="timeOutMilliseconds"></param>
         /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
+        /// <param name="enableCache">Enable in-memory caching of responses.</param>
         public ClientX(
             Uri baseUri,
             DnsRequestFormat requestFormat,
             int timeOutMilliseconds = 1000,
             string? userAgent = null,
             Version? httpVersion = null,
-            bool ignoreCertificateErrors = false) {
+            bool ignoreCertificateErrors = false,
+            bool enableCache = false) {
             EndpointConfiguration = new Configuration(baseUri, requestFormat) {
                 TimeOut = timeOutMilliseconds
             };
@@ -165,6 +178,7 @@ namespace DnsClientX {
                 EndpointConfiguration.HttpVersion = httpVersion;
             }
             IgnoreCertificateErrors = ignoreCertificateErrors;
+            _cacheEnabled = enableCache;
             ConfigureClient();
         }
 
