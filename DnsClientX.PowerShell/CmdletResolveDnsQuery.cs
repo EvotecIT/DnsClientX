@@ -148,7 +148,10 @@ namespace DnsClientX.PowerShell {
             string types = string.Join(", ", Type);
             if (Server.Count > 0) {
                 IEnumerable<string> serverOrder = Server;
-                if (RandomServer.IsPresent) {
+                // When both AllServers and Fallback are specified, randomize server
+                // selection to avoid always hitting the same order. RandomServer also
+                // triggers randomization.
+                if (RandomServer.IsPresent || (AllServers.IsPresent && Fallback.IsPresent)) {
                     var random = new Random();
                     serverOrder = serverOrder.OrderBy(_ => random.Next()).ToList();
                 }
