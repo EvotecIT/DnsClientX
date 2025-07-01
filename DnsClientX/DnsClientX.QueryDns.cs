@@ -136,13 +136,13 @@ namespace DnsClientX {
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns></returns>
-        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
+        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             using var client = new ClientX(dnsUri, requestFormat) {
                 EndpointConfiguration = {
                     TimeOut = timeOutMilliseconds
                 }
             };
-            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs);
+            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken);
             return data;
         }
 
@@ -158,8 +158,8 @@ namespace DnsClientX {
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <returns></returns>
-        public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType[] recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            return QueryDns(name, recordType, dnsUri, requestFormat, timeOutMilliseconds, retryOnTransient, maxRetries, retryDelayMs).RunSync();
+        public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType[] recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = 1000, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
+            return QueryDns(name, recordType, dnsUri, requestFormat, timeOutMilliseconds, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();
         }
 
         /// <summary>
