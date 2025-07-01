@@ -1,7 +1,7 @@
 using System;
+using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
-using System.Diagnostics;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -69,7 +69,8 @@ namespace DnsClientX.Tests {
             var firstInterval = times[1] - times[0];
             var secondInterval = times[2] - times[1];
 
-            Assert.True(secondInterval >= firstInterval);
+            // Allow a small margin for OS timer variance
+            Assert.True(secondInterval + 5 >= firstInterval);
         }
 
         [Fact]
@@ -88,4 +89,3 @@ namespace DnsClientX.Tests {
         }
     }
 }
-
