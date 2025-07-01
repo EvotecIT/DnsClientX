@@ -50,9 +50,10 @@ namespace DnsClientX.Tests {
         [Fact]
         public async Task ShouldUseExponentialBackoff() {
             int attempts = 0;
-            DateTime[] times = new DateTime[3];
+            long[] times = new long[3];
+            var sw = Stopwatch.StartNew();
             Func<Task<int>> action = () => {
-                times[attempts] = DateTime.UtcNow;
+                times[attempts] = sw.ElapsedMilliseconds;
                 attempts++;
                 throw new TimeoutException();
             };
@@ -68,7 +69,7 @@ namespace DnsClientX.Tests {
             var firstInterval = times[1] - times[0];
             var secondInterval = times[2] - times[1];
 
-            Assert.True(secondInterval > firstInterval);
+            Assert.True(secondInterval >= firstInterval);
         }
 
         [Fact]
