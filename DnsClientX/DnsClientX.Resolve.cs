@@ -87,7 +87,11 @@ namespace DnsClientX {
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
                 response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, IgnoreCertificateErrors, cancellationToken);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverQuic) {
+#if NET8_0_OR_GREATER
                 response = await DnsWireResolveQuic.ResolveWireFormatQuic(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
+#else
+                throw new DnsClientException("DNS over QUIC is not supported on this platform.");
+#endif
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
                 response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
@@ -126,7 +130,8 @@ namespace DnsClientX {
             return response;
         }
 
-        
+        private static readonly Random _random = new Random();
+
         /// <summary>
         /// Executes the provided asynchronous <paramref name="action"/> with retry logic.
         /// </summary>
@@ -153,13 +158,13 @@ namespace DnsClientX {
                     if (result is DnsResponse response && IsTransientResponse(response)) {
                         lastResult = result;
                         if (attempt == maxRetries) {
-                            // This was the last attempt, return the result (don't throw)
-                            return result;
+                            // Break out of the loop so the transient result can be evaluated below
+                            break;
                         }
 
                         beforeRetry?.Invoke();
                         int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
-                        int jitter = Random.Shared.Next(0, delayMs);
+                        int jitter = _random.Next(0, delayMs);
                         await Task.Delay(exponentialDelay + jitter);
                         continue;
                     }
@@ -175,7 +180,7 @@ namespace DnsClientX {
 
                     beforeRetry?.Invoke();
                     int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
-                    int jitter = Random.Shared.Next(0, delayMs);
+                    int jitter = _random.Next(0, delayMs);
                     await Task.Delay(exponentialDelay + jitter);
                     continue;
                 }
@@ -211,8 +216,16 @@ namespace DnsClientX {
 
         private static bool IsTransient(Exception ex) {
             // Handle DnsClientException with specific response codes
-            if (ex is DnsClientException dnsEx && dnsEx.Data.Contains("DnsResponse")) {
-                if (dnsEx.Data["DnsResponse"] is DnsResponse response) {
+            if (ex is DnsClientException dnsEx) {
+                DnsResponse? response = null;
+
+                if (dnsEx.Response is not null) {
+                    response = dnsEx.Response;
+                } else if (dnsEx.Data.Contains("DnsResponse") && dnsEx.Data["DnsResponse"] is DnsResponse resp) {
+                    response = resp;
+                }
+
+                if (response is not null) {
                     // Consider these DNS response codes as transient (should retry)
                     return response.Status == DnsResponseCode.ServerFailure ||
                            response.Status == DnsResponseCode.Refused ||
