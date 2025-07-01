@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -145,7 +146,11 @@ namespace DnsClientX {
 
                         beforeRetry?.Invoke();
                         int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
+#if NET5_0_OR_GREATER
+                        int jitter = RandomNumberGenerator.GetInt32(0, delayMs);
+#else
                         int jitter = Random.Shared.Next(0, delayMs);
+#endif
                         await Task.Delay(exponentialDelay + jitter);
                         continue;
                     }
@@ -161,7 +166,11 @@ namespace DnsClientX {
 
                     beforeRetry?.Invoke();
                     int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
+#if NET5_0_OR_GREATER
+                    int jitter = RandomNumberGenerator.GetInt32(0, delayMs);
+#else
                     int jitter = Random.Shared.Next(0, delayMs);
+#endif
                     await Task.Delay(exponentialDelay + jitter);
                     continue;
                 }
