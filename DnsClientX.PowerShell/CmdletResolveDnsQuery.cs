@@ -162,7 +162,7 @@ namespace DnsClientX.PowerShell {
                 }
 
                 IEnumerable<string> serverOrder = validServers;
-                if (RandomServer.IsPresent) {
+                if (RandomServer.IsPresent || (AllServers.IsPresent && Fallback.IsPresent)) {
                     var random = new Random();
                     serverOrder = serverOrder.OrderBy(_ => random.Next()).ToList();
                 }
