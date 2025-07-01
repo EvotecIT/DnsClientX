@@ -130,9 +130,22 @@ namespace DnsClientX {
             return response;
         }
 
-
         private static readonly Random _random = new Random();
 
+        /// <summary>
+        /// Executes the provided asynchronous <paramref name="action"/> with retry logic.
+        /// </summary>
+        /// <typeparam name="T">Type returned by the action.</typeparam>
+        /// <param name="action">The asynchronous operation to execute.</param>
+        /// <param name="maxRetries">Maximum number of attempts before giving up.</param>
+        /// <param name="delayMs">Base delay between retries in milliseconds. The actual wait time grows exponentially with a random jitter.</param>
+        /// <param name="beforeRetry">Optional callback invoked before each retry attempt.</param>
+        /// <remarks>
+        /// The method retries when a transient exception occurs or when a <see cref="DnsResponse"/>
+        /// returned by <paramref name="action"/> indicates a transient failure. Exponential backoff with
+        /// jitter is used between attempts. If the final result still signals a transient error, a
+        /// <see cref="DnsClientException"/> is thrown with the last response.
+        /// </remarks>
         private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 100, Action? beforeRetry = null) {
             Exception lastException = null;
             T lastResult = default(T);
