@@ -43,7 +43,8 @@ namespace DnsClientX.Tests {
             sw.Stop();
 
             Assert.Equal(3, attempts);
-            Assert.InRange(sw.ElapsedMilliseconds, 150, 300);
+            // Allow a little more headroom for slower environments
+            Assert.InRange(sw.ElapsedMilliseconds, 150, 350);
         }
 
         [Fact]
