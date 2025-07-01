@@ -58,6 +58,14 @@ namespace DnsClientX {
                 var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer);
                 response.AddServerDetails(endpointConfiguration);
                 return response;
+            } catch (PlatformNotSupportedException ex) {
+                var response = new DnsResponse {
+                    Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverQuic, Type = type, OriginalName = name } ],
+                    Status = DnsResponseCode.NotImplemented
+                };
+                response.AddServerDetails(endpointConfiguration);
+                response.Error = $"DNS over QUIC is not supported on this platform: {ex.Message}";
+                return response;
             } catch (Exception ex) {
                 DnsResponseCode responseCode = ex is TimeoutException ? DnsResponseCode.ServerFailure : DnsResponseCode.Refused;
                 var response = new DnsResponse {
