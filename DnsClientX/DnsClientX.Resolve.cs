@@ -203,8 +203,16 @@ namespace DnsClientX {
 
         private static bool IsTransient(Exception ex) {
             // Handle DnsClientException with specific response codes
-            if (ex is DnsClientException dnsEx && dnsEx.Data.Contains("DnsResponse")) {
-                if (dnsEx.Data["DnsResponse"] is DnsResponse response) {
+            if (ex is DnsClientException dnsEx) {
+                DnsResponse? response = null;
+
+                if (dnsEx.Response is not null) {
+                    response = dnsEx.Response;
+                } else if (dnsEx.Data.Contains("DnsResponse") && dnsEx.Data["DnsResponse"] is DnsResponse resp) {
+                    response = resp;
+                }
+
+                if (response is not null) {
                     // Consider these DNS response codes as transient (should retry)
                     return response.Status == DnsResponseCode.ServerFailure ||
                            response.Status == DnsResponseCode.Refused ||
