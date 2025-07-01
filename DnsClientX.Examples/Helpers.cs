@@ -30,18 +30,18 @@ namespace DnsClientX.Examples {
                 Settings.Logger.WriteInformation("\tResponse: Null");
                 return;
             }
-            Settings.Logger.WriteInformation($"\tResponse: {response.Value.Status}");
-            if (response.Value.Answers is null) {
+            Settings.Logger.WriteInformation($"\tResponse: {response.Status}");
+            if (response.Answers is null) {
                 Settings.Logger.WriteInformation("\tAnswers: No answers");
                 return;
             }
-            if (response.Value.Questions != null) {
-                foreach (DnsQuestion question in response.Value.Questions) {
+            if (response.Questions != null) {
+                foreach (DnsQuestion question in response.Questions) {
                     Settings.Logger.WriteInformation($"\tQuestion: {question.Name} => {question.Type}");
                 }
             }
             Settings.Logger.WriteInformation($"\tAnswers: ");
-            foreach (DnsAnswer answer in response.Value.Answers) {
+            foreach (DnsAnswer answer in response.Answers) {
                 DisplayToConsole(answer);
             }
         }
