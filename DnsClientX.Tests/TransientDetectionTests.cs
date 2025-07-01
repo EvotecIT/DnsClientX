@@ -19,8 +19,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public void IsTransient_DnsClientExceptionWithServerFailure_ShouldBeTrue() {
             var response = new DnsResponse { Status = DnsResponseCode.ServerFailure };
-            var ex = new DnsClientException("error");
-            ex.Data["DnsResponse"] = response;
+            var ex = new DnsClientException("error", response);
 
             Assert.True(InvokeIsTransient(ex));
         }

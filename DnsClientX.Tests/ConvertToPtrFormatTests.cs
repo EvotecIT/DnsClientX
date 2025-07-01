@@ -18,7 +18,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public void TrimsAndConvertsIpv6() {
             var result = Invoke(" 2001:db8::1 ");
-            Assert.Equal("1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa", result);
+            Assert.Equal("1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa", result);
         }
     }
 }
