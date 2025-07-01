@@ -321,13 +321,32 @@ namespace DnsClientX {
                     return string.Join(".", ip.GetAddressBytes().Reverse()) + ".in-addr.arpa";
                 } else if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6) {
                     // IPv6
-                    return string.Join(".", ip.GetAddressBytes()
-                        .SelectMany(b => b.ToString("x2"))
-                        .Reverse()) + ".ip6.arpa";
+                    return ConvertIPv6ToPtr(ipAddress);
                 }
             }
             // Invalid IP address, we return as is
             return ipAddress;
+        }
+
+        /// <summary>
+        /// Converts an IPv6 address to its PTR format. This is useful for reverse DNS lookups.
+        /// </summary>
+        /// <param name="address">The IPv6 address.</param>
+        /// <returns>PTR representation of the IPv6 address.</returns>
+        public static string ConvertIPv6ToPtr(string address) {
+            if (string.IsNullOrWhiteSpace(address)) {
+                return address;
+            }
+
+            address = address.Trim();
+            if (IPAddress.TryParse(address, out IPAddress? ip) &&
+                ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6) {
+                return string.Join(".", ip.GetAddressBytes()
+                        .SelectMany(b => b.ToString("x2"))
+                        .Reverse()) + ".ip6.arpa";
+            }
+
+            return address;
         }
     }
 }
