@@ -49,6 +49,9 @@ namespace DnsClientX {
             } else if (!byte.TryParse(parts[1], out algVal)) {
                 return false;
             }
+            if (!Enum.IsDefined(typeof(DnsKeyAlgorithm), (int)algVal)) {
+                return false;
+            }
             if (!byte.TryParse(parts[2], out byte digestType)) {
                 return false;
             }
@@ -79,6 +82,9 @@ namespace DnsClientX {
             if (Enum.TryParse(typeof(DnsKeyAlgorithm), parts[2], true, out object? algEnum)) {
                 algVal = (byte)(DnsKeyAlgorithm)algEnum;
             } else if (!byte.TryParse(parts[2], out algVal)) {
+                return false;
+            }
+            if (!Enum.IsDefined(typeof(DnsKeyAlgorithm), (int)algVal)) {
                 return false;
             }
             algorithm = (DnsKeyAlgorithm)algVal;
