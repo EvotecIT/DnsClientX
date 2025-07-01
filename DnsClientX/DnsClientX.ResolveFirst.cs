@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
@@ -19,7 +20,7 @@ namespace DnsClientX {
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the first DNS answer of the provided type, or null if no such answer exists.</returns>
-        public async Task<DnsAnswer?> ResolveFirst(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100) {
+        public async Task<DnsAnswer?> ResolveFirst(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
             DnsResponse res = await Resolve(
                 name,
                 type,
@@ -28,7 +29,8 @@ namespace DnsClientX {
                 returnAllTypes: false,
                 retryOnTransient: retryOnTransient,
                 maxRetries: maxRetries,
-                retryDelayMs: retryDelayMs);
+                retryDelayMs: retryDelayMs,
+                cancellationToken: cancellationToken);
 
             return res.Answers?.FirstOrDefault(x => x.Type == type);
         }
@@ -44,8 +46,8 @@ namespace DnsClientX {
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>The first DNS answer of the provided type, or null if no such answer exists.</returns>
-        public DnsAnswer? ResolveFirstSync(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100) {
-            return ResolveFirst(name, type, requestDnsSec, validateDnsSec, retryOnTransient, maxRetries, retryDelayMs).RunSync();
+        public DnsAnswer? ResolveFirstSync(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
+            return ResolveFirst(name, type, requestDnsSec, validateDnsSec, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();
         }
     }
 }

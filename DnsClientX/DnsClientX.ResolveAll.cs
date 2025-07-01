@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
@@ -18,16 +19,16 @@ namespace DnsClientX {
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of all DNS answers of the provided type.</returns>
-        public async Task<DnsAnswer[]> ResolveAll(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100) {
+        public async Task<DnsAnswer[]> ResolveAll(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
             DnsResponse res;
             try {
                 res = retryOnTransient
                     ? await RetryAsync(
-                        () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0),
+                        () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken),
                         maxRetries,
                         retryDelayMs,
                         EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover ? EndpointConfiguration.AdvanceToNextHostname : null)
-                    : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0);
+                    : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken);
             } catch (DnsClientException ex) {
                 res = ex.Response;
             }
@@ -51,16 +52,16 @@ namespace DnsClientX {
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of all DNS answers of the provided type.</returns>
-        public async Task<DnsAnswer[]> ResolveAll(string name, string filter, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100) {
+        public async Task<DnsAnswer[]> ResolveAll(string name, string filter, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
             DnsResponse res;
             try {
                 res = retryOnTransient
                     ? await RetryAsync(
-                        () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0),
+                        () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken),
                         maxRetries,
                         retryDelayMs,
                         EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover ? EndpointConfiguration.AdvanceToNextHostname : null)
-                    : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0);
+                    : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken);
             } catch (DnsClientException ex) {
                 res = ex.Response;
             }
@@ -86,16 +87,16 @@ namespace DnsClientX {
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of all DNS answers of the provided type.</returns>
-        public async Task<DnsAnswer[]> ResolveAll(string name, Regex regexPattern, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100) {
+        public async Task<DnsAnswer[]> ResolveAll(string name, Regex regexPattern, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
             DnsResponse res;
             try {
                 res = retryOnTransient
                     ? await RetryAsync(
-                        () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0),
+                        () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken),
                         maxRetries,
                         retryDelayMs,
                         EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover ? EndpointConfiguration.AdvanceToNextHostname : null)
-                    : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0);
+                    : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken);
             } catch (DnsClientException ex) {
                 res = ex.Response;
             }
@@ -120,8 +121,8 @@ namespace DnsClientX {
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of all DNS answers of the provided type.</returns>
-        public DnsAnswer[] ResolveAllSync(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            return ResolveAll(name, type, requestDnsSec, validateDnsSec, retryOnTransient, maxRetries, retryDelayMs).RunSync();
+        public DnsAnswer[] ResolveAllSync(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
+            return ResolveAll(name, type, requestDnsSec, validateDnsSec, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();
         }
 
         /// <summary>
@@ -137,8 +138,8 @@ namespace DnsClientX {
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of all DNS answers of the provided type.</returns>
-        public DnsAnswer[] ResolveAllSync(string name, string filter, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            return ResolveAll(name, filter, type, requestDnsSec, validateDnsSec, retryOnTransient, maxRetries, retryDelayMs).RunSync();
+        public DnsAnswer[] ResolveAllSync(string name, string filter, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
+            return ResolveAll(name, filter, type, requestDnsSec, validateDnsSec, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();
         }
 
         /// <summary>
@@ -154,8 +155,8 @@ namespace DnsClientX {
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of all DNS answers of the provided type.</returns>
-        public DnsAnswer[] ResolveAllSync(string name, Regex regexPattern, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
-            return ResolveAll(name, regexPattern, type, requestDnsSec, validateDnsSec, retryOnTransient, maxRetries, retryDelayMs).RunSync();
+        public DnsAnswer[] ResolveAllSync(string name, Regex regexPattern, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
+            return ResolveAll(name, regexPattern, type, requestDnsSec, validateDnsSec, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();
         }
     }
 }
