@@ -213,7 +213,7 @@ namespace DnsClientX {
 #endif
 
             // Create handler with proper connection management
-            var handler = new HttpClientHandler();
+            handler = new HttpClientHandler();
             if (IgnoreCertificateErrors) {
                 handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
             }
@@ -265,9 +265,6 @@ namespace DnsClientX {
                 handler?.Dispose();
 
                 Client = CreateOptimizedHttpClient();
-                handler = (HttpClientHandler)((HttpClient)Client).GetType()
-                    .GetField("_handler", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                    ?.GetValue(Client) as HttpClientHandler;
             }
         }
 
