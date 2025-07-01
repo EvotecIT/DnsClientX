@@ -296,6 +296,14 @@ namespace DnsClientX {
             if (string.IsNullOrWhiteSpace(domainName)) {
                 return domainName;
             }
+            foreach (char c in domainName) {
+                UnicodeCategory cat = char.GetUnicodeCategory(c);
+                if (cat is UnicodeCategory.OtherSymbol
+                    or UnicodeCategory.PrivateUse
+                    or UnicodeCategory.Surrogate) {
+                    return domainName;
+                }
+            }
 
             IdnMapping idn = new IdnMapping();
             try {
