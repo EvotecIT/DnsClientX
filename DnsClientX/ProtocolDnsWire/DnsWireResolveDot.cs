@@ -64,7 +64,7 @@ namespace DnsClientX {
 
             // Create a new TCP client and connect to the DNS server
             using var client = new TcpClient();
-            await ConnectAsync(client, dnsServer, port, cancellationToken);
+            await ConnectAsync(client, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken);
 
             // Create a new SSL stream for the secure connection
             using var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) =>
@@ -108,21 +108,31 @@ namespace DnsClientX {
         /// <param name="client">TCP client used for the connection.</param>
         /// <param name="host">Target host.</param>
         /// <param name="port">Target port.</param>
+        /// <param name="timeoutMilliseconds">Timeout in milliseconds.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
-        private static async Task ConnectAsync(TcpClient client, string host, int port, CancellationToken cancellationToken) {
+        private static async Task ConnectAsync(TcpClient client, string host, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            linkedCts.CancelAfter(timeoutMilliseconds);
 #if NET5_0_OR_GREATER
-            await client.ConnectAsync(host, port, cancellationToken);
+            try {
+                await client.ConnectAsync(host, port, linkedCts.Token);
+            } catch (OperationCanceledException) {
+                client.Close();
+                cancellationToken.ThrowIfCancellationRequested();
+                throw new TimeoutException($"Connection to {host}:{port} timed out after {timeoutMilliseconds} milliseconds.");
+            }
 #else
             var connectTask = client.ConnectAsync(host, port);
-            var delayTask = Task.Delay(Timeout.Infinite, cancellationToken);
+            var delayTask = Task.Delay(Timeout.Infinite, linkedCts.Token);
 
             var completed = await Task.WhenAny(connectTask, delayTask);
             if (completed != connectTask) {
                 client.Close();
-                throw new OperationCanceledException(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                throw new TimeoutException($"Connection to {host}:{port} timed out after {timeoutMilliseconds} milliseconds.");
             }
 
-            await connectTask;
+            await connectTask; // propagate possible exceptions
 #endif
         }
     }
