@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
+using System.Net;
 using System.Threading.Tasks;
 using DnsClientX;
 
@@ -147,7 +148,20 @@ namespace DnsClientX.PowerShell {
             string names = string.Join(", ", Name);
             string types = string.Join(", ", Type);
             if (Server.Count > 0) {
-                IEnumerable<string> serverOrder = Server;
+                var validServers = new List<string>();
+                foreach (string serverEntry in Server) {
+                    if (IPAddress.TryParse(serverEntry, out _)) {
+                        validServers.Add(serverEntry);
+                    } else {
+                        _logger.WriteError("Server address '{0}' is not a valid IP address.", serverEntry);
+                    }
+                }
+
+                if (validServers.Count == 0) {
+                    return;
+                }
+
+                IEnumerable<string> serverOrder = validServers;
                 if (RandomServer.IsPresent) {
                     var random = new Random();
                     serverOrder = serverOrder.OrderBy(_ => random.Next()).ToList();
