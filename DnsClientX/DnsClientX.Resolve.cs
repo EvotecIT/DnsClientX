@@ -130,7 +130,9 @@ namespace DnsClientX {
             return response;
         }
 
-        private static readonly Random _random = new Random();
+        // Random instances are not thread-safe by default. Using the shared
+        // instance ensures thread-safe access across concurrent retries.
+        private static readonly Random _random = Random.Shared;
 
         /// <summary>
         /// Executes the provided asynchronous <paramref name="action"/> with retry logic.
