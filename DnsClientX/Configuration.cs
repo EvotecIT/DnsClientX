@@ -43,6 +43,11 @@ namespace DnsClientX {
         public static readonly Version DefaultHttpVersion = new(2, 0);
 
         /// <summary>
+        /// Default timeout for DNS queries in milliseconds.
+        /// </summary>
+        public const int DefaultTimeout = 1000;
+
+        /// <summary>
         /// Gets or sets the HTTP version used when communicating with the DNS provider.
         /// </summary>
         public Version HttpVersion { get; set; } = DefaultHttpVersion;
@@ -55,7 +60,7 @@ namespace DnsClientX {
         /// <summary>
         /// Time-out for DNS Query in milliseconds. Valid only for UDP (for now).
         /// </summary>
-        public int TimeOut = 1000;
+        public int TimeOut = DefaultTimeout;
 
         /// <summary>
         /// Validates DS and DNSKEY records against a builtin root key set.

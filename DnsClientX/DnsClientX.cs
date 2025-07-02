@@ -109,7 +109,7 @@ namespace DnsClientX {
         public ClientX(
             DnsEndpoint endpoint = DnsEndpoint.Cloudflare,
             DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First,
-            int timeOutMilliseconds = 1000,
+            int timeOutMilliseconds = Configuration.DefaultTimeout,
             string? userAgent = null,
             Version? httpVersion = null,
             bool ignoreCertificateErrors = false,
@@ -142,7 +142,7 @@ namespace DnsClientX {
         public ClientX(
             string hostname,
             DnsRequestFormat requestFormat,
-            int timeOutMilliseconds = 1000,
+            int timeOutMilliseconds = Configuration.DefaultTimeout,
             string? userAgent = null,
             Version? httpVersion = null,
             bool ignoreCertificateErrors = false,
@@ -175,7 +175,7 @@ namespace DnsClientX {
         public ClientX(
             Uri baseUri,
             DnsRequestFormat requestFormat,
-            int timeOutMilliseconds = 1000,
+            int timeOutMilliseconds = Configuration.DefaultTimeout,
             string? userAgent = null,
             Version? httpVersion = null,
             bool ignoreCertificateErrors = false,
