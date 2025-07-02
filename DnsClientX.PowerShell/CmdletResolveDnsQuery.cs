@@ -162,13 +162,17 @@ namespace DnsClientX.PowerShell {
                 }
 
                 IEnumerable<string> serverOrder = validServers;
-                if (RandomServer.IsPresent || (AllServers.IsPresent && Fallback.IsPresent)) {
+                if (RandomServer.IsPresent) {
                     var random = new Random();
                     serverOrder = serverOrder.OrderBy(_ => random.Next()).ToList();
                 }
 
                 IEnumerable<DnsResponse> results;
                 if (AllServers.IsPresent) {
+                    if (Fallback.IsPresent && !RandomServer.IsPresent) {
+                        var random = new Random();
+                        serverOrder = serverOrder.OrderBy(_ => random.Next()).ToList();
+                    }
                     var aggregatedResults = new List<DnsResponse>();
                     foreach (string serverName in serverOrder) {
                         _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, serverName);
