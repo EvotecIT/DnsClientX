@@ -73,5 +73,18 @@ namespace DnsClientX {
         /// Google's DNS-over-QUIC endpoint.
         /// </summary>
         GoogleQuic
+        ,
+        /// <summary>
+        /// AdGuard DNS-over-HTTPS endpoint.
+        /// </summary>
+        AdGuard,
+        /// <summary>
+        /// AdGuard family protection DNS-over-HTTPS endpoint.
+        /// </summary>
+        AdGuardFamily,
+        /// <summary>
+        /// AdGuard non-filtering DNS-over-HTTPS endpoint.
+        /// </summary>
+        AdGuardNonFiltering
     }
 }

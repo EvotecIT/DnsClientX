@@ -244,6 +244,21 @@ namespace DnsClientX {
                     RequestFormat = DnsRequestFormat.DnsOverQuic;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
+                case DnsEndpoint.AdGuard:
+                    hostnames = new List<string> { "dns.adguard.com" };
+                    RequestFormat = DnsRequestFormat.DnsOverHttps;
+                    baseUriFormat = "https://{0}/dns-query";
+                    break;
+                case DnsEndpoint.AdGuardFamily:
+                    hostnames = new List<string> { "dns-family.adguard.com" };
+                    RequestFormat = DnsRequestFormat.DnsOverHttps;
+                    baseUriFormat = "https://{0}/dns-query";
+                    break;
+                case DnsEndpoint.AdGuardNonFiltering:
+                    hostnames = new List<string> { "dns-unfiltered.adguard.com" };
+                    RequestFormat = DnsRequestFormat.DnsOverHttps;
+                    baseUriFormat = "https://{0}/dns-query";
+                    break;
                 case DnsEndpoint.Quad9:
                     hostnames = new List<string> { "dns.quad9.net" };
                     RequestFormat = DnsRequestFormat.DnsOverHttps;

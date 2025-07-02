@@ -126,6 +126,16 @@ Different DNS providers have distinct characteristics:
 - **Quad9 (9.9.9.9)**: Security-focused, blocks malicious domains
 - **OpenDNS**: Content filtering options, enterprise features
 
+| Provider | Hostname | Request Format |
+|----------|----------|----------------|
+| Cloudflare | `1.1.1.1` / `1.0.0.1` | JSON |
+| Google | `8.8.8.8` / `8.8.4.4` | JSON |
+| Quad9 | `dns.quad9.net` | Wire |
+| OpenDNS | `208.67.222.222` / `208.67.220.220` | Wire |
+| AdGuard | `dns.adguard.com` | Wire |
+| AdGuardFamily | `dns-family.adguard.com` | Wire |
+| AdGuardNonFiltering | `dns-unfiltered.adguard.com` | Wire |
+
 These differences can result in:
 - Varying response times (typically 10-500ms)
 - Different cached TTL values
