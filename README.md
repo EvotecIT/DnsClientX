@@ -438,6 +438,10 @@ foreach (var endpoint in dnsEndpoints) {
             response.DisplayToConsole();
         }
     }
+
+    await foreach (var response in client.ResolveStream(domains.ToArray(), recordTypes.ToArray())) {
+        response.DisplayToConsole();
+    }
 }
 ```
 
