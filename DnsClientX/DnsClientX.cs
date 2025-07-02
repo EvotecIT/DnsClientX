@@ -101,8 +101,10 @@ namespace DnsClientX {
         /// Initializes a new instance of the <see cref="ClientX"/> class.
         /// </summary>
         /// <param name="endpoint">The endpoint.</param>
-        /// <param name="dnsSelectionStrategy">Dns selection strategy</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="dnsSelectionStrategy">DNS selection strategy.</param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
+        /// <param name="userAgent">Optional User-Agent header value.</param>
+        /// <param name="httpVersion">Optional HTTP protocol version.</param>
         /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
         /// <param name="enableCache">Enable in-memory caching of responses.</param>
         /// <param name="webProxy">Optional HTTP proxy.</param>
@@ -135,7 +137,9 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="hostname">The hostname.</param>
         /// <param name="requestFormat">The request format.</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
+        /// <param name="userAgent">Optional User-Agent header value.</param>
+        /// <param name="httpVersion">Optional HTTP protocol version.</param>
         /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
         /// <param name="enableCache">Enable in-memory caching of responses.</param>
         /// <param name="webProxy">Optional HTTP proxy.</param>
@@ -168,7 +172,9 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="baseUri">The base URI.</param>
         /// <param name="requestFormat">The request format.</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
+        /// <param name="userAgent">Optional User-Agent header value.</param>
+        /// <param name="httpVersion">Optional HTTP protocol version.</param>
         /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
         /// <param name="enableCache">Enable in-memory caching of responses.</param>
         /// <param name="webProxy">Optional HTTP proxy.</param>
