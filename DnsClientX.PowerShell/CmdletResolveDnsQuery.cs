@@ -150,10 +150,11 @@ namespace DnsClientX.PowerShell {
             if (Server.Count > 0) {
                 var validServers = new List<string>();
                 foreach (string serverEntry in Server) {
-                    if (IPAddress.TryParse(serverEntry, out _)) {
-                        validServers.Add(serverEntry);
+                    string trimmed = serverEntry.Trim();
+                    if (IPAddress.TryParse(trimmed, out _)) {
+                        validServers.Add(trimmed);
                     } else {
-                        _logger.WriteError("Server address '{0}' is not a valid IP address.", serverEntry);
+                        _logger.WriteError("Malformed server address '{0}'.", serverEntry);
                     }
                 }
 
