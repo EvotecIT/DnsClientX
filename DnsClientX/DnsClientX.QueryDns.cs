@@ -15,7 +15,7 @@ namespace DnsClientX {
         /// <param name="recordType">The type of DNS record to query.</param>
         /// <param name="dnsEndpoint">The DNS endpoint to use for the query. Defaults to Cloudflare.</param>
         /// <param name="dnsSelectionStrategy">The DNS selection strategy. Defaults to First</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
@@ -38,7 +38,7 @@ namespace DnsClientX {
         /// <param name="recordType">The type of DNS record to query.</param>
         /// <param name="dnsEndpoint">The DNS endpoint to use for the query. Defaults to Cloudflare.</param>
         /// <param name="dnsSelectionStrategy">The DNS selection strategy. Defaults to First</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
@@ -55,7 +55,7 @@ namespace DnsClientX {
         /// <param name="recordType">The type of DNS record to query.</param>
         /// <param name="dnsEndpoint">The DNS endpoint to use for the query. Defaults to Cloudflare.</param>
         /// <param name="dnsSelectionStrategy">The DNS selection strategy. Defaults to First</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
@@ -81,7 +81,7 @@ namespace DnsClientX {
         /// <param name="recordType">The type of DNS record to query.</param>
         /// <param name="dnsEndpoint">The DNS endpoint to use for the query. Defaults to Cloudflare.</param>
         /// <param name="dnsSelectionStrategy">The DNS selection strategy. Defaults to First</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
@@ -98,7 +98,7 @@ namespace DnsClientX {
         /// <param name="recordType">The type of DNS record to query.</param>
         /// <param name="dnsUri">The full URI of the DNS server to query.</param>
         /// <param name="requestFormat">The format of the DNS request.</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
@@ -124,7 +124,7 @@ namespace DnsClientX {
         /// <param name="recordType">The type of DNS record to query.</param>
         /// <param name="dnsUri">The full URI of the DNS server to query.</param>
         /// <param name="requestFormat">The format of the DNS request.</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
@@ -140,7 +140,7 @@ namespace DnsClientX {
         /// <param name="recordType">Type of the record.</param>
         /// <param name="dnsUri">The DNS URI.</param>
         /// <param name="requestFormat">The request format.</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
@@ -165,7 +165,7 @@ namespace DnsClientX {
         /// <param name="recordType">Type of the record.</param>
         /// <param name="dnsUri">The DNS URI.</param>
         /// <param name="requestFormat">The request format.</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
@@ -182,7 +182,7 @@ namespace DnsClientX {
         /// <param name="recordType">The type of DNS record to query.</param>
         /// <param name="hostName">The hostname of the DNS server to query.</param>
         /// <param name="requestFormat">The format of the DNS request.</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
@@ -208,7 +208,7 @@ namespace DnsClientX {
         /// <param name="recordType">The type of DNS record to query.</param>
         /// <param name="hostName">The hostname of the DNS server to query.</param>
         /// <param name="requestFormat">The format of the DNS request.</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
@@ -224,7 +224,7 @@ namespace DnsClientX {
         /// <param name="recordType">Type of the record.</param>
         /// <param name="hostName">Name of the host.</param>
         /// <param name="requestFormat">The request format.</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
@@ -249,7 +249,7 @@ namespace DnsClientX {
         /// <param name="recordType">Type of the record.</param>
         /// <param name="hostName">Name of the host.</param>
         /// <param name="requestFormat">The request format.</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
@@ -274,7 +274,7 @@ namespace DnsClientX {
         /// <param name="recordType">Type of the record.</param>
         /// <param name="hostName">Name of the host.</param>
         /// <param name="requestFormat">The request format.</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
@@ -289,7 +289,7 @@ namespace DnsClientX {
         /// <param name="name">The name.</param>
         /// <param name="recordType">Type of the record.</param>
         /// <param name="dnsEndpoint">The DNS endpoint. Default endpoint is System</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
@@ -314,7 +314,7 @@ namespace DnsClientX {
         /// <param name="name">Multiple domain names to check for given type</param>
         /// <param name="recordType">Multiple types to check for given name.</param>
         /// <param name="dnsEndpoint">The DNS endpoint. Default endpoint is Cloudflare</param>
-        /// <param name="timeOutMilliseconds"></param>
+        /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
