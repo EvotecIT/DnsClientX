@@ -5,7 +5,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -132,18 +131,18 @@ namespace DnsClientX {
         }
 
         // Generate jitter in a thread-safe manner across all supported
-        // frameworks. RandomNumberGenerator is thread-safe and available
-        // everywhere, but RandomNumberGenerator.GetInt32 is only available
-        // on .NET 5+. Provide a fallback for older targets.
-#if NET5_0_OR_GREATER
-        private static int GetJitter(int max) => RandomNumberGenerator.GetInt32(max);
+        // frameworks. Use Random.Shared when available and fall back to
+        // a locked Random instance on older targets.
+#if NET6_0_OR_GREATER
+        private static int GetJitter(int max) => Random.Shared.Next(max);
 #else
-        private static readonly RandomNumberGenerator _rng = RandomNumberGenerator.Create();
+        private static readonly object _randLock = new();
+        private static readonly Random _rand = new();
         private static int GetJitter(int max) {
             if (max <= 0) return 0;
-            var bytes = new byte[4];
-            _rng.GetBytes(bytes);
-            return (int)(BitConverter.ToUInt32(bytes, 0) % (uint)max);
+            lock (_randLock) {
+                return _rand.Next(max);
+            }
         }
 #endif
 
