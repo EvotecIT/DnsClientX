@@ -121,8 +121,8 @@ namespace DnsClientX {
             // Final fallback: if no system DNS servers found, use well-known public DNS
             if (dnsServers.Count == 0) {
                 DebugPrint("No system DNS found, using fallback public DNS: 1.1.1.1, 8.8.8.8");
-                dnsServers.Add("1.1.1.1");    // Cloudflare Primary
-                dnsServers.Add("8.8.8.8");    // Google Primary
+                dnsServers.Add(FormatDnsAddress(IPAddress.Parse("1.1.1.1"))); // Cloudflare Primary
+                dnsServers.Add(FormatDnsAddress(IPAddress.Parse("8.8.8.8"))); // Google Primary
             }
 
             dnsServers = DeduplicateDnsServers(dnsServers);
