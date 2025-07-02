@@ -170,19 +170,25 @@ namespace DnsClientX {
         /// </summary>
         /// <returns></returns>
         private string ConvertData() {
+            if (DataRaw is null) {
+                return string.Empty;
+            }
+
             if (Type == DnsRecordType.TXT) {
                 // This is a TXT record. The data is a string enclosed in quotes.
                 // The string may be split into multiple strings if it is too long.
                 // The strings are enclosed in quotes and separated by a space or without space at all depending on provider
 
                 // First, check if we have properly formatted data with quotes and spaces
-                if (DataRaw.Contains("\" \"")) {
-                    var result = DataRaw.Replace("\" \"", "").Replace("\"", "");
+                if (!string.IsNullOrEmpty(DataRaw) && DataRaw.Contains("\" \"")) {
+                    var result = DataRaw.Replace("\" \"", string.Empty).Replace("\"", string.Empty);
                     return CleanupTxtRecordData(result);
                 }
 
                 // Remove quotes if present for analysis
-                string cleanData = DataRaw.Replace("\"", "");
+                string cleanData = string.IsNullOrEmpty(DataRaw)
+                    ? string.Empty
+                    : DataRaw.Replace("\"", string.Empty);
 
                 // Check if the data appears to be concatenated (no line breaks but contains known patterns)
                 // Improved detection: also check for obvious concatenation patterns
@@ -259,7 +265,9 @@ namespace DnsClientX {
                         // This is a non-standard type. Try to convert it to a standard type.
                         if (Enum.TryParse<DnsRecordType>(part.Substring(4), out var standardType)) {
                             // The conversion was successful. Replace the non-standard type with the standard type.
-                            DataRaw = DataRaw.Replace(part, standardType.ToString());
+                            if (!string.IsNullOrEmpty(DataRaw)) {
+                                DataRaw = DataRaw.Replace(part, standardType.ToString());
+                            }
                         }
                     }
                 }
