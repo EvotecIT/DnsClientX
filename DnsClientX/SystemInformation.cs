@@ -261,6 +261,9 @@ namespace DnsClientX {
                 // Filter out multicast addresses (ff00:)
                 if (ipString.StartsWith("ff00:")) return false;
 
+                // Filter out other multicast addresses starting with ff
+                if (ipString.StartsWith("ff")) return false;
+
                 return true;
             }
 
