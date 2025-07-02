@@ -148,7 +148,7 @@ namespace DnsClientX {
                         continue;
                     }
                     if (trimmed.StartsWith("nameserver", StringComparison.OrdinalIgnoreCase)) {
-                        var parts = trimmed.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        var parts = trimmed.Split(new char[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
                         if (parts.Length > 1) {
                             var address = parts[1];
                             debugPrint?.Invoke($"[resolv.conf] Found nameserver: {address}");
