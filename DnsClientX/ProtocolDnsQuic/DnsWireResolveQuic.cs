@@ -61,9 +61,10 @@ namespace DnsClientX {
                 }
             };
 
+            await using var connection = await QuicConnection.ConnectAsync(options, cancellationToken);
+            await using var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, cancellationToken);
+
             try {
-                await using var connection = await QuicConnection.ConnectAsync(options, cancellationToken);
-                await using var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, cancellationToken);
 
                 await stream.WriteAsync(payload, cancellationToken);
                 stream.CompleteWrites();
