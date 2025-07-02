@@ -38,7 +38,7 @@ namespace DnsClientX {
             // brackets when constructing the endpoint string.
             IPAddress ipAddress;
             if (!IPAddress.TryParse(dnsServer, out ipAddress)) {
-                var hostEntry = await Dns.GetHostEntryAsync(dnsServer, cancellationToken);
+                var hostEntry = Dns.GetHostEntry(dnsServer);
                 ipAddress = hostEntry.AddressList[0];
             }
 
