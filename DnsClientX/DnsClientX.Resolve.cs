@@ -130,7 +130,21 @@ namespace DnsClientX {
             return response;
         }
 
-        private static readonly Random _random = new Random();
+        // Generate jitter in a thread-safe manner across all supported
+        // frameworks. Use Random.Shared when available and fall back to
+        // a locked Random instance on older targets.
+#if NET6_0_OR_GREATER
+        private static int GetJitter(int max) => Random.Shared.Next(max);
+#else
+        private static readonly object _randLock = new();
+        private static readonly Random _rand = new();
+        private static int GetJitter(int max) {
+            if (max <= 0) return 0;
+            lock (_randLock) {
+                return _rand.Next(max);
+            }
+        }
+#endif
 
         /// <summary>
         /// Executes the provided asynchronous <paramref name="action"/> with retry logic.
@@ -164,7 +178,7 @@ namespace DnsClientX {
 
                         beforeRetry?.Invoke();
                         int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
-                        int jitter = _random.Next(0, delayMs);
+                        int jitter = GetJitter(delayMs);
                         await Task.Delay(exponentialDelay + jitter);
                         continue;
                     }
@@ -180,7 +194,7 @@ namespace DnsClientX {
 
                     beforeRetry?.Invoke();
                     int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
-                    int jitter = _random.Next(0, delayMs);
+                    int jitter = GetJitter(delayMs);
                     await Task.Delay(exponentialDelay + jitter);
                     continue;
                 }
