@@ -152,7 +152,11 @@ namespace DnsClientX {
                 throw new TimeoutException($"Reading from stream timed out after {timeoutMilliseconds} milliseconds.");
             }
 
-            await readTask; // Ensure any exceptions from read are propagated
+            try {
+                await readTask; // Ensure any exceptions from read are propagated
+            } catch (OperationCanceledException) {
+                throw new TimeoutException($"Reading from stream timed out after {timeoutMilliseconds} milliseconds.");
+            }
         }
 
         /// <summary>
