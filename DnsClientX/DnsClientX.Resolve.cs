@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -130,9 +131,21 @@ namespace DnsClientX {
             return response;
         }
 
-        // Random instances are not thread-safe by default. Using the shared
-        // instance ensures thread-safe access across concurrent retries.
-        private static readonly Random _random = Random.Shared;
+        // Generate jitter in a thread-safe manner across all supported
+        // frameworks. RandomNumberGenerator is thread-safe and available
+        // everywhere, but RandomNumberGenerator.GetInt32 is only available
+        // on .NET 5+. Provide a fallback for older targets.
+#if NET5_0_OR_GREATER
+        private static int GetJitter(int max) => RandomNumberGenerator.GetInt32(max);
+#else
+        private static readonly RandomNumberGenerator _rng = RandomNumberGenerator.Create();
+        private static int GetJitter(int max) {
+            if (max <= 0) return 0;
+            var bytes = new byte[4];
+            _rng.GetBytes(bytes);
+            return (int)(BitConverter.ToUInt32(bytes, 0) % (uint)max);
+        }
+#endif
 
         /// <summary>
         /// Executes the provided asynchronous <paramref name="action"/> with retry logic.
@@ -166,7 +179,7 @@ namespace DnsClientX {
 
                         beforeRetry?.Invoke();
                         int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
-                        int jitter = _random.Next(0, delayMs);
+                        int jitter = GetJitter(delayMs);
                         await Task.Delay(exponentialDelay + jitter);
                         continue;
                     }
@@ -182,7 +195,7 @@ namespace DnsClientX {
 
                     beforeRetry?.Invoke();
                     int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
-                    int jitter = _random.Next(0, delayMs);
+                    int jitter = GetJitter(delayMs);
                     await Task.Delay(exponentialDelay + jitter);
                     continue;
                 }
