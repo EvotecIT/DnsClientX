@@ -308,6 +308,52 @@ namespace DnsClientX {
             return $"{flags} {protocol} {algorithm} {Convert.ToBase64String(publicKey)}";
         }
 
+        private static double DecodePrecision(byte value) {
+            int @base = (value >> 4) & 0x0F;
+            int exponent = value & 0x0F;
+            if (@base == 0 && exponent == 0) return 0;
+            return (@base * Math.Pow(10, exponent)) / 100.0;
+        }
+
+        private static string DecodeLOCRecord(this BinaryReader reader, ushort rdLength) {
+            if (rdLength < 16) throw new DnsClientException("The record data for LOC is not long enough");
+            byte version = reader.ReadByte();
+            byte size = reader.ReadByte();
+            byte horizPre = reader.ReadByte();
+            byte vertPre = reader.ReadByte();
+            uint latVal = BinaryPrimitives.ReadUInt32BigEndian(reader.ReadBytes(4));
+            uint lonVal = BinaryPrimitives.ReadUInt32BigEndian(reader.ReadBytes(4));
+            uint altVal = BinaryPrimitives.ReadUInt32BigEndian(reader.ReadBytes(4));
+
+            int lat = (int)latVal - (1 << 31);
+            char ns = lat < 0 ? 'S' : 'N';
+            lat = Math.Abs(lat);
+            int latMillis = lat % 1000;
+            lat /= 1000;
+            int latSec = lat % 60;
+            lat /= 60;
+            int latMin = lat % 60;
+            int latDeg = lat / 60;
+
+            int lon = (int)lonVal - (1 << 31);
+            char ew = lon < 0 ? 'W' : 'E';
+            lon = Math.Abs(lon);
+            int lonMillis = lon % 1000;
+            lon /= 1000;
+            int lonSec = lon % 60;
+            lon /= 60;
+            int lonMin = lon % 60;
+            int lonDeg = lon / 60;
+
+            double altitude = (altVal / 100.0) - 100000.0;
+
+            double sizeM = DecodePrecision(size);
+            double hpM = DecodePrecision(horizPre);
+            double vpM = DecodePrecision(vertPre);
+
+            return $"{latDeg} {latMin} {latSec}.{latMillis:D3} {ns} {lonDeg} {lonMin} {lonSec}.{lonMillis:D3} {ew} {altitude}m {sizeM}m {hpM}m {vpM}m";
+        }
+
 
         /// <summary>
         /// NSEC record data is structured as follows:
@@ -393,8 +439,10 @@ namespace DnsClientX {
                         // For A records, decode the IP address from the record data
                         return new IPAddress(rdata).ToString();
                     } else if (type == DnsRecordType.CNAME) {
-                        // For NS and CNAME records, decode the domain name from the record data
-                        //return reader.ReadDnsName(messageStart);
+                        // For CNAME records, decode the domain name from the record data
+                        return reader.ReadDnsName(dnsMessage, rdLength, messageStart);
+                    } else if (type == DnsRecordType.DNAME) {
+                        // For DNAME records, decode the domain name from the record data
                         return reader.ReadDnsName(dnsMessage, rdLength, messageStart);
                     } else if (type == DnsRecordType.NS) {
                         // For NS records, decode the domain name from the record data
@@ -423,6 +471,8 @@ namespace DnsClientX {
                             : algorithmVal.ToString();
                         string digest = BitConverter.ToString(digestBytes).Replace("-", "").ToLower();
                         return $"{keyTag} {algorithmName} {digestType} {digest}";
+                    } else if (type == DnsRecordType.LOC) {
+                        return reader.DecodeLOCRecord(rdLength);
                     } else if (type == DnsRecordType.NSEC) {
                         return reader.DecodeNSECRecord(dnsMessage, rdLength, messageStart);
                     } else {
