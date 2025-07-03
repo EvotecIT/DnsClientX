@@ -23,7 +23,7 @@ namespace DnsClientX {
             DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug,
             Configuration endpointConfiguration, CancellationToken cancellationToken) {
             // For OpenDNS, we need to create a DNS message and base64url encode it
-            var dnsMessage = new DnsMessage(name, type, requestDnsSec);
+            var dnsMessage = new DnsMessage(name, type, requestDnsSec, endpointConfiguration.EnableEdns, endpointConfiguration.UdpBufferSize);
             var base64UrlDnsMessage = dnsMessage.ToBase64Url();
             string url = $"?dns={base64UrlDnsMessage}";
 

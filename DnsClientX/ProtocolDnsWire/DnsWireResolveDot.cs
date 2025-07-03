@@ -31,7 +31,7 @@ namespace DnsClientX {
         internal static async Task<DnsResponse> ResolveWireFormatDoT(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, bool ignoreCertificateErrors, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
-            var query = new DnsMessage(name, type, requestDnsSec);
+            var query = new DnsMessage(name, type, requestDnsSec, endpointConfiguration.EnableEdns, endpointConfiguration.UdpBufferSize);
             var queryBytes = query.SerializeDnsWireFormat();
 
             // Calculate the length prefix for the query

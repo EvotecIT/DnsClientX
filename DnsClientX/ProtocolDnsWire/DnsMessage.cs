@@ -12,6 +12,8 @@ namespace DnsClientX {
         private readonly string _name;
         private readonly DnsRecordType _type;
         private readonly bool _requestDnsSec;
+        private readonly bool _enableEdns;
+        private readonly int _udpBufferSize;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DnsMessage"/> class.
@@ -19,10 +21,16 @@ namespace DnsClientX {
         /// <param name="name">The name.</param>
         /// <param name="type">The type.</param>
         /// <param name="requestDnsSec">if set to <c>true</c> [request DNS sec].</param>
-        public DnsMessage(string name, DnsRecordType type, bool requestDnsSec) {
+        public DnsMessage(string name, DnsRecordType type, bool requestDnsSec)
+            : this(name, type, requestDnsSec, requestDnsSec, 4096) {
+        }
+
+        public DnsMessage(string name, DnsRecordType type, bool requestDnsSec, bool enableEdns, int udpBufferSize) {
             _name = name;
             _type = type;
             _requestDnsSec = requestDnsSec;
+            _enableEdns = enableEdns || requestDnsSec;
+            _udpBufferSize = udpBufferSize;
         }
 
         /// <summary>
@@ -66,7 +74,7 @@ namespace DnsClientX {
             stream.Write(buffer.ToArray(), 0, buffer.Length);
 
             // Write the additional count
-            BinaryPrimitives.WriteUInt16BigEndian(buffer, _requestDnsSec ? (ushort)1 : (ushort)0);
+            BinaryPrimitives.WriteUInt16BigEndian(buffer, _enableEdns ? (ushort)1 : (ushort)0);
             stream.Write(buffer.ToArray(), 0, buffer.Length);
 
             // Write the question name
@@ -85,15 +93,14 @@ namespace DnsClientX {
             BinaryPrimitives.WriteUInt16BigEndian(buffer, 1);
             stream.Write(buffer.ToArray(), 0, buffer.Length);
 
-            if (_requestDnsSec)
-            {
+            if (_enableEdns) {
                 stream.WriteByte(0);
                 BinaryPrimitives.WriteUInt16BigEndian(buffer, (ushort)DnsRecordType.OPT);
                 stream.Write(buffer.ToArray(), 0, buffer.Length);
-                BinaryPrimitives.WriteUInt16BigEndian(buffer, 4096);
+                BinaryPrimitives.WriteUInt16BigEndian(buffer, (ushort)_udpBufferSize);
                 stream.Write(buffer.ToArray(), 0, buffer.Length);
                 Span<byte> ttl = stackalloc byte[4];
-                BinaryPrimitives.WriteUInt32BigEndian(ttl, 0x00008000);
+                BinaryPrimitives.WriteUInt32BigEndian(ttl, _requestDnsSec ? 0x00008000u : 0u);
                 stream.Write(ttl.ToArray(), 0, ttl.Length);
                 BinaryPrimitives.WriteUInt16BigEndian(buffer, 0);
                 stream.Write(buffer.ToArray(), 0, buffer.Length);
@@ -135,7 +142,7 @@ namespace DnsClientX {
                 ms.Write(bytes, 0, bytes.Length);
 
                 // Additional RRs
-                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)(_requestDnsSec ? 1 : 0)));
+                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)(_enableEdns ? 1 : 0)));
                 ms.Write(bytes, 0, bytes.Length);
 
                 // Queries
@@ -154,14 +161,14 @@ namespace DnsClientX {
                 bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)1)); // IN
                 ms.Write(bytes, 0, bytes.Length);
 
-                if (_requestDnsSec)
+                if (_enableEdns)
                 {
                     ms.WriteByte(0);
                     bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)DnsRecordType.OPT));
                     ms.Write(bytes, 0, bytes.Length);
-                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)4096));
+                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)_udpBufferSize));
                     ms.Write(bytes, 0, bytes.Length);
-                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((int)0x00008000));
+                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((int)(_requestDnsSec ? 0x00008000u : 0u)));
                     ms.Write(bytes, 0, bytes.Length);
                     bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)0));
                     ms.Write(bytes, 0, bytes.Length);
