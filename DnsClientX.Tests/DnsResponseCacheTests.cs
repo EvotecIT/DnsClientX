@@ -77,7 +77,7 @@ namespace DnsClientX.Tests {
             ClearCache();
             var json = "{\"Status\":0,\"Answer\":[{\"name\":\"example.com\",\"type\":1,\"TTL\":1,\"data\":\"1.1.1.1\"}]}";
             var handler = new JsonResponseHandler(json);
-            using var client = new ClientX("https://example.com/dns-query", DnsRequestFormat.DnsOverHttps, enableCache: true);
+            using var client = new ClientX("https://example.com/dns-query", DnsRequestFormat.DnsOverHttpsJSON, enableCache: true);
             client.MinCacheTtl = TimeSpan.FromSeconds(5);
             client.MaxCacheTtl = TimeSpan.FromSeconds(30);
             var httpClient = new HttpClient(handler) { BaseAddress = client.EndpointConfiguration.BaseUri };
@@ -94,7 +94,7 @@ namespace DnsClientX.Tests {
             ClearCache();
             var json = "{\"Status\":0,\"Answer\":[{\"name\":\"example.com\",\"type\":1,\"TTL\":600,\"data\":\"1.1.1.1\"}]}";
             var handler = new JsonResponseHandler(json);
-            using var client = new ClientX("https://example.com/dns-query", DnsRequestFormat.DnsOverHttps, enableCache: true);
+            using var client = new ClientX("https://example.com/dns-query", DnsRequestFormat.DnsOverHttpsJSON, enableCache: true);
             client.MinCacheTtl = TimeSpan.FromSeconds(5);
             client.MaxCacheTtl = TimeSpan.FromSeconds(10);
             var httpClient = new HttpClient(handler) { BaseAddress = client.EndpointConfiguration.BaseUri };
