@@ -17,7 +17,7 @@ namespace DnsClientX.Tests {
             MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<int> Invoke() {
                 var generic = method.MakeGenericMethod(typeof(int));
-                return (Task<int>)generic.Invoke(null, new object[] { action, 3, 1, null, true })!;
+                return (Task<int>)generic.Invoke(null, new object[] { action, 3, 1, null, false })!;
             }
 
             await Assert.ThrowsAsync<TimeoutException>(Invoke);
@@ -35,7 +35,7 @@ namespace DnsClientX.Tests {
             MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<int> Invoke() {
                 var generic = method.MakeGenericMethod(typeof(int));
-                return (Task<int>)generic.Invoke(null, new object[] { action, 3, 50, null, true })!;
+                return (Task<int>)generic.Invoke(null, new object[] { action, 3, 50, null, false })!;
             }
 
             var sw = Stopwatch.StartNew();
@@ -81,7 +81,7 @@ namespace DnsClientX.Tests {
             MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<DnsResponse> Invoke() {
                 var generic = method.MakeGenericMethod(typeof(DnsResponse));
-                return (Task<DnsResponse>)generic.Invoke(null, new object[] { action, 2, 1, null, true })!;
+                return (Task<DnsResponse>)generic.Invoke(null, new object[] { action, 2, 1, null, false })!;
             }
 
             var ex = await Assert.ThrowsAsync<DnsClientException>(Invoke);
