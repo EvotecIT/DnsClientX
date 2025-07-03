@@ -8,6 +8,12 @@ namespace DnsClientX {
     public partial class ClientX {
         internal Func<string, DnsRecordType, CancellationToken, Task<DnsResponse>>? ResolverOverride;
 
+        /// <summary>
+        /// Resolves a DNS query specifically for service discovery, allowing tests to override the resolver.
+        /// </summary>
+        /// <param name="name">The fully qualified domain name to query.</param>
+        /// <param name="type">The DNS record type.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         private Task<DnsResponse> ResolveForSd(string name, DnsRecordType type, CancellationToken cancellationToken) {
             if (ResolverOverride != null) {
                 return ResolverOverride(name, type, cancellationToken);
@@ -16,6 +22,13 @@ namespace DnsClientX {
             return Resolve(name, type, requestDnsSec: false, validateDnsSec: false, returnAllTypes: false, retryOnTransient: true, maxRetries: 3, retryDelayMs: 100, cancellationToken: cancellationToken);
         }
 
+        /// <summary>
+        /// Discovers DNS-SD services under the specified domain.
+        /// </summary>
+        /// <param name="domain">Domain name to look up for advertised services.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <returns>An array of discovered services or an empty array if none found.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="domain"/> is null or whitespace.</exception>
         public async Task<DnsServiceDiscovery[]> DiscoverServices(string domain, CancellationToken cancellationToken = default) {
             if (string.IsNullOrWhiteSpace(domain)) throw new ArgumentNullException(nameof(domain));
             string ptrQuery = $"_services._dns-sd._udp.{domain}";
