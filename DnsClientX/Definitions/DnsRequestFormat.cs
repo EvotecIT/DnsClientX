@@ -37,5 +37,13 @@ namespace DnsClientX {
         /// DNS over HTTP/3 using wire format.
         /// </summary>
         DnsOverHttp3,
+        /// <summary>
+        /// DNS over DNSCrypt using wire format.
+        /// </summary>
+        DnsCrypt,
+        /// <summary>
+        /// DNS over DNSCrypt using a relay server.
+        /// </summary>
+        DnsCryptRelay,
     }
 }
