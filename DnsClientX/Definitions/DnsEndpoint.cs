@@ -73,8 +73,7 @@ namespace DnsClientX {
         /// <summary>
         /// Google's DNS-over-QUIC endpoint.
         /// </summary>
-        GoogleQuic
-        ,
+        GoogleQuic,
         /// <summary>
         /// AdGuard DNS-over-HTTPS endpoint.
         /// </summary>
@@ -99,6 +98,11 @@ namespace DnsClientX {
         /// DNSCrypt relay server option.
         /// </summary>
         DnsCryptRelay,
+        /// <summary>
+        /// DNS root servers, queried iteratively starting from one of the
+        /// well known A-M root server instances.
+        /// </summary>
+        RootServer,
         /// <summary>
         /// Cloudflare's Oblivious DNS-over-HTTPS endpoint.
         /// </summary>

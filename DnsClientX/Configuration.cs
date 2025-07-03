@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 
 namespace DnsClientX {
     /// <summary>
@@ -119,8 +120,17 @@ namespace DnsClientX {
             if (string.IsNullOrWhiteSpace(hostname)) throw new ArgumentException("Hostname is null or whitespace.", nameof(hostname));
             hostnames = new List<string> { hostname };
             RequestFormat = requestFormat;
-            baseUriFormat = "https://{0}/dns-query";
-            BaseUri = new Uri(string.Format(baseUriFormat, hostname));
+            if (requestFormat != DnsRequestFormat.DnsOverUDP && requestFormat != DnsRequestFormat.DnsOverTCP && requestFormat != DnsRequestFormat.DnsCryptRelay) {
+                if (IPAddress.TryParse(hostname, out var ip) && ip.AddressFamily == AddressFamily.InterNetworkV6) {
+                    baseUriFormat = "https://[{0}]/dns-query";
+                } else {
+                    baseUriFormat = "https://{0}/dns-query";
+                }
+                BaseUri = new Uri(string.Format(baseUriFormat, hostname));
+            } else {
+                baseUriFormat = null;
+                BaseUri = null;
+            }
             hostnameIndex = 0;
 
             if (requestFormat == DnsRequestFormat.DnsOverTLS || requestFormat == DnsRequestFormat.DnsOverQuic) {

@@ -378,6 +378,13 @@ var ds = await client.Resolve("evotec.pl", DnsRecordType.DS, requestDnsSec: true
 ds.DisplayToConsole();
 ```
 
+### Resolving via DNS root servers
+
+```csharp
+var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, DnsEndpoint.RootServer);
+response.Answers.DisplayToConsole();
+```
+
 ### Querying DNS over HTTPS via defined endpoint using ResolveAll
 
 ```csharp

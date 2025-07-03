@@ -24,10 +24,15 @@ namespace DnsClientX {
             if (cancellationToken.IsCancellationRequested) {
                 return await Task.FromCanceled<DnsResponse>(cancellationToken);
             }
-            using var client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy);
-            client.EndpointConfiguration.TimeOut = timeOutMilliseconds;
-            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken);
-            return data;
+            if (dnsEndpoint == DnsEndpoint.RootServer) {
+                using var client = new ClientX();
+                return await client.ResolveFromRoot(name, recordType, cancellationToken);
+            } else {
+                using var client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy);
+                client.EndpointConfiguration.TimeOut = timeOutMilliseconds;
+                var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken);
+                return data;
+            }
         }
 
         /// <summary>
@@ -64,13 +69,21 @@ namespace DnsClientX {
             if (cancellationToken.IsCancellationRequested) {
                 return await Task.FromCanceled<DnsResponse[]>(cancellationToken);
             }
-            using var client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy) {
-                EndpointConfiguration = {
-                    TimeOut = timeOutMilliseconds
-                }
-            };
-            var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken);
-            return data;
+            if (dnsEndpoint == DnsEndpoint.RootServer) {
+                var tasks = name.Select(n => {
+                    using var client = new ClientX();
+                    return client.ResolveFromRoot(n, recordType, cancellationToken);
+                });
+                return await Task.WhenAll(tasks);
+            } else {
+                using var client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy) {
+                    EndpointConfiguration = {
+                        TimeOut = timeOutMilliseconds
+                    }
+                };
+                var data = await client.Resolve(name, recordType, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken);
+                return data;
+            }
         }
 
         /// <summary>
