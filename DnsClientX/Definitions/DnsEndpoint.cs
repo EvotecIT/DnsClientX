@@ -1,7 +1,8 @@
 namespace DnsClientX {
     /// <summary>
-    /// Enumerates known DNS-over-HTTPS endpoints and system resolvers.
-    /// DNS-over-HTTPS is defined in <a href="https://www.rfc-editor.org/rfc/rfc8484">RFC 8484</a>.
+    /// Enumerates known DNS endpoints including DNS-over-HTTPS and DNSCrypt
+    /// providers as well as system resolvers. DNS-over-HTTPS is defined in
+    /// <a href="https://www.rfc-editor.org/rfc/rfc8484">RFC 8484</a>.
     /// </summary>
     public enum DnsEndpoint {
         /// <summary>
@@ -85,6 +86,18 @@ namespace DnsClientX {
         /// <summary>
         /// AdGuard non-filtering DNS-over-HTTPS endpoint.
         /// </summary>
-        AdGuardNonFiltering
+        AdGuardNonFiltering,
+        /// <summary>
+        /// Cloudflare DNSCrypt endpoint.
+        /// </summary>
+        DnsCryptCloudflare,
+        /// <summary>
+        /// Quad9 DNSCrypt endpoint.
+        /// </summary>
+        DnsCryptQuad9,
+        /// <summary>
+        /// DNSCrypt relay server option.
+        /// </summary>
+        DnsCryptRelay
     }
 }
