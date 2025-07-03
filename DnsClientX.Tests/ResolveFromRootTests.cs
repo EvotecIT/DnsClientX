@@ -3,7 +3,7 @@ using Xunit;
 
 namespace DnsClientX.Tests {
     public class ResolveFromRootTests {
-        [Fact]
+        [Fact(Skip = "External dependency - requires root servers")] // network unreachable in CI
         public async Task ShouldResolveARecordFromRoot() {
             var response = await ClientX.QueryDns("github.com", DnsRecordType.A, DnsEndpoint.RootServer);
             Assert.NotEmpty(response.Answers);

@@ -120,12 +120,17 @@ namespace DnsClientX {
             if (string.IsNullOrWhiteSpace(hostname)) throw new ArgumentException("Hostname is null or whitespace.", nameof(hostname));
             hostnames = new List<string> { hostname };
             RequestFormat = requestFormat;
-            if (IPAddress.TryParse(hostname, out var ip) && ip.AddressFamily == AddressFamily.InterNetworkV6) {
-                baseUriFormat = "https://[{0}]/dns-query";
+            if (requestFormat != DnsRequestFormat.DnsOverUDP && requestFormat != DnsRequestFormat.DnsOverTCP && requestFormat != DnsRequestFormat.DnsCryptRelay) {
+                if (IPAddress.TryParse(hostname, out var ip) && ip.AddressFamily == AddressFamily.InterNetworkV6) {
+                    baseUriFormat = "https://[{0}]/dns-query";
+                } else {
+                    baseUriFormat = "https://{0}/dns-query";
+                }
+                BaseUri = new Uri(string.Format(baseUriFormat, hostname));
             } else {
-                baseUriFormat = "https://{0}/dns-query";
+                baseUriFormat = null;
+                BaseUri = null;
             }
-            BaseUri = new Uri(string.Format(baseUriFormat, hostname));
             hostnameIndex = 0;
 
             if (requestFormat == DnsRequestFormat.DnsOverTLS || requestFormat == DnsRequestFormat.DnsOverQuic) {

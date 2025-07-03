@@ -382,7 +382,7 @@ ds.DisplayToConsole();
 
 ```csharp
 var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, DnsEndpoint.RootServer);
-response.Answers
+response.Answers.DisplayToConsole();
 ```
 
 ### Querying DNS over HTTPS via defined endpoint using ResolveAll
