@@ -493,8 +493,9 @@ namespace DnsClientX {
         private string ConvertSpecialFormatToDotted(string data) {
             if (string.IsNullOrWhiteSpace(data)) return data;
 
-            // Check if the data is already in a standard format
-            if (data.All(c => char.IsLetterOrDigit(c) || c == '-' || c == '.')) {
+            // Check if the data is already in a standard format. Allow '_' as
+            // it commonly appears in service discovery names like "_http".
+            if (data.All(c => char.IsLetterOrDigit(c) || c == '-' || c == '.' || c == '_')) {
                 return data.TrimEnd('.').ToLower();
             }
 
