@@ -124,7 +124,14 @@ namespace DnsClientX {
             }
 
             if (_cacheEnabled) {
-                _cache.Set(cacheKey, response, CacheExpiration);
+                TimeSpan ttl = CacheExpiration;
+                if (response.Answers != null && response.Answers.Length > 0) {
+                    int minTtl = response.Answers.Min(a => a.TTL);
+                    ttl = TimeSpan.FromSeconds(minTtl);
+                }
+                if (ttl < MinCacheTtl) ttl = MinCacheTtl;
+                if (ttl > MaxCacheTtl) ttl = MaxCacheTtl;
+                _cache.Set(cacheKey, response, ttl);
             }
 
             return response;
