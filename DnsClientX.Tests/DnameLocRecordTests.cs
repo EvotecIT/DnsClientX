@@ -10,7 +10,8 @@ namespace DnsClientX.Tests {
             using var ms = new System.IO.MemoryStream();
             foreach (var part in parts) {
                 ms.WriteByte((byte)part.Length);
-                ms.Write(System.Text.Encoding.ASCII.GetBytes(part));
+                var bytes = System.Text.Encoding.ASCII.GetBytes(part);
+                ms.Write(bytes, 0, bytes.Length);
             }
             ms.WriteByte(0);
             return ms.ToArray();
