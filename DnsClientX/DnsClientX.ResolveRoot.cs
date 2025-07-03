@@ -13,8 +13,9 @@ namespace DnsClientX {
             DnsResponse lastResponse = new();
             for (var depth = 0; depth < 10; depth++) {
                 foreach (var server in servers) {
-                    var cfg = new Configuration(server, DnsRequestFormat.DnsOverUDP) { UseTcpFallback = true };
-                    lastResponse = await DnsWireResolveUdp.ResolveWireFormatUdp(server, cfg.Port, name, type, false, false, Debug, cfg, cancellationToken);
+                    var host = server.TrimEnd('.');
+                    var cfg = new Configuration(host, DnsRequestFormat.DnsOverUDP) { UseTcpFallback = true };
+                    lastResponse = await DnsWireResolveUdp.ResolveWireFormatUdp(host, cfg.Port, name, type, false, false, Debug, cfg, cancellationToken);
                     if (lastResponse.Answers?.Any(a => a.Type == type) == true) {
                         return lastResponse;
                     }
@@ -22,7 +23,7 @@ namespace DnsClientX {
 
                 var next = lastResponse.Additional?
                     .Where(a => a.Type == DnsRecordType.A || a.Type == DnsRecordType.AAAA)
-                    .Select(a => a.Data)
+                    .Select(a => a.Data.TrimEnd('.'))
                     .ToArray();
                 if (next != null && next.Length > 0) {
                     servers = next;
@@ -30,13 +31,13 @@ namespace DnsClientX {
                 }
                 var ns = lastResponse.Authorities?
                     .Where(a => a.Type == DnsRecordType.NS)
-                    .Select(a => a.Data)
+                    .Select(a => a.Data.TrimEnd('.'))
                     .FirstOrDefault();
                 if (ns == null) {
                     return lastResponse;
                 }
                 var nsResponse = await ResolveFromRoot(ns, DnsRecordType.A, cancellationToken);
-                servers = nsResponse.Answers?.Select(a => a.Data).ToArray() ?? RootServers.Servers;
+                servers = nsResponse.Answers?.Select(a => a.Data.TrimEnd('.')).ToArray() ?? RootServers.Servers;
             }
             return lastResponse;
         }
