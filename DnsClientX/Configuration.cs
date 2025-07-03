@@ -73,6 +73,18 @@ namespace DnsClientX {
         public bool UseTcpFallback { get; set; } = true;
 
         /// <summary>
+        /// Gets or sets the UDP buffer size used when sending EDNS queries.
+        /// </summary>
+        /// <value>The size of the UDP buffer.</value>
+        public int UdpBufferSize { get; set; } = 4096;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether EDNS should be enabled for queries.
+        /// </summary>
+        /// <value><c>true</c> to include the OPT record; otherwise, <c>false</c>.</value>
+        public bool EnableEdns { get; set; }
+
+        /// <summary>
         /// Gets or sets the format of the DNS requests.
         /// </summary>
         public DnsRequestFormat RequestFormat { get; set; }
