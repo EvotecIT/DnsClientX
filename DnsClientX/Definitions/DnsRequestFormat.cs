@@ -45,5 +45,9 @@ namespace DnsClientX {
         /// DNS over DNSCrypt using a relay server.
         /// </summary>
         DnsCryptRelay,
+        /// <summary>
+        /// Oblivious DNS over HTTPS (RFC 9230).
+        /// </summary>
+        ObliviousDnsOverHttps,
     }
 }
