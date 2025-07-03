@@ -17,7 +17,11 @@ namespace DnsClientX {
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="DnsClientException">When the transfer fails.</exception>
         public async Task<DnsAnswer[][]> ZoneTransferAsync(string zone, CancellationToken cancellationToken = default) {
-            if (string.IsNullOrEmpty(zone)) throw new ArgumentNullException(nameof(zone));
+            if (string.IsNullOrEmpty(zone)) {
+                throw new ArgumentNullException(nameof(zone));
+            }
+
+            EndpointConfiguration.SelectHostNameStrategy();
 
             var query = new DnsMessage(zone, DnsRecordType.AXFR, requestDnsSec: false, enableEdns: false, EndpointConfiguration.UdpBufferSize);
             var queryBytes = query.SerializeDnsWireFormat();

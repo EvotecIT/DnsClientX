@@ -119,7 +119,6 @@ namespace DnsClientX.Tests {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var server = RunAxfrServerAsync(port, new[] { m1, m2, m3 }, cts.Token);
 
-            var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTCP) { Port = port };
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = port } };
             var records = await client.ZoneTransferAsync("example.com");
             await server;
