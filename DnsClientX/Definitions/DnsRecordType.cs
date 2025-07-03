@@ -242,6 +242,34 @@ public enum DnsRecordType : ushort {
     /// </summary>
     HTTPS = 65,
     /// <summary>
+    /// Transaction key.
+    /// </summary>
+    TKEY = 249,
+    /// <summary>
+    /// Transaction signature.
+    /// </summary>
+    TSIG = 250,
+    /// <summary>
+    /// Incremental zone transfer.
+    /// </summary>
+    IXFR = 251,
+    /// <summary>
+    /// Authoritative zone transfer.
+    /// </summary>
+    AXFR = 252,
+    /// <summary>
+    /// Transfer mailbox records.
+    /// </summary>
+    MAILB = 253,
+    /// <summary>
+    /// Transfer mail agent records.
+    /// </summary>
+    MAILA = 254,
+    /// <summary>
+    /// Wildcard match for any record type.
+    /// </summary>
+    ANY = 255,
+    /// <summary>
     /// Sender Policy Framework.
     /// </summary>
     SPF = 99,
