@@ -241,6 +241,11 @@ namespace DnsClientX {
                     RequestFormat = DnsRequestFormat.DnsOverQuic;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
+                case DnsEndpoint.CloudflareOdoh:
+                    hostnames = ["odoh.cloudflare-dns.com"];
+                    RequestFormat = DnsRequestFormat.ObliviousDnsOverHttps;
+                    baseUriFormat = "https://{0}/dns-query";
+                    break;
                 case DnsEndpoint.Google:
                     hostnames = new List<string> { "8.8.8.8", "8.8.4.4" };
                     RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
