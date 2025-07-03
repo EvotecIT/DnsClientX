@@ -116,6 +116,7 @@ namespace DnsClientX {
             Version? httpVersion = null,
             bool ignoreCertificateErrors = false,
             bool enableCache = false,
+            bool useTcpFallback = true,
             IWebProxy? webProxy = null) {
             EndpointConfiguration = new Configuration(endpoint, dnsSelectionStrategy) {
                 TimeOut = timeOutMilliseconds
@@ -126,6 +127,7 @@ namespace DnsClientX {
             if (httpVersion != null) {
                 EndpointConfiguration.HttpVersion = httpVersion;
             }
+            EndpointConfiguration.UseTcpFallback = useTcpFallback;
             IgnoreCertificateErrors = ignoreCertificateErrors;
             _cacheEnabled = enableCache;
             _webProxy = webProxy;
@@ -151,6 +153,7 @@ namespace DnsClientX {
             Version? httpVersion = null,
             bool ignoreCertificateErrors = false,
             bool enableCache = false,
+            bool useTcpFallback = true,
             IWebProxy? webProxy = null) {
             EndpointConfiguration = new Configuration(hostname, requestFormat) {
                 TimeOut = timeOutMilliseconds
@@ -161,6 +164,7 @@ namespace DnsClientX {
             if (httpVersion != null) {
                 EndpointConfiguration.HttpVersion = httpVersion;
             }
+            EndpointConfiguration.UseTcpFallback = useTcpFallback;
             IgnoreCertificateErrors = ignoreCertificateErrors;
             _cacheEnabled = enableCache;
             _webProxy = webProxy;
@@ -186,6 +190,7 @@ namespace DnsClientX {
             Version? httpVersion = null,
             bool ignoreCertificateErrors = false,
             bool enableCache = false,
+            bool useTcpFallback = true,
             IWebProxy? webProxy = null) {
             EndpointConfiguration = new Configuration(baseUri, requestFormat) {
                 TimeOut = timeOutMilliseconds
@@ -196,6 +201,7 @@ namespace DnsClientX {
             if (httpVersion != null) {
                 EndpointConfiguration.HttpVersion = httpVersion;
             }
+            EndpointConfiguration.UseTcpFallback = useTcpFallback;
             IgnoreCertificateErrors = ignoreCertificateErrors;
             _cacheEnabled = enableCache;
             _webProxy = webProxy;

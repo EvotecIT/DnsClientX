@@ -68,6 +68,11 @@ namespace DnsClientX {
         public bool ValidateRootDnsSec { get; set; }
 
         /// <summary>
+        /// Determines whether to fall back to TCP when a UDP response is truncated.
+        /// </summary>
+        public bool UseTcpFallback { get; set; } = true;
+
+        /// <summary>
         /// Gets or sets the format of the DNS requests.
         /// </summary>
         public DnsRequestFormat RequestFormat { get; set; }

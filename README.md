@@ -28,6 +28,7 @@ DnsClientX is available as NuGet from the Nuget Gallery and as PowerShell module
 
 [![top language](https://img.shields.io/github/languages/top/evotecit/DnsClientX.svg)](https://github.com/EvotecIT/DnsClientX)
 [![license](https://img.shields.io/github/license/EvotecIT/DnsClientX.svg)](https://github.com/EvotecIT/DnsClientX)
+[![codecov](https://codecov.io/gh/EvotecIT/DnsClientX/branch/main/graph/badge.svg)](https://codecov.io/gh/EvotecIT/DnsClientX)
 
 </p>
 
