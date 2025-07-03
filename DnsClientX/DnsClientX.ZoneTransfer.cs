@@ -45,10 +45,10 @@ namespace DnsClientX {
 
             var rrsets = new List<List<DnsAnswer>>();
             foreach (var rec in records) {
-                if (rrsets.Count == 0 || rrsets[^1][0].Name != rec.Name || rrsets[^1][0].Type != rec.Type) {
+                if (rrsets.Count == 0 || rrsets[rrsets.Count - 1][0].Name != rec.Name || rrsets[rrsets.Count - 1][0].Type != rec.Type) {
                     rrsets.Add(new List<DnsAnswer> { rec });
                 } else {
-                    rrsets[^1].Add(rec);
+                    rrsets[rrsets.Count - 1].Add(rec);
                 }
             }
 
