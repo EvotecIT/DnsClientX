@@ -29,7 +29,7 @@ namespace DnsClientX.Tests {
             var advance = (Action)Delegate.CreateDelegate(typeof(Action), config, "AdvanceToNextHostname", false)!;
             await Assert.ThrowsAsync<DnsClientException>(async () =>
             {
-                await (Task<DnsResponse>)generic.Invoke(null, new object[] { action, 2, 1, advance })!;
+                await (Task<DnsResponse>)generic.Invoke(null, new object[] { action, 2, 1, advance, true })!;
             });
 
             config.SelectHostNameStrategy();
