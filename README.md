@@ -511,6 +511,17 @@ foreach (var svc in services) {
 }
 ```
 
+You can also query a specific service to get its SRV records directly:
+
+```csharp
+using var client = new ClientX();
+var records = await client.ResolveServiceAsync("ldap", "tcp", "example.com", resolveHosts: true);
+foreach (var r in records) {
+    Console.WriteLine($"{r.Target}:{r.Port} (pri {r.Priority}, weight {r.Weight})");
+    if (r.Addresses != null) Console.WriteLine(string.Join(", ", r.Addresses));
+}
+```
+
 ```powershell
 Get-DnsService -Domain 'example.com'
 ```
