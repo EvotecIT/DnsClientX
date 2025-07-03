@@ -9,6 +9,7 @@ namespace DnsClientX.Examples {
             // await DemoQuery.ExamplePTR3();
 
             await DemoDnsAnswer.ExampleDnsAnswerParsing();
+            await DemoServiceDiscovery.Example();
 
             //await DemoQuery.ExampleTXTAll();
             return;

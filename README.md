@@ -97,6 +97,7 @@ This library supports multiple NET versions:
 - [x] Minimal dependencies on .NET Standard 2.0 and .NET 4.7.2
 - [x] Implements IDisposable to release cached HttpClient resources
 - [x] Multi-line record data normalized to use `\n` line endings
+- [x] Supports DNS Service Discovery (DNS-SD)
 
 ## Understanding DNS Query Behavior
 
@@ -496,6 +497,22 @@ $Output.AnswersMinimal | Format-Table
 
 $Output = Resolve-DnsQuery -Name 'evotec.pl' -Type A -Server '1.1.1.1','8.8.8.8' -Fallback -RandomServer
 $Output.AnswersMinimal | Format-Table
+```
+
+### DNS Service Discovery
+
+DnsClientX can discover services advertised via DNS-SD.
+
+```csharp
+using var client = new ClientX();
+var services = await client.DiscoverServices("example.com");
+foreach (var svc in services) {
+    Console.WriteLine($"{svc.ServiceName} -> {svc.Target}:{svc.Port}");
+}
+```
+
+```powershell
+Get-DnsService -Domain 'example.com'
 ```
 
 ## Please share with the community
