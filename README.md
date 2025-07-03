@@ -91,6 +91,7 @@ This library supports multiple NET versions:
 - [x] Supports DNS over TCP
 - [x] Supports DNSSEC
 - [x] Supports multiple DNS record types
+- [x] Supports DNS Service Discovery (DNS‑SD)
 - [x] Supports parallel queries
 - [x] No external dependencies on .NET 6, .NET 7 and .NET 8
 - [x] Minimal dependencies on .NET Standard 2.0 and .NET 4.7.2
@@ -283,6 +284,15 @@ var systemDnsServers = SystemInformation.GetDnsFromActiveNetworkCard();
 var refreshedDnsServers = SystemInformation.GetDnsFromActiveNetworkCard(refresh: true);
 ```
 
+```csharp
+// Discover services using DNS-SD
+var client = new ClientX();
+var services = await client.DiscoverServices("example.com");
+foreach (var svc in services) {
+    Console.WriteLine($"{svc.ServiceName} -> {svc.Host}:{svc.Port}");
+}
+```
+
 ### Advantages of System DNS
 
 1. **Respects local configuration**: Uses DNS servers configured by network admin/DHCP
@@ -465,6 +475,11 @@ Resolve-DnsQuery -Name 'evotec.pl' -Type A -DnsProvider Cloudflare -Verbose | Fo
 Resolve-DnsQuery -Name 'evotec.pl' -Type TXT -DnsProvider System -Verbose | Format-Table
 Resolve-DnsQuery -Name 'evotec.pl' -Type DS -DnsProvider Cloudflare -Verbose | Format-Table
 Resolve-DnsQuery -Name 'github.com', 'evotec.pl', 'google.com' -Type TXT -DnsProvider System -Verbose | Format-Table
+```
+
+```powershell
+# Discover DNS-SD services
+Get-DnsService -Domain 'example.com'
 ```
 
 It can also deliver more detailed information.
