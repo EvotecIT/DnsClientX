@@ -26,5 +26,11 @@ namespace DnsClientX.Tests {
             Assert.Equal(version, httpClient.DefaultRequestVersion);
 #endif
         }
+
+        [Fact]
+        public void ShouldOverrideTcpFallback() {
+            using var client = new ClientX(DnsEndpoint.Cloudflare, useTcpFallback: false);
+            Assert.False(client.EndpointConfiguration.UseTcpFallback);
+        }
     }
 }
