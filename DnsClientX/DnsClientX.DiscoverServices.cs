@@ -29,7 +29,7 @@ namespace DnsClientX {
                 string host = string.Empty;
                 int port = 0;
                 if (srv.HasValue) {
-                    var parts = srv.Value.Data.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    var parts = srv.Value.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length >= 4) {
                         int.TryParse(parts[2], out port);
                         host = parts[3].TrimEnd('.');
