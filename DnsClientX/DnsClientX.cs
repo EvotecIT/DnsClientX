@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Linq;
 using System.Net;
@@ -64,6 +65,11 @@ namespace DnsClientX {
         private readonly IWebProxy? _webProxy;
 
         /// <summary>
+        /// Collection storing audit trail entries when <see cref="EnableAudit"/> is set.
+        /// </summary>
+        private readonly ConcurrentQueue<AuditEntry> _auditTrail = new();
+
+        /// <summary>
         /// The lock for thread safety
         /// </summary>
         private readonly object _lock = new object();
@@ -77,6 +83,16 @@ namespace DnsClientX {
         private readonly bool _cacheEnabled;
         public bool CacheEnabled => _cacheEnabled;
         public TimeSpan CacheExpiration { get; set; } = TimeSpan.FromMinutes(1);
+
+        /// <summary>
+        /// Gets or sets a value indicating whether audit logging is enabled.
+        /// </summary>
+        public bool EnableAudit { get; set; }
+
+        /// <summary>
+        /// Gets the audit trail entries recorded during the lifetime of the client.
+        /// </summary>
+        public IReadOnlyCollection<AuditEntry> AuditTrail => _auditTrail.ToArray();
 
         /// <summary>
         /// Gets or sets the security protocol. The default value is <see cref="SecurityProtocolType.Tls12"/> which is required by Quad 9.

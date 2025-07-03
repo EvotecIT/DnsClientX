@@ -75,9 +75,12 @@ namespace DnsClientX {
             // Convert the domain name to punycode if it contains non-ASCII characters
             name = ConvertToPunycode(name);
 
+            var auditEntry = EnableAudit ? new AuditEntry(name, type) : null;
+
             DnsResponse response;
-            if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
-                response = await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
+            try {
+                if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
+                    response = await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps) {
                 response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST) {
@@ -98,6 +101,13 @@ namespace DnsClientX {
                 response = await DnsWireResolveUdp.ResolveWireFormatUdp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
             } else {
                 throw new DnsClientException($"Invalid RequestFormat: {EndpointConfiguration.RequestFormat}");
+            }
+            } catch (Exception ex) {
+                if (auditEntry != null) {
+                    auditEntry.Exception = ex;
+                    _auditTrail.Enqueue(auditEntry);
+                }
+                throw;
             }
 
             // Some DNS Providers return requested type, but also additional types
@@ -125,6 +135,11 @@ namespace DnsClientX {
 
             if (_cacheEnabled) {
                 _cache.Set(cacheKey, response, CacheExpiration);
+            }
+
+            if (auditEntry != null) {
+                auditEntry.Response = response;
+                _auditTrail.Enqueue(auditEntry);
             }
 
             return response;
