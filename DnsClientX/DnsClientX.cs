@@ -83,6 +83,8 @@ namespace DnsClientX {
         private readonly bool _cacheEnabled;
         public bool CacheEnabled => _cacheEnabled;
         public TimeSpan CacheExpiration { get; set; } = TimeSpan.FromMinutes(1);
+        public TimeSpan MinCacheTtl { get; set; } = TimeSpan.FromSeconds(1);
+        public TimeSpan MaxCacheTtl { get; set; } = TimeSpan.FromHours(1);
 
         /// <summary>
         /// Gets or sets a value indicating whether audit logging is enabled.
