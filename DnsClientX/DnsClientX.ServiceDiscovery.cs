@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -75,6 +76,73 @@ namespace DnsClientX {
             }
 
             return results.ToArray();
+        }
+
+        /// <summary>
+        /// Resolves SRV records for a specific service and protocol under a domain.
+        /// </summary>
+        /// <param name="service">Service name without leading underscore, e.g. <c>ldap</c>.</param>
+        /// <param name="protocol">Protocol name without leading underscore, e.g. <c>tcp</c>.</param>
+        /// <param name="domain">Domain hosting the service.</param>
+        /// <param name="resolveHosts">Whether to resolve A and AAAA records for each target.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <returns>Ordered SRV records parsed from the response.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when any parameter is null or whitespace.</exception>
+        public async Task<DnsSrvRecord[]> ResolveServiceAsync(
+            string service,
+            string protocol,
+            string domain,
+            bool resolveHosts = false,
+            CancellationToken cancellationToken = default) {
+            if (string.IsNullOrWhiteSpace(service)) throw new ArgumentNullException(nameof(service));
+            if (string.IsNullOrWhiteSpace(protocol)) throw new ArgumentNullException(nameof(protocol));
+            if (string.IsNullOrWhiteSpace(domain)) throw new ArgumentNullException(nameof(domain));
+
+            if (!service.StartsWith("_", StringComparison.Ordinal)) service = "_" + service;
+            if (!protocol.StartsWith("_", StringComparison.Ordinal)) protocol = "_" + protocol;
+
+            string query = $"{service}.{protocol}.{domain}";
+            var response = await ResolveForSd(query, DnsRecordType.SRV, cancellationToken);
+            if (response.Answers == null) return Array.Empty<DnsSrvRecord>();
+
+            var records = new List<DnsSrvRecord>();
+            foreach (var answer in response.Answers.Where(a => a.Type == DnsRecordType.SRV)) {
+                var parts = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 4 &&
+                    int.TryParse(parts[0], out int priority) &&
+                    int.TryParse(parts[1], out int weight) &&
+                    int.TryParse(parts[2], out int port)) {
+                    string target = parts[3].TrimEnd('.');
+                    IPAddress[]? addresses = null;
+                    if (resolveHosts) {
+                        var addr = new List<IPAddress>();
+                        var aRes = await ResolveForSd(target, DnsRecordType.A, cancellationToken);
+                        if (aRes.Answers != null) {
+                            addr.AddRange(aRes.Answers.Where(a => a.Type == DnsRecordType.A)
+                                .Select(a => IPAddress.Parse(a.Data)));
+                        }
+                        var aaaaRes = await ResolveForSd(target, DnsRecordType.AAAA, cancellationToken);
+                        if (aaaaRes.Answers != null) {
+                            addr.AddRange(aaaaRes.Answers.Where(a => a.Type == DnsRecordType.AAAA)
+                                .Select(a => IPAddress.Parse(a.Data)));
+                        }
+                        if (addr.Count > 0) addresses = addr.ToArray();
+                    }
+
+                    records.Add(new DnsSrvRecord {
+                        Target = target,
+                        Port = port,
+                        Priority = priority,
+                        Weight = weight,
+                        Addresses = addresses
+                    });
+                }
+            }
+
+            return records
+                .OrderBy(r => r.Priority)
+                .ThenByDescending(r => r.Weight)
+                .ToArray();
         }
     }
 }
