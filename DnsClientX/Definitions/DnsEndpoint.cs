@@ -98,6 +98,10 @@ namespace DnsClientX {
         /// <summary>
         /// DNSCrypt relay server option.
         /// </summary>
-        DnsCryptRelay
+        DnsCryptRelay,
+        /// <summary>
+        /// Cloudflare's Oblivious DNS-over-HTTPS endpoint.
+        /// </summary>
+        CloudflareOdoh
     }
 }
