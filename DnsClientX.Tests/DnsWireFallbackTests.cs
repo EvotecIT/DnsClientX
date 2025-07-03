@@ -73,5 +73,22 @@ namespace DnsClientX.Tests {
             Assert.True(tcpCalled, "Expected TCP fallback to be used");
             Assert.False(response.IsTruncated);
         }
+
+        [Fact]
+        public async Task ResolveWireFormatUdp_ShouldNotFallbackWhenDisabled() {
+            int port = GetFreePort();
+            var udpResponse = CreateDnsHeader(truncated: true);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var udpTask = RunUdpServerAsync(port, udpResponse, cts.Token);
+
+            var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port, UseTcpFallback = false };
+            Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
+            MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
+            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, cts.Token })!;
+            DnsResponse response = await task;
+
+            await udpTask;
+            Assert.True(response.IsTruncated);
+        }
     }
 }
