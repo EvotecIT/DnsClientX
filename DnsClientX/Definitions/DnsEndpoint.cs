@@ -99,5 +99,11 @@ namespace DnsClientX {
         /// DNSCrypt relay server option.
         /// </summary>
         DnsCryptRelay
+        ,
+        /// <summary>
+        /// DNS root servers, queried iteratively starting from one of the
+        /// well known A-M root server instances.
+        /// </summary>
+        RootServer
     }
 }
