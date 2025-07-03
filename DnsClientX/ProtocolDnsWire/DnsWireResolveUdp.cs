@@ -48,8 +48,8 @@ namespace DnsClientX {
 
                 // Deserialize the response from DNS wire format
                 var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer);
-                if (response.IsTruncated) {
-                    // If the response is truncated, retry the query over TCP
+                if (response.IsTruncated && endpointConfiguration.UseTcpFallback) {
+                    // If the response is truncated and fallback is enabled, retry the query over TCP
                     response = await DnsWireResolveTcp.ResolveWireFormatTcp(dnsServer, port, name, type, requestDnsSec,
                         validateDnsSec, debug, endpointConfiguration, cancellationToken);
                 }
