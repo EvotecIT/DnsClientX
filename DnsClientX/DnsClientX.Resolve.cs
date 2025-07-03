@@ -137,8 +137,13 @@ namespace DnsClientX {
                 _cache.Set(cacheKey, response, CacheExpiration);
             }
 
+
             if (auditEntry != null) {
-                auditEntry.Response = response;
+                if (response.Status == DnsResponseCode.NoError && string.IsNullOrEmpty(response.Error)) {
+                    auditEntry.Response = response;
+                } else {
+                    auditEntry.Exception = new DnsClientException(response.Error ?? "DNS query failed", response);
+                }
                 _auditTrail.Enqueue(auditEntry);
             }
 
