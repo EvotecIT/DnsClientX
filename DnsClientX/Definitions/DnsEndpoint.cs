@@ -73,8 +73,7 @@ namespace DnsClientX {
         /// <summary>
         /// Google's DNS-over-QUIC endpoint.
         /// </summary>
-        GoogleQuic
-        ,
+        GoogleQuic,
         /// <summary>
         /// AdGuard DNS-over-HTTPS endpoint.
         /// </summary>
@@ -103,6 +102,10 @@ namespace DnsClientX {
         /// DNS root servers, queried iteratively starting from one of the
         /// well known A-M root server instances.
         /// </summary>
-        RootServer
+        RootServer,
+        /// <summary>
+        /// Cloudflare's Oblivious DNS-over-HTTPS endpoint.
+        /// </summary>
+        CloudflareOdoh
     }
 }
