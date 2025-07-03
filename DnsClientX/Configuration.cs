@@ -301,6 +301,21 @@ namespace DnsClientX {
                     RequestFormat = DnsRequestFormat.DnsOverHttps;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
+                case DnsEndpoint.DnsCryptCloudflare:
+                    hostnames = new List<string> { "1.1.1.1", "1.0.0.1" };
+                    RequestFormat = DnsRequestFormat.DnsCrypt;
+                    baseUriFormat = "https://{0}/dns-query";
+                    break;
+                case DnsEndpoint.DnsCryptQuad9:
+                    hostnames = new List<string> { "9.9.9.9", "149.112.112.9" };
+                    RequestFormat = DnsRequestFormat.DnsCrypt;
+                    baseUriFormat = "https://{0}/dns-query";
+                    break;
+                case DnsEndpoint.DnsCryptRelay:
+                    hostnames = new List<string> { "94.198.41.235", "37.120.142.115" };
+                    RequestFormat = DnsRequestFormat.DnsCryptRelay;
+                    baseUriFormat = "https://{0}/dns-query";
+                    break;
                 default:
                     throw new ArgumentException("Invalid endpoint", nameof(endpoint));
             }
@@ -311,9 +326,12 @@ namespace DnsClientX {
 
             SelectHostNameStrategy();
 
-            if (RequestFormat == DnsRequestFormat.DnsOverTLS || RequestFormat == DnsRequestFormat.DnsOverQuic) {
+            if (RequestFormat == DnsRequestFormat.DnsOverTLS ||
+                RequestFormat == DnsRequestFormat.DnsOverQuic) {
                 Port = 853;
-            } else if (RequestFormat == DnsRequestFormat.DnsOverUDP || RequestFormat == DnsRequestFormat.DnsOverTCP) {
+            } else if (RequestFormat == DnsRequestFormat.DnsOverUDP ||
+                       RequestFormat == DnsRequestFormat.DnsOverTCP ||
+                       RequestFormat == DnsRequestFormat.DnsCryptRelay) {
                 Port = 53;
             } else {
                 Port = 443;
