@@ -160,7 +160,12 @@ namespace DnsClientX {
 
             // Clean up empty strings and whitespace-only entries for TXT records
             if (Type == DnsRecordType.TXT) {
-                data = data.Where(s => !string.IsNullOrWhiteSpace(s) && s.Trim('"').Trim().Length > 0).ToList();
+                bool keepLastEmpty = data.Count > 0 && string.IsNullOrWhiteSpace(data[^1].Trim('"'));
+                data = data.Where((s, index) =>
+                        keepLastEmpty && index == data.Count - 1
+                            ? true
+                            : !string.IsNullOrWhiteSpace(s) && s.Trim('"').Trim().Length > 0)
+                    .ToList();
             }
 
             return data.ToArray();
