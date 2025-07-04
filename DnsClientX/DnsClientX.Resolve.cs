@@ -191,6 +191,10 @@ namespace DnsClientX {
         /// <see cref="DnsClientException"/> is thrown with the last response.
         /// </remarks>
         private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 100, Action? beforeRetry = null, bool useJitter = true) {
+            if (maxRetries == 0) {
+                return await action();
+            }
+
             Exception lastException = null;
             T lastResult = default(T);
 
