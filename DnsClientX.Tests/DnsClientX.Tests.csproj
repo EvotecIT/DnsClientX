@@ -5,7 +5,7 @@
         </TargetFrameworks>
         <TargetFrameworks
             Condition=" '$([MSBuild]::IsOsPlatform(`OSX`))' Or '$([MSBuild]::IsOsPlatform(`Linux`))' ">
-            net8.0
+            net472;net8.0
         </TargetFrameworks>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
@@ -30,6 +30,8 @@
         </PackageReference>
         <PackageReference Include="System.Net.Http" Version="4.3.4"
             Condition="'$(TargetFramework)' == 'net472'" />
+        <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" Condition="'$(TargetFramework)' == 'net472'" />
+        <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" Condition="'$(TargetFramework)' == 'net472'" />
     </ItemGroup>
 
     <ItemGroup>
