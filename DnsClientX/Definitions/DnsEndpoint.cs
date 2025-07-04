@@ -106,6 +106,11 @@ namespace DnsClientX {
         /// <summary>
         /// Cloudflare's Oblivious DNS-over-HTTPS endpoint.
         /// </summary>
-        CloudflareOdoh
+        CloudflareOdoh,
+        /// <summary>
+        /// Custom DNS endpoint configured via <see cref="Configuration"/>
+        /// overrides.
+        /// </summary>
+        Custom
     }
 }

@@ -31,12 +31,12 @@ namespace DnsClientX {
         /// <summary>
         /// Gets the hostname of the DNS-over-HTTPS resolver.
         /// </summary>
-        public string Hostname { get; private set; }
+        public string? Hostname { get; set; }
 
         /// <summary>
         /// Gets the base URI to send DNS requests to.
         /// </summary>
-        public Uri BaseUri { get; private set; }
+        public Uri? BaseUri { get; set; }
 
         /// <summary>
         /// The preferred HTTP request version to use by default.
@@ -84,6 +84,13 @@ namespace DnsClientX {
         /// </summary>
         /// <value><c>true</c> to include the OPT record; otherwise, <c>false</c>.</value>
         public bool EnableEdns { get; set; }
+
+        /// <summary>
+        /// Gets or sets the EDNS Client Subnet (ECS) to include in DNS queries.
+        /// Specify as CIDR notation, for example <c>192.0.2.0/24</c>.
+        /// When configured, EDNS will be automatically enabled.
+        /// </summary>
+        public string? Subnet { get; set; }
 
         /// <summary>
         /// Gets or sets the format of the DNS requests.
@@ -256,6 +263,11 @@ namespace DnsClientX {
                     RequestFormat = DnsRequestFormat.ObliviousDnsOverHttps;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
+                case DnsEndpoint.Custom:
+                    hostnames = [];
+                    RequestFormat = DnsRequestFormat.DnsOverHttps;
+                    baseUriFormat = null;
+                    break;
                 case DnsEndpoint.Google:
                     hostnames = new List<string> { "8.8.8.8", "8.8.4.4" };
                     RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
@@ -352,7 +364,9 @@ namespace DnsClientX {
                 Port = 443;
             }
 
-            BaseUri = new Uri(string.Format(baseUriFormat, Hostname));
+            if (baseUriFormat != null && !string.IsNullOrEmpty(Hostname)) {
+                BaseUri = new Uri(string.Format(baseUriFormat, Hostname));
+            }
         }
     }
 }

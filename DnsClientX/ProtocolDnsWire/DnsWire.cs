@@ -81,7 +81,9 @@ namespace DnsClientX {
                 ushort additionalCount = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
 
                 // Read the question section
-                DnsQuestion[] questions = new DnsQuestion[questionCount];
+                DnsQuestion[] questions = questionCount > 0
+                    ? new DnsQuestion[questionCount]
+                    : Array.Empty<DnsQuestion>();
                 for (int i = 0; i < questionCount; i++) {
                     if (reader.BaseStream.Position + 4 > reader.BaseStream.Length) {
                         throw new DnsClientException("Not enough data in the stream to read the question.");
@@ -103,7 +105,9 @@ namespace DnsClientX {
                 }
 
                 // Read the answer section
-                DnsAnswer[] answers = new DnsAnswer[answerCount];
+                DnsAnswer[] answers = answerCount > 0
+                    ? new DnsAnswer[answerCount]
+                    : Array.Empty<DnsAnswer>();
                 for (int i = 0; i < answerCount; i++) {
                     //Console.WriteLine("-----------------");
                     if (reader.BaseStream.Position + 6 > reader.BaseStream.Length) {
@@ -155,7 +159,9 @@ namespace DnsClientX {
                 }
 
                 // Read the authority section
-                DnsAnswer[] authorities = new DnsAnswer[authorityCount];
+                DnsAnswer[] authorities = authorityCount > 0
+                    ? new DnsAnswer[authorityCount]
+                    : Array.Empty<DnsAnswer>();
                 for (int i = 0; i < authorityCount; i++) {
                     if (reader.BaseStream.Position + 6 > reader.BaseStream.Length)
                         throw new DnsClientException("Not enough data in the stream to read the authority.");
@@ -165,7 +171,9 @@ namespace DnsClientX {
                 }
 
                 // Read the additional section
-                DnsAnswer[] additional = new DnsAnswer[additionalCount];
+                DnsAnswer[] additional = additionalCount > 0
+                    ? new DnsAnswer[additionalCount]
+                    : Array.Empty<DnsAnswer>();
                 for (int i = 0; i < additionalCount; i++) {
                     if (reader.BaseStream.Position + 6 > reader.BaseStream.Length)
                         throw new DnsClientException("Not enough data in the stream to read the additional.");

@@ -386,6 +386,15 @@ using var client = new ClientX(DnsEndpoint.Cloudflare, userAgent: "MyApp/1.0", h
 ```
 You can also modify `client.EndpointConfiguration.UserAgent` and `client.EndpointConfiguration.HttpVersion` after construction.
 
+### Using a custom endpoint
+
+```csharp
+using var client = new ClientX(DnsEndpoint.Custom);
+client.EndpointConfiguration.Hostname = "1.1.1.1";
+client.EndpointConfiguration.RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
+client.EndpointConfiguration.BaseUri = new Uri($"https://{client.EndpointConfiguration.Hostname}/dns-query");
+```
+
 ### Querying DNS over QUIC via Cloudflare
 
 ```csharp
