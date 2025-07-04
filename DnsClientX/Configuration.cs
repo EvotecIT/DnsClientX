@@ -352,7 +352,9 @@ namespace DnsClientX {
                 Port = 443;
             }
 
-            BaseUri = new Uri(string.Format(baseUriFormat, Hostname));
+            if (hostnames.Count > 0 && baseUriFormat != null) {
+                BaseUri = new Uri(string.Format(baseUriFormat, Hostname));
+            }
         }
     }
 }
