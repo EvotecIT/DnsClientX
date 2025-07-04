@@ -4,7 +4,7 @@
             netstandard2.0;net472;net8.0
         </TargetFrameworks>
         <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`OSX`))'  Or '$([MSBuild]::IsOsPlatform(`Linux`))' ">
-            netstandard2.0;net472;net8.0
+            net8.0
         </TargetFrameworks>
         <Description>PowerShell Module for working with Event Logs</Description>
         <AssemblyName>DnsClientX.PowerShell</AssemblyName>
@@ -27,8 +27,6 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" Condition="'$(TargetFramework)' == 'net472'" />
-        <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" Condition="'$(TargetFramework)' == 'net472'" />
     </ItemGroup>
 
     <ItemGroup>
