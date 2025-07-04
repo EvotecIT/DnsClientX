@@ -650,7 +650,7 @@ namespace DnsClientX {
             var segments = new List<string>();
             var currentSegment = new StringBuilder();
             bool inValue = false;
-            int equalsCount = 0;
+            int valueLength = 0;
 
             for (int i = 0; i < data.Length; i++) {
                 char c = data[i];
@@ -659,9 +659,9 @@ namespace DnsClientX {
                 if (c == '=') {
                     if (!inValue) {
                         inValue = true;
-                        equalsCount++;
+                        valueLength = 0;
                     }
-                } else if (inValue && char.IsLetter(c) && i > 0) {
+                } else if (inValue && char.IsLetter(c) && valueLength > 2) {
                     // Check if this might be the start of a new key (letter after completing a value)
                     // Look ahead to see if there's an equals sign coming up
                     bool isNewKey = false;
@@ -685,7 +685,12 @@ namespace DnsClientX {
                         currentSegment.Clear();
                         currentSegment.Append(c);
                         inValue = false;
+                        valueLength = 1; // we've already added first char of new key
                     }
+                }
+
+                if (inValue && c != '=') {
+                    valueLength++;
                 }
             }
 

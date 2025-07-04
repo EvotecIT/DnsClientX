@@ -39,5 +39,31 @@ namespace DnsClientX.Tests {
 
             Assert.Equal("key1=value1\nkey2=value2", answer.Data);
         }
+
+        [Fact]
+        public void ConvertData_TwoSimplePairsWithoutKnownPrefixes_SplitsIntoLines() {
+            var answer = new DnsAnswer {
+                Name = "example.com",
+                Type = DnsRecordType.TXT,
+                TTL = 0,
+                DataRaw = "foo=barbaz=qux"
+            };
+
+            Assert.Equal("foo=bar\nbaz=qux", answer.Data);
+        }
+
+        [Fact]
+        public void ConvertData_MultipleVerificationTokens_SplitsIntoLines() {
+            var answer = new DnsAnswer {
+                Name = "example.com",
+                Type = DnsRecordType.TXT,
+                TTL = 0,
+                DataRaw = "apple-domain-verification=ABCfacebook-domain-verification=XYZ"
+            };
+
+            Assert.Equal(
+                "apple-domain-verification=ABC\nfacebook-domain-verification=XYZ",
+                answer.Data);
+        }
     }
 }
