@@ -48,11 +48,34 @@ DnsClientX is available as NuGet from the Nuget Gallery and as PowerShell module
 **DnsClientX** is an async C# library for DNS over UDP, TCP, HTTPS (DoH), and TLS (DoT). It also has a PowerShell module that can be used to query DNS records. It provides a simple way to query DNS records using multiple DNS providers. It supports multiple DNS record types and parallel queries. It's available for .NET 6, .NET 7, .NET 8, .NET Standard 2.0, and .NET 4.7.2.
 
 It provides querying multiple DNS Providers.
-- [Cloudflare](https://developers.cloudflare.com/1.1.1.1/encryption/dns-over-https/)
-- Google
-- [Quad9](https://www.quad9.net/news/blog/doh-with-quad9-dns-servers/)
-- OpenDNS
-- etc.
+
+| Endpoint | DoH | DoQ | DoT | UDP | TCP | DnsCrypt | ODoH |
+|---|---|---|---|---|---|---|---|
+| System |  |  |  | ✓ |  |  |  |
+| SystemTcp |  |  |  |  | ✓ |  |  |
+| Cloudflare | ✓ |  |  |  |  |  |  |
+| CloudflareWireFormat | ✓ |  |  |  |  |  |  |
+| CloudflareWireFormatPost | ✓ |  |  |  |  |  |  |
+| CloudflareSecurity | ✓ |  |  |  |  |  |  |
+| CloudflareFamily | ✓ |  |  |  |  |  |  |
+| CloudflareQuic |  | ✓ |  |  |  |  |  |
+| CloudflareOdoh |  |  |  |  |  |  | ✓ |
+| Google | ✓ |  |  |  |  |  |  |
+| GoogleWireFormat | ✓ |  |  |  |  |  |  |
+| GoogleWireFormatPost | ✓ |  |  |  |  |  |  |
+| GoogleQuic |  | ✓ |  |  |  |  |  |
+| AdGuard | ✓ |  |  |  |  |  |  |
+| AdGuardFamily | ✓ |  |  |  |  |  |  |
+| AdGuardNonFiltering | ✓ |  |  |  |  |  |  |
+| Quad9 | ✓ |  |  |  |  |  |  |
+| Quad9ECS | ✓ |  |  |  |  |  |  |
+| Quad9Unsecure | ✓ |  |  |  |  |  |  |
+| OpenDNS | ✓ |  |  |  |  |  |  |
+| OpenDNSFamily | ✓ |  |  |  |  |  |  |
+| DnsCryptCloudflare |  |  |  |  |  | ✓ |  |
+| DnsCryptQuad9 |  |  |  |  |  | ✓ |  |
+| DnsCryptRelay |  |  |  |  |  | ✓ |  |
+| RootServer |  |  |  | ✓ | ✓ |  |  |
 
 If you want to learn about DNS:
 - https://www.cloudflare.com/learning/dns/what-is-dns/
