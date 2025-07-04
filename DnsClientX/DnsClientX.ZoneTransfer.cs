@@ -23,7 +23,7 @@ namespace DnsClientX {
 
             EndpointConfiguration.SelectHostNameStrategy();
 
-            var query = new DnsMessage(zone, DnsRecordType.AXFR, requestDnsSec: false, enableEdns: false, EndpointConfiguration.UdpBufferSize);
+            var query = new DnsMessage(zone, DnsRecordType.AXFR, requestDnsSec: false, enableEdns: false, EndpointConfiguration.UdpBufferSize, null);
             var queryBytes = query.SerializeDnsWireFormat();
 
             var responses = await SendAxfrOverTcp(queryBytes, EndpointConfiguration.Hostname, EndpointConfiguration.Port, EndpointConfiguration.TimeOut, cancellationToken);

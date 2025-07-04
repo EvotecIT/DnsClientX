@@ -86,6 +86,13 @@ namespace DnsClientX {
         public bool EnableEdns { get; set; }
 
         /// <summary>
+        /// Gets or sets the EDNS Client Subnet (ECS) to include in DNS queries.
+        /// Specify as CIDR notation, for example <c>192.0.2.0/24</c>.
+        /// When configured, EDNS will be automatically enabled.
+        /// </summary>
+        public string? Subnet { get; set; }
+
+        /// <summary>
         /// Gets or sets the format of the DNS requests.
         /// </summary>
         public DnsRequestFormat RequestFormat { get; set; }
