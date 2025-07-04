@@ -700,7 +700,8 @@ namespace DnsClientX {
             int index = 0;
             while ((index = text.IndexOf(pattern, index, StringComparison.OrdinalIgnoreCase)) >= 0) {
                 count++;
-                index += pattern.Length;
+                // Move forward by one to allow overlapping pattern detection
+                index += 1;
             }
             return count;
         }
