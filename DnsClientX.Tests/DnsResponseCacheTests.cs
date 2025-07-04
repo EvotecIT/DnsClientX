@@ -5,13 +5,14 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using DnsClientX.Caching;
 using Xunit;
 
 namespace DnsClientX.Tests {
     public class DnsResponseCacheTests {
         [Fact]
         public void ShouldStoreAndRetrieve() {
-            var cache = new DnsResponseCache();
+            var cache = new DnsClientX.Caching.DnsCache();
             var response = new DnsResponse { Status = DnsResponseCode.NoError };
             cache.Set("a", response, TimeSpan.FromSeconds(1));
             Assert.True(cache.TryGet("a", out var cached));
@@ -20,7 +21,7 @@ namespace DnsClientX.Tests {
 
         [Fact]
         public void ShouldEvictAfterExpiration() {
-            var cache = new DnsResponseCache();
+            var cache = new DnsClientX.Caching.DnsCache();
             var response = new DnsResponse { Status = DnsResponseCode.NoError };
             cache.Set("a", response, TimeSpan.FromMilliseconds(100));
             Thread.Sleep(150);
