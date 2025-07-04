@@ -33,14 +33,14 @@ namespace DnsClientX {
         public async Task<DnsServiceDiscovery[]> DiscoverServices(string domain, CancellationToken cancellationToken = default) {
             if (string.IsNullOrWhiteSpace(domain)) throw new ArgumentNullException(nameof(domain));
             string ptrQuery = $"_services._dns-sd._udp.{domain}";
-            var ptrResponse = await ResolveForSd(ptrQuery, DnsRecordType.PTR, cancellationToken);
+            var ptrResponse = await ResolveForSd(ptrQuery, DnsRecordType.PTR, cancellationToken).ConfigureAwait(false);
             if (ptrResponse.Answers == null) return Array.Empty<DnsServiceDiscovery>();
 
             var results = new List<DnsServiceDiscovery>();
             foreach (var ptr in ptrResponse.Answers.Where(a => a.Type == DnsRecordType.PTR)) {
                 string serviceDomain = ptr.Data.TrimEnd('.');
-                var srvResponse = await ResolveForSd(serviceDomain, DnsRecordType.SRV, cancellationToken);
-                var txtResponse = await ResolveForSd(serviceDomain, DnsRecordType.TXT, cancellationToken);
+                var srvResponse = await ResolveForSd(serviceDomain, DnsRecordType.SRV, cancellationToken).ConfigureAwait(false);
+                var txtResponse = await ResolveForSd(serviceDomain, DnsRecordType.TXT, cancellationToken).ConfigureAwait(false);
 
                 var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var txt in txtResponse.Answers?.Where(a => a.Type == DnsRecordType.TXT) ?? Array.Empty<DnsAnswer>()) {
@@ -102,7 +102,7 @@ namespace DnsClientX {
             if (!protocol.StartsWith("_", StringComparison.Ordinal)) protocol = "_" + protocol;
 
             string query = $"{service}.{protocol}.{domain}";
-            var response = await ResolveForSd(query, DnsRecordType.SRV, cancellationToken);
+            var response = await ResolveForSd(query, DnsRecordType.SRV, cancellationToken).ConfigureAwait(false);
             if (response.Answers == null) return Array.Empty<DnsSrvRecord>();
 
             var records = new List<DnsSrvRecord>();
@@ -116,12 +116,12 @@ namespace DnsClientX {
                     IPAddress[]? addresses = null;
                     if (resolveHosts) {
                         var addr = new List<IPAddress>();
-                        var aRes = await ResolveForSd(target, DnsRecordType.A, cancellationToken);
+                        var aRes = await ResolveForSd(target, DnsRecordType.A, cancellationToken).ConfigureAwait(false);
                         if (aRes.Answers != null) {
                             addr.AddRange(aRes.Answers.Where(a => a.Type == DnsRecordType.A)
                                 .Select(a => IPAddress.Parse(a.Data)));
                         }
-                        var aaaaRes = await ResolveForSd(target, DnsRecordType.AAAA, cancellationToken);
+                        var aaaaRes = await ResolveForSd(target, DnsRecordType.AAAA, cancellationToken).ConfigureAwait(false);
                         if (aaaaRes.Answers != null) {
                             addr.AddRange(aaaaRes.Answers.Where(a => a.Type == DnsRecordType.AAAA)
                                 .Select(a => IPAddress.Parse(a.Data)));

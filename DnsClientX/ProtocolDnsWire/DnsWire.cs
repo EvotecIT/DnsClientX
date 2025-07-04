@@ -35,13 +35,13 @@ namespace DnsClientX {
                 if (bytes != null) {
                     dnsWireFormatBytes = bytes;
                 } else {
-                    using Stream stream = await res.Content.ReadAsStreamAsync();
+                    using Stream stream = await res.Content.ReadAsStreamAsync().ConfigureAwait(false);
                     if (stream.Length == 0) throw new DnsClientException("Response content is empty, can't parse as DNS wire format.");
                     // Ensure the stream's position is at the start
                     stream.Position = 0;
 
                     dnsWireFormatBytes = new byte[stream.Length];
-                    await ReadExactAsync(stream, dnsWireFormatBytes, 0, dnsWireFormatBytes.Length, CancellationToken.None);
+                    await ReadExactAsync(stream, dnsWireFormatBytes, 0, dnsWireFormatBytes.Length, CancellationToken.None).ConfigureAwait(false);
                 }
 
                 if (debug) {
@@ -499,7 +499,7 @@ namespace DnsClientX {
         /// </summary>
         internal static async Task ReadExactAsync(Stream stream, byte[] buffer, int offset, int count, CancellationToken cancellationToken) {
             int read;
-            while (count > 0 && (read = await stream.ReadAsync(buffer, offset, count, cancellationToken)) > 0) {
+            while (count > 0 && (read = await stream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false)) > 0) {
                 offset += read;
                 count -= read;
             }
