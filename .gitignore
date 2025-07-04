@@ -372,3 +372,4 @@ build/*
 /Module/Artefacts/*
 /Module/Lib/*dotnet-install.sh
 packages-microsoft-prod.deb
+dotnet-install.sh

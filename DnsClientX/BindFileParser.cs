@@ -29,7 +29,11 @@ namespace DnsClientX {
                 if (line.StartsWith("$TTL", StringComparison.OrdinalIgnoreCase)) {
                     var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length > 1 && int.TryParse(parts[1], out int ttlDirective)) {
-                        defaultTtl = ttlDirective;
+                        if (ttlDirective >= 0) {
+                            defaultTtl = ttlDirective;
+                        } else {
+                            debugPrint?.Invoke($"Skipping invalid TTL directive: {line}");
+                        }
                     }
                     continue;
                 }
@@ -48,6 +52,10 @@ namespace DnsClientX {
                 int ttl = defaultTtl;
 
                 if (int.TryParse(tokens[index], out int ttlVal)) {
+                    if (ttlVal < 0) {
+                        debugPrint?.Invoke($"Skipping record with negative TTL: {line}");
+                        continue;
+                    }
                     ttl = ttlVal;
                     index++;
                 }
