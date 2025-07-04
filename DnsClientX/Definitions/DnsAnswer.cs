@@ -520,15 +520,15 @@ namespace DnsClientX {
                 // Move to the next character
                 i++;
 
-                // Read the label
-                if (i + length <= data.Length) {
-                    result.Append(data.Substring(i, length));
-                    result.Append('.');
-                    i += length;
-                } else {
-                    // If the length byte is invalid, break the loop
-                    break;
+                // Validate available length before slicing the string
+                if (i + length > data.Length) {
+                    return data;
                 }
+
+                // Read the label
+                result.Append(data.Substring(i, length));
+                result.Append('.');
+                i += length;
             }
 
             // Remove the trailing dot and return the result
