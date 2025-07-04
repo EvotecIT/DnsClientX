@@ -67,7 +67,9 @@ namespace DnsClientX.Tests {
             var dict = dictField.GetValue(cache);
             var values = (System.Collections.IEnumerable)dict.GetType().GetProperty("Values")!.GetValue(dict)!;
             var enumerator = values.GetEnumerator();
-            enumerator.MoveNext();
+            if (!enumerator.MoveNext()) {
+                throw new InvalidOperationException("No cached entries found.");
+            }
             var entry = enumerator.Current;
             var expiration = (DateTimeOffset)entry.GetType().GetProperty("Expiration")!.GetValue(entry)!;
             return expiration - DateTimeOffset.UtcNow;
