@@ -13,6 +13,7 @@ namespace DnsClientX {
     /// The primary class for sending DNS over HTTPS queries.
     /// </summary>
     public partial class ClientX {
+        internal static Action<ClientX>? OnClientCreated;
         /// <summary>
         /// The client
         /// </summary>
