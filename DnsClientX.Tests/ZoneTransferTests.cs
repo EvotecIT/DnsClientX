@@ -22,21 +22,27 @@ namespace DnsClientX.Tests {
         }
 
         private static void WriteUInt16(System.IO.Stream s, ushort val) {
-            Span<byte> b = stackalloc byte[2];
-            System.Buffers.Binary.BinaryPrimitives.WriteUInt16BigEndian(b, val);
-            s.Write(b);
+            var b = new byte[2];
+            b[0] = (byte)(val >> 8);
+            b[1] = (byte)val;
+            s.Write(b, 0, 2);
         }
 
         private static void WriteUInt32(System.IO.Stream s, uint val) {
-            Span<byte> b = stackalloc byte[4];
-            System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(b, val);
-            s.Write(b);
+            var b = new byte[4];
+            b[0] = (byte)(val >> 24);
+            b[1] = (byte)(val >> 16);
+            b[2] = (byte)(val >> 8);
+            b[3] = (byte)val;
+            s.Write(b, 0, 4);
         }
 
         private static byte[] BuildSoaRdata() {
             using var ms = new System.IO.MemoryStream();
-            ms.Write(EncodeName("ns1.example.com"));
-            ms.Write(EncodeName("hostmaster.example.com"));
+            var nsBytes = EncodeName("ns1.example.com");
+            ms.Write(nsBytes, 0, nsBytes.Length);
+            var hostBytes = EncodeName("hostmaster.example.com");
+            ms.Write(hostBytes, 0, hostBytes.Length);
             WriteUInt32(ms, 1);
             WriteUInt32(ms, 3600);
             WriteUInt32(ms, 600);
@@ -53,16 +59,18 @@ namespace DnsClientX.Tests {
             WriteUInt16(ms, (ushort)answers.Length); // ancount
             WriteUInt16(ms, 0); // nscount
             WriteUInt16(ms, 0); // arcount
-            ms.Write(EncodeName(zone));
+            var zoneBytes = EncodeName(zone);
+            ms.Write(zoneBytes, 0, zoneBytes.Length);
             WriteUInt16(ms, (ushort)DnsRecordType.AXFR);
             WriteUInt16(ms, 1);
             foreach (var a in answers) {
-                ms.Write(EncodeName(a.Name));
+                var nameBytes = EncodeName(a.Name);
+                ms.Write(nameBytes, 0, nameBytes.Length);
                 WriteUInt16(ms, (ushort)a.Type);
                 WriteUInt16(ms, 1);
                 WriteUInt32(ms, 3600);
                 WriteUInt16(ms, (ushort)a.Data.Length);
-                ms.Write(a.Data);
+                ms.Write(a.Data, 0, a.Data.Length);
             }
             return ms.ToArray();
         }
@@ -75,7 +83,8 @@ namespace DnsClientX.Tests {
             WriteUInt16(ms, 0);
             WriteUInt16(ms, 0);
             WriteUInt16(ms, 0);
-            ms.Write(EncodeName(zone));
+            var zoneBytes = EncodeName(zone);
+            ms.Write(zoneBytes, 0, zoneBytes.Length);
             WriteUInt16(ms, (ushort)DnsRecordType.AXFR);
             WriteUInt16(ms, 1);
             return ms.ToArray();
