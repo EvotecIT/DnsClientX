@@ -32,5 +32,16 @@ namespace DnsClientX.Tests {
             using var client = new ClientX(DnsEndpoint.Cloudflare, useTcpFallback: false);
             Assert.False(client.EndpointConfiguration.UseTcpFallback);
         }
+
+        [Fact]
+        public void CustomEndpoint_ShouldAllowOverrides() {
+            using var client = new ClientX(DnsEndpoint.Custom);
+            client.EndpointConfiguration.Hostname = "1.1.1.1";
+            client.EndpointConfiguration.RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
+            client.EndpointConfiguration.BaseUri = new Uri($"https://{client.EndpointConfiguration.Hostname}/dns-query");
+
+            Assert.Equal("1.1.1.1", client.EndpointConfiguration.Hostname);
+            Assert.Equal(new Uri("https://1.1.1.1/dns-query"), client.EndpointConfiguration.BaseUri);
+        }
     }
 }
