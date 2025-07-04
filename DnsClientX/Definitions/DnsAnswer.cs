@@ -636,6 +636,17 @@ namespace DnsClientX {
         /// <param name="data">The concatenated data</param>
         /// <returns>List of potential record segments</returns>
         private List<string> SplitByEqualsPattern(string data) {
+            var numberedKeyMatches = Regex.Matches(data, @"key\d+=");
+            if (numberedKeyMatches.Count > 1) {
+                var numberedSegments = new List<string>();
+                for (int i = 0; i < numberedKeyMatches.Count; i++) {
+                    int start = numberedKeyMatches[i].Index;
+                    int end = (i == numberedKeyMatches.Count - 1) ? data.Length : numberedKeyMatches[i + 1].Index;
+                    numberedSegments.Add(data.Substring(start, end - start));
+                }
+                return numberedSegments;
+            }
+
             var segments = new List<string>();
             var currentSegment = new StringBuilder();
             bool inValue = false;
