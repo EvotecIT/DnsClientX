@@ -64,7 +64,7 @@ namespace DnsClientX {
             Client = GetClient(EndpointConfiguration.SelectionStrategy);
 
             string cacheKey = $"{EndpointConfiguration.BaseUri}|{type}|{name}";
-            if (_cacheEnabled && _cache.TryGet(cacheKey, out var cached)) {
+            if (_cacheEnabled && TryGetCachedResponse(cacheKey, out var cached)) {
                 return cached;
             }
 
@@ -143,7 +143,7 @@ namespace DnsClientX {
                 }
                 if (ttl < MinCacheTtl) ttl = MinCacheTtl;
                 if (ttl > MaxCacheTtl) ttl = MaxCacheTtl;
-                _cache.Set(cacheKey, response, ttl);
+                StoreResponseInCache(cacheKey, response, ttl);
             }
 
 

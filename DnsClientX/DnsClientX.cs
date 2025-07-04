@@ -79,7 +79,7 @@ namespace DnsClientX {
         /// </summary>
         private readonly Dictionary<DnsSelectionStrategy, HttpClient> _clients = new Dictionary<DnsSelectionStrategy, HttpClient>();
 
-        private static readonly DnsResponseCache _cache = new();
+        private static readonly Caching.DnsCache _cache = new();
         private readonly bool _cacheEnabled;
         public bool CacheEnabled => _cacheEnabled;
         public TimeSpan CacheExpiration { get; set; } = TimeSpan.FromMinutes(1);
