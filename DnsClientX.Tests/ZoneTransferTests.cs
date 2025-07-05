@@ -161,5 +161,72 @@ namespace DnsClientX.Tests {
             await Assert.ThrowsAsync<DnsClientException>(() => client.ZoneTransferAsync("example.com"));
             await server;
         }
+
+        private static async Task RunAxfrServerFailOnceAsync(int port, byte[][] responses, CancellationToken token) {
+            var listener = new TcpListener(IPAddress.Loopback, port);
+            listener.Start();
+
+            using (TcpClient client = await listener.AcceptTcpClientAsync()) {
+                client.Close();
+            }
+
+            using (TcpClient client = await listener.AcceptTcpClientAsync()) {
+                NetworkStream stream = client.GetStream();
+                byte[] len = new byte[2];
+                await stream.ReadAsync(len, 0, 2, token);
+                if (BitConverter.IsLittleEndian) Array.Reverse(len);
+                int qLen = BitConverter.ToUInt16(len, 0);
+                byte[] q = new byte[qLen];
+                await stream.ReadAsync(q, 0, qLen, token);
+                foreach (var r in responses) {
+                    byte[] prefix = BitConverter.GetBytes((ushort)r.Length);
+                    if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
+                    await stream.WriteAsync(prefix, 0, prefix.Length, token);
+                    await stream.WriteAsync(r, 0, r.Length, token);
+                }
+            }
+
+            listener.Stop();
+        }
+
+        private static async Task RunAxfrServerAlwaysFailAsync(int port, int attempts, CancellationToken token) {
+            var listener = new TcpListener(IPAddress.Loopback, port);
+            listener.Start();
+
+            for (int i = 0; i < attempts; i++) {
+                using TcpClient client = await listener.AcceptTcpClientAsync();
+                client.Close();
+            }
+
+            listener.Stop();
+        }
+
+        [Fact]
+        public async Task ZoneTransferAsync_RetriesOnTransientFailure() {
+            int port = GetFreePort();
+            var soa = BuildSoaRdata();
+            byte[] m1 = BuildMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
+            byte[] m2 = BuildMessage("example.com", ("www.example.com", DnsRecordType.A, new byte[] { 1, 2, 3, 4 }));
+            byte[] m3 = BuildMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var server = RunAxfrServerFailOnceAsync(port, new[] { m1, m2, m3 }, cts.Token);
+
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = port } };
+            var records = await client.ZoneTransferAsync("example.com", maxRetries: 2, retryDelayMs: 10);
+            await server;
+
+            Assert.Equal(3, records.Length);
+        }
+
+        [Fact]
+        public async Task ZoneTransferAsync_RetryFailsAfterMaxRetries() {
+            int port = GetFreePort();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var server = RunAxfrServerAlwaysFailAsync(port, 2, cts.Token);
+
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = port } };
+            await Assert.ThrowsAsync<DnsClientException>(() => client.ZoneTransferAsync("example.com", maxRetries: 2, retryDelayMs: 10));
+            await server;
+        }
     }
 }

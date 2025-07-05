@@ -12,11 +12,19 @@ namespace DnsClientX {
         /// Performs a DNS zone transfer (AXFR) using TCP.
         /// </summary>
         /// <param name="zone">Zone name to transfer.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient failures.</param>
+        /// <param name="maxRetries">Maximum number of retry attempts.</param>
+        /// <param name="retryDelayMs">Base delay in milliseconds between retries.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>Ordered RRsets as returned by the server.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="DnsClientException">When the transfer fails.</exception>
-        public async Task<DnsAnswer[][]> ZoneTransferAsync(string zone, CancellationToken cancellationToken = default) {
+        public async Task<DnsAnswer[][]> ZoneTransferAsync(
+            string zone,
+            bool retryOnTransient = true,
+            int maxRetries = 3,
+            int retryDelayMs = 100,
+            CancellationToken cancellationToken = default) {
             if (string.IsNullOrEmpty(zone)) {
                 throw new ArgumentNullException(nameof(zone));
             }
@@ -26,7 +34,15 @@ namespace DnsClientX {
             var query = new DnsMessage(zone, DnsRecordType.AXFR, requestDnsSec: false, enableEdns: false, EndpointConfiguration.UdpBufferSize, null);
             var queryBytes = query.SerializeDnsWireFormat();
 
-            var responses = await SendAxfrOverTcp(queryBytes, EndpointConfiguration.Hostname, EndpointConfiguration.Port, EndpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
+            async Task<List<byte[]>> Execute() => await SendAxfrOverTcp(queryBytes, EndpointConfiguration.Hostname, EndpointConfiguration.Port, EndpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
+
+            var responses = retryOnTransient && maxRetries > 1
+                ? await RetryAsync(
+                    Execute,
+                    maxRetries,
+                    retryDelayMs,
+                    EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover ? EndpointConfiguration.AdvanceToNextHostname : null).ConfigureAwait(false)
+                : await Execute().ConfigureAwait(false);
 
             var records = new List<DnsAnswer>();
             int soaCount = 0;
@@ -63,10 +79,18 @@ namespace DnsClientX {
         /// Performs a DNS zone transfer (AXFR) synchronously.
         /// </summary>
         /// <param name="zone">Zone name to transfer.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient failures.</param>
+        /// <param name="maxRetries">Maximum number of retry attempts.</param>
+        /// <param name="retryDelayMs">Base delay in milliseconds between retries.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>Ordered RRsets as returned by the server.</returns>
-        public DnsAnswer[][] ZoneTransferSync(string zone, CancellationToken cancellationToken = default) {
-            return ZoneTransferAsync(zone, cancellationToken).RunSync();
+        public DnsAnswer[][] ZoneTransferSync(
+            string zone,
+            bool retryOnTransient = true,
+            int maxRetries = 3,
+            int retryDelayMs = 100,
+            CancellationToken cancellationToken = default) {
+            return ZoneTransferAsync(zone, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();
         }
 
         private static async Task<List<byte[]>> SendAxfrOverTcp(byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
