@@ -22,7 +22,7 @@ namespace DnsClientX {
         public async Task<DnsAnswer[]> ResolveAll(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
             DnsResponse res;
             try {
-                res = retryOnTransient
+                res = retryOnTransient && maxRetries > 1
                     ? await RetryAsync(
                         () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken),
                         maxRetries,
@@ -55,7 +55,7 @@ namespace DnsClientX {
         public async Task<DnsAnswer[]> ResolveAll(string name, string filter, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
             DnsResponse res;
             try {
-                res = retryOnTransient
+                res = retryOnTransient && maxRetries > 1
                     ? await RetryAsync(
                         () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken),
                         maxRetries,
@@ -90,7 +90,7 @@ namespace DnsClientX {
         public async Task<DnsAnswer[]> ResolveAll(string name, Regex regexPattern, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
             DnsResponse res;
             try {
-                res = retryOnTransient
+                res = retryOnTransient && maxRetries > 1
                     ? await RetryAsync(
                         () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken),
                         maxRetries,

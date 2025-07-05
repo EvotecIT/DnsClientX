@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace DnsClientX.Tests {
     public class ResolveAll {
         [Theory]
@@ -120,6 +122,17 @@ namespace DnsClientX.Tests {
                 Assert.True(answer.Name == "evotec.pl");
                 Assert.True((bool)(answer.Type == DnsRecordType.A));
             }
+        }
+
+        [Fact]
+        public async Task ShouldNotDelayWhenMaxRetriesIsOne() {
+            using var Client = new ClientX(DnsEndpoint.Cloudflare);
+            var sw = Stopwatch.StartNew();
+            await Assert.ThrowsAsync<ArgumentNullException>(
+                () => Client.ResolveAll(string.Empty, DnsRecordType.A, retryOnTransient: true, maxRetries: 1, retryDelayMs: 200));
+            sw.Stop();
+
+            Assert.InRange(sw.ElapsedMilliseconds, 0, 100);
         }
     }
 }
