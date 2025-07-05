@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -17,7 +18,7 @@ namespace DnsClientX.Tests {
             MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<int> Invoke() {
                 var generic = method.MakeGenericMethod(typeof(int));
-                return (Task<int>)generic.Invoke(null, new object[] { action, 3, 1, null, false })!;
+                return (Task<int>)generic.Invoke(null, new object[] { action, 3, 1, null, false, CancellationToken.None })!;
             }
 
             await Assert.ThrowsAsync<TimeoutException>(Invoke);
@@ -46,7 +47,7 @@ namespace DnsClientX.Tests {
             MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<int> Invoke() {
                 var generic = method.MakeGenericMethod(typeof(int));
-                return (Task<int>)generic.Invoke(null, new object[] { action, 3, 50, beforeRetry, false })!;
+                return (Task<int>)generic.Invoke(null, new object[] { action, 3, 50, beforeRetry, false, CancellationToken.None })!;
             }
 
             await Assert.ThrowsAsync<TimeoutException>(Invoke);
@@ -83,7 +84,7 @@ namespace DnsClientX.Tests {
             MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<int> Invoke() {
                 var generic = method.MakeGenericMethod(typeof(int));
-                return (Task<int>)generic.Invoke(null, new object[] { action, 3, 50, beforeRetry, false })!;
+                return (Task<int>)generic.Invoke(null, new object[] { action, 3, 50, beforeRetry, false, CancellationToken.None })!;
             }
 
             await Assert.ThrowsAsync<TimeoutException>(Invoke);
@@ -110,11 +111,30 @@ namespace DnsClientX.Tests {
             MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<DnsResponse> Invoke() {
                 var generic = method.MakeGenericMethod(typeof(DnsResponse));
-                return (Task<DnsResponse>)generic.Invoke(null, new object[] { action, 2, 1, null, false })!;
+                return (Task<DnsResponse>)generic.Invoke(null, new object[] { action, 2, 1, null, false, CancellationToken.None })!;
             }
 
             var ex = await Assert.ThrowsAsync<DnsClientException>(Invoke);
             Assert.Equal(DnsResponseCode.ServerFailure, ex.Response.Status);
+        }
+
+        [Fact]
+        public async Task ShouldCancelDuringDelay() {
+            int attempts = 0;
+            Func<Task<int>> action = () => {
+                attempts++;
+                throw new TimeoutException();
+            };
+
+            MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
+            var generic = method.MakeGenericMethod(typeof(int));
+            using var cts = new CancellationTokenSource();
+
+            Task<int> task = (Task<int>)generic.Invoke(null, new object[] { action, 3, 5000, null, false, cts.Token })!;
+            cts.CancelAfter(200);
+
+            await Assert.ThrowsAsync<TaskCanceledException>(() => task);
+            Assert.Equal(1, attempts);
         }
     }
 }
