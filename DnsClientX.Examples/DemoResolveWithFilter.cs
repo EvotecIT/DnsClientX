@@ -45,15 +45,15 @@ namespace DnsClientX.Examples {
                 }
 
                 // Create a new client for each endpoint
-                using var client = new ClientX(endpoint, DnsSelectionStrategy.Random) {
-                    Debug = false
-                };
-
-                foreach (var domain in domains) {
-                    foreach (var recordType in recordTypes) {
-                        HelpersSpectre.AddLine("Resolve", domain, recordType, endpoint);
-                        DnsResponse? response = await client.ResolveFilter(domain, recordType, filter);
-                        response?.DisplayTable();
+                using (var client = new ClientX(endpoint, DnsSelectionStrategy.Random) {
+                       Debug = false
+                   }) {
+                    foreach (var domain in domains) {
+                        foreach (var recordType in recordTypes) {
+                            HelpersSpectre.AddLine("Resolve", domain, recordType, endpoint);
+                            DnsResponse? response = await client.ResolveFilter(domain, recordType, filter);
+                            response?.DisplayTable();
+                        }
                     }
                 }
             }
@@ -97,15 +97,13 @@ namespace DnsClientX.Examples {
                 }
 
                 // Create a new client for each endpoint
-                using var client = new ClientX(endpoint, DnsSelectionStrategy.Random) {
-                    Debug = false
-                };
-
-
-
-                HelpersSpectre.AddLine("Resolve", "Multiple Domains", recordType, endpoint);
-                var response = await client.ResolveFilter(domains, recordType, filter);
-                response?.DisplayTable();
+                using (var client = new ClientX(endpoint, DnsSelectionStrategy.Random) {
+                       Debug = false
+                   }) {
+                    HelpersSpectre.AddLine("Resolve", "Multiple Domains", recordType, endpoint);
+                    var response = await client.ResolveFilter(domains, recordType, filter);
+                    response?.DisplayTable();
+                }
             }
         }
     }

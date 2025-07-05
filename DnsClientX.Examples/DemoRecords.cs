@@ -9,10 +9,11 @@ namespace DnsClientX.Examples {
         /// <param name="recordType">The type.</param>
         /// <param name="endpoint">The endpoint.</param>
         public static async Task Demo(string domain, DnsRecordType recordType, DnsEndpoint endpoint) {
-            using var client = new ClientX(endpoint);
-            HelpersSpectre.AddLine("Resolve", domain, recordType, endpoint);
-            var caaAnswer = await client.ResolveAll(domain, recordType);
-            caaAnswer.DisplayTable();
+            using (var client = new ClientX(endpoint)) {
+                HelpersSpectre.AddLine("Resolve", domain, recordType, endpoint);
+                var caaAnswer = await client.ResolveAll(domain, recordType);
+                caaAnswer.DisplayTable();
+            }
         }
     }
 }
