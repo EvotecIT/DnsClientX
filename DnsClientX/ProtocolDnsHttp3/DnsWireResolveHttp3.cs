@@ -9,7 +9,11 @@ namespace DnsClientX {
         internal static async Task<DnsResponse> ResolveWireFormatHttp3(this HttpClient client, string name,
             DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug,
             Configuration endpointConfiguration, CancellationToken cancellationToken) {
-            var dnsMessage = new DnsMessage(name, type, requestDnsSec, endpointConfiguration.EnableEdns, endpointConfiguration.UdpBufferSize, endpointConfiguration.Subnet);
+            var edns = endpointConfiguration.EdnsOptions;
+            bool enableEdns = edns?.EnableEdns ?? endpointConfiguration.EnableEdns;
+            int udpSize = edns?.UdpBufferSize ?? endpointConfiguration.UdpBufferSize;
+            string? subnet = edns?.Subnet ?? endpointConfiguration.Subnet;
+            var dnsMessage = new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet);
             var base64UrlDnsMessage = dnsMessage.ToBase64Url();
             string url = $"?dns={base64UrlDnsMessage}";
 

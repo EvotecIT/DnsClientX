@@ -162,6 +162,26 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
+        public async Task UdpRequest_ShouldUseBufferSize_FromEdnsOptions() {
+            int port = GetFreePort();
+            var response = CreateDnsHeader();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var udpTask = RunUdpServerAsync(port, response, cts.Token);
+
+            var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
+                Port = port,
+                EdnsOptions = new EdnsOptions { EnableEdns = true, UdpBufferSize = 1234 }
+            };
+            Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
+            MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
+            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, cts.Token })!;
+            await task;
+            byte[] query = await udpTask;
+
+            AssertBufferSize(query, "example.com", 1234);
+        }
+
+        [Fact]
         public async Task UdpRequest_ShouldNotSetDoBit_WhenDnssecNotRequested() {
             int port = GetFreePort();
             var response = CreateDnsHeader();
