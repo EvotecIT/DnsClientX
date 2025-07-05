@@ -8,6 +8,7 @@ namespace DnsClientX {
     public partial class ClientX : IDisposable, IAsyncDisposable {
         private bool _disposed;
         private readonly HashSet<HttpClient> _disposedClients = new();
+        internal static int DisposalCount;
 
         private bool TryAddDisposedClient(HttpClient client) {
             lock (_lock) {
@@ -56,6 +57,7 @@ namespace DnsClientX {
                 }
 
                 _disposed = true;
+                System.Threading.Interlocked.Increment(ref DisposalCount);
             }
         }
 
@@ -125,6 +127,7 @@ namespace DnsClientX {
                 }
 
                 _disposed = true;
+                System.Threading.Interlocked.Increment(ref DisposalCount);
             }
         }
 
