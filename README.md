@@ -386,6 +386,16 @@ using var client = new ClientX(DnsEndpoint.Cloudflare, userAgent: "MyApp/1.0", h
 ```
 You can also modify `client.EndpointConfiguration.UserAgent` and `client.EndpointConfiguration.HttpVersion` after construction.
 
+
+### Building a client with `ClientXBuilder`
+
+```csharp
+using var client = new ClientXBuilder()
+    .WithEndpoint(DnsEndpoint.Cloudflare)
+    .WithTimeout(2000)
+    .Build();
+```
+
 ### Using a custom endpoint
 
 ```csharp
