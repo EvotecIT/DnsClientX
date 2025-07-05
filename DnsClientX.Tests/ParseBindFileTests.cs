@@ -27,5 +27,15 @@ namespace DnsClientX.Tests {
             Assert.Equal(DnsRecordType.A, result[2].Type);
             Assert.Equal(600, result[2].TTL);
         }
+
+        [Fact]
+        public void NegativeTtl_SkipsRecord() {
+            string tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".zone");
+            File.WriteAllText(tempPath, "www -60 IN A 203.0.113.10\n");
+            MethodInfo method = typeof(BindFileParser).GetMethod("ParseZoneFile", BindingFlags.NonPublic | BindingFlags.Static)!;
+            var result = (List<DnsAnswer>)method.Invoke(null, new object[] { tempPath, null })!;
+            File.Delete(tempPath);
+            Assert.Empty(result);
+        }
     }
 }
