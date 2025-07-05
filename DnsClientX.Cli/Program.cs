@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX.Cli {
@@ -12,6 +13,12 @@ namespace DnsClientX.Cli {
             string? domain = null;
             DnsRecordType recordType = DnsRecordType.A;
             DnsEndpoint endpoint = DnsEndpoint.System;
+
+            using var cts = new CancellationTokenSource();
+            Console.CancelKeyPress += (_, e) => {
+                e.Cancel = true;
+                cts.Cancel();
+            };
 
             for (int i = 0; i < args.Length; i++) {
                 switch (args[i]) {
@@ -48,12 +55,15 @@ namespace DnsClientX.Cli {
             }
 
             try {
-                var response = await ClientX.QueryDns(domain, recordType, endpoint);
+                var response = await ClientX.QueryDns(domain, recordType, endpoint, cancellationToken: cts.Token);
                 Console.WriteLine($"Status: {response.Status}");
                 foreach (var answer in response.Answers) {
                     Console.WriteLine($"{answer.Name}\t{answer.Type}\t{answer.TTL}\t{answer.Data}");
                 }
                 return 0;
+            } catch (OperationCanceledException) {
+                Console.Error.WriteLine("Operation canceled.");
+                return 1;
             } catch (Exception ex) {
                 Console.Error.WriteLine(ex.Message);
                 return 1;
