@@ -46,6 +46,7 @@ namespace DnsClientX {
                         maxRetries,
                         retryDelayMs,
                         beforeRetry,
+                        true,
                         cancellationToken).ConfigureAwait(false);
                 } catch (DnsClientException ex) {
                     return ex.Response;
