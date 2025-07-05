@@ -142,15 +142,15 @@ namespace DnsClientX.Examples {
             // Start the stopwatch before the operation
             stopwatch.Start();
 
-            using var client = new ClientX(endpoint) {
-                Debug = false
-            };
-
-            HelpersSpectre.AddLine("Resolve (Parallel)", $"{ipAddress} => {queries.Count} queries", DnsRecordType.A, endpoint);
-            var responses = await client.Resolve(queries.ToArray(), DnsRecordType.A);
-            stopwatch.Stop();
-            HelpersSpectre.AddLine($"Time to resolve {stopwatch.ElapsedMilliseconds} ms", $"{ipAddress} => {queries.Count} queries", DnsRecordType.A, endpoint);
-            responses.DisplayTable();
+            using (var client = new ClientX(endpoint) {
+                   Debug = false
+               }) {
+                HelpersSpectre.AddLine("Resolve (Parallel)", $"{ipAddress} => {queries.Count} queries", DnsRecordType.A, endpoint);
+                var responses = await client.Resolve(queries.ToArray(), DnsRecordType.A);
+                stopwatch.Stop();
+                HelpersSpectre.AddLine($"Time to resolve {stopwatch.ElapsedMilliseconds} ms", $"{ipAddress} => {queries.Count} queries", DnsRecordType.A, endpoint);
+                responses.DisplayTable();
+            }
         }
     }
 }

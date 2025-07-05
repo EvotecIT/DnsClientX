@@ -21,7 +21,7 @@ namespace DnsClientX.Cli {
                             Console.Error.WriteLine("Missing value for --type");
                             return 1;
                         }
-                        recordType = Enum.Parse<DnsRecordType>(args[++i], true);
+                        recordType = (DnsRecordType)Enum.Parse(typeof(DnsRecordType), args[++i], true);
                         break;
                     case "-e":
                     case "--endpoint":
@@ -29,7 +29,7 @@ namespace DnsClientX.Cli {
                             Console.Error.WriteLine("Missing value for --endpoint");
                             return 1;
                         }
-                        endpoint = Enum.Parse<DnsEndpoint>(args[++i], true);
+                        endpoint = (DnsEndpoint)Enum.Parse(typeof(DnsEndpoint), args[++i], true);
                         break;
                     default:
                         if (domain is null) {
