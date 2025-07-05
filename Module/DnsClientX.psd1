@@ -6,7 +6,7 @@
     CompatiblePSEditions = @('Desktop', 'Core')
     Copyright            = '(c) 2011 - 2025 Przemyslaw Klys @ Evotec. All rights reserved.'
     Description          = 'DnsClientX is PowerShell module that allows you to query DNS servers for information. It supports DNS over UDP, TCP and DNS over HTTPS (DoH) and DNS over TLS (DoT). It supports multiple types of DNS queries and can be used to query public DNS servers, private DNS servers and has built-in DNS Providers.'
-    FunctionsToExport    = @()
+    FunctionsToExport    = @('Invoke-DnsZoneTransfer')
     GUID                 = '77fa806c-70b7-48d9-8b88-942ed73f24ed'
     ModuleVersion        = '0.4.0'
     PowerShellVersion    = '5.1'
