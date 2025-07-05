@@ -13,7 +13,7 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="name">The domain name to query.</param>
         /// <param name="recordType">The type of DNS record to query.</param>
-        /// <param name="dnsEndpoint">The DNS endpoint to use for the query. Defaults to Cloudflare.</param>
+        /// <param name="dnsEndpoint">The DNS endpoint to use for the query. Defaults to System.</param>
         /// <param name="dnsSelectionStrategy">The DNS selection strategy. Defaults to First</param>
         /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
@@ -41,7 +41,7 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="name">The domain name to query.</param>
         /// <param name="recordType">The type of DNS record to query.</param>
-        /// <param name="dnsEndpoint">The DNS endpoint to use for the query. Defaults to Cloudflare.</param>
+        /// <param name="dnsEndpoint">The DNS endpoint to use for the query. Defaults to System.</param>
         /// <param name="dnsSelectionStrategy">The DNS selection strategy. Defaults to First</param>
         /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
@@ -58,7 +58,7 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="name">The domain names to query.</param>
         /// <param name="recordType">The type of DNS record to query.</param>
-        /// <param name="dnsEndpoint">The DNS endpoint to use for the query. Defaults to Cloudflare.</param>
+        /// <param name="dnsEndpoint">The DNS endpoint to use for the query. Defaults to System.</param>
         /// <param name="dnsSelectionStrategy">The DNS selection strategy. Defaults to First</param>
         /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
@@ -92,7 +92,7 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="name">The domain names to query.</param>
         /// <param name="recordType">The type of DNS record to query.</param>
-        /// <param name="dnsEndpoint">The DNS endpoint to use for the query. Defaults to Cloudflare.</param>
+        /// <param name="dnsEndpoint">The DNS endpoint to use for the query. Defaults to System.</param>
         /// <param name="dnsSelectionStrategy">The DNS selection strategy. Defaults to First</param>
         /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
@@ -326,7 +326,7 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="name">Multiple domain names to check for given type</param>
         /// <param name="recordType">Multiple types to check for given name.</param>
-        /// <param name="dnsEndpoint">The DNS endpoint. Default endpoint is Cloudflare</param>
+        /// <param name="dnsEndpoint">The DNS endpoint. Default endpoint is System</param>
         /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
