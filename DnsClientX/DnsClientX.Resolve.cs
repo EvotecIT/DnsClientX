@@ -45,7 +45,9 @@ namespace DnsClientX {
                         () => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, cancellationToken),
                         maxRetries,
                         retryDelayMs,
-                        beforeRetry).ConfigureAwait(false);
+                        beforeRetry,
+                        true,
+                        cancellationToken).ConfigureAwait(false);
                 } catch (DnsClientException ex) {
                     return ex.Response;
                 }
@@ -192,7 +194,13 @@ namespace DnsClientX {
         /// jitter is used between attempts. If the final result still signals a transient error, a
         /// <see cref="DnsClientException"/> is thrown with the last response.
         /// </remarks>
-        private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 100, Action? beforeRetry = null, bool useJitter = true) {
+        private static async Task<T> RetryAsync<T>(
+            Func<Task<T>> action,
+            int maxRetries = 3,
+            int delayMs = 100,
+            Action? beforeRetry = null,
+            bool useJitter = true,
+            CancellationToken cancellationToken = default) {
             if (maxRetries == 0) {
                 return await action().ConfigureAwait(false);
             }
@@ -215,7 +223,7 @@ namespace DnsClientX {
                         beforeRetry?.Invoke();
                         int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
                         int jitter = useJitter ? GetJitter(delayMs) : 0;
-                        await Task.Delay(exponentialDelay + jitter).ConfigureAwait(false);
+                        await Task.Delay(exponentialDelay + jitter, cancellationToken).ConfigureAwait(false);
                         continue;
                     }
 
@@ -231,7 +239,7 @@ namespace DnsClientX {
                     beforeRetry?.Invoke();
                     int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
                     int jitter = useJitter ? GetJitter(delayMs) : 0;
-                    await Task.Delay(exponentialDelay + jitter).ConfigureAwait(false);
+                    await Task.Delay(exponentialDelay + jitter, cancellationToken).ConfigureAwait(false);
                     continue;
                 }
             }
