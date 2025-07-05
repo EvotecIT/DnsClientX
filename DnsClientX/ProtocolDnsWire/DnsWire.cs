@@ -30,6 +30,7 @@ namespace DnsClientX {
         /// or
         /// </exception>
         internal static async Task<DnsResponse> DeserializeDnsWireFormat(this HttpResponseMessage res, bool debug = false, byte[] bytes = null) {
+            if (res == null && bytes == null) throw new ArgumentNullException(nameof(res));
             try {
                 byte[] dnsWireFormatBytes;
                 if (bytes != null) {
