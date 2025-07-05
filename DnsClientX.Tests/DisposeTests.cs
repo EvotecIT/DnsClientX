@@ -17,6 +17,26 @@ namespace DnsClientX.Tests {
             }
         }
 
+#if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+        private class TrackingAsyncHandler : HttpMessageHandler, IAsyncDisposable {
+            public int DisposeCount { get; private set; }
+            public int DisposeAsyncCount { get; private set; }
+
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK));
+
+            protected override void Dispose(bool disposing) {
+                base.Dispose(disposing);
+                DisposeCount++;
+            }
+
+            public ValueTask DisposeAsync() {
+                DisposeAsyncCount++;
+                Dispose(false);
+                return ValueTask.CompletedTask;
+            }
+        }
+#endif
+
         [Fact]
         public void Client_Dispose_ShouldNotDisposeHttpClientTwice() {
             var handler = new TrackingHandler();
@@ -88,5 +108,24 @@ namespace DnsClientX.Tests {
 
             Assert.Equal(1, handler.DisposeCount);
         }
+
+#if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+        [Fact]
+        public async Task Client_DisposeAsync_ShouldPreferAsyncHandlerDisposal() {
+            var handler = new TrackingAsyncHandler();
+            var customClient = new HttpClient(handler) { BaseAddress = new Uri("https://example.com") };
+            await using var clientX = new ClientX("example.com", DnsRequestFormat.DnsOverHttps);
+            var clientsField = typeof(ClientX).GetField("_clients", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var clients = (Dictionary<DnsSelectionStrategy, HttpClient>)clientsField.GetValue(clientX)!;
+            clients[clientX.EndpointConfiguration.SelectionStrategy] = customClient;
+            var clientField = typeof(ClientX).GetField("Client", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            clientField.SetValue(clientX, customClient);
+
+            await clientX.DisposeAsync();
+
+            Assert.True(handler.DisposeAsyncCount >= 1);
+            Assert.Equal(0, handler.DisposeCount);
+        }
+#endif
     }
 }
