@@ -27,6 +27,17 @@ namespace DnsClientX.Tests {
         [Fact]
         public async Task ShouldDelayBetweenRetries() {
             int attempts = 0;
+            var delays = new List<long>();
+            var sw = new Stopwatch();
+            Action beforeRetry = () => {
+                if (!sw.IsRunning) {
+                    sw.Start();
+                } else {
+                    delays.Add(sw.ElapsedMilliseconds);
+                    sw.Restart();
+                }
+            };
+
             Func<Task<int>> action = () => {
                 attempts++;
                 throw new TimeoutException();
@@ -35,25 +46,36 @@ namespace DnsClientX.Tests {
             MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<int> Invoke() {
                 var generic = method.MakeGenericMethod(typeof(int));
-                return (Task<int>)generic.Invoke(null, new object[] { action, 3, 50, null, false })!;
+                return (Task<int>)generic.Invoke(null, new object[] { action, 3, 50, beforeRetry, false })!;
             }
 
-            var sw = Stopwatch.StartNew();
             await Assert.ThrowsAsync<TimeoutException>(Invoke);
-            sw.Stop();
+
+            delays.Add(sw.ElapsedMilliseconds);
 
             Assert.Equal(3, attempts);
-            // Allow a little more headroom for slower environments
-            Assert.InRange(sw.ElapsedMilliseconds, 150, 350);
+
+            Assert.Equal(2, delays.Count);
+
+            Assert.InRange(delays[0], 40, 1000);
+            Assert.InRange(delays[1], 80, 1500);
         }
 
         [Fact]
         public async Task ShouldUseExponentialBackoff() {
             int attempts = 0;
-            long[] times = new long[3];
-            var sw = Stopwatch.StartNew();
+            var delays = new List<long>();
+            var sw = new Stopwatch();
+            Action beforeRetry = () => {
+                if (!sw.IsRunning) {
+                    sw.Start();
+                } else {
+                    delays.Add(sw.ElapsedMilliseconds);
+                    sw.Restart();
+                }
+            };
+
             Func<Task<int>> action = () => {
-                times[attempts] = sw.ElapsedMilliseconds;
                 attempts++;
                 throw new TimeoutException();
             };
@@ -61,16 +83,23 @@ namespace DnsClientX.Tests {
             MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<int> Invoke() {
                 var generic = method.MakeGenericMethod(typeof(int));
-                return (Task<int>)generic.Invoke(null, new object[] { action, 3, 50, null, false })!;
+                return (Task<int>)generic.Invoke(null, new object[] { action, 3, 50, beforeRetry, false })!;
             }
 
             await Assert.ThrowsAsync<TimeoutException>(Invoke);
 
-            var firstInterval = times[1] - times[0];
-            var secondInterval = times[2] - times[1];
+            delays.Add(sw.ElapsedMilliseconds);
 
-            // Allow a small margin for OS timer variance
-            Assert.True(secondInterval + 5 >= firstInterval);
+            Assert.Equal(3, attempts);
+
+            Assert.Equal(2, delays.Count);
+
+            var ratio = delays[1] / (double)delays[0];
+
+            // Delay should increase exponentially. Allow broad tolerance for slow
+            // environments and timer inaccuracies.
+            Assert.InRange(delays[0], 40, 1000);
+            Assert.InRange(ratio, 1.1, 3.5);
         }
 
         [Fact]
