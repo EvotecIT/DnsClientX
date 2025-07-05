@@ -43,6 +43,10 @@ namespace DnsClientX {
                 }
             }
 
+            if (soaCount == 0) {
+                throw new DnsClientException("SOA record not found during zone transfer.");
+            }
+
             var rrsets = new List<List<DnsAnswer>>();
             foreach (var rec in records) {
                 if (rrsets.Count == 0 || rrsets[rrsets.Count - 1][0].Name != rec.Name || rrsets[rrsets.Count - 1][0].Type != rec.Type) {
