@@ -149,5 +149,17 @@ namespace DnsClientX.Tests {
             await Assert.ThrowsAsync<DnsClientException>(() => client.ZoneTransferAsync("example.com"));
             await server;
         }
+
+        [Fact]
+        public async Task ZoneTransferAsync_FailsWithoutSoa() {
+            int port = GetFreePort();
+            byte[] m1 = BuildMessage("example.com", ("www.example.com", DnsRecordType.A, new byte[] { 1, 2, 3, 4 }));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var server = RunAxfrServerAsync(port, new[] { m1 }, cts.Token);
+
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = port } };
+            await Assert.ThrowsAsync<DnsClientException>(() => client.ZoneTransferAsync("example.com"));
+            await server;
+        }
     }
 }
