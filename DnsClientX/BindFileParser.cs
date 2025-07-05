@@ -21,7 +21,32 @@ namespace DnsClientX {
                     continue;
                 }
 
-                int commentIndex = line.IndexOf(';');
+                int commentIndex = -1;
+                bool inQuotes = false;
+                bool escape = false;
+                for (int i = 0; i < line.Length; i++) {
+                    char c = line[i];
+                    if (escape) {
+                        escape = false;
+                        continue;
+                    }
+
+                    if (c == '\\') {
+                        escape = true;
+                        continue;
+                    }
+
+                    if (c == '"') {
+                        inQuotes = !inQuotes;
+                        continue;
+                    }
+
+                    if (c == ';' && !inQuotes) {
+                        commentIndex = i;
+                        break;
+                    }
+                }
+
                 if (commentIndex >= 0) {
                     line = line.Substring(0, commentIndex).Trim();
                 }
