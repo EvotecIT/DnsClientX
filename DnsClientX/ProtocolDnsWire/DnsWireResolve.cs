@@ -36,8 +36,8 @@ namespace DnsClientX {
             }
 
             try {
-                using HttpResponseMessage res = await client.SendAsync(req, cancellationToken);
-                DnsResponse response = await res.DeserializeDnsWireFormat(debug);
+                using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
+                DnsResponse response = await res.DeserializeDnsWireFormat(debug).ConfigureAwait(false);
                 response.AddServerDetails(endpointConfiguration);
                 if (res.StatusCode != HttpStatusCode.OK || !string.IsNullOrEmpty(response.Error)) {
                     string message = string.Concat(

@@ -45,12 +45,12 @@ namespace DnsClientX {
                         () => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, cancellationToken),
                         maxRetries,
                         retryDelayMs,
-                        beforeRetry);
+                        beforeRetry).ConfigureAwait(false);
                 } catch (DnsClientException ex) {
                     return ex.Response;
                 }
             } else {
-                return await ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, cancellationToken);
+                return await ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -80,27 +80,27 @@ namespace DnsClientX {
             DnsResponse response;
             try {
                 if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
-                    response = await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
+                    response = await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps) {
-                response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
+                response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST) {
-                response = await Client.ResolveWireFormatPost(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
+                response = await Client.ResolveWireFormatPost(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.ObliviousDnsOverHttps) {
-                response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
+                response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp3) {
-                response = await Client.ResolveWireFormatHttp3(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
+                response = await Client.ResolveWireFormatHttp3(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
-                response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, IgnoreCertificateErrors, cancellationToken);
+                response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, IgnoreCertificateErrors, cancellationToken).ConfigureAwait(false);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverQuic) {
 #if NET8_0_OR_GREATER
-                response = await DnsWireResolveQuic.ResolveWireFormatQuic(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
+                response = await DnsWireResolveQuic.ResolveWireFormatQuic(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
 #else
                 throw new DnsClientException("DNS over QUIC is not supported on this platform.");
 #endif
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
-                response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
+                response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
             } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
-                response = await DnsWireResolveUdp.ResolveWireFormatUdp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken);
+                response = await DnsWireResolveUdp.ResolveWireFormatUdp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
             } else {
                 throw new DnsClientException($"Invalid RequestFormat: {EndpointConfiguration.RequestFormat}");
             }
@@ -192,7 +192,7 @@ namespace DnsClientX {
         /// </remarks>
         private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 100, Action? beforeRetry = null, bool useJitter = true) {
             if (maxRetries == 0) {
-                return await action();
+                return await action().ConfigureAwait(false);
             }
 
             Exception lastException = null;
@@ -200,7 +200,7 @@ namespace DnsClientX {
 
             for (int attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
-                    var result = await action();
+                    var result = await action().ConfigureAwait(false);
 
                     // Special handling for DnsResponse - check if it indicates a transient error
                     if (result is DnsResponse response && IsTransientResponse(response)) {
@@ -213,7 +213,7 @@ namespace DnsClientX {
                         beforeRetry?.Invoke();
                         int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
                         int jitter = useJitter ? GetJitter(delayMs) : 0;
-                        await Task.Delay(exponentialDelay + jitter);
+                        await Task.Delay(exponentialDelay + jitter).ConfigureAwait(false);
                         continue;
                     }
 
@@ -229,7 +229,7 @@ namespace DnsClientX {
                     beforeRetry?.Invoke();
                     int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
                     int jitter = useJitter ? GetJitter(delayMs) : 0;
-                    await Task.Delay(exponentialDelay + jitter);
+                    await Task.Delay(exponentialDelay + jitter).ConfigureAwait(false);
                     continue;
                 }
             }
@@ -398,12 +398,12 @@ namespace DnsClientX {
                 tasks[i] = Resolve(name, types[i], requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken);
             }
 
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
 
             DnsResponse[] responses = new DnsResponse[tasks.Length];
 
             for (int i = 0; i < tasks.Length; i++) {
-                responses[i] = await tasks[i];
+                responses[i] = await tasks[i].ConfigureAwait(false);
             }
 
             return responses;
@@ -449,7 +449,7 @@ namespace DnsClientX {
                 }
             }
 
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
 
             return tasks.Select(task => task.Result).ToArray();
         }
@@ -490,7 +490,7 @@ namespace DnsClientX {
                 tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken));
             }
 
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
 
             return tasks.Select(task => task.Result).ToArray();
         }

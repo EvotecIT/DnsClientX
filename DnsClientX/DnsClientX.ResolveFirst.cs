@@ -30,7 +30,7 @@ namespace DnsClientX {
                 retryOnTransient: retryOnTransient,
                 maxRetries: maxRetries,
                 retryDelayMs: retryDelayMs,
-                cancellationToken: cancellationToken);
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
             return res.Answers?.FirstOrDefault(x => x.Type == type);
         }
