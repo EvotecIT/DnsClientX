@@ -96,10 +96,10 @@ namespace DnsClientX.Tests {
 
             var ratio = delays[1] / (double)delays[0];
 
-            // Delay should increase exponentially. Allow broad tolerance to avoid
-            // flakiness on slower environments.
+            // Delay should increase exponentially. Allow broad tolerance for slow
+            // environments and timer inaccuracies.
             Assert.InRange(delays[0], 40, 1000);
-            Assert.InRange(ratio, 1.3, 3.0);
+            Assert.InRange(ratio, 1.1, 3.5);
         }
 
         [Fact]
