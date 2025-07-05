@@ -276,6 +276,7 @@ namespace DnsClientX {
             // Set the accept header based on the request format, which is required for proper processing
             if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps ||
                 EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST ||
+                EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp2 ||
                 EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp3 ||
                 EndpointConfiguration.RequestFormat == DnsRequestFormat.ObliviousDnsOverHttps) {
                 client.DefaultRequestHeaders.Accept.Add(

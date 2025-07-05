@@ -34,6 +34,10 @@ namespace DnsClientX {
         /// </summary>
         DnsOverQuic,
         /// <summary>
+        /// DNS over HTTP/2 using wire format.
+        /// </summary>
+        DnsOverHttp2,
+        /// <summary>
         /// DNS over HTTP/3 using wire format.
         /// </summary>
         DnsOverHttp3,
