@@ -57,15 +57,15 @@ namespace DnsClientX.Examples {
                 }
 
                 // Create a new client for each endpoint
-                using var client = new ClientX(endpoint) {
-                    Debug = false
-                };
-
-                foreach (var domain in domains) {
-                    foreach (var recordType in recordTypes) {
-                        HelpersSpectre.AddLine("Resolve", domain, recordType, endpoint);
-                        DnsResponse? response = await client.Resolve(domain, recordType, requestDnsSec: true, validateDnsSec: true, returnAllTypes: true);
-                        response?.DisplayTable();
+                using (var client = new ClientX(endpoint) {
+                       Debug = false
+                   }) {
+                    foreach (var domain in domains) {
+                        foreach (var recordType in recordTypes) {
+                            HelpersSpectre.AddLine("Resolve", domain, recordType, endpoint);
+                            DnsResponse? response = await client.Resolve(domain, recordType, requestDnsSec: true, validateDnsSec: true, returnAllTypes: true);
+                            response?.DisplayTable();
+                        }
                     }
                 }
             }

@@ -163,38 +163,42 @@ namespace DnsClientX.Examples {
         public static async Task ExampleSPF() {
             var domains = new[] { "disneyplus.com" };
             HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.SPF, "1.1.1.1");
-            using var client = new ClientX(DnsEndpoint.Cloudflare, DnsSelectionStrategy.First) {
-                Debug = false
-            };
-            var data = await client.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
-            Settings.Logger.WriteInformation(data.Answers[0].Data);
+            using (var client = new ClientX(DnsEndpoint.Cloudflare, DnsSelectionStrategy.First) {
+                   Debug = false
+               }) {
+                var data = await client.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
+                Settings.Logger.WriteInformation(data.Answers[0].Data);
+            }
 
             HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.SPF, DnsEndpoint.Google);
-            using var client1 = new ClientX(DnsEndpoint.GoogleWireFormat, DnsSelectionStrategy.First) {
-                Debug = false
-            };
-            var data1 = await client1.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
-            Settings.Logger.WriteInformation(data1.Answers[0].Data);
+            using (var client1 = new ClientX(DnsEndpoint.GoogleWireFormat, DnsSelectionStrategy.First) {
+                   Debug = false
+               }) {
+                var data1 = await client1.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
+                Settings.Logger.WriteInformation(data1.Answers[0].Data);
+            }
         }
 
         public static async Task ExampleSPFQuad() {
             var domains = new[] { "disneyplus.com" };
             HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.SPF, "1.1.1.1");
-            using var client = new ClientX(DnsEndpoint.Cloudflare, DnsSelectionStrategy.First) {
-                Debug = false
-            };
-            var data = await client.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
-            Settings.Logger.WriteInformation(data.Answers[0].Data);
+            using (var client = new ClientX(DnsEndpoint.Cloudflare, DnsSelectionStrategy.First) {
+                   Debug = false
+               }) {
+                var data = await client.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
+                Settings.Logger.WriteInformation(data.Answers[0].Data);
+            }
 
             foreach (DnsEndpoint endpoint in Enum.GetValues(typeof(DnsEndpoint))) {
                 HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.SPF, endpoint);
-                using var client1 = new ClientX(endpoint, DnsSelectionStrategy.First) {
-                    Debug = false
-                };
-                var data1 = await client1.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
-                Settings.Logger.WriteInformation(data1.Answers[0].Data);
-                Settings.Logger.WriteInformation(data1.Answers[0].DataStrings.Length.ToString());
-                Settings.Logger.WriteInformation(data1.Answers[0].DataStrings[0]);
+                using (var client1 = new ClientX(endpoint, DnsSelectionStrategy.First) {
+                       Debug = false
+                   }) {
+                    var data1 = await client1.ResolveFilter("disneyplus.com", DnsRecordType.TXT, "SPF1");
+                    Settings.Logger.WriteInformation(data1.Answers[0].Data);
+                    Settings.Logger.WriteInformation(data1.Answers[0].DataStrings.Length.ToString());
+                    Settings.Logger.WriteInformation(data1.Answers[0].DataStrings[0]);
+                }
             }
         }
     }
