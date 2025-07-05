@@ -37,5 +37,16 @@ namespace DnsClientX.Tests {
             File.Delete(tempPath);
             Assert.Empty(result);
         }
+
+        [Fact]
+        public void SemicolonInQuotedText_IsNotComment() {
+            string tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".zone");
+            File.WriteAllText(tempPath, "test IN TXT \"text;not comment\"\n");
+            MethodInfo method = typeof(BindFileParser).GetMethod("ParseZoneFile", BindingFlags.NonPublic | BindingFlags.Static)!;
+            var result = (List<DnsAnswer>)method.Invoke(null, new object[] { tempPath, null })!;
+            File.Delete(tempPath);
+            Assert.Single(result);
+            Assert.Equal("text;not comment", result[0].DataRaw);
+        }
     }
 }
