@@ -13,6 +13,7 @@ namespace DnsClientX {
 #if NET8_0_OR_GREATER
     #pragma warning disable CA2252
     internal static class DnsWireResolveQuic {
+        internal static Func<string, IPHostEntry>? HostEntryResolver;
         internal static async Task<DnsResponse> ResolveWireFormatQuic(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
@@ -38,7 +39,16 @@ namespace DnsClientX {
             // brackets when constructing the endpoint string.
             IPAddress ipAddress;
             if (!IPAddress.TryParse(dnsServer, out ipAddress)) {
-                var hostEntry = Dns.GetHostEntry(dnsServer);
+                var hostEntry = HostEntryResolver?.Invoke(dnsServer) ?? Dns.GetHostEntry(dnsServer);
+                if (hostEntry.AddressList.Length == 0) {
+                    var failureResponse = new DnsResponse {
+                        Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverQuic, Type = type, OriginalName = name } ],
+                        Status = DnsResponseCode.ServerFailure
+                    };
+                    failureResponse.AddServerDetails(endpointConfiguration);
+                    failureResponse.Error = $"Host '{dnsServer}' resolved to no addresses.";
+                    return failureResponse;
+                }
                 ipAddress = hostEntry.AddressList[0];
             }
 
