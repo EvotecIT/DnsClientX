@@ -95,6 +95,7 @@ namespace DnsClientX {
                     if (!Enum.TryParse(typeToken, true, out type)) {
                         continue;
                     }
+                    index++;
                 } else {
                     index++;
                 }
@@ -104,6 +105,9 @@ namespace DnsClientX {
                 }
 
                 string data = string.Join(" ", tokens.Skip(index));
+                if (type == DnsRecordType.TXT && data.Length > 1 && data.StartsWith('"') && data.EndsWith('"')) {
+                    data = data.Substring(1, data.Length - 2);
+                }
 
                 records.Add(new DnsAnswer {
                     Name = name,
