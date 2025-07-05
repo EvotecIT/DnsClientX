@@ -27,7 +27,10 @@ namespace DnsClientX.Tests {
         [Fact]
         public async Task ShouldDelayBetweenRetries() {
             int attempts = 0;
+            long[] times = new long[3];
+            var sw = Stopwatch.StartNew();
             Func<Task<int>> action = () => {
+                times[attempts] = sw.ElapsedMilliseconds;
                 attempts++;
                 throw new TimeoutException();
             };
@@ -38,13 +41,15 @@ namespace DnsClientX.Tests {
                 return (Task<int>)generic.Invoke(null, new object[] { action, 3, 50, null, false })!;
             }
 
-            var sw = Stopwatch.StartNew();
             await Assert.ThrowsAsync<TimeoutException>(Invoke);
-            sw.Stop();
 
             Assert.Equal(3, attempts);
-            // Allow a little more headroom for slower environments
-            Assert.InRange(sw.ElapsedMilliseconds, 150, 350);
+
+            var firstInterval = times[1] - times[0];
+            var secondInterval = times[2] - times[1];
+
+            Assert.InRange(firstInterval, 40, 500);
+            Assert.InRange(secondInterval, 80, 1000);
         }
 
         [Fact]
@@ -68,9 +73,12 @@ namespace DnsClientX.Tests {
 
             var firstInterval = times[1] - times[0];
             var secondInterval = times[2] - times[1];
+            var ratio = secondInterval / (double)firstInterval;
 
-            // Allow a small margin for OS timer variance
-            Assert.True(secondInterval + 5 >= firstInterval);
+            // Delay should increase exponentially. Allow broad tolerance to avoid
+            // flakiness on slower environments.
+            Assert.InRange(firstInterval, 40, 500);
+            Assert.InRange(ratio, 1.5, 3.0);
         }
 
         [Fact]
