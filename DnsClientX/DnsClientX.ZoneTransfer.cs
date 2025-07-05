@@ -107,10 +107,10 @@ namespace DnsClientX {
         private static async Task ReadExactWithTimeoutAsync(NetworkStream stream, byte[] buffer, int offset, int count, int timeoutMilliseconds, CancellationToken cancellationToken) {
             var readTask = DnsWire.ReadExactAsync(stream, buffer, offset, count, cancellationToken);
             var timeoutTask = Task.Delay(timeoutMilliseconds, cancellationToken);
-            if (await Task.WhenAny(readTask, timeoutTask) == timeoutTask) {
+            if (await Task.WhenAny(readTask, timeoutTask).ConfigureAwait(false) == timeoutTask) {
                 throw new TimeoutException($"Reading from stream timed out after {timeoutMilliseconds} milliseconds.");
             }
-            await readTask;
+            await readTask.ConfigureAwait(false);
         }
 
         private static async Task ConnectAsync(TcpClient tcpClient, string host, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {

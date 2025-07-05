@@ -168,7 +168,7 @@ namespace DnsClientX {
             linkedCts.CancelAfter(timeoutMilliseconds);
 #if NET5_0_OR_GREATER
             try {
-                await tcpClient.ConnectAsync(host, port, linkedCts.Token);
+                await tcpClient.ConnectAsync(host, port, linkedCts.Token).ConfigureAwait(false);
             } catch (OperationCanceledException) {
                 tcpClient.Close();
                 cancellationToken.ThrowIfCancellationRequested();
@@ -178,14 +178,14 @@ namespace DnsClientX {
             var connectTask = tcpClient.ConnectAsync(host, port);
             var delayTask = Task.Delay(Timeout.Infinite, linkedCts.Token);
 
-            var completed = await Task.WhenAny(connectTask, delayTask);
+            var completed = await Task.WhenAny(connectTask, delayTask).ConfigureAwait(false);
             if (completed != connectTask) {
                 tcpClient.Close();
                 cancellationToken.ThrowIfCancellationRequested();
                 throw new TimeoutException($"Connection to {host}:{port} timed out after {timeoutMilliseconds} milliseconds.");
             }
 
-            await connectTask; // propagate possible exceptions
+            await connectTask.ConfigureAwait(false); // propagate possible exceptions
 #endif
         }
     }
