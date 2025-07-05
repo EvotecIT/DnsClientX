@@ -93,6 +93,13 @@ namespace DnsClientX {
         public string? Subnet { get; set; }
 
         /// <summary>
+        /// Gets or sets additional EDNS options. When configured, these values
+        /// override <see cref="EnableEdns"/>, <see cref="UdpBufferSize"/> and
+        /// <see cref="Subnet"/>.
+        /// </summary>
+        public EdnsOptions? EdnsOptions { get; set; }
+
+        /// <summary>
         /// Gets or sets the format of the DNS requests.
         /// </summary>
         public DnsRequestFormat RequestFormat { get; set; }
