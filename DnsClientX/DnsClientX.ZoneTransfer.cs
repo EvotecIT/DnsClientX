@@ -36,13 +36,20 @@ namespace DnsClientX {
 
             async Task<List<byte[]>> Execute() => await SendAxfrOverTcp(queryBytes, EndpointConfiguration.Hostname, EndpointConfiguration.Port, EndpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
-            var responses = retryOnTransient && maxRetries > 1
-                ? await RetryAsync(
-                    Execute,
-                    maxRetries,
-                    retryDelayMs,
-                    EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover ? EndpointConfiguration.AdvanceToNextHostname : null).ConfigureAwait(false)
-                : await Execute().ConfigureAwait(false);
+            List<byte[]> responses;
+            try {
+                responses = retryOnTransient && maxRetries > 1
+                    ? await RetryAsync(
+                        Execute,
+                        maxRetries,
+                        retryDelayMs,
+                        EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover ? EndpointConfiguration.AdvanceToNextHostname : null).ConfigureAwait(false)
+                    : await Execute().ConfigureAwait(false);
+            } catch (DnsClientException) {
+                throw;
+            } catch (Exception ex) {
+                throw new DnsClientException($"Zone transfer failed: {ex.Message}");
+            }
 
             var records = new List<DnsAnswer>();
             int soaCount = 0;
