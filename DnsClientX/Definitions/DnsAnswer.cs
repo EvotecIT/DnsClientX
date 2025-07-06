@@ -545,15 +545,15 @@ namespace DnsClientX {
 
             // Common patterns that indicate concatenated records
             var patterns = new[] {
-                "=", // Most TXT records are key=value pairs
+                // Detect common TXT records that may be concatenated by some providers
                 "v=spf1", // SPF records
                 "google-site-verification=",
                 "facebook-domain-verification=",
                 "apple-domain-verification=",
                 "MS=ms",
                 "_domainkey",
-                "dmarc",
-                "adsp"
+                "dmarc=",
+                "adsp="
             };
 
             int patternMatches = 0;
