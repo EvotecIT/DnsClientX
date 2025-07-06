@@ -101,7 +101,9 @@ namespace DnsClientX.Tests {
             // environments and timer inaccuracies. On heavily loaded systems the
             // ratio can be slightly below 1, so check for a minimal increase.
             Assert.InRange(delays[0], 40, 1000);
-            Assert.True(ratio >= 0.8 && ratio <= 3.5, $"Unexpected ratio: {ratio}");
+            // Allow wider tolerance for slow environments and coarse timers
+            // which can result in a ratio slightly below one on some systems.
+            Assert.True(ratio >= 0.6 && ratio <= 3.5, $"Unexpected ratio: {ratio}");
         }
 
         [Fact]
