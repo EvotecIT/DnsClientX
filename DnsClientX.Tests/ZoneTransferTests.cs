@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    [Collection("NonParallel")]
     public class ZoneTransferTests {
         private static byte[] EncodeName(string name) {
             name = name.TrimEnd('.');
@@ -101,7 +102,17 @@ namespace DnsClientX.Tests {
         private static async Task RunAxfrServerAsync(int port, byte[][] responses, CancellationToken token) {
             var listener = new TcpListener(IPAddress.Loopback, port);
             listener.Start();
-            using TcpClient client = await listener.AcceptTcpClientAsync();
+            TcpClient? client = null;
+            try {
+#if NET8_0_OR_GREATER
+                client = await listener.AcceptTcpClientAsync(token);
+#else
+                client = await listener.AcceptTcpClientAsync();
+#endif
+            } catch (OperationCanceledException) {
+                return;
+            }
+            using (client) {
             NetworkStream stream = client.GetStream();
             byte[] len = new byte[2];
             await stream.ReadAsync(len, 0, 2, token);
@@ -114,6 +125,7 @@ namespace DnsClientX.Tests {
                 if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
                 await stream.WriteAsync(prefix, 0, prefix.Length, token);
                 await stream.WriteAsync(r, 0, r.Length, token);
+            }
             }
             listener.Stop();
         }
@@ -166,12 +178,32 @@ namespace DnsClientX.Tests {
             var listener = new TcpListener(IPAddress.Loopback, port);
             listener.Start();
 
-            using (TcpClient client = await listener.AcceptTcpClientAsync()) {
-                client.Close();
+#if NET8_0_OR_GREATER
+            TcpClient? tmpClient = null;
+            try {
+                tmpClient = await listener.AcceptTcpClientAsync(token);
+            } catch (OperationCanceledException) {
+                    return;
+                }
+#else
+            TcpClient tmpClient = await listener.AcceptTcpClientAsync();
+#endif
+            using (tmpClient) {
+                tmpClient.Close();
             }
 
-            using (TcpClient client = await listener.AcceptTcpClientAsync()) {
-                NetworkStream stream = client.GetStream();
+#if NET8_0_OR_GREATER
+            tmpClient = null;
+            try {
+                tmpClient = await listener.AcceptTcpClientAsync(token);
+            } catch (OperationCanceledException) {
+                return;
+            }
+#else
+            tmpClient = await listener.AcceptTcpClientAsync();
+#endif
+            using (tmpClient) {
+                NetworkStream stream = tmpClient.GetStream();
                 byte[] len = new byte[2];
                 await stream.ReadAsync(len, 0, 2, token);
                 if (BitConverter.IsLittleEndian) Array.Reverse(len);
@@ -194,8 +226,19 @@ namespace DnsClientX.Tests {
             listener.Start();
 
             for (int i = 0; i < attempts; i++) {
-                using TcpClient client = await listener.AcceptTcpClientAsync();
-                client.Close();
+#if NET8_0_OR_GREATER
+                TcpClient? client = null;
+                try {
+                    client = await listener.AcceptTcpClientAsync(token);
+                } catch (OperationCanceledException) {
+                    break;
+                }
+#else
+                TcpClient client = await listener.AcceptTcpClientAsync();
+#endif
+                using (client) {
+                    client.Close();
+                }
             }
 
             listener.Stop();
