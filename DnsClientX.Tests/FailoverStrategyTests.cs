@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -29,7 +30,7 @@ namespace DnsClientX.Tests {
             var advance = (Action)Delegate.CreateDelegate(typeof(Action), config, "AdvanceToNextHostname", false)!;
             await Assert.ThrowsAsync<DnsClientException>(async () =>
             {
-                await (Task<DnsResponse>)generic.Invoke(null, new object[] { action, 2, 1, advance, false })!;
+                await (Task<DnsResponse>)generic.Invoke(null, new object[] { action, 2, 1, advance, false, CancellationToken.None })!;
             });
 
             config.SelectHostNameStrategy();

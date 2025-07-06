@@ -575,6 +575,19 @@ foreach (var r in records) {
 Get-DnsService -Domain 'example.com'
 ```
 
+### Zone Transfer
+
+Retrieve all records from a DNS server that allows AXFR:
+
+```csharp
+using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = 5353 } };
+var zoneRecords = await client.ZoneTransferAsync("example.com");
+```
+
+```powershell
+Get-DnsZoneTransfer -Zone 'example.com' -Server '127.0.0.1' -Port 5353
+```
+
 ## Please share with the community
 
 Please consider sharing a post about DnsClientX and the value it provides. It really does help!
