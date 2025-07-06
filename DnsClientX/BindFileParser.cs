@@ -105,7 +105,7 @@ namespace DnsClientX {
                 }
 
                 string data = string.Join(" ", tokens.Skip(index));
-                if (type == DnsRecordType.TXT && data.Length > 1 && data.StartsWith('"') && data.EndsWith('"')) {
+                if (type == DnsRecordType.TXT && data.Length > 1 && data.StartsWith("\"") && data.EndsWith("\"")) {
                     data = data.Substring(1, data.Length - 2);
                 }
 
