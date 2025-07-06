@@ -14,6 +14,10 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: write
+
 env:
   DOTNET_VERSION: '8.x'
   BUILD_CONFIGURATION: 'Release'
