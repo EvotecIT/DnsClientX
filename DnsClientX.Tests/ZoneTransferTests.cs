@@ -90,7 +90,15 @@ namespace DnsClientX.Tests {
             return ms.ToArray();
         }
 
-        private record AxfrServer(int Port, Task Task);
+        private sealed class AxfrServer {
+            public int Port { get; }
+            public Task Task { get; }
+
+            public AxfrServer(int port, Task task) {
+                Port = port;
+                Task = task;
+            }
+        }
 
         private static AxfrServer RunAxfrServerAsync(byte[][] responses, CancellationToken token) {
             var listener = new TcpListener(IPAddress.Loopback, 0);
