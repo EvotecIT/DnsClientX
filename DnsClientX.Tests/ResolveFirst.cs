@@ -1,5 +1,5 @@
 namespace DnsClientX.Tests {
-    public class ResolveFirst {
+    public class ResolveFirst : NetworkTestBase {
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]

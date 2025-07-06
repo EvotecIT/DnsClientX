@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 
 namespace DnsClientX.Tests {
-    public class QueryDnsOverHttp3 {
+    public class QueryDnsOverHttp3 : NetworkTestBase {
         [Theory]
         [InlineData("1.1.1.1")]
         [InlineData("8.8.8.8")]

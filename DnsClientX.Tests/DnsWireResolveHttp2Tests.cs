@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
-    public class DnsWireResolveHttp2Tests {
+    public class DnsWireResolveHttp2Tests : NetworkTestBase {
         private class Http2Handler : HttpMessageHandler {
             public HttpRequestMessage? Request { get; private set; }
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {

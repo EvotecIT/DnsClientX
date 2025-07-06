@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
-    public class DnssecTests {
+    public class DnssecTests : NetworkTestBase {
         [Theory]
         [InlineData(DnsEndpoint.Cloudflare)]
         [InlineData(DnsEndpoint.Google)]

@@ -4,7 +4,7 @@ using Xunit;
 using Xunit.Abstractions;
 
 namespace DnsClientX.Tests {
-    public class ResolveSync {
+    public class ResolveSync : NetworkTestBase {
         private readonly ITestOutputHelper _output;
 
         public ResolveSync(ITestOutputHelper output)

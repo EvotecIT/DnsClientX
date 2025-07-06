@@ -1,7 +1,7 @@
 using System.Diagnostics;
 
 namespace DnsClientX.Tests {
-    public class ResolveAll {
+    public class ResolveAll : NetworkTestBase {
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]

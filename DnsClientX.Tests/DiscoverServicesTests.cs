@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
-    public class DiscoverServicesTests {
+    public class DiscoverServicesTests : NetworkTestBase {
         [Fact]
         public async Task ShouldParseResponses() {
             var ptrResponse = new DnsResponse {

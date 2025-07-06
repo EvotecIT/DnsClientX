@@ -1,5 +1,5 @@
 namespace DnsClientX.Tests {
-    public class QueryDnsByHostName {
+    public class QueryDnsByHostName : NetworkTestBase {
         [Theory]
         [InlineData("1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON)]
         [InlineData("family.cloudflare-dns.com", DnsRequestFormat.DnsOverHttpsJSON)]

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
-    public class ResolveConcurrencyTests {
+    public class ResolveConcurrencyTests : NetworkTestBase {
         [Fact]
         public async Task ShouldResolveConcurrentlyWithoutErrors() {
             using var client = new ClientX(DnsEndpoint.System);

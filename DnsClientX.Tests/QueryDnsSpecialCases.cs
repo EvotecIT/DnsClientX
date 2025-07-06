@@ -1,5 +1,5 @@
 namespace DnsClientX.Tests {
-    public class QueryDnsSpecialCases {
+    public class QueryDnsSpecialCases : NetworkTestBase {
         /// <summary>
         /// This test case is for a special case where the query is expected to fail.
         /// </summary>

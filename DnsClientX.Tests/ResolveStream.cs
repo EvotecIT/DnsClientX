@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
-    public class ResolveStream {
+    public class ResolveStream : NetworkTestBase {
         [Fact]
         public async Task ShouldStreamMultipleResponses() {
             using var client = new ClientX(DnsEndpoint.System);

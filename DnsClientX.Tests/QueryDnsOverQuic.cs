@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
-    public class QueryDnsOverQuic {
+    public class QueryDnsOverQuic : NetworkTestBase {
         [Theory]
         [InlineData(DnsEndpoint.CloudflareQuic)]
         [InlineData(DnsEndpoint.GoogleQuic)]

@@ -1,7 +1,7 @@
 using System;
 
 namespace DnsClientX.Tests {
-    public class QueryDnsByUri {
+    public class QueryDnsByUri : NetworkTestBase {
         [Theory]
         [InlineData("https://1.1.1.1/dns-query", DnsRequestFormat.DnsOverHttpsJSON)]
         [InlineData("https://8.8.8.8/resolve", DnsRequestFormat.DnsOverHttpsJSON)]

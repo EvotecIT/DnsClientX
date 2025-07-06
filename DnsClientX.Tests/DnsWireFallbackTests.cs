@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
-    public class DnsWireFallbackTests {
+    public class DnsWireFallbackTests : NetworkTestBase {
         private static byte[] CreateDnsHeader(bool truncated) {
             byte[] bytes = new byte[12];
             ushort id = 0x1234;

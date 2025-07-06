@@ -13,7 +13,7 @@ namespace DnsClientX.Tests {
     /// These tests simulate network failures to ensure the ClientX class degrades gracefully
     /// when real-world network issues occur (connectivity problems, timeouts, server errors, etc.).
     /// </summary>
-    public class ResolveHttpRequestException {
+    public class ResolveHttpRequestException : NetworkTestBase {
         /// <summary>
         /// Custom HttpMessageHandler that always throws HttpRequestException to simulate network failures.
         /// This allows us to test error handling without relying on actual network conditions.

@@ -1,5 +1,5 @@
 namespace DnsClientX.Tests {
-    public class QueryDnsIDN {
+    public class QueryDnsIDN : NetworkTestBase {
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]

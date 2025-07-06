@@ -1,5 +1,5 @@
 namespace DnsClientX.Tests {
-    public class QueryDnsFailing {
+    public class QueryDnsFailing : NetworkTestBase {
         [Theory]
         [InlineData("8.8.1.1", DnsRequestFormat.DnsOverUDP)]
         [InlineData("a1akam1.net", DnsRequestFormat.DnsOverUDP)]

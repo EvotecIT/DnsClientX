@@ -1,7 +1,7 @@
 using Xunit;
 
 namespace DnsClientX.Tests {
-    public class RootDnssecValidatorTests {
+    public class RootDnssecValidatorTests : NetworkTestBase {
         [Fact]
         public void ValidateAgainstRoot_DsRecord() {
             var response = new DnsResponse {

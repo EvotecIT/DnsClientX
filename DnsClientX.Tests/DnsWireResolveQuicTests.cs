@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
-    public class DnsWireResolveQuicTests {
+    public class DnsWireResolveQuicTests : NetworkTestBase {
         [Fact]
         public async Task ResolveWireFormatQuic_ReturnsServerFailure_WhenHostHasNoAddresses() {
             var previous = DnsWireResolveQuic.HostEntryResolver;
