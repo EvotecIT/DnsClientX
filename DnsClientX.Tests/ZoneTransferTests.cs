@@ -106,7 +106,11 @@ namespace DnsClientX.Tests {
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
 
             async Task Serve() {
+#if NETFRAMEWORK
+                using TcpClient client = await listener.AcceptTcpClientAsync();
+#else
                 using TcpClient client = await listener.AcceptTcpClientAsync(token);
+#endif
                 NetworkStream stream = client.GetStream();
                 byte[] len = new byte[2];
                 await stream.ReadAsync(len, 0, 2, token);
@@ -173,11 +177,19 @@ namespace DnsClientX.Tests {
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
 
             async Task Serve() {
+#if NETFRAMEWORK
+                using (TcpClient client = await listener.AcceptTcpClientAsync()) {
+#else
                 using (TcpClient client = await listener.AcceptTcpClientAsync(token)) {
+#endif
                     client.Close();
                 }
 
+#if NETFRAMEWORK
+                using (TcpClient client = await listener.AcceptTcpClientAsync()) {
+#else
                 using (TcpClient client = await listener.AcceptTcpClientAsync(token)) {
+#endif
                     NetworkStream stream = client.GetStream();
                     byte[] len = new byte[2];
                     await stream.ReadAsync(len, 0, 2, token);
@@ -206,7 +218,11 @@ namespace DnsClientX.Tests {
 
             async Task Serve() {
                 for (int i = 0; i < attempts; i++) {
+#if NETFRAMEWORK
+                    using TcpClient client = await listener.AcceptTcpClientAsync();
+#else
                     using TcpClient client = await listener.AcceptTcpClientAsync(token);
+#endif
                     client.Close();
                 }
 
