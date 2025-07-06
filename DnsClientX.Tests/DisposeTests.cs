@@ -8,7 +8,7 @@ using Xunit;
 
 namespace DnsClientX.Tests {
     public class DisposeTests {
-        private class TrackingHandler : HttpMessageHandler {
+        private class TrackingHandler : HttpClientHandler {
             public int DisposeCount { get; private set; }
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK));
             protected override void Dispose(bool disposing) {
@@ -44,6 +44,9 @@ namespace DnsClientX.Tests {
             clients[clientX.EndpointConfiguration.SelectionStrategy] = customClient;
             var clientField = typeof(ClientX).GetField("Client", BindingFlags.NonPublic | BindingFlags.Instance)!;
             clientField.SetValue(clientX, customClient);
+            var handlerField = typeof(ClientX).GetField("handler", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            handlerField.SetValue(clientX, handler);
+            Assert.Same(handler, handlerField.GetValue(clientX));
 
             clientX.Dispose();
 
