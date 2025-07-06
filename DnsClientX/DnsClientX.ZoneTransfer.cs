@@ -127,6 +127,8 @@ namespace DnsClientX {
             while (true) {
                 try {
                     await ReadExactWithTimeoutAsync(stream, lenBuf, 0, 2, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
+                } catch (EndOfStreamException) when (responses.Count == 0) {
+                    throw new DnsClientException("Connection closed during zone transfer.");
                 } catch (EndOfStreamException) {
                     break;
                 }
