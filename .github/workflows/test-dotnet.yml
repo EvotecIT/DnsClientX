@@ -1,147 +1,215 @@
 name: Test .NET
 
 on:
-    push:
-        branches:
-            - main
-        paths-ignore:
-            - '*.md'
-            - 'Docs/**'
-            - 'Examples/**'
-            - '.gitignore'
-    pull_request:
-        branches:
-            - main
-    workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '*.md'
+      - 'Docs/**'
+      - 'Examples/**'
+      - '.gitignore'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 env:
-    DOTNET_VERSION: '8.x'
-    BUILD_CONFIGURATION: 'Release'
+  DOTNET_VERSION: '8.x'
+  BUILD_CONFIGURATION: 'Release'
 
 jobs:
-    test-windows:
-        name: 'Windows'
-        runs-on: windows-latest
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+  build-windows:
+    name: 'Build and list tests (Windows)'
+    runs-on: windows-latest
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - run: dotnet restore DnsClientX.sln
+      - run: dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
+      - name: List tests
+        id: generate
+        shell: pwsh
+        run: |
+          dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj -c ${{ env.BUILD_CONFIGURATION }} -f net8.0 --no-build --no-restore --list-tests > tests.txt
+          $tests = Get-Content tests.txt | Where-Object { $_ -match '^\s*DnsClientX\.Tests' } | ForEach-Object { $_.Trim() }
+          $obj = @{ test = $tests }
+          $json = $obj | ConvertTo-Json -Compress
+          "matrix=$json" | Out-File -FilePath $Env:GITHUB_OUTPUT -Encoding utf8
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-windows
+          path: |
+            DnsClientX.Tests/bin/${{ env.BUILD_CONFIGURATION }}/net8.0
+            DnsClientX/bin/${{ env.BUILD_CONFIGURATION }}/net8.0
 
-            - name: Setup .NET
-              uses: actions/setup-dotnet@v4
-              with:
-                  dotnet-version: ${{ env.DOTNET_VERSION }}
+  test-windows:
+    needs: build-windows
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.build-windows.outputs.matrix) }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-windows
+      - name: Run test
+        run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj -c ${{ env.BUILD_CONFIGURATION }} -f net8.0 --no-build --no-restore --filter "FullyQualifiedName=${{ matrix.test }}" --logger trx --collect:"XPlat Code Coverage"
+        env:
+          DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-windows
+          path: '**/*.trx'
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports-windows
+          path: '**/coverage.cobertura.xml'
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: '**/coverage.cobertura.xml'
 
-            - name: Restore dependencies
-              run: dotnet restore DnsClientX.sln
+  build-ubuntu:
+    name: 'Build and list tests (Ubuntu)'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - run: dotnet restore DnsClientX.sln
+      - run: dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
+      - name: List tests
+        id: generate
+        shell: pwsh
+        run: |
+          dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj -c ${{ env.BUILD_CONFIGURATION }} -f net8.0 --no-build --no-restore --list-tests > tests.txt
+          $tests = Get-Content tests.txt | Where-Object { $_ -match '^\s*DnsClientX\.Tests' } | ForEach-Object { $_.Trim() }
+          $obj = @{ test = $tests }
+          $json = $obj | ConvertTo-Json -Compress
+          "matrix=$json" | Out-File -FilePath $Env:GITHUB_OUTPUT -Encoding utf8
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-ubuntu
+          path: |
+            DnsClientX.Tests/bin/${{ env.BUILD_CONFIGURATION }}/net8.0
+            DnsClientX/bin/${{ env.BUILD_CONFIGURATION }}/net8.0
 
-            - name: Build solution
-              run: dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
+  test-ubuntu:
+    needs: build-ubuntu
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.build-ubuntu.outputs.matrix) }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-ubuntu
+      - name: Run test
+        run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj -c ${{ env.BUILD_CONFIGURATION }} -f net8.0 --no-build --no-restore --filter "FullyQualifiedName=${{ matrix.test }}" --logger trx --collect:"XPlat Code Coverage"
+        env:
+          DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-ubuntu
+          path: '**/*.trx'
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports-ubuntu
+          path: '**/coverage.cobertura.xml'
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: '**/coverage.cobertura.xml'
 
-            - name: Run tests
-              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity normal --logger trx --collect:"XPlat Code Coverage"
-              env:
-                  DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
+  build-macos:
+    name: 'Build and list tests (macOS)'
+    runs-on: macos-latest
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - run: dotnet restore DnsClientX.sln
+      - run: dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
+      - name: List tests
+        id: generate
+        shell: pwsh
+        run: |
+          dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj -c ${{ env.BUILD_CONFIGURATION }} -f net8.0 --no-build --no-restore --list-tests > tests.txt
+          $tests = Get-Content tests.txt | Where-Object { $_ -match '^\s*DnsClientX\.Tests' } | ForEach-Object { $_.Trim() }
+          $obj = @{ test = $tests }
+          $json = $obj | ConvertTo-Json -Compress
+          "matrix=$json" | Out-File -FilePath $Env:GITHUB_OUTPUT -Encoding utf8
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-macos
+          path: |
+            DnsClientX.Tests/bin/${{ env.BUILD_CONFIGURATION }}/net8.0
+            DnsClientX/bin/${{ env.BUILD_CONFIGURATION }}/net8.0
 
-            - name: Upload test results
-              uses: actions/upload-artifact@v4
-              if: always()
-              with:
-                  name: test-results-windows
-                  path: '**/*.trx'
-
-            - name: Upload coverage reports
-              uses: actions/upload-artifact@v4
-              if: always()
-              with:
-                  name: coverage-reports-windows
-                  path: '**/coverage.cobertura.xml'
-
-            - name: Upload coverage to Codecov
-              uses: codecov/codecov-action@v4
-              with:
-                  files: '**/coverage.cobertura.xml'
-
-    test-ubuntu:
-        name: 'Ubuntu'
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-
-            - name: Setup .NET
-              uses: actions/setup-dotnet@v4
-              with:
-                  dotnet-version: ${{ env.DOTNET_VERSION }}
-
-            - name: Restore dependencies
-              run: dotnet restore DnsClientX.sln
-
-            - name: Build solution
-              run: dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
-
-            - name: Run tests
-              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity normal --logger trx --collect:"XPlat Code Coverage"
-              env:
-                  DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
-
-            - name: Upload test results
-              uses: actions/upload-artifact@v4
-              if: always()
-              with:
-                  name: test-results-ubuntu
-                  path: '**/*.trx'
-
-            - name: Upload coverage reports
-              uses: actions/upload-artifact@v4
-              if: always()
-              with:
-                  name: coverage-reports-ubuntu
-                  path: '**/coverage.cobertura.xml'
-
-            - name: Upload coverage to Codecov
-              uses: codecov/codecov-action@v4
-              with:
-                  files: '**/coverage.cobertura.xml'
-
-    test-macos:
-        name: 'macOS'
-        runs-on: macos-latest
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-
-            - name: Setup .NET
-              uses: actions/setup-dotnet@v4
-              with:
-                  dotnet-version: ${{ env.DOTNET_VERSION }}
-
-            - name: Restore dependencies
-              run: dotnet restore DnsClientX.sln
-
-            - name: Build solution
-              run: dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
-
-            - name: Run tests
-              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity normal --logger trx --collect:"XPlat Code Coverage"
-              env:
-                  DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
-
-            - name: Upload test results
-              uses: actions/upload-artifact@v4
-              if: always()
-              with:
-                  name: test-results-macos
-                  path: '**/*.trx'
-
-            - name: Upload coverage reports
-              uses: actions/upload-artifact@v4
-              if: always()
-              with:
-                  name: coverage-reports-macos
-                  path: '**/coverage.cobertura.xml'
-
-            - name: Upload coverage to Codecov
-              uses: codecov/codecov-action@v4
-              with:
-                  files: '**/coverage.cobertura.xml'
-
+  test-macos:
+    needs: build-macos
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.build-macos.outputs.matrix) }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-macos
+      - name: Run test
+        run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj -c ${{ env.BUILD_CONFIGURATION }} -f net8.0 --no-build --no-restore --filter "FullyQualifiedName=${{ matrix.test }}" --logger trx --collect:"XPlat Code Coverage"
+        env:
+          DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-macos
+          path: '**/*.trx'
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports-macos
+          path: '**/coverage.cobertura.xml'
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: '**/coverage.cobertura.xml'
