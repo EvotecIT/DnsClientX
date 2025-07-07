@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 namespace DnsClientX {
     /// <summary>
     /// Simple in-memory cache for <see cref="DnsResponse"/> instances.
+    /// Stores responses together with their expiration times.
     /// </summary>
     internal class DnsResponseCache {
         private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
@@ -53,6 +54,7 @@ namespace DnsClientX {
         /// <param name="key">Cache key.</param>
         /// <param name="response">Response to cache.</param>
         /// <param name="ttl">Time to keep the entry.</param>
+        /// <returns>None.</returns>
         public void Set(string key, DnsResponse response, TimeSpan ttl) {
             var entry = new CacheEntry(response, DateTimeOffset.UtcNow.Add(ttl));
             _cache[key] = entry;

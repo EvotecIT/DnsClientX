@@ -121,7 +121,7 @@ namespace DnsClientX {
         /// Some records (mainly TXT) can be split into multiple strings and maximum length of a string is 255 characters.
         /// This method tries to preserve the original format of the data in case user needs to check for that format.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Array of strings representing record data.</returns>
         private string[] ConvertToMultiString() {
             // If we have filtered data, use that instead of the raw data
             string dataToProcess = _filteredData is null ? DataRaw : _filteredData;
@@ -169,7 +169,7 @@ namespace DnsClientX {
         /// <summary>
         /// Converts the data to a string trying to unify the format of the data between different providers
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Record data converted to a unified string format.</returns>
         private string ConvertData() {
             if (DataRaw is null) {
                 return string.Empty;

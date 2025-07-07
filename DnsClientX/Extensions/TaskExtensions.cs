@@ -38,6 +38,7 @@ namespace DnsClientX {
         /// Executes the provided asynchronous delegate synchronously.
         /// </summary>
         /// <param name="func">Asynchronous delegate to invoke.</param>
+        /// <returns>A task representing the completion of <paramref name="func"/>.</returns>
         public static void RunSync(this Func<Task> func) {
             Task.Run(func).GetAwaiter().GetResult();
         }

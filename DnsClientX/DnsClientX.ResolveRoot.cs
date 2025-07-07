@@ -11,6 +11,9 @@ namespace DnsClientX {
         /// Resolves a domain name by iteratively querying root servers
         /// and following NS referrals until an answer is obtained.
         /// </summary>
+        /// <param name="name">Domain name to resolve.</param>
+        /// <param name="type">Record type to resolve.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         public async Task<DnsResponse> ResolveFromRoot(string name, DnsRecordType type = DnsRecordType.A, CancellationToken cancellationToken = default) {
             var servers = RootServers.Servers.ToArray();
             DnsResponse lastResponse = new();
