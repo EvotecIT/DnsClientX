@@ -32,9 +32,10 @@
             Condition="'$(TargetFramework)' == 'net472'" />
     </ItemGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\DnsClientX\DnsClientX.csproj" />
-    </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DnsClientX\DnsClientX.csproj" />
+    <ProjectReference Include="..\DnsClientX.Cli\DnsClientX.Cli.csproj" />
+  </ItemGroup>
 
     <ItemGroup>
         <Using Include="Xunit" />

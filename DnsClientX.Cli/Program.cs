@@ -55,7 +55,8 @@ namespace DnsClientX.Cli {
             }
 
             try {
-                var response = await ClientX.QueryDns(domain, recordType, endpoint, cancellationToken: cts.Token);
+                await using var client = new ClientX(endpoint);
+                var response = await client.Resolve(domain, recordType, cancellationToken: cts.Token);
                 Console.WriteLine($"Status: {response.Status}");
                 foreach (var answer in response.Answers) {
                     Console.WriteLine($"{answer.Name}\t{answer.Type}\t{answer.TTL}\t{answer.Data}");
