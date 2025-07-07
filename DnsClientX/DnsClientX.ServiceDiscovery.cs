@@ -6,6 +6,9 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Partial <see cref="ClientX"/> class containing service discovery helpers.
+    /// </summary>
     public partial class ClientX {
         internal Func<string, DnsRecordType, CancellationToken, Task<DnsResponse>>? ResolverOverride;
 

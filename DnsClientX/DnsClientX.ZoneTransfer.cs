@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using System.IO;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Partial <see cref="ClientX"/> class providing zone transfer functionality.
+    /// </summary>
     public partial class ClientX {
         /// <summary>
         /// Performs a DNS zone transfer (AXFR) using TCP.

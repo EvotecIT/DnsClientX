@@ -6,6 +6,9 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Partial <see cref="ClientX"/> class with helpers for resolving first matching records.
+    /// </summary>
     public partial class ClientX {
         /// <summary>
         /// Resolves a domain name using DNS over HTTPS and returns the first answer of the provided type.

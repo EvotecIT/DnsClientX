@@ -4,6 +4,9 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Partial <see cref="ClientX"/> class providing streaming DNS resolution helpers.
+    /// </summary>
     public partial class ClientX {
         /// <summary>
         /// Resolves multiple DNS record types for a single domain name and streams the responses.

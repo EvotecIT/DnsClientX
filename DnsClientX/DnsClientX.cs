@@ -1,6 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net;
@@ -81,9 +81,25 @@ namespace DnsClientX {
 
         private static readonly DnsResponseCache _cache = new();
         private readonly bool _cacheEnabled;
+
+        /// <summary>
+        /// Gets a value indicating whether caching is enabled.
+        /// </summary>
         public bool CacheEnabled => _cacheEnabled;
+
+        /// <summary>
+        /// Gets or sets the default expiration time for cached entries.
+        /// </summary>
         public TimeSpan CacheExpiration { get; set; } = TimeSpan.FromMinutes(1);
+
+        /// <summary>
+        /// Gets or sets the minimal TTL allowed for cached responses.
+        /// </summary>
         public TimeSpan MinCacheTtl { get; set; } = TimeSpan.FromSeconds(1);
+
+        /// <summary>
+        /// Gets or sets the maximal TTL allowed for cached responses.
+        /// </summary>
         public TimeSpan MaxCacheTtl { get; set; } = TimeSpan.FromHours(1);
 
         /// <summary>

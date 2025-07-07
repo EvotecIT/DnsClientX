@@ -1,5 +1,8 @@
 namespace DnsClientX {
     internal static class RootServers {
+        /// <summary>
+        /// List of well known DNS root servers used when performing iterative resolution.
+        /// </summary>
         public static readonly string[] Servers = {
             // IPv4
             "198.41.0.4",      // A.ROOT-SERVERS.NET

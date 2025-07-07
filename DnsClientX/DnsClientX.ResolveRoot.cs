@@ -3,6 +3,9 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Partial <see cref="ClientX"/> class implementing root server resolution logic.
+    /// </summary>
     public partial class ClientX {
         /// <summary>
         /// Resolves a domain name by iteratively querying root servers
