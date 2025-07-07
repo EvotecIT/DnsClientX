@@ -13,10 +13,9 @@ namespace DnsClientX.Examples {
         }
 
         public static async Task ExampleEnumerate() {
-            using (var client = new ClientX(DnsEndpoint.Cloudflare)) {
-                await foreach (var r in client.EnumerateServicesAsync("example.com")) {
-                    Console.WriteLine($"{r.ServiceName} -> {r.Target}:{r.Port}");
-                }
+            using var client = new ClientX(DnsEndpoint.Cloudflare);
+            await foreach (var r in client.EnumerateServicesAsync("example.com")) {
+                Console.WriteLine($"{r.ServiceName} -> {r.Target}:{r.Port}");
             }
         }
     }

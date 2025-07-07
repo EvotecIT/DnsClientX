@@ -87,7 +87,10 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="domain">Domain name to look up for advertised services.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
-        /// <returns>An asynchronous enumeration of discovered services.</returns>
+        /// <returns>
+        /// An asynchronous enumeration of <see cref="DnsServiceDiscovery"/> instances
+        /// returned as soon as each service record is processed.
+        /// </returns>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="domain"/> is null or whitespace.</exception>
         public async IAsyncEnumerable<DnsServiceDiscovery> EnumerateServicesAsync(
             string domain,
