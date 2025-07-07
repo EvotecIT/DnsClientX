@@ -30,8 +30,14 @@ namespace DnsClientX {
             int maxRetries = 3,
             int retryDelayMs = 200,
             [EnumeratorCancellation] CancellationToken cancellationToken = default) {
-            foreach (DnsRecordType type in types) {
-                yield return await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+            var enumerator = ((IEnumerable<DnsRecordType>)types).GetEnumerator();
+            try {
+                while (enumerator.MoveNext()) {
+                    DnsRecordType type = enumerator.Current;
+                    yield return await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+                }
+            } finally {
+                enumerator.Dispose();
             }
         }
 
@@ -57,10 +63,22 @@ namespace DnsClientX {
             int maxRetries = 3,
             int retryDelayMs = 200,
             [EnumeratorCancellation] CancellationToken cancellationToken = default) {
-            foreach (string name in names) {
-                foreach (DnsRecordType type in types) {
-                    yield return await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+            var nameEnumerator = ((IEnumerable<string>)names).GetEnumerator();
+            try {
+                while (nameEnumerator.MoveNext()) {
+                    string name = nameEnumerator.Current;
+                    var typeEnumerator = ((IEnumerable<DnsRecordType>)types).GetEnumerator();
+                    try {
+                        while (typeEnumerator.MoveNext()) {
+                            DnsRecordType type = typeEnumerator.Current;
+                            yield return await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+                        }
+                    } finally {
+                        typeEnumerator.Dispose();
+                    }
                 }
+            } finally {
+                nameEnumerator.Dispose();
             }
         }
 
@@ -86,8 +104,43 @@ namespace DnsClientX {
             int maxRetries = 3,
             int retryDelayMs = 200,
             [EnumeratorCancellation] CancellationToken cancellationToken = default) {
-            foreach (string name in names) {
-                yield return await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+            var enumerator = ((IEnumerable<string>)names).GetEnumerator();
+            try {
+                while (enumerator.MoveNext()) {
+                    string name = enumerator.Current;
+                    yield return await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+                }
+            } finally {
+                enumerator.Dispose();
+            }
+        }
+
+        internal async IAsyncEnumerable<DnsResponse> ResolveStream(
+            IEnumerable<string> names,
+            IEnumerable<DnsRecordType> types,
+            bool requestDnsSec = false,
+            bool validateDnsSec = false,
+            bool returnAllTypes = false,
+            bool retryOnTransient = true,
+            int maxRetries = 3,
+            int retryDelayMs = 200,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default) {
+            var nameEnumerator = names.GetEnumerator();
+            try {
+                while (nameEnumerator.MoveNext()) {
+                    string name = nameEnumerator.Current!;
+                    var typeEnumerator = types.GetEnumerator();
+                    try {
+                        while (typeEnumerator.MoveNext()) {
+                            DnsRecordType type = typeEnumerator.Current;
+                            yield return await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+                        }
+                    } finally {
+                        typeEnumerator.Dispose();
+                    }
+                }
+            } finally {
+                nameEnumerator.Dispose();
             }
         }
     }
