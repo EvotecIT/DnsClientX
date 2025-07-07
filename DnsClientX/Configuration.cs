@@ -365,6 +365,10 @@ namespace DnsClientX {
                 default:
                     throw new ArgumentException("Invalid endpoint", nameof(endpoint));
             }
+
+            if (endpoint == DnsEndpoint.Custom && hostnames.Count == 0) {
+                throw new ArgumentException("At least one hostname must be specified for a custom endpoint.", nameof(endpoint));
+            }
             // Select a hostname based on the selection strategy
             this.hostnames = hostnames;
             this.baseUriFormat = baseUriFormat;
