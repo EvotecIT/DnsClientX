@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    [Collection("NoParallel")]
     public class StrategySwitchDisposalTests {
         private class JsonResponseHandler : HttpMessageHandler {
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
