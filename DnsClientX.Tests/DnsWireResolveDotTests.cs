@@ -19,7 +19,11 @@ namespace DnsClientX.Tests {
         private static async Task RunInvalidTlsServerAsync(int port, CancellationToken token) {
             TcpListener listener = new TcpListener(IPAddress.Loopback, port);
             listener.Start();
+#if NET8_0_OR_GREATER
             using TcpClient client = await listener.AcceptTcpClientAsync(token);
+#else
+            using TcpClient client = await listener.AcceptTcpClientAsync();
+#endif
             NetworkStream stream = client.GetStream();
             byte[] data = Encoding.ASCII.GetBytes("plain text");
             await stream.WriteAsync(data, 0, data.Length, token);
