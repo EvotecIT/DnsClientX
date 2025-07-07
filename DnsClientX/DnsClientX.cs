@@ -329,32 +329,35 @@ namespace DnsClientX {
         /// <returns></returns>
         private HttpClient GetClient(DnsSelectionStrategy strategy) {
             if (_clients.TryGetValue(strategy, out var client)) {
+                Client = client;
                 return client;
             }
 
             lock (_lock) {
                 if (_clients.TryGetValue(strategy, out client)) {
+                    Client = client;
                     return client;
                 }
 
-                if (_clients.Count == 0 && Client != null) {
-                    _clients[strategy] = Client;
-                    return Client;
-                }
-
-                foreach (HttpClient existing in _clients.Values) {
-                    if (TryAddDisposedClient(existing)) {
-                        existing.Dispose();
+                // dispose any clients created for other strategies
+                foreach (KeyValuePair<DnsSelectionStrategy, HttpClient> kv in _clients) {
+                    if (kv.Key != strategy && TryAddDisposedClient(kv.Value)) {
+                        kv.Value.Dispose();
+                        if (ReferenceEquals(kv.Value, Client)) {
+                            handler?.Dispose();
+                            handler = null;
+                        }
                         System.Threading.Interlocked.Increment(ref DisposalCount);
-                        handler = null;
                     }
                 }
                 _clients.Clear();
 
+                // dispose the currently assigned client and handler if present
                 if (Client != null && TryAddDisposedClient(Client)) {
                     Client.Dispose();
-                    System.Threading.Interlocked.Increment(ref DisposalCount);
+                    handler?.Dispose();
                     handler = null;
+                    System.Threading.Interlocked.Increment(ref DisposalCount);
                 }
 
                 client = CreateOptimizedHttpClient();
