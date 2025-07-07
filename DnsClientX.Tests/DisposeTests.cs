@@ -112,6 +112,16 @@ namespace DnsClientX.Tests {
             Assert.Equal(1, handler.DisposeCount);
         }
 
+        [Fact]
+        public async Task Client_DisposeAsync_ShouldIncrementDisposalCount() {
+            ClientX.DisposalCount = 0;
+            await using var clientX = new ClientX("example.com", DnsRequestFormat.DnsOverHttps);
+
+            await clientX.DisposeAsync();
+
+            Assert.Equal(1, ClientX.DisposalCount);
+        }
+
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
         [Fact]
         public async Task Client_DisposeAsync_ShouldPreferAsyncHandlerDisposal() {
