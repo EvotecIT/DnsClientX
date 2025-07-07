@@ -26,5 +26,20 @@ namespace DnsClientX.Tests {
             Assert.Equal(DnsRecordType.CNAME, records[1].Type);
             Assert.Equal("example.com.", records[1].DataRaw);
         }
+
+        [Fact]
+        public void ParseZoneFile_CombinesMultiLineTxtRecords() {
+            string file = Path.GetTempFileName();
+            File.WriteAllLines(file, new[] {
+                "example.com. IN TXT \"line1",
+                "line2\""
+            });
+
+            var records = BindFileParser.ParseZoneFile(file);
+
+            Assert.Single(records);
+            Assert.Equal("example.com", records[0].Name);
+            Assert.Equal("line1 line2", records[0].DataRaw);
+        }
     }
 }
