@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests ensuring proper disposal of internal resources.
+    /// </summary>
     public class DisposeTests {
         private class TrackingHandler : HttpClientHandler {
             public int DisposeCount { get; private set; }

@@ -5,7 +5,22 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Extension helpers for performing DNS queries over HTTP/3.
+    /// </summary>
     internal static class DnsWireResolveHttp3 {
+        /// <summary>
+        /// Executes a DNS query using HTTP/3 transport and deserializes the result.
+        /// </summary>
+        /// <param name="client">HTTP client configured for the DNS endpoint.</param>
+        /// <param name="name">Domain name to query.</param>
+        /// <param name="type">Record type to query.</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="debug">Enable detailed logging.</param>
+        /// <param name="endpointConfiguration">Endpoint configuration details.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>Parsed <see cref="DnsResponse"/> instance.</returns>
         internal static async Task<DnsResponse> ResolveWireFormatHttp3(this HttpClient client, string name,
             DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug,
             Configuration endpointConfiguration, CancellationToken cancellationToken) {

@@ -12,8 +12,25 @@ using System.Threading.Tasks;
 namespace DnsClientX {
 #if NET8_0_OR_GREATER
     #pragma warning disable CA2252
+    /// <summary>
+    /// Helper methods for resolving DNS queries over QUIC transport.
+    /// </summary>
     internal static class DnsWireResolveQuic {
+        /// <summary>Custom DNS host name resolution delegate used during tests.</summary>
         internal static Func<string, IPHostEntry>? HostEntryResolver;
+        /// <summary>
+        /// Executes a DNS-over-QUIC query and returns the parsed response.
+        /// </summary>
+        /// <param name="dnsServer">Target DNS server.</param>
+        /// <param name="port">QUIC port to use.</param>
+        /// <param name="name">Domain name to query.</param>
+        /// <param name="type">Record type to query.</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="debug">Enable detailed logging.</param>
+        /// <param name="endpointConfiguration">Endpoint configuration details.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>Parsed <see cref="DnsResponse"/> from the server.</returns>
         internal static async Task<DnsResponse> ResolveWireFormatQuic(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 

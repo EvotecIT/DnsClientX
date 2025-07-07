@@ -2,6 +2,9 @@ using System;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for <see cref="DnsKeyAlgorithmExtensions"/> utilities.
+    /// </summary>
     public class DnsKeyAlgorithmExtensionsTests {
         [Fact]
         public void FromValue_ReturnsEnum() {

@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for <see cref="ClientX.ResolveServiceAsync"/> helper.
+    /// </summary>
     public class ResolveServiceAsyncTests {
         [Fact]
         public async Task ShouldOrderByPriorityAndWeight() {

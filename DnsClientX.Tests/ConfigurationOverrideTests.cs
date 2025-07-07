@@ -4,6 +4,9 @@ using System.Reflection;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for overriding <see cref="Configuration"/> properties.
+    /// </summary>
     public class ConfigurationOverrideTests {
         [Fact]
         public void ShouldOverrideUserAgent() {

@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for EDNS Client Subnet option handling.
+    /// </summary>
     public class EcsOptionTests {
         private static byte[] CreateDnsHeader() {
             byte[] bytes = new byte[12];

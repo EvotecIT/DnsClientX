@@ -4,7 +4,16 @@ using System.IO;
 using System.Linq;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Helper class capable of parsing simplified BIND style zone files.
+    /// </summary>
     internal static class BindFileParser {
+        /// <summary>
+        /// Parses a BIND zone file and returns DNS answers found in the file.
+        /// </summary>
+        /// <param name="path">Path to the zone file on disk.</param>
+        /// <param name="debugPrint">Optional callback for debug information.</param>
+        /// <returns>List of parsed <see cref="DnsAnswer"/> objects.</returns>
         internal static List<DnsAnswer> ParseZoneFile(string path, Action<string>? debugPrint = null) {
             var records = new List<DnsAnswer>();
 
