@@ -1,5 +1,6 @@
-#if DNS_OVER_HTTP3 && NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
 using System.Threading.Tasks;
+using Xunit;
 
 namespace DnsClientX.Tests {
     public class QueryDnsOverHttp3 {

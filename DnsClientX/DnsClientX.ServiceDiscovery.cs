@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -79,6 +80,63 @@ namespace DnsClientX {
             }
 
             return results.ToArray();
+        }
+
+        /// <summary>
+        /// Streams DNS-SD services discovered under the specified domain.
+        /// </summary>
+        /// <param name="domain">Domain name to look up for advertised services.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <returns>
+        /// An asynchronous enumeration of <see cref="DnsServiceDiscovery"/> instances
+        /// returned as soon as each service record is processed.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="domain"/> is null or whitespace.</exception>
+        public async IAsyncEnumerable<DnsServiceDiscovery> EnumerateServicesAsync(
+            string domain,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default) {
+            if (string.IsNullOrWhiteSpace(domain)) throw new ArgumentNullException(nameof(domain));
+            string ptrQuery = $"_services._dns-sd._udp.{domain}";
+            var ptrResponse = await ResolveForSd(ptrQuery, DnsRecordType.PTR, cancellationToken).ConfigureAwait(false);
+            if (ptrResponse.Answers == null) yield break;
+
+            foreach (var ptr in ptrResponse.Answers.Where(a => a.Type == DnsRecordType.PTR)) {
+                string serviceDomain = ptr.Data.TrimEnd('.');
+                var srvResponse = await ResolveForSd(serviceDomain, DnsRecordType.SRV, cancellationToken).ConfigureAwait(false);
+                var txtResponse = await ResolveForSd(serviceDomain, DnsRecordType.TXT, cancellationToken).ConfigureAwait(false);
+
+                var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var txt in txtResponse.Answers?.Where(a => a.Type == DnsRecordType.TXT) ?? Array.Empty<DnsAnswer>()) {
+                    foreach (string part in txt.DataStringsEscaped) {
+                        var idx = part.IndexOf('=');
+                        if (idx > 0) {
+                            string key = part.Substring(0, idx);
+                            string val = part.Substring(idx + 1);
+                            metadata[key] = val;
+                        } else {
+                            metadata[part] = string.Empty;
+                        }
+                    }
+                }
+
+                foreach (var srv in srvResponse.Answers?.Where(a => a.Type == DnsRecordType.SRV) ?? Array.Empty<DnsAnswer>()) {
+                    var bits = srv.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (bits.Length == 4 &&
+                        int.TryParse(bits[0], out int priority) &&
+                        int.TryParse(bits[1], out int weight) &&
+                        int.TryParse(bits[2], out int port)) {
+                        string target = bits[3].TrimEnd('.');
+                        yield return new DnsServiceDiscovery {
+                            ServiceName = serviceDomain,
+                            Target = target,
+                            Port = port,
+                            Priority = priority,
+                            Weight = weight,
+                            Metadata = metadata.Count > 0 ? new Dictionary<string, string>(metadata) : null
+                        };
+                    }
+                }
+            }
         }
 
         /// <summary>
