@@ -18,9 +18,17 @@ namespace DnsClientX {
         }
 
         public static T RunSync<T>(this Task<T> task, CancellationToken cancellationToken) {
-            try {
-                task.Wait(cancellationToken);
-            } catch (OperationCanceledException) {
+            if (task.IsCompleted) {
+                if (cancellationToken.IsCancellationRequested) {
+                    throw new TaskCanceledException(task);
+                }
+
+                return task.GetAwaiter().GetResult();
+            }
+
+            var completed = Task.WhenAny(task, Task.Delay(Timeout.Infinite, cancellationToken)).GetAwaiter().GetResult();
+
+            if (completed != task) {
                 throw new TaskCanceledException(task);
             }
 
@@ -36,9 +44,18 @@ namespace DnsClientX {
         }
 
         public static void RunSync(this Task task, CancellationToken cancellationToken) {
-            try {
-                task.Wait(cancellationToken);
-            } catch (OperationCanceledException) {
+            if (task.IsCompleted) {
+                if (cancellationToken.IsCancellationRequested) {
+                    throw new TaskCanceledException(task);
+                }
+
+                task.GetAwaiter().GetResult();
+                return;
+            }
+
+            var completed = Task.WhenAny(task, Task.Delay(Timeout.Infinite, cancellationToken)).GetAwaiter().GetResult();
+
+            if (completed != task) {
                 throw new TaskCanceledException(task);
             }
 
