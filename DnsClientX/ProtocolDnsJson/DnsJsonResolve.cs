@@ -3,6 +3,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text.Json;
+using System.Collections.Generic;
 using System;
 
 namespace DnsClientX {
@@ -30,6 +31,71 @@ namespace DnsClientX {
             try {
                 using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
 
+                DnsResponse response = await res.Deserialize<DnsResponse>(debug).ConfigureAwait(false);
+                response.AddServerDetails(configuration);
+                return response;
+            } catch (Exception ex) {
+                DnsResponseCode responseCode;
+                string message;
+
+                switch (ex) {
+                    case HttpRequestException _ when ex.InnerException is WebException webEx && webEx.Status == WebExceptionStatus.ConnectFailure:
+                        responseCode = DnsResponseCode.Refused;
+                        message = $"Failed to send HTTP request for type {type} of '{name}'. Error: {ex.Message}";
+                        break;
+                    case JsonException _:
+                        responseCode = DnsResponseCode.ServerFailure;
+                        message = $"Failed to parse JSON response for type {type} of '{name}'. Error: {ex.Message}";
+                        break;
+                    default:
+                        responseCode = DnsResponseCode.ServerFailure;
+                        message = $"Unexpected exception while querying type {type} of '{name}'. Error: {ex.Message}";
+                        break;
+                }
+
+                DnsResponse response = new DnsResponse {
+                    Questions = new[] {
+                        new DnsQuestion {
+                            Name = name,
+                            RequestFormat = DnsRequestFormat.DnsOverHttps,
+                            HostName = client.BaseAddress.Host,
+                            Port = client.BaseAddress.Port,
+                            Type = type,
+                            OriginalName = name
+                        }
+                    },
+                    Status = responseCode,
+                    Error = message
+                };
+                response.AddServerDetails(configuration);
+                return response;
+            }
+        }
+
+        /// <summary>
+        /// Sends a DNS query in JSON format using HTTP POST and returns the response.
+        /// </summary>
+        internal static async Task<DnsResponse> ResolveJsonFormatPost(this HttpClient client, string name,
+            DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration configuration, CancellationToken cancellationToken) {
+            var payload = new Dictionary<string, object?> { { "name", name } };
+            if (type != DnsRecordType.A) {
+                payload["type"] = type.ToString();
+            }
+            if (requestDnsSec) {
+                payload["do"] = 1;
+            }
+            if (validateDnsSec) {
+                payload["cd"] = 1;
+            }
+            string json = JsonSerializer.Serialize(payload, DnsJson.JsonOptions);
+
+            using HttpRequestMessage req = new(HttpMethod.Post, string.Empty) {
+                Content = new StringContent(json)
+            };
+            req.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+
+            try {
+                using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
                 DnsResponse response = await res.Deserialize<DnsResponse>(debug).ConfigureAwait(false);
                 response.AddServerDetails(configuration);
                 return response;

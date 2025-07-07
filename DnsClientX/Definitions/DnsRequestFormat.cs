@@ -18,6 +18,10 @@ namespace DnsClientX {
         /// </summary>
         DnsOverHttpsPOST,
         /// <summary>
+        /// JSON format for DNS requests sent using POST method.
+        /// </summary>
+        DnsOverHttpsJSONPOST,
+        /// <summary>
         /// Format for DNS requests using UDP.
         /// </summary>
         DnsOverUDP,

@@ -71,6 +71,14 @@ namespace DnsClientX.Examples {
             data.Answers.DisplayTable();
         }
 
+        public static async Task ExampleJsonPost() {
+            HelpersSpectre.AddLine("QueryDns", "evotec.pl", DnsRecordType.A, new Uri("https://1.1.1.1/dns-query"),
+                DnsRequestFormat.DnsOverHttpsJSONPOST);
+            var data = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, new Uri("https://1.1.1.1/dns-query"),
+                DnsRequestFormat.DnsOverHttpsJSONPOST);
+            data.Answers.DisplayTable();
+        }
+
         public static async Task ExampleGoogleOverWire() {
             HelpersSpectre.AddLine("QueryDns", "evotec.pl", DnsRecordType.A, DnsEndpoint.GoogleWireFormat);
             var data = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, DnsEndpoint.GoogleWireFormat);

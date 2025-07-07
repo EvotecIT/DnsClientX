@@ -35,6 +35,10 @@ namespace DnsClientX {
         /// </summary>
         CloudflareWireFormatPost,
         /// <summary>
+        /// Cloudflare's DNS-over-HTTPS endpoint using JSON over POST method.
+        /// </summary>
+        CloudflareJsonPost,
+        /// <summary>
         /// Google's DNS-over-HTTPS endpoint.
         /// </summary>
         Google,
@@ -46,6 +50,10 @@ namespace DnsClientX {
         /// Google's DNS-over-HTTPS endpoint using wire format over POST method.
         /// </summary>
         GoogleWireFormatPost,
+        /// <summary>
+        /// Google's DNS-over-HTTPS endpoint using JSON over POST method.
+        /// </summary>
+        GoogleJsonPost,
         /// <summary>
         /// Quad9's DNS-over-HTTPS endpoint.
         /// </summary>
