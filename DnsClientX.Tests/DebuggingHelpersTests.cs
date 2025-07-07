@@ -6,7 +6,14 @@ namespace DnsClientX.Tests {
     public class DebuggingHelpersTests {
         private class CapturingLogger : InternalLogger {
             public string? LastMessage { get; private set; }
-            public CapturingLogger() => OnDebugMessage += (_, e) => LastMessage = e.FullMessage;
+            private readonly EventHandler<LogEventArgs> _handler;
+
+            public CapturingLogger() {
+                _handler = (_, e) => LastMessage = e.FullMessage;
+                OnDebugMessage += _handler;
+            }
+
+            public void Freeze() => OnDebugMessage -= _handler;
         }
 
         private static void SetLogger(InternalLogger logger) {
@@ -21,6 +28,7 @@ namespace DnsClientX.Tests {
             using var ms = new MemoryStream(new byte[] { 0x01, 0x02 });
             using var reader = new BinaryReader(ms);
             ushort result = DebuggingHelpers.TroubleshootingDnsWire2(reader, "test");
+            logger.Freeze();
             Assert.Equal(0x0102, result);
             Assert.Contains("01-02", logger.LastMessage);
         }
@@ -32,6 +40,7 @@ namespace DnsClientX.Tests {
             using var ms = new MemoryStream(new byte[] { 0x01, 0x02, 0x03, 0x04 });
             using var reader = new BinaryReader(ms);
             uint result = DebuggingHelpers.TroubleshootingDnsWire4(reader, "test");
+            logger.Freeze();
             Assert.Equal(0x01020304u, result);
             Assert.Contains("01-02-03-04", logger.LastMessage);
         }
