@@ -296,7 +296,9 @@ namespace DnsClientX {
             if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps ||
                 EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST ||
                 EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp2 ||
+#if NET8_0_OR_GREATER
                 EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp3 ||
+#endif
                 EndpointConfiguration.RequestFormat == DnsRequestFormat.ObliviousDnsOverHttps) {
                 client.DefaultRequestHeaders.Accept.Add(
                     new MediaTypeWithQualityHeaderValue("application/dns-message"));
