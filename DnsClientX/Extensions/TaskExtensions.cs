@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
@@ -16,11 +17,48 @@ namespace DnsClientX {
             return task.GetAwaiter().GetResult();
         }
 
+        public static T RunSync<T>(this Task<T> task, CancellationToken cancellationToken) {
+            if (task.IsCompleted) {
+                if (cancellationToken.IsCancellationRequested) {
+                    throw new TaskCanceledException(task);
+                }
+
+                return task.GetAwaiter().GetResult();
+            }
+
+            var completed = Task.WhenAny(task, Task.Delay(Timeout.Infinite, cancellationToken)).GetAwaiter().GetResult();
+
+            if (completed != task) {
+                throw new TaskCanceledException(task);
+            }
+
+            return task.GetAwaiter().GetResult();
+        }
+
         /// <summary>
         /// Blocks the calling thread until the given <see cref="Task"/> completes.
         /// </summary>
         /// <param name="task">Task to wait for.</param>
         public static void RunSync(this Task task) {
+            task.GetAwaiter().GetResult();
+        }
+
+        public static void RunSync(this Task task, CancellationToken cancellationToken) {
+            if (task.IsCompleted) {
+                if (cancellationToken.IsCancellationRequested) {
+                    throw new TaskCanceledException(task);
+                }
+
+                task.GetAwaiter().GetResult();
+                return;
+            }
+
+            var completed = Task.WhenAny(task, Task.Delay(Timeout.Infinite, cancellationToken)).GetAwaiter().GetResult();
+
+            if (completed != task) {
+                throw new TaskCanceledException(task);
+            }
+
             task.GetAwaiter().GetResult();
         }
 
@@ -34,6 +72,11 @@ namespace DnsClientX {
             return Task.Run(func).GetAwaiter().GetResult();
         }
 
+        public static T RunSync<T>(this Func<Task<T>> func, CancellationToken cancellationToken) {
+            var task = Task.Run(func, cancellationToken);
+            return task.RunSync(cancellationToken);
+        }
+
         /// <summary>
         /// Executes the provided asynchronous delegate synchronously.
         /// </summary>
@@ -41,6 +84,11 @@ namespace DnsClientX {
         /// <returns>A task representing the completion of <paramref name="func"/>.</returns>
         public static void RunSync(this Func<Task> func) {
             Task.Run(func).GetAwaiter().GetResult();
+        }
+
+        public static void RunSync(this Func<Task> func, CancellationToken cancellationToken) {
+            var task = Task.Run(func, cancellationToken);
+            task.RunSync(cancellationToken);
         }
     }
 }

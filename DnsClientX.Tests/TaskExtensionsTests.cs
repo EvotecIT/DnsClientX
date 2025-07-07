@@ -1,6 +1,7 @@
 using System;
 using DnsClientX;
 using System.Threading.Tasks;
+using System.Threading;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -30,6 +31,22 @@ namespace DnsClientX.Tests {
             bool ran = false;
             ((Func<Task>)(() => { ran = true; return Task.CompletedTask; })).RunSync();
             Assert.True(ran);
+        }
+
+        [Fact]
+        public void RunSync_TaskOfT_Cancelled() {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+            var task = Task.Delay(1000, cts.Token).ContinueWith(_ => 1, TaskContinuationOptions.ExecuteSynchronously);
+            Assert.Throws<TaskCanceledException>(() => task.RunSync(cts.Token));
+        }
+
+        [Fact]
+        public void RunSync_Task_Cancelled() {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+            Task task = Task.Delay(1000, cts.Token);
+            Assert.Throws<TaskCanceledException>(() => task.RunSync(cts.Token));
         }
     }
 }
