@@ -73,8 +73,8 @@ It provides querying multiple DNS Providers.
 | OpenDNS | ✓ |  |  |  |  |  |  |
 | OpenDNSFamily | ✓ |  |  |  |  |  |  |
 | DnsCryptCloudflare |  |  |  |  |  | ❌ |  |
-| DnsCryptQuad9 |  |  |  |  |  | ✓ |  |
-| DnsCryptRelay |  |  |  |  |  | ✓ |  |
+| DnsCryptQuad9 |  |  |  |  |  | ❌ |  |
+| DnsCryptRelay |  |  |  |  |  | ❌ |  |
 | RootServer |  |  |  | ✓ | ✓ |  |  |
 
 If you want to learn about DNS:
