@@ -115,7 +115,7 @@ namespace DnsClientX {
         /// <summary>
         /// Adds the server details to the DNS questions for output purposes.
         /// </summary>
-        /// <param name="configuration"></param>
+        /// <param name="configuration">Client configuration used when querying.</param>
         internal void AddServerDetails(Configuration configuration) {
             if (Questions == null) {
                 Questions = Array.Empty<DnsQuestion>();
