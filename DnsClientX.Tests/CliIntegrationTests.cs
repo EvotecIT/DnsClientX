@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    [Collection("NoParallel")]
     public class CliIntegrationTests {
         [Fact]
         public async Task CliRunsWithoutLeavingSockets() {
