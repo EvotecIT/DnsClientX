@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.IO;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -125,7 +126,7 @@ namespace DnsClientX {
                 dnsServers.Add(FormatDnsAddress(IPAddress.Parse("8.8.8.8"))); // Google Primary
             }
 
-            dnsServers = DeduplicateDnsServers(dnsServers);
+            dnsServers = dnsServers.Distinct().ToList();
             DebugPrint($"Final DNS server list: {string.Join(", ", dnsServers)}");
 
             return dnsServers;
