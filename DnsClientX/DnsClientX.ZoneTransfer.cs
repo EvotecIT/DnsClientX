@@ -73,7 +73,7 @@ namespace DnsClientX {
                 throw new DnsClientException("Zone transfer incomplete: closing SOA record missing.");
             }
 
-            var lastResponse = await DnsWire.DeserializeDnsWireFormat(null, Debug, responses[^1]).ConfigureAwait(false);
+            var lastResponse = await DnsWire.DeserializeDnsWireFormat(null, Debug, responses[responses.Count - 1]).ConfigureAwait(false);
             lastResponse.AddServerDetails(EndpointConfiguration);
             if (lastResponse.Answers == null || !lastResponse.Answers.Any(a => a.Type == DnsRecordType.SOA)) {
                 throw new DnsClientException("Zone transfer incomplete: closing SOA record missing.");
