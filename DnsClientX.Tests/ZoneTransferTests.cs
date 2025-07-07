@@ -257,5 +257,71 @@ namespace DnsClientX.Tests {
             await Assert.ThrowsAsync<DnsClientException>(() => client.ZoneTransferAsync("example.com", maxRetries: 2, retryDelayMs: 10));
             await server.Task;
         }
+
+        private static AxfrServer RunAxfrServerTruncatedAsync(byte[] response, CancellationToken token) {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+
+            async Task Serve() {
+#if NETFRAMEWORK
+                using TcpClient client = await listener.AcceptTcpClientAsync();
+#else
+                using TcpClient client = await listener.AcceptTcpClientAsync(token);
+#endif
+                NetworkStream stream = client.GetStream();
+                byte[] len = new byte[2];
+                await stream.ReadAsync(len, 0, 2, token);
+                if (BitConverter.IsLittleEndian) Array.Reverse(len);
+                int qLen = BitConverter.ToUInt16(len, 0);
+                byte[] q = new byte[qLen];
+                await stream.ReadAsync(q, 0, qLen, token);
+                byte[] prefix = BitConverter.GetBytes((ushort)response.Length);
+                if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
+                await stream.WriteAsync(prefix, 0, prefix.Length, token);
+                await stream.WriteAsync(response, 0, response.Length / 2, token);
+                listener.Stop();
+            }
+
+            return new AxfrServer(port, Serve());
+        }
+
+        private static byte[] BuildInvalidOpcodeMessage(string zone) {
+            using var ms = new System.IO.MemoryStream();
+            WriteUInt16(ms, 1);
+            WriteUInt16(ms, 0x8800);
+            WriteUInt16(ms, 1);
+            WriteUInt16(ms, 0);
+            WriteUInt16(ms, 0);
+            WriteUInt16(ms, 0);
+            var zoneBytes = EncodeName(zone);
+            ms.Write(zoneBytes, 0, zoneBytes.Length);
+            WriteUInt16(ms, (ushort)DnsRecordType.AXFR);
+            WriteUInt16(ms, 1);
+            return ms.ToArray();
+        }
+
+        [Fact]
+        public async Task ZoneTransferAsync_FailsOnTruncatedResponse() {
+            var soa = BuildSoaRdata();
+            byte[] m1 = BuildMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var server = RunAxfrServerTruncatedAsync(m1, cts.Token);
+
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
+            await Assert.ThrowsAsync<DnsClientException>(() => client.ZoneTransferAsync("example.com"));
+            await server.Task;
+        }
+
+        [Fact]
+        public async Task ZoneTransferAsync_FailsWithInvalidOpcode() {
+            byte[] m1 = BuildInvalidOpcodeMessage("example.com");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var server = RunAxfrServerAsync(new[] { m1 }, cts.Token);
+
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
+            await Assert.ThrowsAsync<DnsClientException>(() => client.ZoneTransferAsync("example.com"));
+            await server.Task;
+        }
     }
 }
