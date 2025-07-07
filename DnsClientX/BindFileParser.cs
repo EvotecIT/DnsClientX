@@ -24,12 +24,9 @@ namespace DnsClientX {
 
             int defaultTtl = 3600;
 
-            foreach (var raw in File.ReadLines(path)) {
-                var line = raw.Trim();
-                if (string.IsNullOrEmpty(line) || line.StartsWith(";")) {
-                    continue;
-                }
+            using var enumerator = File.ReadLines(path).GetEnumerator();
 
+            static string StripComments(string line) {
                 int commentIndex = -1;
                 bool inQuotes = false;
                 bool escape = false;
@@ -59,6 +56,40 @@ namespace DnsClientX {
                 if (commentIndex >= 0) {
                     line = line.Substring(0, commentIndex).Trim();
                 }
+
+                return line.Trim();
+            }
+
+            static bool QuotesBalanced(string text) {
+                bool inQuotes = false;
+                bool escape = false;
+                for (int i = 0; i < text.Length; i++) {
+                    char c = text[i];
+                    if (escape) {
+                        escape = false;
+                        continue;
+                    }
+
+                    if (c == '\\') {
+                        escape = true;
+                        continue;
+                    }
+
+                    if (c == '"') {
+                        inQuotes = !inQuotes;
+                    }
+                }
+
+                return !inQuotes;
+            }
+
+            while (enumerator.MoveNext()) {
+                var line = enumerator.Current.Trim();
+                if (string.IsNullOrEmpty(line) || line.StartsWith(";")) {
+                    continue;
+                }
+
+                line = StripComments(line);
 
                 if (line.StartsWith("$TTL", StringComparison.OrdinalIgnoreCase)) {
                     var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
@@ -114,8 +145,21 @@ namespace DnsClientX {
                 }
 
                 string data = string.Join(" ", tokens.Skip(index));
-                if (type == DnsRecordType.TXT && data.Length > 1 && data.StartsWith("\"") && data.EndsWith("\"")) {
-                    data = data.Substring(1, data.Length - 2);
+
+                if (type == DnsRecordType.TXT && data.StartsWith("\"")) {
+                    if (!QuotesBalanced(data)) {
+                        while (enumerator.MoveNext()) {
+                            var next = StripComments(enumerator.Current.Trim());
+                            data += " " + next;
+                            if (QuotesBalanced(data)) {
+                                break;
+                            }
+                        }
+                    }
+
+                    if (data.Length > 1 && data.EndsWith("\"")) {
+                        data = data.Substring(1, data.Length - 2);
+                    }
                 }
 
                 records.Add(new DnsAnswer {
