@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,9 +29,10 @@ namespace DnsClientX.Tests {
             return port;
         }
 
-        private static int GetTcpConnectionCount() {
-            var ip = IPGlobalProperties.GetIPGlobalProperties();
-            return ip.GetActiveTcpConnections().Length;
+        private static int GetTcpConnectionCount(int port) {
+            IPGlobalProperties ip = IPGlobalProperties.GetIPGlobalProperties();
+            return ip.GetActiveTcpConnections()
+                .Count(c => c.RemoteEndPoint.Port == port && c.State == TcpState.Established);
         }
 
         private static async Task RunTcpServerAsync(int port, int calls, CancellationToken token) {
@@ -39,7 +41,7 @@ namespace DnsClientX.Tests {
             listener.Start();
             for (int i = 0; i < calls; i++) {
                 using TcpClient client = await listener.AcceptTcpClientAsync();
-                NetworkStream stream = client.GetStream();
+                using NetworkStream stream = client.GetStream();
                 byte[] len = new byte[2];
                 await stream.ReadAsync(len, 0, 2, token);
                 if (BitConverter.IsLittleEndian) Array.Reverse(len);
@@ -65,7 +67,7 @@ namespace DnsClientX.Tests {
             Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveTcp")!;
             MethodInfo method = type.GetMethod("ResolveWireFormatTcp", BindingFlags.Static | BindingFlags.NonPublic)!;
 
-            int before = GetTcpConnectionCount();
+            int before = GetTcpConnectionCount(port);
             for (int i = 0; i < iterations; i++) {
                 var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, cts.Token })!;
                 await task;
@@ -74,8 +76,8 @@ namespace DnsClientX.Tests {
 
             // allow sockets to close
             await Task.Delay(200);
-            int after = GetTcpConnectionCount();
-            Assert.InRange(after, before - 1, before + 1);
+            int after = GetTcpConnectionCount(port);
+            Assert.Equal(before, after);
         }
     }
 }
