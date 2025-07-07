@@ -5,7 +5,22 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Extension helpers for resolving DNS queries using HTTP/2 transport.
+    /// </summary>
     internal static class DnsWireResolveHttp2 {
+        /// <summary>
+        /// Performs a DNS-over-HTTP/2 query and deserializes the wire format response.
+        /// </summary>
+        /// <param name="client">HTTP client preconfigured for the DNS endpoint.</param>
+        /// <param name="name">Domain name to query.</param>
+        /// <param name="type">Record type to query.</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="debug">Enable detailed logging.</param>
+        /// <param name="endpointConfiguration">Endpoint configuration details.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>Parsed <see cref="DnsResponse"/> from the server.</returns>
         internal static async Task<DnsResponse> ResolveWireFormatHttp2(this HttpClient client, string name,
             DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug,
             Configuration endpointConfiguration, CancellationToken cancellationToken) {

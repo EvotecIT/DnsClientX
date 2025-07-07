@@ -3,7 +3,11 @@ using System.Threading.Tasks;
 using Spectre.Console;
 
 namespace DnsClientX.Examples {
+    /// <summary>
+    /// Example illustrating how to resolve multiple record types from various DNS providers.
+    /// </summary>
     internal class DemoResolve {
+        /// <summary>Runs the demo.</summary>
         public static async Task Example() {
             var dnsEndpoints = new List<DnsEndpoint> {
                 DnsEndpoint.Cloudflare,

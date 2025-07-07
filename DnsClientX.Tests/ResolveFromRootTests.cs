@@ -2,6 +2,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests verifying resolution starting at DNS root servers.
+    /// </summary>
     public class ResolveFromRootTests {
         [Fact(Skip = "External dependency - requires root servers")] // network unreachable in CI
         public async Task ShouldResolveARecordFromRoot() {

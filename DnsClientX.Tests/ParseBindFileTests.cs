@@ -5,6 +5,9 @@ using System.Reflection;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Unit tests for <see cref="BindFileParser"/> helpers.
+    /// </summary>
     public class ParseBindFileTests {
         [Fact]
         public void MissingFile_ReturnsEmptyList() {
