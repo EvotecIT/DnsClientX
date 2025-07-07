@@ -10,9 +10,15 @@ namespace DnsClientX {
     /// </summary>
     public class Configuration {
         /// <summary>
-        /// The random number generator.
+        /// Random generator used for hostname selection on frameworks lacking
+        /// <see cref="Random.Shared"/>.
         /// </summary>
-        private static readonly Random random = new Random();
+#if NET6_0_OR_GREATER
+        // Random.Shared provides a threadsafe instance starting with .NET 6
+#else
+        private static readonly object _randLock = new();
+        private static readonly Random _rand = new();
+#endif
 
 
         private List<string> hostnames = new List<string>();
@@ -196,7 +202,13 @@ namespace DnsClientX {
                         Hostname = hostnames[hostnameIndex];
                         break;
                     case DnsSelectionStrategy.Random:
-                        hostnameIndex = random.Next(hostnames.Count);
+#if NET6_0_OR_GREATER
+                        hostnameIndex = Random.Shared.Next(hostnames.Count);
+#else
+                        lock (_randLock) {
+                            hostnameIndex = _rand.Next(hostnames.Count);
+                        }
+#endif
                         Hostname = hostnames[hostnameIndex];
                         break;
                     case DnsSelectionStrategy.Failover:
