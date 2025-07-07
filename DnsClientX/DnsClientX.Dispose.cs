@@ -75,7 +75,12 @@ namespace DnsClientX {
         /// Disposes managed resources asynchronously when possible.
         /// </summary>
         /// <returns>A task representing the asynchronous disposal.</returns>
+#if !(NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER)
         protected virtual async ValueTask DisposeAsyncCore() {
+            await Task.CompletedTask;
+#else
+        protected virtual async ValueTask DisposeAsyncCore() {
+#endif
             if (!_disposed) {
                 HttpClientHandler? handlerLocal;
                 List<HttpClient> clients;
@@ -134,6 +139,9 @@ namespace DnsClientX {
             }
         }
 
+        /// <summary>
+        /// Finalizer to ensure unmanaged resources are released.
+        /// </summary>
         ~ClientX() {
             Dispose(disposing: false);
         }
