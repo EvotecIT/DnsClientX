@@ -27,16 +27,26 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ServerName")]
         public string[] Name;
+
+        /// <summary>
+        /// <para type="description">Pattern to expand into multiple DNS queries.</para>
+        /// </summary>
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternDnsProvider")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternServerName")]
+        public string Pattern;
         /// <summary>
         /// <para type="description">The type of the record to query for. If not specified, A record is queried.</para>
         /// </summary>
         [Parameter(Mandatory = false, Position = 1, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, Position = 1, ParameterSetName = "ServerName")]
+        [Parameter(Mandatory = false, Position = 1, ParameterSetName = "PatternDnsProvider")]
+        [Parameter(Mandatory = false, Position = 1, ParameterSetName = "PatternServerName")]
         public DnsRecordType[] Type = [DnsRecordType.A];
         /// <summary>
         /// <para type="description">DnsProvider to use for the query. If not specified, the default provider System (UDP) is used.</para>
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
         public DnsEndpoint? DnsProvider;
 
         /// <summary>
@@ -45,6 +55,7 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Alias("ServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
         public List<string> Server = new List<string>();
 
         /// <summary>
@@ -52,6 +63,7 @@ namespace DnsClientX.PowerShell {
         /// <para type="description">When not specified, only the first server is queried for faster results.</para>
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
         public SwitchParameter AllServers;
 
         /// <summary>
@@ -59,12 +71,14 @@ namespace DnsClientX.PowerShell {
         /// <para type="description">This option stops on the first server that returns <c>DnsResponseCode.NoError</c>.</para>
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
         public SwitchParameter Fallback;
 
         /// <summary>
         /// <para type="description">If specified, the order of servers defined in <paramref name="Server"/> is randomized before querying.</para>
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
         public SwitchParameter RandomServer;
         /// <summary>
         /// <para type="description">Provides the full response of the query. If not specified, only the minimal response is provided (just the answer).</para>
@@ -72,12 +86,15 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
         public SwitchParameter FullResponse;
 
         /// <summary>
         /// <para type="description">Specifies the timeout for the DNS query, in milliseconds. If the DNS server does not respond within this time, the query will fail. Default is 1000 ms (1 second) as defined by <see cref="Configuration.DefaultTimeout"/>. Increase this value for slow networks or unreliable servers.</para>
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
         public int TimeOut = Configuration.DefaultTimeout;
 
         /// <summary>
@@ -85,6 +102,8 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
         public int RetryCount = 3;
 
         /// <summary>
@@ -92,6 +111,8 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
         public int RetryDelayMs = 200;
 
         private InternalLogger _logger;
@@ -148,7 +169,8 @@ namespace DnsClientX.PowerShell {
             if (TimeOut <= 0) {
                 throw new ArgumentOutOfRangeException(nameof(TimeOut), "TimeOut must be greater than zero.");
             }
-            string names = string.Join(", ", Name);
+            var namesToUse = Pattern is null ? Name : ClientX.ExpandPattern(Pattern).ToArray();
+            string names = string.Join(", ", namesToUse);
             string types = string.Join(", ", Type);
             if (Server.Count > 0) {
                 var validServers = new List<string>();
@@ -180,7 +202,7 @@ namespace DnsClientX.PowerShell {
                     var aggregatedResults = new List<DnsResponse>();
                     foreach (string serverName in serverOrder) {
                         _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, serverName);
-                        var result = await ExecuteWithRetry(() => ClientX.QueryDns(Name, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
+                        var result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
                         aggregatedResults.AddRange(result);
                     }
                     results = aggregatedResults;
@@ -188,7 +210,7 @@ namespace DnsClientX.PowerShell {
                     var aggregatedResults = new List<DnsResponse>();
                     foreach (string serverName in serverOrder) {
                         _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, serverName);
-                        var result = await ExecuteWithRetry(() => ClientX.QueryDns(Name, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
+                        var result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
                         aggregatedResults.AddRange(result);
                         if (aggregatedResults.Any(r => r.Status == DnsResponseCode.NoError)) {
                             break;
@@ -198,7 +220,7 @@ namespace DnsClientX.PowerShell {
                 } else {
                     string myServer = serverOrder.First();
                     _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, myServer);
-                    var result = await ExecuteWithRetry(() => ClientX.QueryDns(Name, Type, myServer, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
+                    var result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, myServer, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
                     results = result;
                 }
 
@@ -220,10 +242,10 @@ namespace DnsClientX.PowerShell {
                 DnsResponse[] result;
                 if (DnsProvider == null) {
                     _logger.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, "Default");
-                    result = await ExecuteWithRetry(() => ClientX.QueryDns(Name, Type, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
+                    result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
                 } else {
                     _logger.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, DnsProvider.Value);
-                    result = await ExecuteWithRetry(() => ClientX.QueryDns(Name, Type, DnsProvider.Value, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
+                    result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, DnsProvider.Value, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
                 }
 
                 foreach (var record in result) {
