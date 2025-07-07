@@ -77,7 +77,11 @@ namespace DnsClientX {
 
 
             // Authenticate the client using the DNS server's name and the TLS protocol
-            await sslStream.AuthenticateAsClientAsync(dnsServer, null, SslProtocols.Tls12, false).ConfigureAwait(false);
+            try {
+                await sslStream.AuthenticateAsClientAsync(dnsServer, null, SslProtocols.Tls12, false).ConfigureAwait(false);
+            } catch (AuthenticationException ex) {
+                throw new DnsClientException($"TLS handshake failed: {ex.Message}");
+            }
 
             // Write the combined query bytes to the SSL stream and flush it
             await sslStream.WriteAsync(combinedQueryBytes, 0, combinedQueryBytes.Length, cancellationToken).ConfigureAwait(false);
