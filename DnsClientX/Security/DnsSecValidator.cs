@@ -6,7 +6,15 @@ using System.Security.Cryptography;
 using System.Text;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Provides helper methods for validating DNSSEC responses against the built-in root trust anchors.
+    /// </summary>
     public static class DnsSecValidator {
+        /// <summary>
+        /// Validates the supplied <see cref="DnsResponse"/> against known root DS records.
+        /// </summary>
+        /// <param name="response">DNS response to validate.</param>
+        /// <returns><c>true</c> if the response can be validated; otherwise <c>false</c>.</returns>
         public static bool ValidateAgainstRoot(DnsResponse response) {
             if (response.Answers == null) {
                 return false;
@@ -31,6 +39,12 @@ namespace DnsClientX {
             return false;
         }
 
+        /// <summary>
+        /// Attempts to parse a DS record string into a <see cref="RootDsRecord"/> instance.
+        /// </summary>
+        /// <param name="dataRaw">Raw DS record data.</param>
+        /// <param name="record">Parsed record when the method returns <c>true</c>.</param>
+        /// <returns><c>true</c> when parsing succeeds; otherwise <c>false</c>.</returns>
         private static bool TryParseDs(string dataRaw, out RootDsRecord record) {
             record = default;
             if (string.IsNullOrWhiteSpace(dataRaw)) {
@@ -59,6 +73,15 @@ namespace DnsClientX {
             return true;
         }
 
+        /// <summary>
+        /// Attempts to parse a DNSKEY record into its individual components.
+        /// </summary>
+        /// <param name="answer">DNS answer containing the DNSKEY data.</param>
+        /// <param name="flags">Parsed key flags.</param>
+        /// <param name="protocol">DNS protocol value.</param>
+        /// <param name="algorithm">Key algorithm.</param>
+        /// <param name="publicKey">Extracted public key bytes.</param>
+        /// <returns><c>true</c> when parsing succeeds; otherwise <c>false</c>.</returns>
         private static bool TryParseDnsKey(DnsAnswer answer, out ushort flags, out byte protocol, out DnsKeyAlgorithm algorithm, out byte[] publicKey) {
             flags = 0;
             protocol = 0;
@@ -95,6 +118,14 @@ namespace DnsClientX {
             return true;
         }
 
+        /// <summary>
+        /// Computes the key tag value for a DNSKEY record as defined in RFC 4034.
+        /// </summary>
+        /// <param name="flags">DNSKEY flags.</param>
+        /// <param name="protocol">Protocol value.</param>
+        /// <param name="algorithm">Algorithm identifier.</param>
+        /// <param name="publicKey">Public key bytes.</param>
+        /// <returns>The calculated key tag.</returns>
         private static ushort ComputeKeyTag(ushort flags, byte protocol, DnsKeyAlgorithm algorithm, byte[] publicKey) {
             byte[] rdata = new byte[4 + publicKey.Length];
             BinaryPrimitives.WriteUInt16BigEndian(rdata, flags);
@@ -109,6 +140,15 @@ namespace DnsClientX {
             return (ushort)(acc & 0xFFFF);
         }
 
+        /// <summary>
+        /// Computes a SHA-256 digest for the provided DNSKEY parameters.
+        /// </summary>
+        /// <param name="name">Domain name associated with the key.</param>
+        /// <param name="flags">DNSKEY flags.</param>
+        /// <param name="protocol">Protocol value.</param>
+        /// <param name="algorithm">Algorithm identifier.</param>
+        /// <param name="publicKey">Public key bytes.</param>
+        /// <returns>Calculated digest in hexadecimal form.</returns>
         private static string ComputeDigest(string name, ushort flags, byte protocol, DnsKeyAlgorithm algorithm, byte[] publicKey) {
             byte[] owner = DomainToWireFormat(name);
             byte[] rdata = new byte[4 + publicKey.Length];
@@ -124,6 +164,11 @@ namespace DnsClientX {
             return BitConverter.ToString(digestBytes).Replace("-", string.Empty).ToUpperInvariant();
         }
 
+        /// <summary>
+        /// Converts a domain name to its DNS wire format representation.
+        /// </summary>
+        /// <param name="domain">Domain name to convert.</param>
+        /// <returns>Byte array containing the wire format.</returns>
         private static byte[] DomainToWireFormat(string domain) {
             if (string.IsNullOrEmpty(domain) || domain == ".") {
                 return new byte[] { 0 };

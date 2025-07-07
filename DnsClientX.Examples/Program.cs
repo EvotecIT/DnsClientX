@@ -1,7 +1,13 @@
 using System.Threading.Tasks;
 
 namespace DnsClientX.Examples {
+    /// <summary>
+    /// Entry point for executing various example scenarios.
+    /// </summary>
     public static class Program {
+        /// <summary>
+        /// Runs the example routines sequentially.
+        /// </summary>
         public static async Task Main() {
             // await DemoQuery.ExamplePTR();
             // await DemoQuery.ExamplePTR1();

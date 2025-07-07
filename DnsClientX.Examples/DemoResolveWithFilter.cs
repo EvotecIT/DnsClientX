@@ -5,7 +5,13 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace DnsClientX.Examples {
+    /// <summary>
+    /// Demonstrates filtering DNS TXT records across multiple providers.
+    /// </summary>
     internal class DemoResolveWithFilter {
+        /// <summary>
+        /// Executes the filtered resolve example.
+        /// </summary>
         public static async Task Example() {
             var dnsEndpoints = new List<DnsEndpoint> {
                 DnsEndpoint.Cloudflare,
