@@ -145,6 +145,9 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         /// <returns></returns>
         protected override async Task ProcessRecordAsync() {
+            if (TimeOut <= 0) {
+                throw new ArgumentOutOfRangeException(nameof(TimeOut), "TimeOut must be greater than zero.");
+            }
             string names = string.Join(", ", Name);
             string types = string.Join(", ", Type);
             if (Server.Count > 0) {
