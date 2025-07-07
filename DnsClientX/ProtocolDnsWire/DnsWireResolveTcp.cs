@@ -94,8 +94,12 @@ namespace DnsClientX {
                 // Connect to the server with timeout
                 await ConnectAsync(tcpClient, dnsServer, port, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
 
-                // Stream operations wrapped in using to ensure disposal on exceptions
+                // Stream operations wrapped in using/await using to ensure disposal on exceptions
+#if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+                await using var stream = tcpClient.GetStream();
+#else
                 using var stream = tcpClient.GetStream();
+#endif
 
                 // Write the length of the query as a 16-bit big-endian integer
                 var lengthBytes = BitConverter.GetBytes((ushort)query.Length);
