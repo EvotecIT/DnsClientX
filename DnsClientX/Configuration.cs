@@ -322,6 +322,11 @@ namespace DnsClientX {
                     RequestFormat = DnsRequestFormat.DnsOverHttps;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
+                case DnsEndpoint.NextDNS:
+                    hostnames = new List<string> { "dns.nextdns.io" };
+                    RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
+                    baseUriFormat = "https://{0}/dns-query";
+                    break;
                 case DnsEndpoint.Quad9:
                     hostnames = new List<string> { "dns.quad9.net" };
                     RequestFormat = DnsRequestFormat.DnsOverHttps;
