@@ -45,7 +45,7 @@ DnsClientX is available as NuGet from the Nuget Gallery and as PowerShell module
 
 ## What it's all about
 
-**DnsClientX** is an async C# library for DNS over UDP, TCP, HTTPS (DoH), and TLS (DoT). It also has a PowerShell module that can be used to query DNS records. It provides a simple way to query DNS records using multiple DNS providers. It supports multiple DNS record types and parallel queries. It's available for .NET 6, .NET 7, .NET 8, .NET Standard 2.0, and .NET 4.7.2.
+**DnsClientX** is an async C# library for DNS over UDP, TCP, HTTPS (DoH), and TLS (DoT). It also has a PowerShell module that can be used to query DNS records. It provides a simple way to query DNS records using multiple DNS providers. It supports multiple DNS record types and parallel queries. It's available for .NET 8, .NET Standard 2.0, and .NET 4.7.2.
 
 It provides querying multiple DNS Providers.
 
@@ -59,7 +59,7 @@ It provides querying multiple DNS Providers.
 | CloudflareSecurity | ✓ |  |  |  |  |  |  |
 | CloudflareFamily | ✓ |  |  |  |  |  |  |
 | CloudflareQuic |  | ✓ |  |  |  |  |  |
-| CloudflareOdoh |  |  |  |  |  |  | ✓ |
+| CloudflareOdoh |  |  |  |  |  |  | ❌ |
 | Google | ✓ |  |  |  |  |  |  |
 | GoogleWireFormat | ✓ |  |  |  |  |  |  |
 | GoogleWireFormatPost | ✓ |  |  |  |  |  |  |
@@ -72,7 +72,7 @@ It provides querying multiple DNS Providers.
 | Quad9Unsecure | ✓ |  |  |  |  |  |  |
 | OpenDNS | ✓ |  |  |  |  |  |  |
 | OpenDNSFamily | ✓ |  |  |  |  |  |  |
-| DnsCryptCloudflare |  |  |  |  |  | ✓ |  |
+| DnsCryptCloudflare |  |  |  |  |  | ❌ |  |
 | DnsCryptQuad9 |  |  |  |  |  | ✓ |  |
 | DnsCryptRelay |  |  |  |  |  | ✓ |  |
 | RootServer |  |  |  | ✓ | ✓ |  |  |
@@ -86,10 +86,6 @@ If you want to learn about DNS:
 ## Supported .NET Versions
 
 This library supports multiple NET versions:
-- .NET 6
-  - No dependencies
-- .NET 7
-  - No dependencies
 - .NET 8
   - No dependencies
 - .NET Standard 2.0
@@ -101,9 +97,9 @@ This library supports multiple NET versions:
 
 | Platform | Status | Test Report | Code Coverage | .NET |
 | -------- | ------ | ----------- | ------------- | ---- |
-| Windows  | [![Tests Windows](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/30/master?compact_message&style=flat&label=Tests%20Windows)](https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=30) | [![Test Analytics](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/30/master?compact_message&style=flat&label=Test%20Analytics)](https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=30&contextType=build) | [![Coverage](https://img.shields.io/azure-devops/coverage/evotecpl/DnsClientX/30)](https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=30&view=ms.vss-pipelineanalytics-web.new-build-definition-pipeline-analytics-view-cardmetrics) | .NET 4.7.2, NET 4.8, .NET 6.0, .NET 7.0, .NET 8.0, .NET Standard 2.0 |
-| Linux    | [![Tests Linux](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/31/master?compact_message&style=flat&label=Tests%20Linux)](https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=31) | [![Test Analytics](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/31/master?compact_message&style=flat&label=Test%20Analytics)](https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=31&contextType=build) |  | .NET 6.0, .NET 7.0, .NET Standard 2.0, .NET 8.0 |
-| MacOs    | [![Tests MacOs](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/32/master?compact_message&style=flat&label=Tests%20MacOs)](https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=32) | [![Test Analytics](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/32/master?compact_message&style=flat&label=Test%20Analytics)](https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=32&contextType=build) |  | .NET 6.0, .NET 7.0, .NET Standard 2.0, .NET 8.0 |
+| Windows  | [![Tests Windows](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/30/master?compact_message&style=flat&label=Tests%20Windows)](https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=30) | [![Test Analytics](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/30/master?compact_message&style=flat&label=Test%20Analytics)](https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=30&contextType=build) | [![Coverage](https://img.shields.io/azure-devops/coverage/evotecpl/DnsClientX/30)](https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=30&view=ms.vss-pipelineanalytics-web.new-build-definition-pipeline-analytics-view-cardmetrics) | .NET 4.7.2, NET 4.8, .NET 8.0, .NET Standard 2.0 |
+| Linux    | [![Tests Linux](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/31/master?compact_message&style=flat&label=Tests%20Linux)](https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=31) | [![Test Analytics](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/31/master?compact_message&style=flat&label=Test%20Analytics)](https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=31&contextType=build) |  | .NET Standard 2.0, .NET 8.0 |
+| MacOs    | [![Tests MacOs](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/32/master?compact_message&style=flat&label=Tests%20MacOs)](https://dev.azure.com/evotecpl/DnsClientX/_build?definitionId=32) | [![Test Analytics](https://img.shields.io/azure-devops/tests/evotecpl/DnsClientX/32/master?compact_message&style=flat&label=Test%20Analytics)](https://dev.azure.com/evotecpl/DnsClientX/_test/analytics?definitionId=32&contextType=build) |  | .NET Standard 2.0, .NET 8.0 |
 
 ## Features
 
@@ -116,7 +112,7 @@ This library supports multiple NET versions:
 - [x] Supports DNSSEC
 - [x] Supports multiple DNS record types
 - [x] Supports parallel queries
-- [x] No external dependencies on .NET 6, .NET 7 and .NET 8
+- [x] No external dependencies on .NET 8
 - [x] Minimal dependencies on .NET Standard 2.0 and .NET 4.7.2
 - [x] Implements IDisposable to release cached HttpClient resources
 - [x] Multi-line record data normalized to use `\n` line endings
