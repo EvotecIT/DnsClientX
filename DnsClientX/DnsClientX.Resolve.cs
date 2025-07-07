@@ -9,6 +9,9 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Partial <see cref="ClientX"/> class containing main resolve methods.
+    /// </summary>
     public partial class ClientX {
         /// <summary>
         /// Resolves a domain name using DNS over HTTPS. This method provides full control over the output.
@@ -83,31 +86,31 @@ namespace DnsClientX {
             try {
                 if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
                     response = await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
-            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps) {
-                response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
-            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST) {
-                response = await Client.ResolveWireFormatPost(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
-            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.ObliviousDnsOverHttps) {
-                response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
-            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp2) {
-                response = await Client.ResolveWireFormatHttp2(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
-            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp3) {
-                response = await Client.ResolveWireFormatHttp3(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
-            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
-                response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, IgnoreCertificateErrors, cancellationToken).ConfigureAwait(false);
-            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverQuic) {
+                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps) {
+                    response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST) {
+                    response = await Client.ResolveWireFormatPost(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.ObliviousDnsOverHttps) {
+                    response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp2) {
+                    response = await Client.ResolveWireFormatHttp2(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp3) {
+                    response = await Client.ResolveWireFormatHttp3(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
+                    response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, IgnoreCertificateErrors, cancellationToken).ConfigureAwait(false);
+                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverQuic) {
 #if NET8_0_OR_GREATER
                 response = await DnsWireResolveQuic.ResolveWireFormatQuic(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
 #else
-                throw new DnsClientException("DNS over QUIC is not supported on this platform.");
+                    throw new DnsClientException("DNS over QUIC is not supported on this platform.");
 #endif
-            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
-                response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
-            } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
-                response = await DnsWireResolveUdp.ResolveWireFormatUdp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
-            } else {
-                throw new DnsClientException($"Invalid RequestFormat: {EndpointConfiguration.RequestFormat}");
-            }
+                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
+                    response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
+                    response = await DnsWireResolveUdp.ResolveWireFormatUdp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                } else {
+                    throw new DnsClientException($"Invalid RequestFormat: {EndpointConfiguration.RequestFormat}");
+                }
             } catch (Exception ex) {
                 if (auditEntry != null) {
                     auditEntry.Exception = ex;

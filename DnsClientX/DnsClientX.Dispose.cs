@@ -5,6 +5,9 @@ using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Partial <see cref="ClientX"/> class implementing disposal logic.
+    /// </summary>
     public partial class ClientX : IDisposable, IAsyncDisposable {
         private bool _disposed;
         private readonly HashSet<HttpClient> _disposedClients = new();

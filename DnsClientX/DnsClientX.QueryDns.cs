@@ -6,6 +6,9 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Partial <see cref="ClientX"/> class containing core DNS query logic.
+    /// </summary>
     public partial class ClientX {
         /// <summary>
         /// Sends a DNS query for a specific record type to a DNS server.

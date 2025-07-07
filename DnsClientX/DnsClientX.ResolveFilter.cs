@@ -6,6 +6,9 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Partial <see cref="ClientX"/> class with filtering resolve helpers.
+    /// </summary>
     public partial class ClientX {
         /// <summary>
         /// Resolves multiple domain names for a single DNS record type in parallel using DNS over HTTPS.
