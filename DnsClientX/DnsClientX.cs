@@ -141,6 +141,7 @@ namespace DnsClientX {
         /// <param name="httpVersion">Optional HTTP protocol version.</param>
         /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
         /// <param name="enableCache">Enable in-memory caching of responses.</param>
+        /// <param name="useTcpFallback">Falls back to TCP when UDP responses are truncated.</param>
         /// <param name="webProxy">Optional HTTP proxy.</param>
         public ClientX(
             DnsEndpoint endpoint = DnsEndpoint.Cloudflare,
@@ -178,6 +179,7 @@ namespace DnsClientX {
         /// <param name="httpVersion">Optional HTTP protocol version.</param>
         /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
         /// <param name="enableCache">Enable in-memory caching of responses.</param>
+        /// <param name="useTcpFallback">Falls back to TCP when UDP responses are truncated.</param>
         /// <param name="webProxy">Optional HTTP proxy.</param>
         public ClientX(
             string hostname,
@@ -215,6 +217,7 @@ namespace DnsClientX {
         /// <param name="httpVersion">Optional HTTP protocol version.</param>
         /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
         /// <param name="enableCache">Enable in-memory caching of responses.</param>
+        /// <param name="useTcpFallback">Falls back to TCP when UDP responses are truncated.</param>
         /// <param name="webProxy">Optional HTTP proxy.</param>
         public ClientX(
             Uri baseUri,

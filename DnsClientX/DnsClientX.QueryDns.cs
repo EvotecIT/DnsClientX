@@ -22,6 +22,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             if (dnsEndpoint == DnsEndpoint.RootServer) {
@@ -53,6 +54,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>The DNS response.</returns>
         public static DnsResponse QueryDnsSync(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             return QueryDns(name, recordType, dnsEndpoint, dnsSelectionStrategy, timeOutMilliseconds, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();
@@ -70,6 +72,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             if (dnsEndpoint == DnsEndpoint.RootServer) {
@@ -107,6 +110,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>The DNS response.</returns>
         public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             return QueryDns(name, recordType, dnsEndpoint, dnsSelectionStrategy, timeOutMilliseconds, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();
@@ -124,6 +128,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             using var client = new ClientX(dnsUri, requestFormat) {
@@ -150,6 +155,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>The DNS response.</returns>
         public static DnsResponse QueryDnsSync(string name, DnsRecordType recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             return QueryDns(name, recordType, dnsUri, requestFormat, timeOutMilliseconds, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();
@@ -166,6 +172,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns></returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             using var client = new ClientX(dnsUri, requestFormat) {
@@ -191,6 +198,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns></returns>
         public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType[] recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             return QueryDns(name, recordType, dnsUri, requestFormat, timeOutMilliseconds, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();
@@ -208,6 +216,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             using var client = new ClientX(hostName, requestFormat) {
@@ -234,6 +243,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>The DNS response.</returns>
         public static DnsResponse QueryDnsSync(string name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             return QueryDns(name, recordType, hostName, requestFormat, timeOutMilliseconds, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();
@@ -250,6 +260,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns></returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             using var client = new ClientX(hostName, requestFormat) {
@@ -275,6 +286,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns></returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             using var client = new ClientX(hostName, requestFormat) {
@@ -300,6 +312,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns></returns>
         public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType[] recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             return QueryDns(name, recordType, hostName, requestFormat, timeOutMilliseconds, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();
@@ -315,6 +328,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns></returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             using var client = new ClientX(endpoint: dnsEndpoint) {
@@ -340,6 +354,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns></returns>
         public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType[] recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             return QueryDns(name, recordType, dnsEndpoint, timeOutMilliseconds, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();

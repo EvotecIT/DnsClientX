@@ -85,6 +85,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response that matches the filter.</returns>
         public async Task<DnsResponse> ResolveFilter(string name, DnsRecordType type, string filter, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
             var response = await Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
@@ -108,6 +109,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response that matches the filter.</returns>
         public async Task<DnsResponse> ResolveFilter(string name, DnsRecordType type, Regex regexFilter, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
             var response = await Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);

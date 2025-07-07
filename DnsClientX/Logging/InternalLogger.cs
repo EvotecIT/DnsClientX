@@ -3,7 +3,7 @@ using System;
 namespace DnsClientX;
 
 /// <summary>
-/// Internal logger that allows to write to console, error or wherever else is needed
+/// Internal logger that allows writing diagnostic information to various sinks.
 /// </summary>
 public class InternalLogger {
     private readonly object _lock = new object();

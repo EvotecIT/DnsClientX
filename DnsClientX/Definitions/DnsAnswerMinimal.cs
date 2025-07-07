@@ -75,7 +75,7 @@ namespace DnsClientX {
         /// Converts from DnsAnswer[] to DnsAnswerMinimal[].
         /// </summary>
         /// <param name="dnsAnswers">The DNS answers.</param>
-        /// <returns></returns>
+        /// <returns>Array of minimal DNS answers.</returns>
         public static DnsAnswerMinimal[] ConvertFromDnsAnswer(this DnsAnswer[] dnsAnswers) {
             return dnsAnswers.Select(answer => new DnsAnswerMinimal {
                 Name = answer.Name,
