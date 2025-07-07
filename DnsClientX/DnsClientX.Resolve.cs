@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -521,6 +522,91 @@ namespace DnsClientX {
         /// <returns>An array of DNS responses.</returns>
         public DnsResponse[] ResolveSync(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200) {
             return Resolve(names, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs).RunSync();
+        }
+
+        /// <summary>
+        /// Resolves a domain name pattern by expanding wildcards into multiple queries.
+        /// Supported patterns include numeric ranges like <c>server[1-3].example.com</c>
+        /// and brace expansions such as <c>host{a,b}.example.com</c>.
+        /// </summary>
+        /// <param name="pattern">The pattern containing wildcards.</param>
+        /// <param name="type">The DNS resource type to resolve.</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="returnAllTypes">Whether to return all record types.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
+        /// <param name="maxRetries">Maximum number of retries.</param>
+        /// <param name="retryDelayMs">Delay between retries in milliseconds.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <returns>Array of DNS responses for each expanded query.</returns>
+        public async Task<DnsResponse[]> ResolvePattern(
+            string pattern,
+            DnsRecordType type = DnsRecordType.A,
+            bool requestDnsSec = false,
+            bool validateDnsSec = false,
+            bool returnAllTypes = false,
+            bool retryOnTransient = true,
+            int maxRetries = 3,
+            int retryDelayMs = 200,
+            CancellationToken cancellationToken = default) {
+            string[] names = ExpandPattern(pattern).ToArray();
+            return await Resolve(names, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+        }
+
+        public static IEnumerable<string> ExpandPattern(string pattern) {
+            if (string.IsNullOrEmpty(pattern)) yield break;
+
+            var brace = Regex.Match(pattern, "{([^{}]+)}");
+            if (brace.Success) {
+                string before = pattern.Substring(0, brace.Index);
+                string after = pattern.Substring(brace.Index + brace.Length);
+                string inner = brace.Groups[1].Value;
+                IEnumerable<string> replacements;
+
+                var range = Regex.Match(inner, "^(\\d+)\\.\\.(\\d+)$");
+                if (range.Success) {
+                    int start = int.Parse(range.Groups[1].Value, CultureInfo.InvariantCulture);
+                    int end = int.Parse(range.Groups[2].Value, CultureInfo.InvariantCulture);
+                    int width = range.Groups[1].Value.Length;
+                    replacements = Enumerable.Range(start, end - start + 1)
+                        .Select(i => i.ToString($"D{width}"));
+                } else {
+                    replacements = inner.Split(',');
+                }
+
+                foreach (var rep in replacements) {
+                    foreach (var s in ExpandPattern(before + rep + after))
+                        yield return s;
+                }
+                yield break;
+            }
+
+            var square = Regex.Match(pattern, "\\[(\\d+)-(\\d+)\\]");
+            if (square.Success) {
+                string before = pattern.Substring(0, square.Index);
+                string after = pattern.Substring(square.Index + square.Length);
+                int start = int.Parse(square.Groups[1].Value, CultureInfo.InvariantCulture);
+                int end = int.Parse(square.Groups[2].Value, CultureInfo.InvariantCulture);
+                int width = square.Groups[1].Value.Length;
+                for (int i = start; i <= end; i++) {
+                    foreach (var s in ExpandPattern(before + i.ToString($"D{width}") + after))
+                        yield return s;
+                }
+                yield break;
+            }
+
+            int starIndex = pattern.IndexOf('*');
+            if (starIndex >= 0) {
+                string before = pattern.Substring(0, starIndex);
+                string after = pattern.Substring(starIndex + 1);
+                for (int i = 0; i <= 9; i++) {
+                    foreach (var s in ExpandPattern(before + i + after))
+                        yield return s;
+                }
+                yield break;
+            }
+
+            yield return pattern;
         }
     }
 }
