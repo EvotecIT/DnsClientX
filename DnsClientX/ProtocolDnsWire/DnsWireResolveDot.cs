@@ -122,7 +122,11 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         private static async Task ConnectAsync(TcpClient tcpClient, string host, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            linkedCts.CancelAfter(timeoutMilliseconds);
+            if (timeoutMilliseconds <= 0) {
+                linkedCts.Cancel();
+            } else {
+                linkedCts.CancelAfter(timeoutMilliseconds);
+            }
 #if NET5_0_OR_GREATER
             try {
                 await tcpClient.ConnectAsync(host, port, linkedCts.Token).ConfigureAwait(false);
