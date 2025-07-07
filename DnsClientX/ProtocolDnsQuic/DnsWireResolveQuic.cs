@@ -18,6 +18,8 @@ namespace DnsClientX {
     internal static class DnsWireResolveQuic {
         /// <summary>Custom DNS host name resolution delegate used during tests.</summary>
         internal static Func<string, IPHostEntry>? HostEntryResolver;
+        /// <summary>Factory function for creating QUIC connections. Can be overridden in tests.</summary>
+        internal static Func<QuicClientConnectionOptions, CancellationToken, ValueTask<QuicConnection>> QuicConnectionFactory { get; set; } = QuicConnection.ConnectAsync;
         /// <summary>
         /// Executes a DNS-over-QUIC query and returns the parsed response.
         /// </summary>
@@ -92,10 +94,9 @@ namespace DnsClientX {
                 }
             };
 
-            await using var connection = await QuicConnection.ConnectAsync(options, cancellationToken).ConfigureAwait(false);
-            await using var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, cancellationToken).ConfigureAwait(false);
-
             try {
+                await using var connection = await QuicConnectionFactory(options, cancellationToken).ConfigureAwait(false);
+                await using var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, cancellationToken).ConfigureAwait(false);
 
                 await stream.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
                 stream.CompleteWrites();
