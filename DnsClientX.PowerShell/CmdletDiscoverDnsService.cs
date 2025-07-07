@@ -24,7 +24,7 @@ namespace DnsClientX.PowerShell {
         protected override async Task ProcessRecordAsync() {
             using var client = new ClientX();
             var results = await client.DiscoverServices(Domain);
-            WriteObject(results, true);
+            WriteObject(results);
         }
     }
 }
