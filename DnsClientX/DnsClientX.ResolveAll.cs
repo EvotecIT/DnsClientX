@@ -132,6 +132,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of all DNS answers of the provided type.</returns>
         public DnsAnswer[] ResolveAllSync(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             return ResolveAll(name, type, requestDnsSec, validateDnsSec, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();
@@ -149,6 +150,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of all DNS answers of the provided type.</returns>
         public DnsAnswer[] ResolveAllSync(string name, string filter, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             return ResolveAll(name, filter, type, requestDnsSec, validateDnsSec, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();
@@ -166,6 +168,7 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of all DNS answers of the provided type.</returns>
         public DnsAnswer[] ResolveAllSync(string name, Regex regexPattern, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, CancellationToken cancellationToken = default) {
             return ResolveAll(name, regexPattern, type, requestDnsSec, validateDnsSec, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();
