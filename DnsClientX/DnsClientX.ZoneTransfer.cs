@@ -69,8 +69,14 @@ namespace DnsClientX {
                 }
             }
 
-            if (soaCount == 0) {
-                throw new DnsClientException("SOA record not found during zone transfer.");
+            if (soaCount < 2) {
+                throw new DnsClientException("Zone transfer incomplete: closing SOA record missing.");
+            }
+
+            var lastResponse = await DnsWire.DeserializeDnsWireFormat(null, Debug, responses[responses.Count - 1]).ConfigureAwait(false);
+            lastResponse.AddServerDetails(EndpointConfiguration);
+            if (lastResponse.Answers == null || !lastResponse.Answers.Any(a => a.Type == DnsRecordType.SOA)) {
+                throw new DnsClientException("Zone transfer incomplete: closing SOA record missing.");
             }
 
             var rrsets = new List<List<DnsAnswer>>();
