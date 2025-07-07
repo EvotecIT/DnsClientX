@@ -503,6 +503,10 @@ foreach (var endpoint in dnsEndpoints) {
     await foreach (var response in client.ResolveStream(domains.ToArray(), recordTypes.ToArray())) {
         response.DisplayToConsole();
     }
+
+    await foreach (var response in client.ResolveAsyncEnumerable(domains.ToArray(), recordTypes.ToArray())) {
+        response.DisplayToConsole();
+    }
 }
 ```
 
