@@ -328,15 +328,40 @@ namespace DnsClientX {
         /// <param name="strategy">The strategy.</param>
         /// <returns></returns>
         private HttpClient GetClient(DnsSelectionStrategy strategy) {
-            if (!_clients.TryGetValue(strategy, out var client)) {
-                lock (_lock) {
-                    if (!_clients.TryGetValue(strategy, out client)) {
-                        client = CreateOptimizedHttpClient();
-                        _clients[strategy] = client;
+            if (_clients.TryGetValue(strategy, out var client)) {
+                return client;
+            }
+
+            lock (_lock) {
+                if (_clients.TryGetValue(strategy, out client)) {
+                    return client;
+                }
+
+                if (_clients.Count == 0 && Client != null) {
+                    _clients[strategy] = Client;
+                    return Client;
+                }
+
+                foreach (HttpClient existing in _clients.Values) {
+                    if (TryAddDisposedClient(existing)) {
+                        existing.Dispose();
+                        System.Threading.Interlocked.Increment(ref DisposalCount);
+                        handler = null;
                     }
                 }
+                _clients.Clear();
+
+                if (Client != null && TryAddDisposedClient(Client)) {
+                    Client.Dispose();
+                    System.Threading.Interlocked.Increment(ref DisposalCount);
+                    handler = null;
+                }
+
+                client = CreateOptimizedHttpClient();
+                _clients[strategy] = client;
+                Client = client;
+                return client;
             }
-            return client;
         }
 
         /// <summary>
