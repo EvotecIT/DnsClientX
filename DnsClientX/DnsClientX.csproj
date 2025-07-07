@@ -25,6 +25,7 @@
         <Authors>Przemyslaw Klys</Authors>
 
         <LangVersion>Latest</LangVersion>
+        <Nullable>enable</Nullable>
 
         <PackageId>DnsClientX</PackageId>
         <PackageIcon>DnsClientX.png</PackageIcon>

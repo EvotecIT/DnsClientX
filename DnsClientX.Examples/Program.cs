@@ -18,35 +18,35 @@ namespace DnsClientX.Examples {
             await DemoServiceDiscovery.Example();
 
             //await DemoQuery.ExampleTXTAll();
-            return;
-            await DemoQuery.ExampleTXT();
-            await DemoQuery.ExampleSPF();
-            await DemoQuery.ExampleTXTQuad();
-            await DemoQuery.ExampleSPFQuad();
+            //await DemoQuery.ExampleTXT();
+            //await DemoQuery.ExampleSPF();
+            //await DemoQuery.ExampleTXTQuad();
+            //await DemoQuery.ExampleSPFQuad();
             return;
 
+            // The lines below are retained for reference and intentionally
+            // disabled to avoid unreachable code warnings.
             // await ConvertToDnsClient.ExampleConvertToDnsClientFromX();
             // await ConvertToDnsClient.ExampleConvertFromDnsClientToX();
-            //await DemoQuery.ExampleTesting();
-            //await DemoByManualUrl.ExampleTesting();
-            //await DemoByManualUrl.ExampleTestingHttpOverPost();
-            //await DemoByManualUrl.ExampleTestingUdp();
-            //await DemoByManualUrl.ExampleTestingTcp();
-            //await DemoByManualUrl.ExampleGoogle();
+            // await DemoQuery.ExampleTesting();
+            // await DemoByManualUrl.ExampleTesting();
+            // await DemoByManualUrl.ExampleTestingHttpOverPost();
+            // await DemoByManualUrl.ExampleTestingUdp();
+            // await DemoByManualUrl.ExampleTestingTcp();
+            // await DemoByManualUrl.ExampleGoogle();
 
-            //await GetSystemDns.Example1();
-            //await DemoQuery.Example0();
-            //await DemoQuery.ExampleTLSA();
+            // await GetSystemDns.Example1();
+            // await DemoQuery.Example0();
+            // await DemoQuery.ExampleTLSA();
 
-            await DemoResolveUdpTcp.ExampleTestingUdpWrongServer();
-            await DemoResolveUdpTcp.ExampleTestingUdpWrongServer1();
+            // await DemoResolveUdpTcp.ExampleTestingUdpWrongServer();
+            // await DemoResolveUdpTcp.ExampleTestingUdpWrongServer1();
 
-            return;
-            await DemoQuery.Example1();
-            await DemoQuery.ExampleGoogleOverWire();
-            await DemoQuery.ExampleGoogleOverWirePost();
-            await DemoQuery.ExampleCloudflareSelection();
-            //await DemoQuery.ExampleSystemDns();
+            // await DemoQuery.Example1();
+            // await DemoQuery.ExampleGoogleOverWire();
+            // await DemoQuery.ExampleGoogleOverWirePost();
+            // await DemoQuery.ExampleCloudflareSelection();
+            // await DemoQuery.ExampleSystemDns();
 
 
 
