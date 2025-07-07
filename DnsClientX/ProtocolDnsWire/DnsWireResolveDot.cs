@@ -20,6 +20,7 @@ namespace DnsClientX {
         /// <param name="validateDnsSec">if set to <c>true</c> [validate DNS sec].</param>
         /// <param name="debug">if set to <c>true</c> [debug].</param>
         /// <param name="endpointConfiguration">Configuration used for server details.</param>
+        /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>The DNS response.</returns>
         /// <exception cref="System.ArgumentNullException">name - Name is null or empty.</exception>
