@@ -12,7 +12,7 @@ namespace DnsClientX.Tests {
             MethodInfo method = typeof(ClientX).GetMethod("ConnectAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
             using var tcpClient = new TcpClient();
             await Assert.ThrowsAsync<TimeoutException>(async () =>
-                await (Task)method.Invoke(null, new object[] { tcpClient, "127.0.0.1", 65535, 1, CancellationToken.None })!);
+                await (Task)method.Invoke(null, new object[] { tcpClient, "localhost", 65535, 0, CancellationToken.None })!);
             Assert.Null(tcpClient.Client);
         }
     }
