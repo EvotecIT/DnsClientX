@@ -2,7 +2,13 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace DnsClientX.Examples {
+    /// <summary>
+    /// Demonstrates resolving records and taking the first successful result.
+    /// </summary>
     public class DemoResolveFirst {
+        /// <summary>
+        /// Executes the resolve-first example.
+        /// </summary>
         public static async Task Example() {
             var dnsEndpoints = new List<DnsEndpoint> {
                 DnsEndpoint.Cloudflare,

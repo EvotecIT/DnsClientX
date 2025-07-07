@@ -3,7 +3,13 @@ using System.Linq;
 using System.Threading.Tasks;
 
 namespace DnsClientX.Examples {
+    /// <summary>
+    /// Demonstrates sending DNS queries to multiple providers in parallel.
+    /// </summary>
     public class DemoResolveParallel {
+        /// <summary>
+        /// Executes the parallel resolve example.
+        /// </summary>
         public static async Task Example() {
             var dnsEndpoints = new List<DnsEndpoint> {
                 DnsEndpoint.Cloudflare,

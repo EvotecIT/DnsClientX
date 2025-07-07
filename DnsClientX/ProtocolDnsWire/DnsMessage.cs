@@ -27,6 +27,15 @@ namespace DnsClientX {
             : this(name, type, requestDnsSec, requestDnsSec, 4096, null) {
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DnsMessage"/> class with advanced options.
+        /// </summary>
+        /// <param name="name">Domain name to query.</param>
+        /// <param name="type">Record type to query.</param>
+        /// <param name="requestDnsSec">Whether DNSSEC records should be requested.</param>
+        /// <param name="enableEdns">Enable EDNS OPT record.</param>
+        /// <param name="udpBufferSize">UDP buffer size for EDNS.</param>
+        /// <param name="subnet">Optional EDNS client subnet.</param>
         public DnsMessage(string name, DnsRecordType type, bool requestDnsSec, bool enableEdns, int udpBufferSize, string? subnet) {
             _name = name;
             _type = type;

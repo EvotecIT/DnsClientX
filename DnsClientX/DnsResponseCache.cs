@@ -12,6 +12,11 @@ namespace DnsClientX {
         /// Wrapper class storing cached response together with its expiration timestamp.
         /// </summary>
         private class CacheEntry {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="CacheEntry"/> class.
+            /// </summary>
+            /// <param name="response">DNS response to cache.</param>
+            /// <param name="expiration">Expiration time of the cached entry.</param>
             public CacheEntry(DnsResponse response, DateTimeOffset expiration) {
                 Response = response;
                 Expiration = expiration;

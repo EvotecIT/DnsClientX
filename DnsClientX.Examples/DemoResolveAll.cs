@@ -3,7 +3,13 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace DnsClientX.Examples {
+    /// <summary>
+    /// Demonstrates resolving records from all configured DNS providers.
+    /// </summary>
     public static class DemoResolveAll {
+        /// <summary>
+        /// Executes the resolve-all example.
+        /// </summary>
         public static async Task Example() {
             var dnsEndpoints = new List<DnsEndpoint> {
                 DnsEndpoint.Cloudflare,

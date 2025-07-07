@@ -4,7 +4,18 @@ using System.Net;
 using Spectre.Console;
 
 namespace DnsClientX.Examples {
+    /// <summary>
+    /// Helper methods for rendering output using Spectre.Console.
+    /// </summary>
     public static class HelpersSpectre {
+        /// <summary>
+        /// Writes a formatted rule describing a DNS query.
+        /// </summary>
+        /// <param name="queryType">Query type description.</param>
+        /// <param name="name">Record name.</param>
+        /// <param name="recordType">DNS record type.</param>
+        /// <param name="endpoint">DNS endpoint.</param>
+        /// <param name="dnsRequestFormat">Optional request format.</param>
         public static void AddLine(string queryType, string name, DnsRecordType recordType, DnsEndpoint endpoint, DnsRequestFormat? dnsRequestFormat = null) {
             if (dnsRequestFormat == null) {
                 AnsiConsole.Write(new Rule($"[blue]{queryType}[/] on [yellow]{endpoint}[/] => [red]{name}[/] => [green]{recordType}[/]"));
@@ -13,6 +24,14 @@ namespace DnsClientX.Examples {
             }
         }
 
+        /// <summary>
+        /// Writes a formatted rule describing a DNS query when the record type is provided as a string.
+        /// </summary>
+        /// <param name="queryType">Query type description.</param>
+        /// <param name="name">Record name.</param>
+        /// <param name="recordType">DNS record type as string.</param>
+        /// <param name="endpoint">DNS endpoint.</param>
+        /// <param name="dnsRequestFormat">Optional request format.</param>
         public static void AddLine(string queryType, string name, string recordType, DnsEndpoint endpoint, DnsRequestFormat? dnsRequestFormat = null) {
             if (dnsRequestFormat == null) {
                 AnsiConsole.Write(new Rule($"[blue]{queryType}[/] on [yellow]{endpoint}[/] => [red]{name}[/] => [green]{recordType}[/]"));
@@ -21,6 +40,14 @@ namespace DnsClientX.Examples {
             }
         }
 
+        /// <summary>
+        /// Writes a rule describing a DNS query to a specific host.
+        /// </summary>
+        /// <param name="queryType">Query type description.</param>
+        /// <param name="name">Record name.</param>
+        /// <param name="recordType">DNS record type.</param>
+        /// <param name="hostName">Target host name.</param>
+        /// <param name="dnsRequestFormat">Optional request format.</param>
         public static void AddLine(string queryType, string name, DnsRecordType recordType, string hostName, DnsRequestFormat? dnsRequestFormat = null) {
             if (dnsRequestFormat == null) {
                 AnsiConsole.Write(new Rule($"[blue]{queryType}[/] on [yellow]{hostName}[/] => [red]{name}[/] => [green]{recordType}[/]"));
@@ -29,6 +56,14 @@ namespace DnsClientX.Examples {
             }
         }
 
+        /// <summary>
+        /// Writes a rule describing a DNS query sent to a specified URI.
+        /// </summary>
+        /// <param name="queryType">Query type description.</param>
+        /// <param name="name">Record name.</param>
+        /// <param name="recordType">DNS record type.</param>
+        /// <param name="uri">Destination URI.</param>
+        /// <param name="dnsRequestFormat">Optional request format.</param>
         public static void AddLine(string queryType, string name, DnsRecordType recordType, Uri uri, DnsRequestFormat? dnsRequestFormat = null) {
             if (dnsRequestFormat == null) {
                 AnsiConsole.Write(new Rule($"[blue]{queryType}[/] on [yellow]{uri}[/] => [red]{name}[/] => [green]{recordType}[/]"));
@@ -37,6 +72,10 @@ namespace DnsClientX.Examples {
             }
         }
 
+        /// <summary>
+        /// Renders a table summarizing the DNS response without server details.
+        /// </summary>
+        /// <param name="response">DNS response to display.</param>
         public static void DisplayTableAlternative(this DnsResponse response) {
             var table = new Table().Border(TableBorder.Rounded);
             table.AddColumn("Status");
@@ -65,6 +104,10 @@ namespace DnsClientX.Examples {
         }
 
 
+        /// <summary>
+        /// Renders a detailed table for a single DNS response including server information.
+        /// </summary>
+        /// <param name="response">DNS response to display.</param>
         public static void DisplayTable(this DnsResponse response) {
             var table = new Table().Border(TableBorder.Rounded);
             table.AddColumn("Status");
