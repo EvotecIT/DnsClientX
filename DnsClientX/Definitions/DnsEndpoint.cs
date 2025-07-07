@@ -87,6 +87,10 @@ namespace DnsClientX {
         /// </summary>
         AdGuardNonFiltering,
         /// <summary>
+        /// NextDNS DNS-over-HTTPS endpoint.
+        /// </summary>
+        NextDNS,
+        /// <summary>
         /// Cloudflare DNSCrypt endpoint.
         /// </summary>
         DnsCryptCloudflare,

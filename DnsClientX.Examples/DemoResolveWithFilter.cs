@@ -24,7 +24,8 @@ namespace DnsClientX.Examples {
                 DnsEndpoint.Quad9ECS,
                 DnsEndpoint.Quad9Unsecure,
                 DnsEndpoint.OpenDNS,
-                DnsEndpoint.OpenDNSFamily
+                DnsEndpoint.OpenDNSFamily,
+                DnsEndpoint.NextDNS
             };
 
             // List of endpoints to exclude
@@ -77,7 +78,8 @@ namespace DnsClientX.Examples {
                 DnsEndpoint.Quad9ECS,
                 DnsEndpoint.Quad9Unsecure,
                 DnsEndpoint.OpenDNS,
-                DnsEndpoint.OpenDNSFamily
+                DnsEndpoint.OpenDNSFamily,
+                DnsEndpoint.NextDNS
             };
 
             // List of endpoints to exclude
