@@ -21,6 +21,17 @@ namespace DnsClientX.Tests {
             var field = typeof(ClientX).GetField("_webProxy", BindingFlags.NonPublic | BindingFlags.Instance)!;
             Assert.Same(proxy, field.GetValue(client));
         }
+
+        [Fact]
+        public void BuildShouldApplyEdnsOptions() {
+            var options = new EdnsOptions { EnableEdns = true, UdpBufferSize = 2048, Subnet = "192.0.2.0/24" };
+
+            using var client = new ClientXBuilder()
+                .WithEdnsOptions(options)
+                .Build();
+
+            Assert.Same(options, client.EndpointConfiguration.EdnsOptions);
+        }
     }
 }
 

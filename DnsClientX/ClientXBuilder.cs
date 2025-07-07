@@ -8,6 +8,7 @@ namespace DnsClientX {
         private DnsEndpoint _endpoint = DnsEndpoint.Cloudflare;
         private int _timeout = Configuration.DefaultTimeout;
         private IWebProxy? _proxy;
+        private EdnsOptions? _ednsOptions;
 
         /// <summary>
         /// Sets the DNS endpoint to use.
@@ -37,10 +38,23 @@ namespace DnsClientX {
         }
 
         /// <summary>
+        /// Configures EDNS options for DNS queries.
+        /// </summary>
+        /// <param name="options">The EDNS options to apply.</param>
+        public ClientXBuilder WithEdnsOptions(EdnsOptions options) {
+            _ednsOptions = options;
+            return this;
+        }
+
+        /// <summary>
         /// Builds and returns a configured <see cref="ClientX"/> instance.
         /// </summary>
         public ClientX Build() {
-            return new ClientX(_endpoint, DnsSelectionStrategy.First, _timeout, webProxy: _proxy);
+            var client = new ClientX(_endpoint, DnsSelectionStrategy.First, _timeout, webProxy: _proxy);
+            if (_ednsOptions != null) {
+                client.EndpointConfiguration.EdnsOptions = _ednsOptions;
+            }
+            return client;
         }
     }
 }
