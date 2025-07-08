@@ -68,48 +68,52 @@ namespace DnsClientX {
                 Settings.Logger.WriteDebug($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
 
-            // Create a new TCP client and connect to the DNS server
-            using var client = new TcpClient();
-            await ConnectAsync(client, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
-
-            // Create a new SSL stream for the secure connection
-            using var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) =>
-                sslPolicyErrors == SslPolicyErrors.None || ignoreCertificateErrors);
-
-
-            // Authenticate the client using the DNS server's name and the TLS protocol
             try {
+                // Create a new TCP client and connect to the DNS server
+                using var client = new TcpClient();
+                await ConnectAsync(client, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
+
+                // Create a new SSL stream for the secure connection
+                using var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) =>
+                    sslPolicyErrors == SslPolicyErrors.None || ignoreCertificateErrors);
+
                 await sslStream.AuthenticateAsClientAsync(dnsServer, null, SslProtocols.Tls12, false).ConfigureAwait(false);
-            } catch (Exception ex) when (ex is AuthenticationException || ex is IOException) {
-                throw new DnsClientException($"TLS handshake failed: {ex.Message}");
-            }
 
-            // Write the combined query bytes to the SSL stream and flush it
-            await sslStream.WriteAsync(combinedQueryBytes, 0, combinedQueryBytes.Length, cancellationToken).ConfigureAwait(false);
-            await sslStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                // Write the combined query bytes to the SSL stream and flush it
+                await sslStream.WriteAsync(combinedQueryBytes, 0, combinedQueryBytes.Length, cancellationToken).ConfigureAwait(false);
+                await sslStream.FlushAsync(cancellationToken).ConfigureAwait(false);
 
-            // Prepare to read the response with handling for length prefix
-            var lengthPrefixBuffer = new byte[2];
-            int prefixBytesRead = await sslStream.ReadAsync(lengthPrefixBuffer, 0, 2, cancellationToken).ConfigureAwait(false);
-            if (prefixBytesRead != 2) {
-                throw new Exception("Failed to read the length prefix of the response.");
-            }
-            int responseLength = (lengthPrefixBuffer[0] << 8) + lengthPrefixBuffer[1]; // Calculate total response length
-
-            var responseBuffer = new byte[responseLength];
-            int totalBytesRead = 0;
-            while (totalBytesRead < responseLength) {
-                int bytesRead = await sslStream.ReadAsync(responseBuffer, totalBytesRead, responseLength - totalBytesRead, cancellationToken).ConfigureAwait(false);
-                if (bytesRead == 0) {
-                    throw new Exception("The stream was closed before the entire response could be read.");
+                // Prepare to read the response with handling for length prefix
+                var lengthPrefixBuffer = new byte[2];
+                int prefixBytesRead = await sslStream.ReadAsync(lengthPrefixBuffer, 0, 2, cancellationToken).ConfigureAwait(false);
+                if (prefixBytesRead != 2) {
+                    throw new Exception("Failed to read the length prefix of the response.");
                 }
-                totalBytesRead += bytesRead;
-            }
+                int responseLength = (lengthPrefixBuffer[0] << 8) + lengthPrefixBuffer[1]; // Calculate total response length
 
-            // Deserialize the response from DNS wire format
-            var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
-            response.AddServerDetails(endpointConfiguration);
-            return response;
+                var responseBuffer = new byte[responseLength];
+                int totalBytesRead = 0;
+                while (totalBytesRead < responseLength) {
+                    int bytesRead = await sslStream.ReadAsync(responseBuffer, totalBytesRead, responseLength - totalBytesRead, cancellationToken).ConfigureAwait(false);
+                    if (bytesRead == 0) {
+                        throw new Exception("The stream was closed before the entire response could be read.");
+                    }
+                    totalBytesRead += bytesRead;
+                }
+
+                // Deserialize the response from DNS wire format
+                var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
+                response.AddServerDetails(endpointConfiguration);
+                return response;
+            } catch (Exception ex) {
+                var failureResponse = new DnsResponse {
+                    Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverTLS, Type = type, OriginalName = name } ],
+                    Status = ex is TimeoutException ? DnsResponseCode.ServerFailure : DnsResponseCode.Refused
+                };
+                failureResponse.AddServerDetails(endpointConfiguration);
+                failureResponse.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message}";
+                throw new DnsClientException(failureResponse.Error!, failureResponse);
+            }
         }
 
         /// <summary>
