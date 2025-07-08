@@ -32,7 +32,7 @@ namespace DnsClientX.Tests {
                 return Task.FromResult(new DnsResponse { Answers = Array.Empty<DnsAnswer>() });
             };
 
-            var results = new List<DnsServiceDiscovery>();
+            var results = new List<DnsService>();
             await foreach (var r in client.EnumerateServicesAsync("example.com", CancellationToken.None)) {
                 results.Add(r);
             }
