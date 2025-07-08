@@ -19,6 +19,16 @@ namespace DnsClientX.Tests {
             }
         }
 
+        private class Http2ErrorHandler : HttpMessageHandler {
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
+                var response = new HttpResponseMessage(HttpStatusCode.InternalServerError) {
+                    Content = new StringContent("server error")
+                };
+                response.Version = HttpVersion.Version20;
+                return Task.FromResult(response);
+            }
+        }
+
         [Fact]
         public async Task ResolveWireFormatHttp2_UsesHttp2() {
             var handler = new Http2Handler();
@@ -29,6 +39,18 @@ namespace DnsClientX.Tests {
             Assert.Equal(HttpVersion.Version20, handler.Request?.Version);
             Assert.Equal(HttpVersionPolicy.RequestVersionOrHigher, handler.Request?.VersionPolicy);
             Assert.Equal(DnsResponseCode.NoError, response.Status);
+        }
+
+        [Fact]
+        public async Task ResolveWireFormatHttp2_IncludesBodyOnError() {
+            var handler = new Http2ErrorHandler();
+            using var client = new HttpClient(handler) { BaseAddress = new Uri("https://example.com/dns-query") };
+            var config = new Configuration(new Uri("https://example.com/dns-query"), DnsRequestFormat.DnsOverHttp2);
+
+            var ex = await Assert.ThrowsAsync<DnsClientException>(() =>
+                DnsWireResolveHttp2.ResolveWireFormatHttp2(client, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None));
+
+            Assert.Contains("server error", ex.Message);
         }
     }
 }

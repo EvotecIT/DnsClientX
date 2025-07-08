@@ -18,6 +18,16 @@ namespace DnsClientX.Tests {
                 return Task.FromResult(response);
             }
         }
+        private class Http3ErrorHandler : HttpMessageHandler {
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
+                var response = new HttpResponseMessage(HttpStatusCode.InternalServerError) {
+                    Content = new StringContent("server error")
+                };
+                response.Version = HttpVersion.Version30;
+                return Task.FromResult(response);
+            }
+        }
+
 
         [Fact]
         public async Task ResolveWireFormatHttp3_UsesHttp3() {
@@ -30,6 +40,18 @@ namespace DnsClientX.Tests {
             Assert.Equal(HttpVersionPolicy.RequestVersionOrHigher, handler.Request?.VersionPolicy);
             Assert.Equal(DnsResponseCode.NoError, response.Status);
         }
+        [Fact]
+        public async Task ResolveWireFormatHttp3_IncludesBodyOnError() {
+            var handler = new Http3ErrorHandler();
+            using var client = new HttpClient(handler) { BaseAddress = new Uri("https://example.com/dns-query") };
+            var config = new Configuration(new Uri("https://example.com/dns-query"), DnsRequestFormat.DnsOverHttp3);
+
+            var ex = await Assert.ThrowsAsync<DnsClientException>(() =>
+                DnsWireResolveHttp3.ResolveWireFormatHttp3(client, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None));
+
+            Assert.Contains("server error", ex.Message);
+        }
+
     }
 }
 #endif

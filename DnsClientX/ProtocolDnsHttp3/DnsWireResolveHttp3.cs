@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text;
 
 namespace DnsClientX {
     /// <summary>
@@ -46,12 +47,32 @@ namespace DnsClientX {
 
             try {
                 using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
-                DnsResponse response = await res.DeserializeDnsWireFormat(debug).ConfigureAwait(false);
+                byte[] responseBytes = await res.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+                DnsResponse response;
+                if (res.StatusCode == HttpStatusCode.OK) {
+                    response = await res.DeserializeDnsWireFormat(debug, responseBytes).ConfigureAwait(false);
+                } else {
+                    try {
+                        response = await res.DeserializeDnsWireFormat(debug, responseBytes).ConfigureAwait(false);
+                    } catch {
+                        response = new DnsResponse { Status = DnsResponseCode.ServerFailure };
+                    }
+                }
                 response.AddServerDetails(endpointConfiguration);
                 if (res.StatusCode != HttpStatusCode.OK || !string.IsNullOrEmpty(response.Error)) {
+                    string body = string.Empty;
+                    if (res.StatusCode != HttpStatusCode.OK) {
+                        try {
+                            body = Encoding.UTF8.GetString(responseBytes);
+                        } catch {
+                            body = string.Empty;
+                        }
+                    }
+
                     string message = string.Concat(
                         $"Failed to query type {type} of \"{name}\", received HTTP status code {res.StatusCode}.",
                         string.IsNullOrEmpty(response.Error) ? string.Empty : $"\nError: {response.Error}",
+                        string.IsNullOrEmpty(body) ? string.Empty : $"\nBody: {body}",
                         response.Comments is null ? string.Empty : $"\nComments: {string.Join(", ", response.Comments)}");
                     throw new DnsClientException(message, response);
                 }
