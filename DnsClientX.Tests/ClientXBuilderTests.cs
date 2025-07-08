@@ -1,5 +1,6 @@
 using System.Net;
 using System.Reflection;
+using System.Collections.Generic;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -31,6 +32,27 @@ namespace DnsClientX.Tests {
                 .Build();
 
             Assert.Same(options, client.EndpointConfiguration.EdnsOptions);
+        }
+
+        [Fact]
+        public void BuildShouldValidateHostnames() {
+            using var client = new ClientXBuilder()
+                .WithEndpoint(DnsEndpoint.Cloudflare)
+                .Build();
+
+            Assert.NotNull(client.EndpointConfiguration.Hostname);
+        }
+
+        [Fact]
+        public void BuildShouldThrowOnInvalidHostname() {
+            var field = typeof(SystemInformation).GetField("cachedDnsServers", BindingFlags.NonPublic | BindingFlags.Static)!;
+            var original = (Lazy<List<string>>)field.GetValue(null)!;
+            try {
+                field.SetValue(null, new Lazy<List<string>>(() => new List<string> { "inv@lid_host" }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication));
+                Assert.Throws<ArgumentException>(() => new ClientXBuilder().WithEndpoint(DnsEndpoint.System).Build());
+            } finally {
+                field.SetValue(null, original);
+            }
         }
     }
 }
