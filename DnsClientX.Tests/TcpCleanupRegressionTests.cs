@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Net.NetworkInformation;
 using System.Net;
+using System.Linq;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -35,17 +36,44 @@ namespace DnsClientX.Tests {
             listener.Stop();
         }
 
-        private static Task<bool> HasOpenTcpConnectionAsync(int port) {
-            var connections = IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpConnections();
-            foreach (var c in connections) {
-                if (c.LocalEndPoint.Port == port || c.RemoteEndPoint.Port == port) {
-                    if (c.State != TcpState.TimeWait && c.State != TcpState.Closed) {
-                        return Task.FromResult(true);
+        private static async Task<bool> HasOpenTcpConnectionAsync(int port) {
+            if (IsWindows()) {
+                try {
+                    var connTask = Task.Run(() => IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpConnections());
+                    if (await Task.WhenAny(connTask, Task.Delay(2000)) == connTask) {
+                        var connections = connTask.Result;
+                        return connections.Any(c => (c.LocalEndPoint.Port == port || c.RemoteEndPoint.Port == port) && c.State != TcpState.TimeWait && c.State != TcpState.Closed);
                     }
+                } catch {
+                    // fall back to netstat
                 }
             }
 
-            return Task.FromResult(false);
+            try {
+                string args = IsWindows() ? "-ano" : "-an";
+                using var proc = new Process();
+                proc.StartInfo.FileName = "netstat";
+                proc.StartInfo.Arguments = args;
+                proc.StartInfo.RedirectStandardOutput = true;
+                proc.StartInfo.UseShellExecute = false;
+                proc.Start();
+                var readTask = proc.StandardOutput.ReadToEndAsync();
+                var timeoutTask = Task.Delay(2000);
+                var completed = await Task.WhenAny(readTask, timeoutTask);
+                if (completed == readTask) {
+                    string output = await readTask;
+                    if (!proc.HasExited) {
+                        try { proc.Kill(); } catch { }
+                    }
+                    return output.Contains($":{port}");
+                } else {
+                    try { proc.Kill(); } catch { }
+                }
+            } catch {
+                // ignore and assume no connection
+            }
+
+            return false;
         }
 
         [Fact]
