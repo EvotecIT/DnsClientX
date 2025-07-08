@@ -32,17 +32,17 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
-        public async Task ResolveWireFormatTcp_ShouldTimeoutOnStalledServer() {
+        public async Task SendQueryOverTcp_ShouldTimeoutOnStalledServer() {
             int port = GetFreePort();
             using var cts = new CancellationTokenSource();
             var serverTask = RunStallingServerAsync(port, cts.Token);
 
-            var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTCP) { Port = port, TimeOut = 200 };
+            var queryBytes = new DnsMessage("example.com", DnsRecordType.A, false).SerializeDnsWireFormat();
             Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveTcp")!;
-            MethodInfo method = type.GetMethod("ResolveWireFormatTcp", BindingFlags.Static | BindingFlags.NonPublic)!;
+            MethodInfo method = type.GetMethod("SendQueryOverTcp", BindingFlags.Static | BindingFlags.NonPublic)!;
 
             await Assert.ThrowsAsync<TimeoutException>(async () => {
-                var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None })!;
+                var task = (Task<byte[]>)method.Invoke(null, new object[] { queryBytes, "127.0.0.1", port, 200, CancellationToken.None })!;
                 await task;
             });
 
