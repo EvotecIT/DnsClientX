@@ -46,7 +46,11 @@ namespace DnsClientX.Tests {
                 Request = request;
                 byte[] responseBytes = { 0x00, 0x01, 0x81, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
                 var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(responseBytes) };
+#if NET5_0_OR_GREATER
                 response.Version = HttpVersion.Version20;
+#else
+                response.Version = new Version(2, 0);
+#endif
                 return Task.FromResult(response);
             }
         }
