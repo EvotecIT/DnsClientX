@@ -36,9 +36,11 @@ namespace DnsClientX.Tests {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var serverTask = RunUdpServerNoReplyAsync(port, 2, cts.Token);
 
+            // Give the client a slightly larger timeout so retries have time to
+            // fire on slower systems.
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
                 Port = port,
-                TimeOut = 10
+                TimeOut = 50
             };
             Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
             MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
