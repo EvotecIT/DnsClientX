@@ -105,6 +105,23 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
+        public async Task UdpRequest_ShouldIncludeCdBit_WhenValidateDnsSecTrue() {
+            int port = GetFreePort();
+            var response = CreateDnsHeader();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var udpTask = RunUdpServerAsync(port, response, cts.Token);
+
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP, useTcpFallback: false);
+            client.EndpointConfiguration.Port = port;
+
+            await client.Resolve("example.com", DnsRecordType.A, requestDnsSec: false, validateDnsSec: true, retryOnTransient: false, cancellationToken: cts.Token);
+
+            byte[] query = await udpTask;
+
+            AssertCdBit(query, "example.com", 0x10u);
+        }
+
+        [Fact]
         public void DotRequest_ShouldIncludeCdBit_WhenConfigured() {
             var message = new DnsMessage("example.com", DnsRecordType.A, false, true, 4096, null, true);
             byte[] data = message.SerializeDnsWireFormat();
