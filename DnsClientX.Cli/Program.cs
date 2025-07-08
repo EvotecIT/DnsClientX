@@ -18,6 +18,7 @@ namespace DnsClientX.Cli {
             DnsEndpoint endpoint = DnsEndpoint.System;
             bool requestDnsSec = false;
             bool validateDnsSec = false;
+            bool wirePost = false;
 
             using var cts = new CancellationTokenSource();
             Console.CancelKeyPress += (_, e) => {
@@ -49,6 +50,9 @@ namespace DnsClientX.Cli {
                     case var opt when opt.Equals("--validate-dnssec", StringComparison.OrdinalIgnoreCase):
                         validateDnsSec = true;
                         break;
+                    case var opt when opt.Equals("--wire-post", StringComparison.OrdinalIgnoreCase):
+                        wirePost = true;
+                        break;
                     default:
                         if (domain is null) {
                             domain = args[i];
@@ -67,6 +71,9 @@ namespace DnsClientX.Cli {
 
             try {
                 await using var client = new ClientX(endpoint);
+                if (wirePost) {
+                    client.EndpointConfiguration.RequestFormat = DnsRequestFormat.DnsOverHttpsWirePost;
+                }
                 var response = await client.Resolve(domain, recordType, requestDnsSec, validateDnsSec, cancellationToken: cts.Token);
                 Console.WriteLine($"Status: {response.Status}");
                 foreach (var answer in response.Answers) {
@@ -91,6 +98,7 @@ namespace DnsClientX.Cli {
             Console.WriteLine("  -e, --endpoint <name>    DNS endpoint name (default System)");
             Console.WriteLine("      --dnssec             Request DNSSEC records");
             Console.WriteLine("      --validate-dnssec    Validate DNSSEC records");
+            Console.WriteLine("      --wire-post          Use wire format POST for DNS-over-HTTPS");
             Console.WriteLine();
             Console.WriteLine("Available endpoints:");
             foreach (var (ep, desc) in DnsEndpointExtensions.GetAllWithDescriptions()) {

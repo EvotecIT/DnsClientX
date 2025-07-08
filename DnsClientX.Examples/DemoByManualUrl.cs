@@ -58,8 +58,8 @@ namespace DnsClientX.Examples {
         /// Demonstrates querying using HTTP POST.
         /// </summary>
         public static async Task ExampleTestingHttpOverPost() {
-            HelpersSpectre.AddLine("Resolve", "www.example.com", DnsRecordType.A, new Uri("https://1.1.1.1/dns-query"), DnsRequestFormat.DnsOverHttpsPOST);
-            using (var client = new ClientX(new Uri("https://1.1.1.1/dns-query"), DnsRequestFormat.DnsOverHttpsPOST) {
+            HelpersSpectre.AddLine("Resolve", "www.example.com", DnsRecordType.A, new Uri("https://1.1.1.1/dns-query"), DnsRequestFormat.DnsOverHttpsWirePost);
+            using (var client = new ClientX(new Uri("https://1.1.1.1/dns-query"), DnsRequestFormat.DnsOverHttpsWirePost) {
                    Debug = false
                }) {
                 var data = await client.Resolve("www.example.com", DnsRecordType.A);

@@ -65,9 +65,9 @@ namespace DnsClientX.Examples {
 
         public static async Task ExampleHttpsOverPost() {
             HelpersSpectre.AddLine("QueryDns", "evotec.pl", DnsRecordType.A, new Uri("https://1.1.1.1/dns-query"),
-                DnsRequestFormat.DnsOverHttpsPOST);
+                DnsRequestFormat.DnsOverHttpsWirePost);
             var data = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, new Uri("https://1.1.1.1/dns-query"),
-                DnsRequestFormat.DnsOverHttpsPOST);
+                DnsRequestFormat.DnsOverHttpsWirePost);
             data.Answers.DisplayTable();
         }
 

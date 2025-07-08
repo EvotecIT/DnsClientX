@@ -94,7 +94,8 @@ namespace DnsClientX {
                     response = await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
                 } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps) {
                     response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
-                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST) {
+                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST ||
+                           EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsWirePost) {
                     response = await Client.ResolveWireFormatPost(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
                 } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
                     response = await Client.ResolveJsonFormatPost(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);

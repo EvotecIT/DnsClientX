@@ -58,6 +58,10 @@ namespace DnsClientX {
         /// </summary>
         ObliviousDnsOverHttps,
         /// <summary>
+        /// Wire format using POST method for DNS requests as defined by RFC 8484.
+        /// </summary>
+        DnsOverHttpsWirePost,
+        /// <summary>
         /// DNS over UDP multicast (mDNS on port 5353).
         /// </summary>
         Multicast,

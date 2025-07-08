@@ -10,7 +10,7 @@ namespace DnsClientX.Examples {
             var assembly = Assembly.Load("DnsClientX.Cli");
             var programType = assembly.GetType("DnsClientX.Cli.Program")!;
             var main = programType.GetMethod("Main", BindingFlags.NonPublic | BindingFlags.Static)!;
-            await (Task<int>)main.Invoke(null, new object[] { new[] { "--dnssec", "--validate-dnssec", "evotec.pl" } })!;
+            await (Task<int>)main.Invoke(null, new object[] { new[] { "--dnssec", "--validate-dnssec", "--wire-post", "evotec.pl" } })!;
         }
     }
 }
