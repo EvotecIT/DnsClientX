@@ -106,7 +106,7 @@ namespace DnsClientX {
             int maxRetries = 3,
             int retryDelayMs = 100,
             CancellationToken cancellationToken = default) {
-            return ZoneTransferAsync(zone, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync();
+            return ZoneTransferAsync(zone, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync(cancellationToken);
         }
 
         private static async Task<List<byte[]>> SendAxfrOverTcp(byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
