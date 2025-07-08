@@ -154,6 +154,10 @@ namespace DnsClientX {
                         response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
                     }
                 }
+                if (hasRrsig && !DnsSecValidator.ValidateChain(response)) {
+                    string validationError = "DNSSEC signature verification failed.";
+                    response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
+                }
             }
 
             if (_cacheEnabled) {
