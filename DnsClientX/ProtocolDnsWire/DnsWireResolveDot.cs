@@ -80,37 +80,9 @@ namespace DnsClientX {
                 // Authenticate the client using the DNS server's name and the TLS protocol
                 await sslStream.AuthenticateAsClientAsync(dnsServer, null, SslProtocols.Tls12, false).ConfigureAwait(false);
             } catch (AuthenticationException authEx) {
-                DnsResponse authResponse = new DnsResponse {
-                    Questions =
-                    [
-                        new DnsQuestion {
-                            Name = name,
-                            RequestFormat = DnsRequestFormat.DnsOverTLS,
-                            Type = type,
-                            OriginalName = name
-                        }
-                    ],
-                    Status = DnsResponseCode.Refused
-                };
-                authResponse.AddServerDetails(endpointConfiguration);
-                authResponse.Error = $"Failed to query type {type} of \"{name}\" => {authEx.Message} {authEx.InnerException?.Message}";
-                return authResponse;
-            } catch (IOException ioEx) when (ioEx.InnerException is AuthenticationException innerAuthEx) {
-                DnsResponse authResponse = new DnsResponse {
-                    Questions =
-                    [
-                        new DnsQuestion {
-                            Name = name,
-                            RequestFormat = DnsRequestFormat.DnsOverTLS,
-                            Type = type,
-                            OriginalName = name
-                        }
-                    ],
-                    Status = DnsResponseCode.Refused
-                };
-                authResponse.AddServerDetails(endpointConfiguration);
-                authResponse.Error = $"Failed to query type {type} of \"{name}\" => {ioEx.Message} {innerAuthEx.Message}";
-                return authResponse;
+                return CreateTlsFailureResponse(name, type, endpointConfiguration, authEx);
+            } catch (IOException ioEx) {
+                return CreateTlsFailureResponse(name, type, endpointConfiguration, ioEx.InnerException ?? ioEx);
             }
 
             // Write the combined query bytes to the SSL stream and flush it
@@ -139,6 +111,24 @@ namespace DnsClientX {
                 var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
                 response.AddServerDetails(endpointConfiguration);
                 return response;
+        }
+
+        private static DnsResponse CreateTlsFailureResponse(string name, DnsRecordType type, Configuration endpointConfiguration, Exception ex) {
+            DnsResponse authResponse = new DnsResponse {
+                Questions =
+                [
+                    new DnsQuestion {
+                        Name = name,
+                        RequestFormat = DnsRequestFormat.DnsOverTLS,
+                        Type = type,
+                        OriginalName = name
+                    }
+                ],
+                Status = DnsResponseCode.Refused
+            };
+            authResponse.AddServerDetails(endpointConfiguration);
+            authResponse.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message} {ex.InnerException?.Message}";
+            return authResponse;
         }
 
         /// <summary>
