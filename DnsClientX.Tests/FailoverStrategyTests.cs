@@ -25,13 +25,15 @@ namespace DnsClientX.Tests {
         public async Task RetryAsync_ShouldAdvanceHostnameOnFailure() {
             var config = new Configuration(DnsEndpoint.Cloudflare, DnsSelectionStrategy.Failover);
             MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.Static | BindingFlags.NonPublic)!;
-            Func<Task<DnsResponse>> action = () => Task.FromResult(new DnsResponse { Status = DnsResponseCode.ServerFailure });
+            var response = new DnsResponse { Status = DnsResponseCode.ServerFailure };
+            Func<Task<DnsResponse>> action = () => Task.FromResult(response);
             var generic = method.MakeGenericMethod(typeof(DnsResponse));
             var advance = (Action)Delegate.CreateDelegate(typeof(Action), config, "AdvanceToNextHostname", false)!;
-            await Assert.ThrowsAsync<DnsClientException>(async () =>
+            var ex = await Assert.ThrowsAsync<DnsClientException>(async () =>
             {
                 await (Task<DnsResponse>)generic.Invoke(null, new object[] { action, 2, 1, advance, false, CancellationToken.None })!;
             });
+            Assert.Same(response, ex.Response);
 
             config.SelectHostNameStrategy();
             Assert.Equal("1.0.0.1", config.Hostname);
