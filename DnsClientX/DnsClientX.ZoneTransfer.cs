@@ -32,6 +32,10 @@ namespace DnsClientX {
                 throw new ArgumentNullException(nameof(zone));
             }
 
+            if (cancellationToken.IsCancellationRequested) {
+                return await Task.FromCanceled<DnsAnswer[][]>(cancellationToken).ConfigureAwait(false);
+            }
+
             EndpointConfiguration.SelectHostNameStrategy();
 
             var query = new DnsMessage(zone, DnsRecordType.AXFR, requestDnsSec: false, enableEdns: false, EndpointConfiguration.UdpBufferSize, null, EndpointConfiguration.CheckingDisabled);
@@ -49,6 +53,8 @@ namespace DnsClientX {
                         EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover ? EndpointConfiguration.AdvanceToNextHostname : null).ConfigureAwait(false)
                     : await Execute().ConfigureAwait(false);
             } catch (DnsClientException) {
+                throw;
+            } catch (OperationCanceledException) {
                 throw;
             } catch (Exception ex) {
                 throw new DnsClientException($"Zone transfer failed: {ex.Message}");
