@@ -29,6 +29,15 @@ namespace DnsClientX.Tests {
             return result.Buffer;
         }
 
+        private static bool CanBindPort(int port) {
+            try {
+                using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
+                return true;
+            } catch (SocketException se) when (se.SocketErrorCode == SocketError.AccessDenied) {
+                return false;
+            }
+        }
+
         private static void AssertDoCdBits(byte[] query, string name) {
             int additionalCount = (query[10] << 8) | query[11];
             Assert.Equal(1, additionalCount);
@@ -48,6 +57,10 @@ namespace DnsClientX.Tests {
 
         [Fact]
         public async Task Cli_ShouldSetDoAndCdBits_WhenDnssecValidationEnabled() {
+            if (!CanBindPort(53)) {
+                return; // Skip test on systems without permission for port 53
+            }
+
             var dnsField = typeof(SystemInformation).GetField("cachedDnsServers", BindingFlags.NonPublic | BindingFlags.Static)!;
             var original = (Lazy<List<string>>)dnsField.GetValue(null)!;
             dnsField.SetValue(null, new Lazy<List<string>>(() => new List<string> { "127.0.0.1" }, LazyThreadSafetyMode.ExecutionAndPublication));

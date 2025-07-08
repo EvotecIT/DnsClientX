@@ -16,5 +16,4 @@
         <ProjectReference Include="..\DnsClientX\DnsClientX.csproj" />
         <ProjectReference Include="..\DnsClientX.Cli\DnsClientX.Cli.csproj" />
   </ItemGroup>
-
 </Project>
