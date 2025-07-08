@@ -18,6 +18,11 @@ namespace DnsClientX.Cli {
             DnsEndpoint endpoint = DnsEndpoint.System;
             bool requestDnsSec = false;
             bool validateDnsSec = false;
+            bool doUpdate = false;
+            string? zone = null;
+            string? updateName = null;
+            string? updateData = null;
+            int ttl = 300;
 
             using var cts = new CancellationTokenSource();
             Console.CancelKeyPress += (_, e) => {
@@ -49,6 +54,24 @@ namespace DnsClientX.Cli {
                     case var opt when opt.Equals("--validate-dnssec", StringComparison.OrdinalIgnoreCase):
                         validateDnsSec = true;
                         break;
+                    case var opt when opt.Equals("--update", StringComparison.OrdinalIgnoreCase):
+                        if (i + 4 >= args.Length) {
+                            Console.Error.WriteLine("Missing values for --update");
+                            return 1;
+                        }
+                        doUpdate = true;
+                        zone = args[++i];
+                        updateName = args[++i];
+                        recordType = (DnsRecordType)Enum.Parse(typeof(DnsRecordType), args[++i], true);
+                        updateData = args[++i];
+                        break;
+                    case var opt when opt.Equals("--ttl", StringComparison.OrdinalIgnoreCase):
+                        if (i + 1 >= args.Length) {
+                            Console.Error.WriteLine("Missing value for --ttl");
+                            return 1;
+                        }
+                        ttl = int.Parse(args[++i]);
+                        break;
                     default:
                         if (domain is null) {
                             domain = args[i];
@@ -60,17 +83,27 @@ namespace DnsClientX.Cli {
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(domain)) {
+            if (doUpdate) {
+                if (zone is null || updateName is null || updateData is null) {
+                    Console.Error.WriteLine("Invalid --update arguments.");
+                    return 1;
+                }
+            } else if (string.IsNullOrWhiteSpace(domain)) {
                 Console.Error.WriteLine("Domain name is required.");
                 return 1;
             }
 
             try {
                 await using var client = new ClientX(endpoint);
-                var response = await client.Resolve(domain, recordType, requestDnsSec, validateDnsSec, cancellationToken: cts.Token);
-                Console.WriteLine($"Status: {response.Status}");
-                foreach (var answer in response.Answers) {
-                    Console.WriteLine($"{answer.Name}\t{answer.Type}\t{answer.TTL}\t{answer.Data}");
+                if (doUpdate) {
+                    var response = await client.UpdateRecordAsync(zone!, updateName!, recordType, updateData!, ttl, cts.Token);
+                    Console.WriteLine($"Update status: {response.Status}");
+                } else {
+                    var response = await client.Resolve(domain, recordType, requestDnsSec, validateDnsSec, cancellationToken: cts.Token);
+                    Console.WriteLine($"Status: {response.Status}");
+                    foreach (var answer in response.Answers) {
+                        Console.WriteLine($"{answer.Name}\t{answer.Type}\t{answer.TTL}\t{answer.Data}");
+                    }
                 }
                 return 0;
             } catch (OperationCanceledException) {
@@ -91,6 +124,8 @@ namespace DnsClientX.Cli {
             Console.WriteLine("  -e, --endpoint <name>    DNS endpoint name (default System)");
             Console.WriteLine("      --dnssec             Request DNSSEC records");
             Console.WriteLine("      --validate-dnssec    Validate DNSSEC records");
+            Console.WriteLine("      --update <zone> <name> <type> <data>  Send dynamic update");
+            Console.WriteLine("      --ttl <seconds>       TTL for update (default 300)");
             Console.WriteLine();
             Console.WriteLine("Available endpoints:");
             foreach (var (ep, desc) in DnsEndpointExtensions.GetAllWithDescriptions()) {
