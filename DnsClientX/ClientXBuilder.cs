@@ -1,4 +1,7 @@
+using System;
 using System.Net;
+using System.Collections.Generic;
+using System.Reflection;
 
 namespace DnsClientX {
     /// <summary>
@@ -54,6 +57,20 @@ namespace DnsClientX {
             if (_ednsOptions != null) {
                 client.EndpointConfiguration.EdnsOptions = _ednsOptions;
             }
+
+            var field = typeof(Configuration).GetField("hostnames", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (field != null) {
+                var names = (IEnumerable<string>)field.GetValue(client.EndpointConfiguration)!;
+                foreach (var name in names) {
+                    if (Uri.CheckHostName(name) == UriHostNameType.Unknown) {
+                        throw new ArgumentException($"Invalid hostname: {name}");
+                    }
+                }
+            } else if (client.EndpointConfiguration.Hostname != null &&
+                       Uri.CheckHostName(client.EndpointConfiguration.Hostname) == UriHostNameType.Unknown) {
+                throw new ArgumentException($"Invalid hostname: {client.EndpointConfiguration.Hostname}");
+            }
+
             return client;
         }
     }
