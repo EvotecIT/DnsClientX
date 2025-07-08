@@ -38,6 +38,23 @@ namespace DnsClientX.Tests {
                 DnsWireResolveQuic.HostEntryResolver = previousResolver;
             }
         }
+
+        [Fact]
+        public async Task ResolveWireFormatQuic_ReturnsServerFailure_WhenQuicExceptionThrown() {
+            var previousFactory = DnsWireResolveQuic.QuicConnectionFactory;
+            var previousResolver = DnsWireResolveQuic.HostEntryResolver;
+            try {
+                DnsWireResolveQuic.HostEntryResolver = _ => new IPHostEntry { AddressList = [IPAddress.Loopback] };
+                DnsWireResolveQuic.QuicConnectionFactory = (_, _) => ValueTask.FromException<QuicConnection>(new QuicException(QuicError.InternalError, null, "connection failed"));
+                var config = new Configuration("dummy", DnsRequestFormat.DnsOverQuic);
+                var response = await DnsWireResolveQuic.ResolveWireFormatQuic("dummy", 853, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None);
+                Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
+                Assert.Contains("connection failed", response.Error, StringComparison.OrdinalIgnoreCase);
+            } finally {
+                DnsWireResolveQuic.QuicConnectionFactory = previousFactory;
+                DnsWireResolveQuic.HostEntryResolver = previousResolver;
+            }
+        }
     }
 }
 #pragma warning restore CA2252
