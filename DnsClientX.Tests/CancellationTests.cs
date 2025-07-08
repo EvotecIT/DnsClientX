@@ -1,6 +1,6 @@
 using System;
-using System.Net.Http;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,6 +38,24 @@ namespace DnsClientX.Tests {
             using var cts = new CancellationTokenSource();
             cts.Cancel();
             await Assert.ThrowsAsync<TaskCanceledException>(() => ClientX.QueryDns("example.com", DnsRecordType.A, cancellationToken: cts.Token));
+        }
+
+        [Fact]
+        public async Task QueryDns_ArrayNames_ShouldCancelEarly() {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAsync<TaskCanceledException>(
+                () => ClientX.QueryDns(new[] { "example.com" }, DnsRecordType.A, cancellationToken: cts.Token));
+        }
+
+        [Fact]
+        public async Task QueryDns_ArrayTypes_ShouldCancelEarly() {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAsync<TaskCanceledException>(
+                () => ClientX.QueryDns(new[] { "example.com" }, new[] { DnsRecordType.A }, cancellationToken: cts.Token));
         }
 
         [Fact]
