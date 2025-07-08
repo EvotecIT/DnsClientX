@@ -18,9 +18,7 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = true, Position = 0)]
         public string Domain { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Executes the cmdlet logic asynchronously.
-        /// </summary>
+        /// <inheritdoc />
         protected override async Task ProcessRecordAsync() {
             using var client = new ClientX();
             var results = await client.DiscoverServices(Domain);

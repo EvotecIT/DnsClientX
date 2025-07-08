@@ -148,10 +148,7 @@ namespace DnsClientX.PowerShell {
             return lastResults;
         }
 
-        /// <summary>
-        /// Begin record asynchronously.
-        /// </summary>
-        /// <returns></returns>
+        /// <inheritdoc />
         protected override Task BeginProcessingAsync() {
 
             // Initialize the logger to be able to see verbose, warning, debug, error, progress, and information messages.
@@ -161,10 +158,7 @@ namespace DnsClientX.PowerShell {
             return Task.CompletedTask;
         }
 
-        /// <summary>
-        /// Process the record asynchronously.
-        /// </summary>
-        /// <returns></returns>
+        /// <inheritdoc />
         protected override async Task ProcessRecordAsync() {
             if (TimeOut <= 0) {
                 throw new ArgumentOutOfRangeException(nameof(TimeOut), "TimeOut must be greater than zero.");

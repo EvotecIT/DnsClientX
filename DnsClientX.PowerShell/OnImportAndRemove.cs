@@ -9,19 +9,14 @@ using System.Collections.Generic;
 /// This class is used to handle the assembly resolve event when the module is imported and removed.
 /// </summary>
 public class OnModuleImportAndRemove : IModuleAssemblyInitializer, IModuleAssemblyCleanup {
-    /// <summary>
-    /// OnImport is called when the module is imported.
-    /// </summary>
+    /// <inheritdoc />
     public void OnImport() {
         if (IsNetFramework()) {
             AppDomain.CurrentDomain.AssemblyResolve += MyResolveEventHandler;
         }
     }
 
-    /// <summary>
-    /// OnRemove is called when the module is removed.
-    /// </summary>
-    /// <param name="module"></param>
+    /// <inheritdoc />
     public void OnRemove(PSModuleInfo module) {
         if (IsNetFramework()) {
             AppDomain.CurrentDomain.AssemblyResolve -= MyResolveEventHandler;

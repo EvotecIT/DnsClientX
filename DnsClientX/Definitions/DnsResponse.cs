@@ -163,14 +163,7 @@ namespace DnsClientX {
     /// In some cases the comment field is an array of strings, so this converter will join them together.
     /// </summary>
     public class CommentConverter : JsonConverter<string> {
-        /// <summary>
-        /// Reads the string value from the JSON reader.
-        /// </summary>
-        /// <param name="reader"></param>
-        /// <param name="typeToConvert"></param>
-        /// <param name="options"></param>
-        /// <returns></returns>
-        /// <exception cref="JsonException"></exception>
+        /// <inheritdoc />
         public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
             switch (reader.TokenType) {
                 case JsonTokenType.String:
@@ -188,12 +181,7 @@ namespace DnsClientX {
             }
         }
 
-        /// <summary>
-        /// Writes the string value to the JSON writer.
-        /// </summary>
-        /// <param name="writer"></param>
-        /// <param name="value"></param>
-        /// <param name="options"></param>
+        /// <inheritdoc />
         public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options) {
             writer.WriteStringValue(value);
         }
