@@ -164,11 +164,15 @@ namespace DnsClientX {
                 TimeSpan ttl = CacheExpiration;
                 if (response.Answers != null && response.Answers.Length > 0) {
                     int minTtl = response.Answers.Min(a => a.TTL);
-                    ttl = TimeSpan.FromSeconds(minTtl);
+                    ttl = minTtl == 0 ? TimeSpan.Zero : TimeSpan.FromSeconds(minTtl);
                 }
-                if (ttl < MinCacheTtl) ttl = MinCacheTtl;
+
+                if (ttl != TimeSpan.Zero && ttl < MinCacheTtl) ttl = MinCacheTtl;
                 if (ttl > MaxCacheTtl) ttl = MaxCacheTtl;
-                _cache.Set(cacheKey, response, ttl);
+
+                if (ttl > TimeSpan.Zero) {
+                    _cache.Set(cacheKey, response, ttl);
+                }
             }
 
 

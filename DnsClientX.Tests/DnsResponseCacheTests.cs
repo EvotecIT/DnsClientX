@@ -84,6 +84,15 @@ namespace DnsClientX.Tests {
             return expiration - DateTimeOffset.UtcNow;
         }
 
+        private static bool IsCacheEmpty() {
+            var cacheField = typeof(ClientX).GetField("_cache", BindingFlags.NonPublic | BindingFlags.Static)!;
+            var cache = cacheField.GetValue(null)!;
+            var dictField = cache.GetType().GetField("_cache", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var dict = dictField.GetValue(cache);
+            int count = (int)dict.GetType().GetProperty("Count")!.GetValue(dict)!;
+            return count == 0;
+        }
+
         [Fact]
         public async Task ShouldClampToMinCacheTtl() {
             ClearCache();
@@ -116,6 +125,22 @@ namespace DnsClientX.Tests {
 
             var ttl = GetCachedTtl();
             Assert.InRange(Math.Abs((ttl - client.MaxCacheTtl).TotalSeconds), 0, 1);
+        }
+
+        [Fact]
+        public async Task ShouldNotCacheWhenTtlZero() {
+            ClearCache();
+            var json = "{\"Status\":0,\"Answer\":[{\"name\":\"example.com\",\"type\":1,\"TTL\":0,\"data\":\"1.1.1.1\"}]}";
+            var handler = new JsonResponseHandler(json);
+            using var client = new ClientX("https://example.com/dns-query", DnsRequestFormat.DnsOverHttpsJSON, enableCache: true);
+            client.MinCacheTtl = TimeSpan.FromSeconds(5);
+            client.MaxCacheTtl = TimeSpan.FromSeconds(30);
+            var httpClient = new HttpClient(handler) { BaseAddress = client.EndpointConfiguration.BaseUri };
+            InjectClient(client, httpClient);
+
+            await client.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
+
+            Assert.True(IsCacheEmpty());
         }
     }
 }
