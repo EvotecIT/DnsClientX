@@ -27,6 +27,7 @@ namespace DnsClientX.Tests {
             var response = await DnsWireResolveHttp2.ResolveWireFormatHttp2(client, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None);
 
             Assert.Equal(HttpVersion.Version20, handler.Request?.Version);
+            Assert.Equal(HttpVersionPolicy.RequestVersionOrHigher, handler.Request?.VersionPolicy);
             Assert.Equal(DnsResponseCode.NoError, response.Status);
         }
     }

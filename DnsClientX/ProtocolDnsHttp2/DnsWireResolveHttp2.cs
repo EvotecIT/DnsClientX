@@ -31,6 +31,7 @@ namespace DnsClientX {
             using HttpRequestMessage req = new(HttpMethod.Get, url);
 #if NET8_0_OR_GREATER
             req.Version = HttpVersion.Version20;
+            req.VersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
 #else
             req.Version = new Version(2, 0);
 #endif
