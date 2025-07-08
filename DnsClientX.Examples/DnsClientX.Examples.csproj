@@ -12,8 +12,8 @@
         <PackageReference Include="Spectre.Console" Version="0.50.0" />
     </ItemGroup>
 
-    <ItemGroup>
+  <ItemGroup>
         <ProjectReference Include="..\DnsClientX\DnsClientX.csproj" />
-    </ItemGroup>
-
+        <ProjectReference Include="..\DnsClientX.Cli\DnsClientX.Cli.csproj" />
+  </ItemGroup>
 </Project>

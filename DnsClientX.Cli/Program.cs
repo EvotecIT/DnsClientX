@@ -1,7 +1,7 @@
+using DnsClientX;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using DnsClientX;
 
 namespace DnsClientX.Cli {
     internal static class Program {
@@ -16,6 +16,8 @@ namespace DnsClientX.Cli {
             string? domain = null;
             DnsRecordType recordType = DnsRecordType.A;
             DnsEndpoint endpoint = DnsEndpoint.System;
+            bool requestDnsSec = false;
+            bool validateDnsSec = false;
 
             using var cts = new CancellationTokenSource();
             Console.CancelKeyPress += (_, e) => {
@@ -41,6 +43,12 @@ namespace DnsClientX.Cli {
                         }
                         endpoint = (DnsEndpoint)Enum.Parse(typeof(DnsEndpoint), args[++i], true);
                         break;
+                    case var opt when opt.Equals("--dnssec", StringComparison.OrdinalIgnoreCase):
+                        requestDnsSec = true;
+                        break;
+                    case var opt when opt.Equals("--validate-dnssec", StringComparison.OrdinalIgnoreCase):
+                        validateDnsSec = true;
+                        break;
                     default:
                         if (domain is null) {
                             domain = args[i];
@@ -59,7 +67,7 @@ namespace DnsClientX.Cli {
 
             try {
                 await using var client = new ClientX(endpoint);
-                var response = await client.Resolve(domain, recordType, cancellationToken: cts.Token);
+                var response = await client.Resolve(domain, recordType, requestDnsSec, validateDnsSec, cancellationToken: cts.Token);
                 Console.WriteLine($"Status: {response.Status}");
                 foreach (var answer in response.Answers) {
                     Console.WriteLine($"{answer.Name}\t{answer.Type}\t{answer.TTL}\t{answer.Data}");
@@ -81,6 +89,8 @@ namespace DnsClientX.Cli {
             Console.WriteLine("Options:");
             Console.WriteLine("  -t, --type <record>      DNS record type (default A)");
             Console.WriteLine("  -e, --endpoint <name>    DNS endpoint name (default System)");
+            Console.WriteLine("      --dnssec             Request DNSSEC records");
+            Console.WriteLine("      --validate-dnssec    Validate DNSSEC records");
             Console.WriteLine();
             Console.WriteLine("Available endpoints:");
             foreach (var (ep, desc) in DnsEndpointExtensions.GetAllWithDescriptions()) {
