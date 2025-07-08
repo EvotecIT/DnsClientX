@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
+using System.Net.NetworkInformation;
 using System.Net;
+using System.Linq;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -34,24 +36,48 @@ namespace DnsClientX.Tests {
             listener.Stop();
         }
 
-        private static async Task<bool> NetstatHasPortAsync(int port) {
-            string args = IsWindows() ? "-ano" : "-an";
-            using Process proc = new Process();
-            proc.StartInfo.FileName = "netstat";
-            proc.StartInfo.Arguments = args;
-            proc.StartInfo.RedirectStandardOutput = true;
-            proc.StartInfo.UseShellExecute = false;
-            proc.Start();
-            string output = await proc.StandardOutput.ReadToEndAsync();
-            proc.WaitForExit();
-            return output.Contains($":{port}");
+        private static async Task<bool> HasOpenTcpConnectionAsync(int port) {
+            if (IsWindows()) {
+                try {
+                    var connTask = Task.Run(() => IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpConnections());
+                    if (await Task.WhenAny(connTask, Task.Delay(2000)) == connTask) {
+                        var connections = connTask.Result;
+                        return connections.Any(c => (c.LocalEndPoint.Port == port || c.RemoteEndPoint.Port == port) && c.State != TcpState.TimeWait && c.State != TcpState.Closed);
+                    }
+                } catch {
+                    // fall back to netstat
+                }
+            }
+
+            try {
+                string args = IsWindows() ? "-ano" : "-an";
+                using var proc = new Process();
+                proc.StartInfo.FileName = "netstat";
+                proc.StartInfo.Arguments = args;
+                proc.StartInfo.RedirectStandardOutput = true;
+                proc.StartInfo.UseShellExecute = false;
+                proc.Start();
+                var readTask = proc.StandardOutput.ReadToEndAsync();
+                var timeoutTask = Task.Delay(2000);
+                var completed = await Task.WhenAny(readTask, timeoutTask);
+                if (completed == readTask) {
+                    string output = await readTask;
+                    if (!proc.HasExited) {
+                        try { proc.Kill(); } catch { }
+                    }
+                    return output.Contains($":{port}");
+                } else {
+                    try { proc.Kill(); } catch { }
+                }
+            } catch {
+                // ignore and assume no connection
+            }
+
+            return false;
         }
 
         [Fact]
         public async Task TcpFailure_ShouldCloseSocket() {
-            if (!IsWindows() && !File.Exists("/bin/netstat") && !File.Exists("/usr/bin/netstat")) {
-                return; // skip if netstat is not available
-            }
 
             int port = GetFreePort();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -66,14 +92,14 @@ namespace DnsClientX.Tests {
             await serverTask;
             await Task.Delay(200);
 
-            bool hasConnection = await NetstatHasPortAsync(port);
+            bool hasConnection = await HasOpenTcpConnectionAsync(port);
             if (hasConnection)
             {
                 // give the OS some time to clean up TIME_WAIT sockets
                 for (int i = 0; i < 20 && hasConnection; i++)
                 {
                     await Task.Delay(100);
-                    hasConnection = await NetstatHasPortAsync(port);
+                    hasConnection = await HasOpenTcpConnectionAsync(port);
                 }
             }
 
