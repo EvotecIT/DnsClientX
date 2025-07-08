@@ -142,5 +142,16 @@ namespace DnsClientX.Tests {
             Assert.True(handler.DisposeAsyncCount >= handler.DisposeCount, $"AsyncCount={handler.DisposeAsyncCount} DisposeCount={handler.DisposeCount}");
         }
 #endif
+
+        [Fact]
+        public void Client_Dispose_ShouldClearDisposedClientsList() {
+            var clientX = new ClientX("example.com", DnsRequestFormat.DnsOverHttps);
+
+            clientX.Dispose();
+
+            var field = typeof(ClientX).GetField("_disposedClients", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var disposedClients = (HashSet<HttpClient>)field.GetValue(clientX)!;
+            Assert.Empty(disposedClients);
+        }
     }
 }

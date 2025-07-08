@@ -52,6 +52,10 @@ namespace DnsClientX {
                         }
                     }
 
+                    lock (_lock) {
+                        _disposedClients.Clear();
+                    }
+
                     if (mainClient != null && TryAddDisposedClient(mainClient)) {
                         mainClient.Dispose();
                     }
@@ -106,6 +110,10 @@ namespace DnsClientX {
                         client.Dispose();
 #endif
                     }
+                }
+
+                lock (_lock) {
+                    _disposedClients.Clear();
                 }
 
                 if (mainClient != null && TryAddDisposedClient(mainClient)) {
