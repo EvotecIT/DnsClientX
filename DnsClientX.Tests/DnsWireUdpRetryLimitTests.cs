@@ -45,8 +45,8 @@ namespace DnsClientX.Tests {
             var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, 2, cts.Token })!;
             DnsResponse response = await task;
 
-            cts.Cancel();
             int attempts = await serverTask;
+            cts.Cancel();
 
             Assert.Equal(2, attempts);
             Assert.NotEqual(DnsResponseCode.NoError, response.Status);
