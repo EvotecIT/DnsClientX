@@ -5,6 +5,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Net.Quic;
+using System.Runtime.Serialization;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -53,6 +54,37 @@ namespace DnsClientX.Tests {
             } finally {
                 DnsWireResolveQuic.QuicConnectionFactory = previousFactory;
                 DnsWireResolveQuic.HostEntryResolver = previousResolver;
+            }
+        }
+
+        [Fact]
+        public async Task ResolveWireFormatQuic_ShouldDisposeResources_OnWriteException() {
+            var prevFactory = DnsWireResolveQuic.QuicConnectionFactory;
+            var prevResolver = DnsWireResolveQuic.HostEntryResolver;
+            var prevStreamFactory = DnsWireResolveQuic.StreamFactory;
+            var prevConnDisposer = DnsWireResolveQuic.ConnectionDisposer;
+            var prevStreamDisposer = DnsWireResolveQuic.StreamDisposer;
+            try {
+                DnsWireResolveQuic.ConnectionDisposeCount = 0;
+                DnsWireResolveQuic.StreamDisposeCount = 0;
+                DnsWireResolveQuic.HostEntryResolver = _ => new IPHostEntry { AddressList = [IPAddress.Loopback] };
+                DnsWireResolveQuic.QuicConnectionFactory = (_, _) => new ValueTask<QuicConnection>((QuicConnection)FormatterServices.GetUninitializedObject(typeof(QuicConnection)));
+                DnsWireResolveQuic.StreamFactory = (_, _) => new ValueTask<QuicStream>((QuicStream)FormatterServices.GetUninitializedObject(typeof(QuicStream)));
+                DnsWireResolveQuic.ConnectionDisposer = _ => { DnsWireResolveQuic.ConnectionDisposeCount++; return ValueTask.CompletedTask; };
+                DnsWireResolveQuic.StreamDisposer = _ => { DnsWireResolveQuic.StreamDisposeCount++; return ValueTask.CompletedTask; };
+
+                var config = new Configuration("dummy", DnsRequestFormat.DnsOverQuic);
+
+                await DnsWireResolveQuic.ResolveWireFormatQuic("dummy", 853, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None);
+
+                Assert.Equal(1, DnsWireResolveQuic.ConnectionDisposeCount);
+                Assert.Equal(1, DnsWireResolveQuic.StreamDisposeCount);
+            } finally {
+                DnsWireResolveQuic.QuicConnectionFactory = prevFactory;
+                DnsWireResolveQuic.HostEntryResolver = prevResolver;
+                DnsWireResolveQuic.StreamFactory = prevStreamFactory;
+                DnsWireResolveQuic.ConnectionDisposer = prevConnDisposer;
+                DnsWireResolveQuic.StreamDisposer = prevStreamDisposer;
             }
         }
     }
