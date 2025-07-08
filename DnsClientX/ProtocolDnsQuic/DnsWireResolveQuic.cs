@@ -20,6 +20,18 @@ namespace DnsClientX {
         internal static Func<string, IPHostEntry>? HostEntryResolver;
         /// <summary>Factory function for creating QUIC connections. Can be overridden in tests.</summary>
         internal static Func<QuicClientConnectionOptions, CancellationToken, ValueTask<QuicConnection>> QuicConnectionFactory { get; set; } = QuicConnection.ConnectAsync;
+        /// <summary>Delegate for creating outbound streams. Overridable for tests.</summary>
+        internal static Func<QuicConnection, CancellationToken, ValueTask<QuicStream>> StreamFactory { get; set; } = static (c, t) => c.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, t);
+
+        /// <summary>Delegate for disposing <see cref="QuicConnection"/> instances. Overridable for tests.</summary>
+        internal static Func<QuicConnection, ValueTask> ConnectionDisposer { get; set; } = static c => c.DisposeAsync();
+        /// <summary>Delegate for disposing <see cref="QuicStream"/> instances. Overridable for tests.</summary>
+        internal static Func<QuicStream, ValueTask> StreamDisposer { get; set; } = static s => s.DisposeAsync();
+
+        /// <summary>Counts how often connections were disposed.</summary>
+        internal static int ConnectionDisposeCount;
+        /// <summary>Counts how often streams were disposed.</summary>
+        internal static int StreamDisposeCount;
         /// <summary>
         /// Executes a DNS-over-QUIC query and returns the parsed response.
         /// </summary>
@@ -108,24 +120,31 @@ namespace DnsClientX {
                     return failureResponse;
                 }
 
-                await using var connection = quicConnection;
-                await using var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, cancellationToken).ConfigureAwait(false);
+                QuicStream? stream = null;
+                try {
+                    stream = await StreamFactory(quicConnection, cancellationToken).ConfigureAwait(false);
 
-                await stream.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
-                stream.CompleteWrites();
+                    await stream.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
+                    stream.CompleteWrites();
 
-                var lengthBuffer = new byte[2];
-                await DnsWire.ReadExactAsync(stream, lengthBuffer, 0, 2, cancellationToken).ConfigureAwait(false);
-                if (BitConverter.IsLittleEndian) {
-                    Array.Reverse(lengthBuffer);
+                    var lengthBuffer = new byte[2];
+                    await DnsWire.ReadExactAsync(stream, lengthBuffer, 0, 2, cancellationToken).ConfigureAwait(false);
+                    if (BitConverter.IsLittleEndian) {
+                        Array.Reverse(lengthBuffer);
+                    }
+                    int responseLength = BitConverter.ToUInt16(lengthBuffer, 0);
+                    var responseBuffer = new byte[responseLength];
+                    await DnsWire.ReadExactAsync(stream, responseBuffer, 0, responseLength, cancellationToken).ConfigureAwait(false);
+
+                    var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
+                    response.AddServerDetails(endpointConfiguration);
+                    return response;
+                } finally {
+                    if (stream is not null) {
+                        await StreamDisposer(stream).ConfigureAwait(false);
+                    }
+                    await ConnectionDisposer(quicConnection).ConfigureAwait(false);
                 }
-                int responseLength = BitConverter.ToUInt16(lengthBuffer, 0);
-                var responseBuffer = new byte[responseLength];
-                await DnsWire.ReadExactAsync(stream, responseBuffer, 0, responseLength, cancellationToken).ConfigureAwait(false);
-
-                var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
-                response.AddServerDetails(endpointConfiguration);
-                return response;
             } catch (PlatformNotSupportedException ex) {
                 var response = new DnsResponse {
                     Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverQuic, Type = type, OriginalName = name } ],
