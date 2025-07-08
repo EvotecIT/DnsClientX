@@ -106,23 +106,40 @@ namespace DnsClientX {
                 var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
                 response.AddServerDetails(endpointConfiguration);
                 return response;
-            } catch (Exception ex) {
-                if (ex is AuthenticationException || (ex is IOException ioEx && ioEx.InnerException is AuthenticationException)) {
-                    DnsResponse authResponse = new DnsResponse {
-                        Questions = [
-                            new DnsQuestion() {
-                                Name = name,
-                                RequestFormat = DnsRequestFormat.DnsOverTLS,
-                                Type = type,
-                                OriginalName = name
-                            }
-                        ],
-                        Status = DnsResponseCode.Refused
-                    };
-                    authResponse.AddServerDetails(endpointConfiguration);
-                    authResponse.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message} {ex.InnerException?.Message}";
-                    return authResponse;
-                }
+            }
+            catch (AuthenticationException authEx) {
+                DnsResponse authResponse = new DnsResponse {
+                    Questions = [
+                        new DnsQuestion() {
+                            Name = name,
+                            RequestFormat = DnsRequestFormat.DnsOverTLS,
+                            Type = type,
+                            OriginalName = name
+                        }
+                    ],
+                    Status = DnsResponseCode.Refused
+                };
+                authResponse.AddServerDetails(endpointConfiguration);
+                authResponse.Error = $"Failed to query type {type} of \"{name}\" => {authEx.Message} {authEx.InnerException?.Message}";
+                return authResponse;
+            }
+            catch (IOException ioEx) when (ioEx.InnerException is AuthenticationException authEx) {
+                DnsResponse authResponse = new DnsResponse {
+                    Questions = [
+                        new DnsQuestion() {
+                            Name = name,
+                            RequestFormat = DnsRequestFormat.DnsOverTLS,
+                            Type = type,
+                            OriginalName = name
+                        }
+                    ],
+                    Status = DnsResponseCode.Refused
+                };
+                authResponse.AddServerDetails(endpointConfiguration);
+                authResponse.Error = $"Failed to query type {type} of \"{name}\" => {ioEx.Message} {authEx.Message}";
+                return authResponse;
+            }
+            catch (Exception ex) {
 
                 DnsResponseCode responseCode;
                 if (ex is SocketException) {
