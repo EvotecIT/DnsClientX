@@ -159,6 +159,11 @@ namespace DnsClientX {
         /// Helper to read exactly the requested number of bytes from a stream with timeout.
         /// </summary>
         private static async Task ReadExactWithTimeoutAsync(Stream stream, byte[] buffer, int offset, int count, int timeoutMilliseconds, CancellationToken cancellationToken) {
+#if NET5_0_OR_GREATER || NET472 || NETSTANDARD2_0
+            if (stream.CanTimeout) {
+                stream.ReadTimeout = timeoutMilliseconds;
+            }
+#endif
             var readTask = DnsWire.ReadExactAsync(stream, buffer, offset, count, cancellationToken);
             var timeoutTask = Task.Delay(timeoutMilliseconds, cancellationToken);
             var completedTask = await Task.WhenAny(readTask, timeoutTask).ConfigureAwait(false);
