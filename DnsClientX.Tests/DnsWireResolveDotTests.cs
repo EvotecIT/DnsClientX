@@ -1,7 +1,10 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
+using System.Net.Security;
+using System.Security.Authentication;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -17,7 +20,7 @@ namespace DnsClientX.Tests {
             return port;
         }
 
-        private static async Task RunInvalidTlsServerAsync(int port, CancellationToken token) {
+        private static async Task RunInvalidTlsServerAsync(int port, X509Certificate2 cert, CancellationToken token) {
             TcpListener listener = new TcpListener(IPAddress.Loopback, port);
             listener.Start();
 #if NET8_0_OR_GREATER
@@ -25,23 +28,34 @@ namespace DnsClientX.Tests {
 #else
             using TcpClient client = await listener.AcceptTcpClientAsync();
 #endif
-            NetworkStream stream = client.GetStream();
-            byte[] data = Encoding.ASCII.GetBytes("plain text");
-            await stream.WriteAsync(data, 0, data.Length, token);
-            await stream.FlushAsync(token);
+            using var sslStream = new SslStream(client.GetStream(), false);
+            try {
+                await sslStream.AuthenticateAsServerAsync(cert, false, SslProtocols.Tls12, false).ConfigureAwait(false);
+            } catch (AuthenticationException) {
+                // ignore server-side auth failures
+            }
             listener.Stop();
         }
 
+        private static X509Certificate2 CreateInvalidCertificate() {
+            using var ecdsa = ECDsa.Create();
+            var req = new CertificateRequest("CN=invalid", ecdsa, HashAlgorithmName.SHA256);
+            return req.CreateSelfSigned(DateTimeOffset.Now.AddDays(-1), DateTimeOffset.Now.AddDays(1));
+        }
+
         [Fact]
-        public async Task ResolveWireFormatDoT_ShouldWrapAuthenticationException() {
+        public async Task ResolveWireFormatDoT_ReturnsErrorWithCertificateDetails() {
             int port = GetFreePort();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var serverTask = RunInvalidTlsServerAsync(port, cts.Token);
+            using var cert = CreateInvalidCertificate();
+            var serverTask = RunInvalidTlsServerAsync(port, cert, cts.Token);
 
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTLS) { Port = port };
 
-            await Assert.ThrowsAsync<DnsClientException>(async () =>
-                await DnsWireResolveDot.ResolveWireFormatDoT("127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, true, cts.Token));
+            var response = await DnsWireResolveDot.ResolveWireFormatDoT("127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, false, cts.Token);
+
+            Assert.Equal(DnsResponseCode.Refused, response.Status);
+            Assert.Contains("certificate", response.Error, StringComparison.OrdinalIgnoreCase);
 
             await serverTask;
         }
