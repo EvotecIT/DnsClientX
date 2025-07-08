@@ -318,6 +318,7 @@ namespace DnsClientX {
                 handler?.Dispose();
 
                 Client = CreateOptimizedHttpClient();
+                _clients[EndpointConfiguration.SelectionStrategy] = Client;
             }
         }
 
@@ -328,15 +329,43 @@ namespace DnsClientX {
         /// <param name="strategy">The strategy.</param>
         /// <returns></returns>
         private HttpClient GetClient(DnsSelectionStrategy strategy) {
-            if (!_clients.TryGetValue(strategy, out var client)) {
-                lock (_lock) {
-                    if (!_clients.TryGetValue(strategy, out client)) {
-                        client = CreateOptimizedHttpClient();
-                        _clients[strategy] = client;
+            if (_clients.TryGetValue(strategy, out var client)) {
+                Client = client;
+                return client;
+            }
+
+            lock (_lock) {
+                if (_clients.TryGetValue(strategy, out client)) {
+                    Client = client;
+                    return client;
+                }
+
+                // dispose any clients created for other strategies
+                foreach (KeyValuePair<DnsSelectionStrategy, HttpClient> kv in _clients) {
+                    if (kv.Key != strategy && TryAddDisposedClient(kv.Value)) {
+                        kv.Value.Dispose();
+                        if (ReferenceEquals(kv.Value, Client)) {
+                            handler?.Dispose();
+                            handler = null;
+                        }
+                        System.Threading.Interlocked.Increment(ref DisposalCount);
                     }
                 }
+                _clients.Clear();
+
+                // dispose the currently assigned client and handler if present
+                if (Client != null && TryAddDisposedClient(Client)) {
+                    Client.Dispose();
+                    handler?.Dispose();
+                    handler = null;
+                    System.Threading.Interlocked.Increment(ref DisposalCount);
+                }
+
+                client = CreateOptimizedHttpClient();
+                _clients[strategy] = client;
+                Client = client;
+                return client;
             }
-            return client;
         }
 
         /// <summary>
