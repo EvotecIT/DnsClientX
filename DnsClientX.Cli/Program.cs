@@ -1,7 +1,7 @@
+using DnsClientX;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using DnsClientX;
 
 namespace DnsClientX.Cli {
     internal static class Program {
