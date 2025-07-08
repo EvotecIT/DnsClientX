@@ -25,5 +25,11 @@ namespace DnsClientX.Tests {
             const string invalidIdn = "\uD83D\uDE00.com";
             Assert.Equal(invalidIdn, Invoke(invalidIdn));
         }
+
+        [Fact]
+        public void PreservesTrailingDot() {
+            const string input = "example.com.";
+            Assert.Equal(input, Invoke(input));
+        }
     }
 }
