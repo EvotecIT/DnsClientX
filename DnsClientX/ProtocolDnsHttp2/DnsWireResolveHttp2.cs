@@ -51,7 +51,10 @@ namespace DnsClientX {
                     try {
                         response = await res.DeserializeDnsWireFormat(debug, responseBytes).ConfigureAwait(false);
                     } catch {
-                        response = new DnsResponse { Status = DnsResponseCode.ServerFailure };
+                        response = new DnsResponse {
+                            Status = DnsResponseCode.ServerFailure,
+                            Questions = [ new DnsQuestion { Name = name, Type = type, OriginalName = name } ]
+                        };
                     }
                 }
                 response.AddServerDetails(endpointConfiguration);
