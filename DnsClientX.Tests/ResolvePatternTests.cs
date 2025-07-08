@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -38,6 +39,15 @@ namespace DnsClientX.Tests {
 
             Assert.Equal(3, handler.CallCount);
             Assert.Equal(3, responses.Length);
+        }
+
+        [Fact]
+        public void ExpandPattern_MultipleBraces() {
+            string pattern = "srv{a,b}{1,2}.example.com";
+
+            string[] names = ClientX.ExpandPattern(pattern).ToArray();
+
+            Assert.Equal(new[] { "srva1.example.com", "srva2.example.com", "srvb1.example.com", "srvb2.example.com" }, names);
         }
     }
 }
