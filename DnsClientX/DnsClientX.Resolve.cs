@@ -46,7 +46,7 @@ namespace DnsClientX {
                         : null;
 
                     return await RetryAsync(
-                        () => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, cancellationToken),
+                        () => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, cancellationToken),
                         maxRetries,
                         retryDelayMs,
                         beforeRetry,
@@ -56,11 +56,11 @@ namespace DnsClientX {
                     return ex.Response;
                 }
             } else {
-                return await ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, cancellationToken).ConfigureAwait(false);
+                return await ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, cancellationToken).ConfigureAwait(false);
             }
         }
 
-        private async Task<DnsResponse> ResolveInternal(string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool returnAllTypes, CancellationToken cancellationToken) {
+        private async Task<DnsResponse> ResolveInternal(string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool returnAllTypes, int maxRetries, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             bool originalCd = EndpointConfiguration.CheckingDisabled;
@@ -119,7 +119,7 @@ namespace DnsClientX {
                 } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
                     response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
                 } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
-                    response = await DnsWireResolveUdp.ResolveWireFormatUdp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                    response = await DnsWireResolveUdp.ResolveWireFormatUdp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, maxRetries, cancellationToken).ConfigureAwait(false);
                 } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.Multicast) {
                     response = await DnsWireResolveMulticast.ResolveWireFormatMulticast(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
                 } else {

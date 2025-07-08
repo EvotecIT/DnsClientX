@@ -66,7 +66,7 @@ namespace DnsClientX.Tests {
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port };
             Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
             MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
-            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, cts.Token })!;
+            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, 1, cts.Token })!;
             DnsResponse response = await task;
 
             await Task.WhenAll(udpTask, tcpTask);
@@ -84,7 +84,7 @@ namespace DnsClientX.Tests {
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port, UseTcpFallback = false };
             Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
             MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
-            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, cts.Token })!;
+            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, 1, cts.Token })!;
             DnsResponse response = await task;
 
             await udpTask;
