@@ -184,6 +184,22 @@ namespace DnsClientX.Tests {
             await server.Task;
         }
 
+        [Fact]
+        public async Task ZoneTransferAsync_FailsWhenClosingSoaNotLastRecord() {
+            var soa = BuildSoaRdata();
+            byte[] m1 = BuildMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
+            byte[] m2 = BuildMessage(
+                "example.com",
+                ("example.com", DnsRecordType.SOA, soa),
+                ("www.example.com", DnsRecordType.A, new byte[] { 1, 2, 3, 4 }));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var server = RunAxfrServerAsync(new[] { m1, m2 }, cts.Token);
+
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
+            await Assert.ThrowsAsync<DnsClientException>(() => client.ZoneTransferAsync("example.com"));
+            await server.Task;
+        }
+
         private static AxfrServer RunAxfrServerFailOnceAsync(byte[][] responses, CancellationToken token) {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
