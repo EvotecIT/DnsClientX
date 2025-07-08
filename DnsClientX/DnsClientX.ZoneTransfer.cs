@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -113,6 +114,27 @@ namespace DnsClientX {
             int retryDelayMs = 100,
             CancellationToken cancellationToken = default) {
             return ZoneTransferAsync(zone, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).RunSync(cancellationToken);
+        }
+
+        /// <summary>
+        /// Performs a DNS zone transfer (AXFR) using TCP and streams the RRsets as they are processed.
+        /// </summary>
+        /// <param name="zone">Zone name to transfer.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient failures.</param>
+        /// <param name="maxRetries">Maximum number of retry attempts.</param>
+        /// <param name="retryDelayMs">Base delay in milliseconds between retries.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>An asynchronous enumeration of ordered RRsets.</returns>
+        public async IAsyncEnumerable<DnsAnswer[]> ZoneTransferStreamAsync(
+            string zone,
+            bool retryOnTransient = true,
+            int maxRetries = 3,
+            int retryDelayMs = 100,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default) {
+            var rrsets = await ZoneTransferAsync(zone, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+            foreach (var rrset in rrsets) {
+                yield return rrset;
+            }
         }
 
         private static async Task<List<byte[]>> SendAxfrOverTcp(byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {

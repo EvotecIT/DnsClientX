@@ -30,7 +30,8 @@ public sealed class CmdletDnsZoneTransfer : AsyncPSCmdlet {
     /// <inheritdoc />
     protected override async Task ProcessRecordAsync() {
         using var client = new ClientX(Server, DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = Port } };
-        var records = await client.ZoneTransferAsync(Zone);
-        WriteObject(records, true);
+        await foreach (var rrset in client.ZoneTransferStreamAsync(Zone, cancellationToken: CancelToken)) {
+            WriteObject(rrset);
+        }
     }
 }
