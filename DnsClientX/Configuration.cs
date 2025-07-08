@@ -157,6 +157,8 @@ namespace DnsClientX {
                 Port = 853;
             } else if (requestFormat == DnsRequestFormat.DnsOverUDP || requestFormat == DnsRequestFormat.DnsOverTCP) {
                 Port = 53;
+            } else if (requestFormat == DnsRequestFormat.Multicast) {
+                Port = 5353;
             } else {
                 Port = 443;
             }
@@ -398,6 +400,8 @@ namespace DnsClientX {
                        RequestFormat == DnsRequestFormat.DnsOverTCP ||
                        RequestFormat == DnsRequestFormat.DnsCryptRelay) {
                 Port = 53;
+            } else if (RequestFormat == DnsRequestFormat.Multicast) {
+                Port = 5353;
             } else {
                 Port = 443;
             }

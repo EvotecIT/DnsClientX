@@ -588,6 +588,15 @@ var zoneRecords = await client.ZoneTransferAsync("example.com");
 Get-DnsZoneTransfer -Zone 'example.com' -Server '127.0.0.1' -Port 5353
 ```
 
+### Multicast Queries
+
+Query devices advertising mDNS on your local network:
+
+```csharp
+using var client = new ClientX("224.0.0.251", DnsRequestFormat.Multicast) { EndpointConfiguration = { Port = 5353 } };
+var response = await client.Resolve("example.local", DnsRecordType.A);
+```
+
 ## Please share with the community
 
 Please consider sharing a post about DnsClientX and the value it provides. It really does help!
