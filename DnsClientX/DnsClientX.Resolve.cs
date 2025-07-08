@@ -240,7 +240,9 @@ namespace DnsClientX {
                         }
 
                         beforeRetry?.Invoke();
-                        int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
+                        int exponentialDelay = delayMs <= 0
+                            ? 0
+                            : (int)Math.Min((long)delayMs << attempt, int.MaxValue);
                         int jitter = useJitter ? GetJitter(delayMs) : 0;
                         await Task.Delay(exponentialDelay + jitter, cancellationToken).ConfigureAwait(false);
                         continue;
@@ -260,7 +262,9 @@ namespace DnsClientX {
                     }
 
                     beforeRetry?.Invoke();
-                    int exponentialDelay = delayMs * (int)Math.Pow(2, attempt - 1);
+                    int exponentialDelay = delayMs <= 0
+                        ? 0
+                        : (int)Math.Min((long)delayMs << attempt, int.MaxValue);
                     int jitter = useJitter ? GetJitter(delayMs) : 0;
                     await Task.Delay(exponentialDelay + jitter, cancellationToken).ConfigureAwait(false);
                     continue;
