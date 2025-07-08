@@ -57,5 +57,9 @@ namespace DnsClientX {
         /// Oblivious DNS over HTTPS (RFC 9230).
         /// </summary>
         ObliviousDnsOverHttps,
+        /// <summary>
+        /// DNS over UDP multicast (mDNS on port 5353).
+        /// </summary>
+        Multicast,
     }
 }

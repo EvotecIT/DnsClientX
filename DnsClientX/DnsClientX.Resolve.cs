@@ -115,6 +115,8 @@ namespace DnsClientX {
                     response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
                 } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
                     response = await DnsWireResolveUdp.ResolveWireFormatUdp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.Multicast) {
+                    response = await DnsWireResolveMulticast.ResolveWireFormatMulticast(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
                 } else {
                     throw new DnsClientException($"Invalid RequestFormat: {EndpointConfiguration.RequestFormat}");
                 }
