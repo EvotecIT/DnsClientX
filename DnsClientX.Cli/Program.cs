@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using DnsClientX;
 
 namespace DnsClientX.Cli {
     internal static class Program {
@@ -78,6 +79,11 @@ namespace DnsClientX.Cli {
             Console.WriteLine("Options:");
             Console.WriteLine("  -t, --type <record>      DNS record type (default A)");
             Console.WriteLine("  -e, --endpoint <name>    DNS endpoint name (default System)");
+            Console.WriteLine();
+            Console.WriteLine("Available endpoints:");
+            foreach (var (ep, desc) in DnsEndpointExtensions.GetAllWithDescriptions()) {
+                Console.WriteLine($"  {ep,-20} {desc}");
+            }
         }
     }
 }
