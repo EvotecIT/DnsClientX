@@ -38,7 +38,7 @@ namespace DnsClientX {
 
             EndpointConfiguration.SelectHostNameStrategy();
 
-            var query = new DnsMessage(zone, DnsRecordType.AXFR, requestDnsSec: false, enableEdns: false, EndpointConfiguration.UdpBufferSize, null, EndpointConfiguration.CheckingDisabled);
+            var query = new DnsMessage(zone, DnsRecordType.AXFR, requestDnsSec: false, enableEdns: false, EndpointConfiguration.UdpBufferSize, null, EndpointConfiguration.CheckingDisabled, EndpointConfiguration.SigningKey);
             var queryBytes = query.SerializeDnsWireFormat();
 
             async Task<List<byte[]>> Execute() => await SendAxfrOverTcp(queryBytes, EndpointConfiguration.Hostname, EndpointConfiguration.Port, EndpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);

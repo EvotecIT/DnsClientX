@@ -123,14 +123,14 @@ namespace DnsClientX.Tests {
 
         [Fact]
         public void DotRequest_ShouldIncludeCdBit_WhenConfigured() {
-            var message = new DnsMessage("example.com", DnsRecordType.A, false, true, 4096, null, true);
+            var message = new DnsMessage("example.com", DnsRecordType.A, false, true, 4096, null, true, null);
             byte[] data = message.SerializeDnsWireFormat();
             AssertCdBit(data, "example.com", 0x10u);
         }
 
         [Fact]
         public void DoqRequest_ShouldIncludeCdBit_WhenConfigured() {
-            var message = new DnsMessage("example.com", DnsRecordType.A, false, true, 4096, null, true);
+            var message = new DnsMessage("example.com", DnsRecordType.A, false, true, 4096, null, true, null);
             byte[] data = message.SerializeDnsWireFormat();
             AssertCdBit(data, "example.com", 0x10u);
         }
