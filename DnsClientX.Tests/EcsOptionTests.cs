@@ -70,7 +70,7 @@ namespace DnsClientX.Tests {
             };
             Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
             MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
-            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, cts.Token })!;
+            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, 1, cts.Token })!;
             await task;
             byte[] query = await udpTask;
 

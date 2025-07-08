@@ -20,7 +20,7 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>The DNS response.</returns>
         /// <exception cref="ArgumentNullException"></exception>
-        internal static async Task<DnsResponse> ResolveWireFormatUdp(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, CancellationToken cancellationToken) {
+        internal static async Task<DnsResponse> ResolveWireFormatUdp(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, int maxRetries, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             var edns = endpointConfiguration.EdnsOptions;
@@ -46,46 +46,49 @@ namespace DnsClientX {
                 Settings.Logger.WriteDebug($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
 
-            try {
-                // Send the DNS query over UDP and receive the response
-                var address = IPAddress.Parse(dnsServer);
-                using var udpClient = new UdpClient(address.AddressFamily);
-                var responseBuffer = await SendQueryOverUdp(udpClient, queryBytes, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
+            Exception lastException = null;
+            for (int attempt = 1; attempt <= Math.Max(1, maxRetries); attempt++) {
+                try {
+                    var address = IPAddress.Parse(dnsServer);
+                    using var udpClient = new UdpClient(address.AddressFamily);
+                    var responseBuffer = await SendQueryOverUdp(udpClient, queryBytes, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
-                // Deserialize the response from DNS wire format
-                var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
-                if (response.IsTruncated && endpointConfiguration.UseTcpFallback) {
-                    // If the response is truncated and fallback is enabled, retry the query over TCP
-                    response = await DnsWireResolveTcp.ResolveWireFormatTcp(dnsServer, port, name, type, requestDnsSec,
-                        validateDnsSec, debug, endpointConfiguration, cancellationToken).ConfigureAwait(false);
+                    var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
+                    if (response.IsTruncated && endpointConfiguration.UseTcpFallback) {
+                        response = await DnsWireResolveTcp.ResolveWireFormatTcp(dnsServer, port, name, type, requestDnsSec,
+                            validateDnsSec, debug, endpointConfiguration, cancellationToken).ConfigureAwait(false);
+                    }
+                    response.AddServerDetails(endpointConfiguration);
+                    return response;
+                } catch (Exception ex) {
+                    lastException = ex;
+                    if (attempt == maxRetries) break;
                 }
-                response.AddServerDetails(endpointConfiguration);
-                return response;
-            } catch (Exception ex) {
-                DnsResponseCode responseCode;
-                if (ex.InnerException is WebException webEx && webEx.Status == WebExceptionStatus.ConnectFailure) {
-                    responseCode = DnsResponseCode.Refused;
-                } else if (ex is TimeoutException) {
-                    responseCode = DnsResponseCode.ServerFailure;
-                } else {
-                    responseCode = DnsResponseCode.ServerFailure;
-                }
-
-                DnsResponse response = new DnsResponse {
-                    Questions = [
-                        new DnsQuestion() {
-                    Name = name,
-                    RequestFormat = DnsRequestFormat.DnsOverUDP,
-                    Type = type,
-                    OriginalName = name
-                }
-                    ],
-                    Status = responseCode
-                };
-                response.AddServerDetails(endpointConfiguration);
-                response.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message + " " + ex.InnerException?.Message}";
-                return response;
             }
+
+            DnsResponseCode responseCode;
+            if (lastException?.InnerException is WebException webEx && webEx.Status == WebExceptionStatus.ConnectFailure) {
+                responseCode = DnsResponseCode.Refused;
+            } else if (lastException is TimeoutException) {
+                responseCode = DnsResponseCode.ServerFailure;
+            } else {
+                responseCode = DnsResponseCode.ServerFailure;
+            }
+
+            DnsResponse failure = new DnsResponse {
+                Questions = [
+                    new DnsQuestion() {
+                        Name = name,
+                        RequestFormat = DnsRequestFormat.DnsOverUDP,
+                        Type = type,
+                        OriginalName = name
+                    }
+                ],
+                Status = responseCode
+            };
+            failure.AddServerDetails(endpointConfiguration);
+            failure.Error = $"Failed to query type {type} of \"{name}\" => {lastException?.Message + " " + lastException?.InnerException?.Message}";
+            return failure;
         }
 
 

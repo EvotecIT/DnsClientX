@@ -21,7 +21,7 @@ namespace DnsClientX {
                 foreach (var server in servers) {
                     var host = server.TrimEnd('.');
                     var cfg = new Configuration(host, DnsRequestFormat.DnsOverUDP) { UseTcpFallback = true };
-                    lastResponse = await DnsWireResolveUdp.ResolveWireFormatUdp(host, cfg.Port, name, type, false, false, Debug, cfg, cancellationToken).ConfigureAwait(false);
+                    lastResponse = await DnsWireResolveUdp.ResolveWireFormatUdp(host, cfg.Port, name, type, false, false, Debug, cfg, 1, cancellationToken).ConfigureAwait(false);
                     if (lastResponse.Answers?.Any(a => a.Type == type) == true) {
                         return lastResponse;
                     }
