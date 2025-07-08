@@ -106,22 +106,24 @@ namespace DnsClientX {
                 var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
                 response.AddServerDetails(endpointConfiguration);
                 return response;
-            } catch (AuthenticationException ex) {
-                DnsResponse response = new DnsResponse {
-                    Questions = [
-                        new DnsQuestion() {
-                            Name = name,
-                            RequestFormat = DnsRequestFormat.DnsOverTLS,
-                            Type = type,
-                            OriginalName = name
-                        }
-                    ],
-                    Status = DnsResponseCode.Refused
-                };
-                response.AddServerDetails(endpointConfiguration);
-                response.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message} {ex.InnerException?.Message}";
-                return response;
             } catch (Exception ex) {
+                if (ex is AuthenticationException || ex is IOException { InnerException: AuthenticationException }) {
+                    DnsResponse authResponse = new DnsResponse {
+                        Questions = [
+                            new DnsQuestion() {
+                                Name = name,
+                                RequestFormat = DnsRequestFormat.DnsOverTLS,
+                                Type = type,
+                                OriginalName = name
+                            }
+                        ],
+                        Status = DnsResponseCode.Refused
+                    };
+                    authResponse.AddServerDetails(endpointConfiguration);
+                    authResponse.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message} {ex.InnerException?.Message}";
+                    return authResponse;
+                }
+
                 DnsResponseCode responseCode;
                 if (ex is SocketException) {
                     responseCode = DnsResponseCode.Refused;
