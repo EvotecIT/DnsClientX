@@ -1,4 +1,4 @@
-#if NET8_0_OR_GREATER
+#if NET5_0_OR_GREATER
 using System;
 using System.Net;
 using System.Net.Http;
@@ -27,6 +27,7 @@ namespace DnsClientX.Tests {
             var response = await DnsWireResolveHttp3.ResolveWireFormatHttp3(client, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None);
 
             Assert.Equal(HttpVersion.Version30, handler.Request?.Version);
+            Assert.Equal(HttpVersionPolicy.RequestVersionOrHigher, handler.Request?.VersionPolicy);
             Assert.Equal(DnsResponseCode.NoError, response.Status);
         }
     }
