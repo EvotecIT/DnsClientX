@@ -42,7 +42,7 @@ namespace DnsClientX {
             _name = name;
             _type = type;
             _requestDnsSec = requestDnsSec;
-            _enableEdns = enableEdns || requestDnsSec || !string.IsNullOrEmpty(subnet);
+            _enableEdns = enableEdns || requestDnsSec || !string.IsNullOrEmpty(subnet) || checkingDisabled;
             _udpBufferSize = udpBufferSize;
             _subnet = subnet;
             _checkingDisabled = checkingDisabled;
