@@ -61,6 +61,10 @@ namespace DnsClientX {
                     }
 
                     handlerLocal?.Dispose();
+
+                    lock (_lock) {
+                        _disposedClients.Clear();
+                    }
                 }
 
                 System.Threading.Interlocked.Increment(ref DisposalCount);
@@ -142,6 +146,11 @@ namespace DnsClientX {
                 }
 #endif
 
+                lock (_lock) {
+                    _disposedClients.Clear();
+                }
+
+                _disposed = true;
                 System.Threading.Interlocked.Increment(ref DisposalCount);
             }
         }
