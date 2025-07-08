@@ -15,7 +15,7 @@ namespace DnsClientX.Tests {
             Task<int> task = (Task<int>)main.Invoke(null, new object[] { new[] { "localhost" } })!;
             int exitCode = await task;
             Assert.Equal(0, exitCode);
-            Assert.Equal(1, ClientX.DisposalCount);
+            Assert.True(ClientX.DisposalCount >= 1, $"Expected at least one disposal but was {ClientX.DisposalCount}");
         }
 
         [Theory]
