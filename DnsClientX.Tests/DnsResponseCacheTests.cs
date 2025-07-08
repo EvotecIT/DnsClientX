@@ -28,6 +28,18 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
+        public void ShouldCleanupExpiredEntries() {
+            var cache = new DnsResponseCache();
+            var response = new DnsResponse { Status = DnsResponseCode.NoError };
+            cache.Set("a", response, TimeSpan.FromMilliseconds(10));
+            cache.Set("b", response, TimeSpan.FromMilliseconds(10));
+            Thread.Sleep(20);
+            cache.Cleanup();
+            Assert.False(cache.TryGet("a", out _));
+            Assert.False(cache.TryGet("b", out _));
+        }
+
+        [Fact]
         public void ClientConstructorEnablesCache() {
             using var client = new ClientX(enableCache: true);
             PropertyInfo property = typeof(ClientX).GetProperty("CacheEnabled")!;
