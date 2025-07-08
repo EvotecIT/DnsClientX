@@ -111,7 +111,8 @@ namespace DnsClientX {
                     Status = DnsResponseCode.Refused
                 };
                 failureResponse.AddServerDetails(endpointConfiguration);
-                failureResponse.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message + " " + ex.InnerException?.Message}";                
+                string details = ex.InnerException?.Message is { Length: >0 } inner ? $"{ex.Message} {inner}" : ex.Message;
+                failureResponse.Error = $"Failed to query type {type} of \"{name}\" => {details}";
                 throw new DnsClientException(failureResponse.Error!, failureResponse);
             } catch (Exception ex) {
                 var failureResponse = new DnsResponse {
