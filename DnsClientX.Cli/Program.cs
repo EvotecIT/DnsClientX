@@ -6,7 +6,9 @@ using DnsClientX;
 namespace DnsClientX.Cli {
     internal static class Program {
         private static async Task<int> Main(string[] args) {
-            if (args.Length == 0 || args[0] is "-h" or "--help") {
+            if (args.Length == 0 ||
+                string.Equals(args[0], "-h", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "--help", StringComparison.OrdinalIgnoreCase)) {
                 ShowHelp();
                 return 0;
             }
