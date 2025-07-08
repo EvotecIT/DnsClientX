@@ -63,6 +63,11 @@ namespace DnsClientX {
         private async Task<DnsResponse> ResolveInternal(string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool returnAllTypes, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
+            bool originalCd = EndpointConfiguration.CheckingDisabled;
+            if (validateDnsSec) {
+                EndpointConfiguration.CheckingDisabled = !originalCd;
+            }
+
             // lets we execute valid dns host name strategy
             EndpointConfiguration.SelectHostNameStrategy();
 
@@ -171,6 +176,8 @@ namespace DnsClientX {
                 }
                 _auditTrail.Enqueue(auditEntry);
             }
+
+            EndpointConfiguration.CheckingDisabled = originalCd;
 
             return response;
         }

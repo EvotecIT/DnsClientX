@@ -75,6 +75,11 @@ namespace DnsClientX {
         public bool ValidateRootDnsSec { get; set; }
 
         /// <summary>
+        /// Sets the CD (Checking Disabled) flag on queries.
+        /// </summary>
+        public bool CheckingDisabled { get; set; }
+
+        /// <summary>
         /// Determines whether to fall back to TCP when a UDP response is truncated.
         /// </summary>
         public bool UseTcpFallback { get; set; } = true;

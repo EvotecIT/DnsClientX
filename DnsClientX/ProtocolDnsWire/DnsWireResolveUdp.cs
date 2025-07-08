@@ -27,7 +27,7 @@ namespace DnsClientX {
             bool enableEdns = edns?.EnableEdns ?? endpointConfiguration.EnableEdns;
             int udpSize = edns?.UdpBufferSize ?? endpointConfiguration.UdpBufferSize;
             string? subnet = edns?.Subnet ?? endpointConfiguration.Subnet;
-            var query = new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet);
+            var query = new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet, endpointConfiguration.CheckingDisabled);
             var queryBytes = query.SerializeDnsWireFormat();
 
             if (debug) {
