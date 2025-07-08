@@ -29,7 +29,7 @@ namespace DnsClientX {
             string url = $"?dns={base64UrlDnsMessage}";
 
             using HttpRequestMessage req = new(HttpMethod.Get, url);
-#if NET8_0_OR_GREATER
+#if NET5_0_OR_GREATER
             req.Version = HttpVersion.Version20;
             req.VersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
 #else

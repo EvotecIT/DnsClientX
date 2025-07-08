@@ -1,10 +1,10 @@
-#if NET8_0_OR_GREATER
+#if NET5_0_OR_GREATER
 using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
     public class QueryDnsOverHttp3 {
-        [Theory]
+        [Theory(Skip = "External dependency - network unreachable in CI")]
         [InlineData("1.1.1.1")]
         [InlineData("8.8.8.8")]
         public async Task ShouldResolveA(string hostName) {
