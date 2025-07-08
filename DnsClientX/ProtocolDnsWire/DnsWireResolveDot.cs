@@ -107,7 +107,7 @@ namespace DnsClientX {
                 response.AddServerDetails(endpointConfiguration);
                 return response;
             } catch (Exception ex) {
-                if (ex is AuthenticationException || ex is IOException { InnerException: AuthenticationException }) {
+                if (ex is AuthenticationException || (ex is IOException ioEx && ioEx.InnerException is AuthenticationException)) {
                     DnsResponse authResponse = new DnsResponse {
                         Questions = [
                             new DnsQuestion() {
