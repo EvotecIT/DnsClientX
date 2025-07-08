@@ -8,7 +8,7 @@ Describe 'DnsMessage DO bit' {
         $offset = 12
         foreach($label in 'example.com'.Split('.')){ $offset += 1 + $label.Length }
         $offset += 1 + 2 + 2
-        $ttl = ($bytes[$offset+5] -shl 24) -bor ($bytes[$offset+6] -shl 16) -bor ($bytes[$offset+7] -shl 8) -bor $bytes[$offset+8]
+        $ttl = ([int]$bytes[$offset+5] -shl 24) -bor ([int]$bytes[$offset+6] -shl 16) -bor ([int]$bytes[$offset+7] -shl 8) -bor [int]$bytes[$offset+8]
         ($ttl -band 0x00008000) | Should -Be 0x00008000
     }
 }
