@@ -40,7 +40,9 @@ namespace DnsClientX.Tests {
         private static X509Certificate2 CreateInvalidCertificate() {
             using var ecdsa = ECDsa.Create();
             var req = new CertificateRequest("CN=invalid", ecdsa, HashAlgorithmName.SHA256);
-            return req.CreateSelfSigned(DateTimeOffset.Now.AddDays(-1), DateTimeOffset.Now.AddDays(1));
+            using X509Certificate2 cert = req.CreateSelfSigned(DateTimeOffset.Now.AddDays(-1), DateTimeOffset.Now.AddDays(1));
+            byte[] pfx = cert.Export(X509ContentType.Pfx);
+            return new X509Certificate2(pfx, (string?)null, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
         }
 
         [Fact]

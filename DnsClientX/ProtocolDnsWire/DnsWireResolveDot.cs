@@ -68,21 +68,54 @@ namespace DnsClientX {
                 Settings.Logger.WriteDebug($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
 
+            // Create a new TCP client and connect to the DNS server
+            using var client = new TcpClient();
+            await ConnectAsync(client, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
+
+            // Create a new SSL stream for the secure connection
+            using var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) =>
+                sslPolicyErrors == SslPolicyErrors.None || ignoreCertificateErrors);
+
             try {
-                // Create a new TCP client and connect to the DNS server
-                using var client = new TcpClient();
-                await ConnectAsync(client, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
-
-                // Create a new SSL stream for the secure connection
-                using var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) =>
-                    sslPolicyErrors == SslPolicyErrors.None || ignoreCertificateErrors);
-
                 // Authenticate the client using the DNS server's name and the TLS protocol
                 await sslStream.AuthenticateAsClientAsync(dnsServer, null, SslProtocols.Tls12, false).ConfigureAwait(false);
+            } catch (AuthenticationException authEx) {
+                DnsResponse authResponse = new DnsResponse {
+                    Questions =
+                    [
+                        new DnsQuestion {
+                            Name = name,
+                            RequestFormat = DnsRequestFormat.DnsOverTLS,
+                            Type = type,
+                            OriginalName = name
+                        }
+                    ],
+                    Status = DnsResponseCode.Refused
+                };
+                authResponse.AddServerDetails(endpointConfiguration);
+                authResponse.Error = $"Failed to query type {type} of \"{name}\" => {authEx.Message} {authEx.InnerException?.Message}";
+                return authResponse;
+            } catch (IOException ioEx) when (ioEx.InnerException is AuthenticationException innerAuthEx) {
+                DnsResponse authResponse = new DnsResponse {
+                    Questions =
+                    [
+                        new DnsQuestion {
+                            Name = name,
+                            RequestFormat = DnsRequestFormat.DnsOverTLS,
+                            Type = type,
+                            OriginalName = name
+                        }
+                    ],
+                    Status = DnsResponseCode.Refused
+                };
+                authResponse.AddServerDetails(endpointConfiguration);
+                authResponse.Error = $"Failed to query type {type} of \"{name}\" => {ioEx.Message} {innerAuthEx.Message}";
+                return authResponse;
+            }
 
-                // Write the combined query bytes to the SSL stream and flush it
-                await sslStream.WriteAsync(combinedQueryBytes, 0, combinedQueryBytes.Length, cancellationToken).ConfigureAwait(false);
-                await sslStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+            // Write the combined query bytes to the SSL stream and flush it
+            await sslStream.WriteAsync(combinedQueryBytes, 0, combinedQueryBytes.Length, cancellationToken).ConfigureAwait(false);
+            await sslStream.FlushAsync(cancellationToken).ConfigureAwait(false);
 
                 // Prepare to read the response with handling for length prefix
                 var lengthPrefixBuffer = new byte[2];
@@ -106,65 +139,6 @@ namespace DnsClientX {
                 var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
                 response.AddServerDetails(endpointConfiguration);
                 return response;
-            }
-            catch (AuthenticationException authEx) {
-                DnsResponse authResponse = new DnsResponse {
-                    Questions = [
-                        new DnsQuestion() {
-                            Name = name,
-                            RequestFormat = DnsRequestFormat.DnsOverTLS,
-                            Type = type,
-                            OriginalName = name
-                        }
-                    ],
-                    Status = DnsResponseCode.Refused
-                };
-                authResponse.AddServerDetails(endpointConfiguration);
-                authResponse.Error = $"Failed to query type {type} of \"{name}\" => {authEx.Message} {authEx.InnerException?.Message}";
-                return authResponse;
-            }
-            catch (IOException ioEx) when (ioEx.InnerException is AuthenticationException authEx) {
-                DnsResponse authResponse = new DnsResponse {
-                    Questions = [
-                        new DnsQuestion() {
-                            Name = name,
-                            RequestFormat = DnsRequestFormat.DnsOverTLS,
-                            Type = type,
-                            OriginalName = name
-                        }
-                    ],
-                    Status = DnsResponseCode.Refused
-                };
-                authResponse.AddServerDetails(endpointConfiguration);
-                authResponse.Error = $"Failed to query type {type} of \"{name}\" => {ioEx.Message} {authEx.Message}";
-                return authResponse;
-            }
-            catch (Exception ex) {
-
-                DnsResponseCode responseCode;
-                if (ex is SocketException) {
-                    responseCode = DnsResponseCode.Refused;
-                } else if (ex is TimeoutException) {
-                    responseCode = DnsResponseCode.ServerFailure;
-                } else {
-                    responseCode = DnsResponseCode.ServerFailure;
-                }
-
-                DnsResponse response = new DnsResponse {
-                    Questions = [
-                        new DnsQuestion() {
-                            Name = name,
-                            RequestFormat = DnsRequestFormat.DnsOverTLS,
-                            Type = type,
-                            OriginalName = name
-                        }
-                    ],
-                    Status = responseCode
-                };
-                response.AddServerDetails(endpointConfiguration);
-                response.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message + " " + ex.InnerException?.Message}";
-                return response;
-            }
         }
 
         /// <summary>
