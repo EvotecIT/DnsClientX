@@ -112,6 +112,39 @@ namespace DnsClientX {
                 return false;
             }
 
+            static bool ParenthesesBalanced(string text) {
+                bool inQuotes = false;
+                bool escape = false;
+                int depth = 0;
+                for (int i = 0; i < text.Length; i++) {
+                    char c = text[i];
+                    if (escape) {
+                        escape = false;
+                        continue;
+                    }
+
+                    if (c == '\\') {
+                        escape = true;
+                        continue;
+                    }
+
+                    if (c == '"') {
+                        inQuotes = !inQuotes;
+                        continue;
+                    }
+
+                    if (!inQuotes) {
+                        if (c == '(') {
+                            depth++;
+                        } else if (c == ')') {
+                            depth--;
+                        }
+                    }
+                }
+
+                return depth == 0;
+            }
+
             while (enumerator.MoveNext()) {
                 var line = enumerator.Current.Trim();
                 if (string.IsNullOrEmpty(line) || line.StartsWith(";")) {
@@ -119,6 +152,17 @@ namespace DnsClientX {
                 }
 
                 line = StripComments(line);
+
+                if (!ParenthesesBalanced(line)) {
+                    while (enumerator.MoveNext()) {
+                        var next = StripComments(enumerator.Current.Trim());
+                        line += " " + next;
+                        if (ParenthesesBalanced(line)) {
+                            break;
+                        }
+                    }
+                    line = line.Replace("(", string.Empty).Replace(")", string.Empty);
+                }
 
                 if (line.StartsWith("$TTL", StringComparison.OrdinalIgnoreCase)) {
                     var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);

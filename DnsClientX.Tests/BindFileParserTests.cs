@@ -59,5 +59,24 @@ namespace DnsClientX.Tests {
             Assert.Equal(1800, records[1].TTL);
             Assert.Equal(7200, records[2].TTL);
         }
+
+        [Fact]
+        public void ParseZoneFile_JoinsParenthesizedRecords() {
+            string file = Path.GetTempFileName();
+            File.WriteAllLines(file, new[] {
+                "example.com. IN SOA ns.example.com. admin.example.com. (",
+                "  2024010101",
+                "  7200",
+                "  3600",
+                "  1209600",
+                "  3600 )"
+            });
+
+            var records = BindFileParser.ParseZoneFile(file);
+
+            Assert.Single(records);
+            Assert.Equal(DnsRecordType.SOA, records[0].Type);
+            Assert.Equal("ns.example.com. admin.example.com. 2024010101 7200 3600 1209600 3600", records[0].DataRaw);
+        }
     }
 }
