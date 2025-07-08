@@ -67,6 +67,16 @@ namespace DnsClientX.Tests {
             await Task.Delay(200);
 
             bool hasConnection = await NetstatHasPortAsync(port);
+            if (hasConnection)
+            {
+                // give the OS some time to clean up TIME_WAIT sockets
+                for (int i = 0; i < 20 && hasConnection; i++)
+                {
+                    await Task.Delay(100);
+                    hasConnection = await NetstatHasPortAsync(port);
+                }
+            }
+
             Assert.False(hasConnection);
         }
     }
