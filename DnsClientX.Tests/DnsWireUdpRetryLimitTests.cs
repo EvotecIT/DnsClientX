@@ -20,8 +20,12 @@ namespace DnsClientX.Tests {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
             int count = 0;
             while (count < expected && !token.IsCancellationRequested) {
+#if NET5_0_OR_GREATER
+                var receiveTask = udp.ReceiveAsync(token).AsTask();
+#else
                 var receiveTask = udp.ReceiveAsync();
-                var completed = await Task.WhenAny(receiveTask, Task.Delay(100, token));
+#endif
+                var completed = await Task.WhenAny(receiveTask, Task.Delay(Timeout.Infinite, token));
                 if (completed == receiveTask) {
                     await receiveTask;
                     count++;
