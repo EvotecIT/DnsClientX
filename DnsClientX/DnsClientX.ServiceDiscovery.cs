@@ -163,7 +163,12 @@ namespace DnsClientX {
             if (!protocol.StartsWith("_", StringComparison.Ordinal)) protocol = "_" + protocol;
 
             string query = $"{service}.{protocol}.{domain}";
-            var response = await ResolveForSd(query, DnsRecordType.SRV, cancellationToken).ConfigureAwait(false);
+            DnsResponse response;
+            try {
+                response = await ResolveForSd(query, DnsRecordType.SRV, cancellationToken).ConfigureAwait(false);
+            } catch (DnsClientException ex) when (ex.Response?.Status == DnsResponseCode.NXDomain || ex.Response?.Status == DnsResponseCode.NXRRSet) {
+                return Array.Empty<DnsSrvRecord>();
+            }
             if (response.Answers == null) return Array.Empty<DnsSrvRecord>();
 
             var records = new List<DnsSrvRecord>();

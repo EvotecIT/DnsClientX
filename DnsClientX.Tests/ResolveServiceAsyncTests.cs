@@ -59,5 +59,17 @@ namespace DnsClientX.Tests {
             Assert.Contains(IPAddress.Parse("10.0.0.1"), r.Addresses!);
             Assert.Contains(IPAddress.Parse("::1"), r.Addresses!);
         }
+
+        [Fact]
+        public async Task ShouldReturnEmptyArrayWhenNoSrvRecords() {
+            using var client = new ClientX(DnsEndpoint.System);
+            client.ResolverOverride = (name, type, ct) =>
+                Task.FromException<DnsResponse>(new DnsClientException(
+                    "not found",
+                    new DnsResponse { Status = DnsResponseCode.NXDomain }));
+
+            var records = await client.ResolveServiceAsync("http", "tcp", "example.com");
+            Assert.Empty(records);
+        }
     }
 }
