@@ -213,6 +213,7 @@ namespace DnsClientX {
             }
 
             Exception lastException = null;
+            DnsClientException lastDnsClientException = null;
             T lastResult = default(T);
 
             for (int attempt = 1; attempt <= maxRetries; attempt++) {
@@ -238,9 +239,13 @@ namespace DnsClientX {
                     return result;
                 } catch (Exception ex) when (IsTransient(ex)) {
                     lastException = ex;
+                    if (ex is DnsClientException dnsEx) {
+                        lastDnsClientException = dnsEx;
+                    }
                     if (attempt == maxRetries) {
-                        // This was the last attempt, rethrow the exception
-                        throw;
+                        // Break out of the loop so the last exception can be
+                        // thrown after retries
+                        break;
                     }
 
                     beforeRetry?.Invoke();
@@ -251,7 +256,12 @@ namespace DnsClientX {
                 }
             }
 
-            // After retries, rethrow the last exception if there was one
+            // After retries, rethrow the last DNS exception if captured
+            if (lastDnsClientException != null) {
+                throw lastDnsClientException;
+            }
+
+            // Rethrow any non-DNS transient exception captured
             if (lastException != null) {
                 throw lastException;
             }
