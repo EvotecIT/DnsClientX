@@ -352,5 +352,41 @@ namespace DnsClientX.Tests {
             await Assert.ThrowsAsync<DnsClientException>(() => client.ZoneTransferAsync("example.com"));
             await server.Task;
         }
+
+        [Fact]
+        public async Task ZoneTransferStreamAsync_ReturnsRecords() {
+            var soa = BuildSoaRdata();
+            byte[] m1 = BuildMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
+            byte[] m2 = BuildMessage("example.com", ("www.example.com", DnsRecordType.A, new byte[] { 1, 2, 3, 4 }));
+            byte[] m3 = BuildMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var server = RunAxfrServerAsync(new[] { m1, m2, m3 }, cts.Token);
+
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
+            var results = new System.Collections.Generic.List<DnsAnswer[]>();
+            await foreach (var rrset in client.ZoneTransferStreamAsync("example.com")) {
+                results.Add(rrset);
+            }
+            await server.Task;
+
+            Assert.Equal(3, results.Count);
+            Assert.Equal(DnsRecordType.SOA, results[0][0].Type);
+            Assert.Equal(DnsRecordType.A, results[1][0].Type);
+            Assert.Equal(DnsRecordType.SOA, results[2][0].Type);
+        }
+
+        [Fact]
+        public async Task ZoneTransferStreamAsync_FailsWithError() {
+            byte[] m1 = BuildErrorMessage("example.com");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var server = RunAxfrServerAsync(new[] { m1 }, cts.Token);
+
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
+            await Assert.ThrowsAsync<DnsClientException>(async () => {
+                await foreach (var _ in client.ZoneTransferStreamAsync("example.com")) {
+                }
+            });
+            await server.Task;
+        }
     }
 }
