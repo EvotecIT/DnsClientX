@@ -9,15 +9,15 @@ public class RootAnchorHelperTests
     public void ParseFromXml_ParsesRecords()
     {
         const string xml = """
-<TrustAnchor id=\"test\">
+<TrustAnchor id="test">
   <Zone>.</Zone>
-  <KeyDigest validFrom=\"2024-07-18T00:00:00+00:00\">
+  <KeyDigest validFrom="2024-07-18T00:00:00+00:00">
     <KeyTag>38696</KeyTag>
     <Algorithm>8</Algorithm>
     <DigestType>2</DigestType>
     <Digest>683D2D0ACB8C9B712A1948B27F741219298D0A450D612C483AF444A4C0FB2B16</Digest>
   </KeyDigest>
-  <KeyDigest validFrom=\"2017-02-02T00:00:00+00:00\">
+  <KeyDigest validFrom="2017-02-02T00:00:00+00:00">
     <KeyTag>20326</KeyTag>
     <Algorithm>8</Algorithm>
     <DigestType>2</DigestType>
