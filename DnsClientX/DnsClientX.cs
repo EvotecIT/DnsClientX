@@ -380,7 +380,9 @@ namespace DnsClientX {
             }
 
             bool hasTrailingDot = domainName.EndsWith(".", StringComparison.Ordinal);
-            string nameToConvert = hasTrailingDot ? domainName[..^1] : domainName;
+            string nameToConvert = hasTrailingDot
+                ? domainName.Substring(0, domainName.Length - 1)
+                : domainName;
 
             foreach (char c in nameToConvert) {
                 UnicodeCategory cat = char.GetUnicodeCategory(c);
