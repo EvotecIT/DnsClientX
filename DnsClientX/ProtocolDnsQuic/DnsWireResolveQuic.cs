@@ -142,10 +142,8 @@ namespace DnsClientX {
                 } finally {
                     if (stream is not null) {
                         await StreamDisposer(stream).ConfigureAwait(false);
-                        System.Threading.Interlocked.Increment(ref StreamDisposeCount);
                     }
                     await ConnectionDisposer(quicConnection).ConfigureAwait(false);
-                    System.Threading.Interlocked.Increment(ref ConnectionDisposeCount);
                 }
             } catch (PlatformNotSupportedException ex) {
                 var response = new DnsResponse {
