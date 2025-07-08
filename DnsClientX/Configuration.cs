@@ -105,10 +105,28 @@ namespace DnsClientX {
         /// </summary>
         public EdnsOptions? EdnsOptions { get; set; }
 
+        private DnsRequestFormat requestFormat;
+
         /// <summary>
         /// Gets or sets the format of the DNS requests.
+        /// Updating the format adjusts <see cref="Port"/> according
+        /// to the same rules used by the constructors.
         /// </summary>
-        public DnsRequestFormat RequestFormat { get; set; }
+        public DnsRequestFormat RequestFormat {
+            get => requestFormat;
+            set {
+                requestFormat = value;
+                if (value == DnsRequestFormat.DnsOverTLS || value == DnsRequestFormat.DnsOverQuic) {
+                    Port = 853;
+                } else if (value == DnsRequestFormat.DnsOverUDP || value == DnsRequestFormat.DnsOverTCP || value == DnsRequestFormat.DnsCryptRelay) {
+                    Port = 53;
+                } else if (value == DnsRequestFormat.Multicast) {
+                    Port = 5353;
+                } else {
+                    Port = 443;
+                }
+            }
+        }
 
         /// <summary>
         /// Gets or sets the port. The default value is 53 for DNS over UDP or DNS over TCP, and 853 for DNS over TLS.

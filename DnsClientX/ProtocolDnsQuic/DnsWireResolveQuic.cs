@@ -95,7 +95,20 @@ namespace DnsClientX {
             };
 
             try {
-                await using var connection = await QuicConnectionFactory(options, cancellationToken).ConfigureAwait(false);
+                QuicConnection quicConnection;
+                try {
+                    quicConnection = await QuicConnectionFactory(options, cancellationToken).ConfigureAwait(false);
+                } catch (QuicException ex) {
+                    var failureResponse = new DnsResponse {
+                        Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverQuic, Type = type, OriginalName = name } ],
+                        Status = DnsResponseCode.ServerFailure
+                    };
+                    failureResponse.AddServerDetails(endpointConfiguration);
+                    failureResponse.Error = ex.Message;
+                    return failureResponse;
+                }
+
+                await using var connection = quicConnection;
                 await using var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, cancellationToken).ConfigureAwait(false);
 
                 await stream.WriteAsync(payload, cancellationToken).ConfigureAwait(false);

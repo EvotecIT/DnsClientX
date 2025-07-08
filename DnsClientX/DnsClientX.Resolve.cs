@@ -213,6 +213,7 @@ namespace DnsClientX {
             }
 
             Exception lastException = null;
+            DnsClientException lastDnsClientException = null;
             T lastResult = default(T);
 
             for (int attempt = 1; attempt <= maxRetries; attempt++) {
@@ -238,9 +239,13 @@ namespace DnsClientX {
                     return result;
                 } catch (Exception ex) when (IsTransient(ex)) {
                     lastException = ex;
+                    if (ex is DnsClientException dnsEx) {
+                        lastDnsClientException = dnsEx;
+                    }
                     if (attempt == maxRetries) {
-                        // This was the last attempt, rethrow the exception
-                        throw;
+                        // Break out of the loop so the last exception can be
+                        // thrown after retries
+                        break;
                     }
 
                     beforeRetry?.Invoke();
@@ -251,7 +256,12 @@ namespace DnsClientX {
                 }
             }
 
-            // After retries, rethrow the last exception if there was one
+            // After retries, rethrow the last DNS exception if captured
+            if (lastDnsClientException != null) {
+                throw lastDnsClientException;
+            }
+
+            // Rethrow any non-DNS transient exception captured
             if (lastException != null) {
                 throw lastException;
             }
@@ -560,29 +570,32 @@ namespace DnsClientX {
         public static IEnumerable<string> ExpandPattern(string pattern) {
             if (string.IsNullOrEmpty(pattern)) yield break;
 
-            var brace = Regex.Match(pattern, "{([^{}]+)}");
-            if (brace.Success) {
-                string before = pattern.Substring(0, brace.Index);
-                string after = pattern.Substring(brace.Index + brace.Length);
-                string inner = brace.Groups[1].Value;
-                IEnumerable<string> replacements;
+            var braceIndex = pattern.IndexOf('{');
+            if (braceIndex >= 0) {
+                int closing = FindClosingBrace(pattern, braceIndex);
+                if (closing > braceIndex) {
+                    string before = pattern.Substring(0, braceIndex);
+                    string after = pattern.Substring(closing + 1);
+                    string inner = pattern.Substring(braceIndex + 1, closing - braceIndex - 1);
 
-                var range = Regex.Match(inner, "^(\\d+)\\.\\.(\\d+)$");
-                if (range.Success) {
-                    int start = int.Parse(range.Groups[1].Value, CultureInfo.InvariantCulture);
-                    int end = int.Parse(range.Groups[2].Value, CultureInfo.InvariantCulture);
-                    int width = range.Groups[1].Value.Length;
-                    replacements = Enumerable.Range(start, end - start + 1)
-                        .Select(i => i.ToString($"D{width}"));
-                } else {
-                    replacements = inner.Split(',');
-                }
+                    IEnumerable<string> replacements;
+                    var range = Regex.Match(inner, "^(\\d+)\\.\\.(\\d+)$");
+                    if (range.Success) {
+                        int start = int.Parse(range.Groups[1].Value, CultureInfo.InvariantCulture);
+                        int end = int.Parse(range.Groups[2].Value, CultureInfo.InvariantCulture);
+                        int width = range.Groups[1].Value.Length;
+                        replacements = Enumerable.Range(start, end - start + 1)
+                            .Select(i => i.ToString($"D{width}"));
+                    } else {
+                        replacements = inner.Split(',');
+                    }
 
-                foreach (var rep in replacements) {
-                    foreach (var s in ExpandPattern(before + rep + after))
-                        yield return s;
+                    foreach (var rep in replacements) {
+                        foreach (var s in ExpandPattern(before + rep + after))
+                            yield return s;
+                    }
+                    yield break;
                 }
-                yield break;
             }
 
             var square = Regex.Match(pattern, "\\[(\\d+)-(\\d+)\\]");
@@ -611,6 +624,19 @@ namespace DnsClientX {
             }
 
             yield return pattern;
+        }
+
+        private static int FindClosingBrace(string pattern, int openIndex) {
+            int depth = 0;
+            for (int i = openIndex; i < pattern.Length; i++) {
+                if (pattern[i] == '{') {
+                    depth++;
+                } else if (pattern[i] == '}') {
+                    depth--;
+                    if (depth == 0) return i;
+                }
+            }
+            return -1;
         }
     }
 }

@@ -41,5 +41,23 @@ namespace DnsClientX.Tests {
             Assert.Equal("example.com", records[0].Name);
             Assert.Equal("line1 line2", records[0].DataRaw);
         }
+
+        [Fact]
+        public void ParseZoneFile_ParsesTtlSuffixes() {
+            string file = Path.GetTempFileName();
+            File.WriteAllLines(file, new[] {
+                "$TTL 1h",
+                "example.com. IN A 1.1.1.1",
+                "www 30m IN CNAME example.com.",
+                "mail 7200 IN A 2.2.2.2"
+            });
+
+            var records = BindFileParser.ParseZoneFile(file);
+
+            Assert.Equal(3, records.Count);
+            Assert.Equal(3600, records[0].TTL);
+            Assert.Equal(1800, records[1].TTL);
+            Assert.Equal(7200, records[2].TTL);
+        }
     }
 }

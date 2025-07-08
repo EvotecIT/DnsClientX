@@ -120,6 +120,7 @@ namespace DnsClientX.Tests {
 
             var ex = await Assert.ThrowsAsync<DnsClientException>(Invoke);
             Assert.Equal(DnsResponseCode.ServerFailure, ex.Response.Status);
+            Assert.Same(transientResponse, ex.Response);
         }
 
         [Fact]

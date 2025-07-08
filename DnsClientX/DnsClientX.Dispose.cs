@@ -31,21 +31,25 @@ namespace DnsClientX {
         /// <param name="disposing">Whether managed resources should be disposed.</param>
         protected virtual void Dispose(bool disposing) {
             if (!_disposed) {
-                if (disposing) {
-                    HttpClientHandler? handlerLocal;
-                    List<HttpClient> clients;
-                    HttpClient? mainClient;
+                HttpClientHandler? handlerLocal;
+                List<HttpClient> clients;
+                HttpClient? mainClient;
 
-                    lock (_lock) {
-                        clients = new List<HttpClient>(_clients.Values);
-                        _clients.Clear();
-
-                        mainClient = Client;
-                        handlerLocal = handler;
-                        Client = null;
-                        handler = null;
+                lock (_lock) {
+                    if (_disposed) {
+                        return;
                     }
+                    _disposed = true;
 
+                    clients = new List<HttpClient>(_clients.Values);
+                    _clients.Clear();
+
+                    mainClient = Client;
+                    handlerLocal = handler;
+                    Client = null;
+                    handler = null;
+                }
+                if (disposing) {
                     foreach (HttpClient client in clients) {
                         if (TryAddDisposedClient(client)) {
                             client.Dispose();
@@ -63,7 +67,6 @@ namespace DnsClientX {
                     }
                 }
 
-                _disposed = true;
                 System.Threading.Interlocked.Increment(ref DisposalCount);
             }
         }
@@ -89,6 +92,11 @@ namespace DnsClientX {
                 HttpClient? mainClient;
 
                 lock (_lock) {
+                    if (_disposed) {
+                        return;
+                    }
+                    _disposed = true;
+
                     clients = new List<HttpClient>(_clients.Values);
                     _clients.Clear();
 
@@ -124,17 +132,19 @@ namespace DnsClientX {
 #endif
                 }
 
-                if (handlerLocal != null) {
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+                if (handlerLocal != null) {
                     if (handlerLocal is IAsyncDisposable asyncHandler) {
                         await asyncHandler.DisposeAsync().ConfigureAwait(false);
                     } else {
                         handlerLocal.Dispose();
                     }
-#else
-                    handlerLocal.Dispose();
-#endif
                 }
+#else
+                if (handlerLocal != null) {
+                    handlerLocal.Dispose();
+                }
+#endif
 
                 lock (_lock) {
                     _disposedClients.Clear();

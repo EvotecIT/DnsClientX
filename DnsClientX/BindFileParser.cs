@@ -83,6 +83,35 @@ namespace DnsClientX {
                 return !inQuotes;
             }
 
+            static bool TryParseTtl(string token, out int ttl) {
+                ttl = 0;
+                if (int.TryParse(token, out int numeric)) {
+                    ttl = numeric;
+                    return true;
+                }
+
+                if (token.Length > 1) {
+                    char suffix = token[token.Length - 1];
+                    string numberPart = token.Substring(0, token.Length - 1);
+                    if (int.TryParse(numberPart, out numeric)) {
+                        int multiplier = suffix switch {
+                            'm' or 'M' => 60,
+                            'h' or 'H' => 3600,
+                            'd' or 'D' => 86400,
+                            'w' or 'W' => 604800,
+                            _ => -1
+                        };
+
+                        if (multiplier > 0) {
+                            ttl = numeric * multiplier;
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
             while (enumerator.MoveNext()) {
                 var line = enumerator.Current.Trim();
                 if (string.IsNullOrEmpty(line) || line.StartsWith(";")) {
@@ -93,12 +122,10 @@ namespace DnsClientX {
 
                 if (line.StartsWith("$TTL", StringComparison.OrdinalIgnoreCase)) {
                     var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length > 1 && int.TryParse(parts[1], out int ttlDirective)) {
-                        if (ttlDirective >= 0) {
-                            defaultTtl = ttlDirective;
-                        } else {
-                            debugPrint?.Invoke($"Skipping invalid TTL directive: {line}");
-                        }
+                    if (parts.Length > 1 && TryParseTtl(parts[1], out int ttlDirective) && ttlDirective >= 0) {
+                        defaultTtl = ttlDirective;
+                    } else {
+                        debugPrint?.Invoke($"Skipping invalid TTL directive: {line}");
                     }
                     continue;
                 }
@@ -116,7 +143,7 @@ namespace DnsClientX {
                 int index = 1;
                 int ttl = defaultTtl;
 
-                if (int.TryParse(tokens[index], out int ttlVal)) {
+                if (TryParseTtl(tokens[index], out int ttlVal)) {
                     if (ttlVal < 0) {
                         debugPrint?.Invoke($"Skipping record with negative TTL: {line}");
                         continue;
