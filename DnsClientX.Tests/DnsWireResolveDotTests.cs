@@ -30,8 +30,13 @@ namespace DnsClientX.Tests {
 #endif
             NetworkStream stream = client.GetStream();
             byte[] data = Encoding.ASCII.GetBytes("plain text");
+#if NET8_0_OR_GREATER
             await stream.WriteAsync(data, 0, data.Length, token);
             await stream.FlushAsync(token);
+#else
+            await stream.WriteAsync(data, 0, data.Length);
+            await stream.FlushAsync();
+#endif
             listener.Stop();
         }
 
@@ -52,8 +57,13 @@ namespace DnsClientX.Tests {
             using var ssl = new SslStream(client.GetStream(), false);
             using var cert = CreateSelfSignedCertificate("CN=localhost");
             await ssl.AuthenticateAsServerAsync(cert, false, false);
+#if NET8_0_OR_GREATER
             await ssl.WriteAsync(new byte[] { 0 }, 0, 1, token);
             await ssl.FlushAsync(token);
+#else
+            await ssl.WriteAsync(new byte[] { 0 }, 0, 1);
+            await ssl.FlushAsync();
+#endif
             listener.Stop();
         }
 
