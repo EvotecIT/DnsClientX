@@ -3,12 +3,21 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.IO;
 using Xunit;
 
 namespace DnsClientX.Tests {
     public class TcpCleanupRegressionTests {
+        private static bool IsWindows() {
+#if NET6_0_OR_GREATER
+            return OperatingSystem.IsWindows();
+#else
+            return RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+#endif
+        }
         private static int GetFreePort() {
             TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
@@ -26,7 +35,7 @@ namespace DnsClientX.Tests {
         }
 
         private static async Task<bool> NetstatHasPortAsync(int port) {
-            string args = OperatingSystem.IsWindows() ? "-ano" : "-an";
+            string args = IsWindows() ? "-ano" : "-an";
             using Process proc = new Process();
             proc.StartInfo.FileName = "netstat";
             proc.StartInfo.Arguments = args;
@@ -40,7 +49,7 @@ namespace DnsClientX.Tests {
 
         [Fact]
         public async Task TcpFailure_ShouldCloseSocket() {
-            if (!OperatingSystem.IsWindows() && !File.Exists("/bin/netstat") && !File.Exists("/usr/bin/netstat")) {
+            if (!IsWindows() && !File.Exists("/bin/netstat") && !File.Exists("/usr/bin/netstat")) {
                 return; // skip if netstat is not available
             }
 
