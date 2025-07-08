@@ -28,13 +28,19 @@ namespace DnsClientX.Tests {
         }
 
         private static async Task RunUdpServerAsync(int port, byte[] response, CancellationToken token) {
-            using var udp = new UdpClient(new IPEndPoint(IPAddress.IPv6Loopback, port));
+            using var udp = new UdpClient(AddressFamily.InterNetworkV6);
+            udp.Client.DualMode = true;
+            udp.Client.Bind(new IPEndPoint(IPAddress.IPv6Loopback, port));
             UdpReceiveResult result = await udp.ReceiveAsync();
             await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
         }
 
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldWorkWithIPv6Server() {
+            if (!Socket.OSSupportsIPv6) {
+                return;
+            }
+
             int port = GetFreePort();
             var response = CreateDnsHeader();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
