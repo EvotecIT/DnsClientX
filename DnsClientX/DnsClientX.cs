@@ -318,6 +318,7 @@ namespace DnsClientX {
                 handler?.Dispose();
 
                 Client = CreateOptimizedHttpClient();
+                _clients[EndpointConfiguration.SelectionStrategy] = Client;
             }
         }
 
