@@ -378,7 +378,11 @@ namespace DnsClientX {
             if (string.IsNullOrWhiteSpace(domainName)) {
                 return domainName;
             }
-            foreach (char c in domainName) {
+
+            bool hasTrailingDot = domainName.EndsWith(".", StringComparison.Ordinal);
+            string nameToConvert = hasTrailingDot ? domainName[..^1] : domainName;
+
+            foreach (char c in nameToConvert) {
                 UnicodeCategory cat = char.GetUnicodeCategory(c);
                 if (cat is UnicodeCategory.OtherSymbol
                     or UnicodeCategory.PrivateUse
@@ -389,7 +393,8 @@ namespace DnsClientX {
 
             IdnMapping idn = new IdnMapping();
             try {
-                return idn.GetAscii(domainName);
+                string converted = idn.GetAscii(nameToConvert);
+                return hasTrailingDot ? converted + "." : converted;
             } catch {
                 return domainName;
             }
