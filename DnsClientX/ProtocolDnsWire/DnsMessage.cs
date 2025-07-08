@@ -16,6 +16,7 @@ namespace DnsClientX {
         private readonly bool _enableEdns;
         private readonly int _udpBufferSize;
         private readonly string? _subnet;
+        private readonly bool _checkingDisabled;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DnsMessage"/> class.
@@ -24,7 +25,7 @@ namespace DnsClientX {
         /// <param name="type">The type.</param>
         /// <param name="requestDnsSec">if set to <c>true</c> [request DNS sec].</param>
         public DnsMessage(string name, DnsRecordType type, bool requestDnsSec)
-            : this(name, type, requestDnsSec, requestDnsSec, 4096, null) {
+            : this(name, type, requestDnsSec, requestDnsSec, 4096, null, false) {
         }
 
         /// <summary>
@@ -36,13 +37,15 @@ namespace DnsClientX {
         /// <param name="enableEdns">Enable EDNS OPT record.</param>
         /// <param name="udpBufferSize">UDP buffer size for EDNS.</param>
         /// <param name="subnet">Optional EDNS client subnet.</param>
-        public DnsMessage(string name, DnsRecordType type, bool requestDnsSec, bool enableEdns, int udpBufferSize, string? subnet) {
+        /// <param name="checkingDisabled">Whether to set the CD bit in OPT TTL.</param>
+        public DnsMessage(string name, DnsRecordType type, bool requestDnsSec, bool enableEdns, int udpBufferSize, string? subnet, bool checkingDisabled) {
             _name = name;
             _type = type;
             _requestDnsSec = requestDnsSec;
             _enableEdns = enableEdns || requestDnsSec || !string.IsNullOrEmpty(subnet);
             _udpBufferSize = udpBufferSize;
             _subnet = subnet;
+            _checkingDisabled = checkingDisabled;
         }
 
         /// <summary>
@@ -113,7 +116,10 @@ namespace DnsClientX {
                 BinaryPrimitives.WriteUInt16BigEndian(buffer, (ushort)_udpBufferSize);
                 stream.Write(buffer.ToArray(), 0, buffer.Length);
                 Span<byte> ttl = stackalloc byte[4];
-                BinaryPrimitives.WriteUInt32BigEndian(ttl, _requestDnsSec ? 0x00008000u : 0u);
+                uint ttlFlags = 0u;
+                if (_requestDnsSec) ttlFlags |= 0x00008000u;
+                if (_checkingDisabled) ttlFlags |= 0x00000010u;
+                BinaryPrimitives.WriteUInt32BigEndian(ttl, ttlFlags);
                 stream.Write(ttl.ToArray(), 0, ttl.Length);
                 BinaryPrimitives.WriteUInt16BigEndian(buffer, (ushort)optionData.Length);
                 stream.Write(buffer.ToArray(), 0, buffer.Length);
@@ -185,7 +191,10 @@ namespace DnsClientX {
                     ms.Write(bytes, 0, bytes.Length);
                     bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)_udpBufferSize));
                     ms.Write(bytes, 0, bytes.Length);
-                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((int)(_requestDnsSec ? 0x00008000u : 0u)));
+                    uint ttlFlags = 0u;
+                    if (_requestDnsSec) ttlFlags |= 0x00008000u;
+                    if (_checkingDisabled) ttlFlags |= 0x00000010u;
+                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((int)ttlFlags));
                     ms.Write(bytes, 0, bytes.Length);
                     bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)optionData.Length));
                     ms.Write(bytes, 0, bytes.Length);
