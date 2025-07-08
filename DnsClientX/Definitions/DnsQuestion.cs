@@ -17,7 +17,7 @@ namespace DnsClientX {
             OriginalName = string.Empty;
             Type = DnsRecordType.A;
             HostName = string.Empty;
-            BaseUri = null!;
+            BaseUri = null;
             RequestFormat = DnsRequestFormat.DnsOverHttps;
             Port = 0;
         }
@@ -61,7 +61,7 @@ namespace DnsClientX {
         /// Base URI of the DNS server which received the query.
         /// </summary>
         [JsonIgnore]
-        public Uri BaseUri { get; set; }
+        public Uri? BaseUri { get; set; }
 
         /// <summary>
         /// Request format of the DNS server which received the query.
