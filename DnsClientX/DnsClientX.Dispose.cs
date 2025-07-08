@@ -52,15 +52,15 @@ namespace DnsClientX {
                         }
                     }
 
-                    lock (_lock) {
-                        _disposedClients.Clear();
-                    }
-
                     if (mainClient != null && TryAddDisposedClient(mainClient)) {
                         mainClient.Dispose();
                     }
 
                     handlerLocal?.Dispose();
+
+                    lock (_lock) {
+                        _disposedClients.Clear();
+                    }
                 }
 
                 _disposed = true;
@@ -112,10 +112,6 @@ namespace DnsClientX {
                     }
                 }
 
-                lock (_lock) {
-                    _disposedClients.Clear();
-                }
-
                 if (mainClient != null && TryAddDisposedClient(mainClient)) {
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
                     if (mainClient is IAsyncDisposable asyncClient) {
@@ -138,6 +134,10 @@ namespace DnsClientX {
 #else
                     handlerLocal.Dispose();
 #endif
+                }
+
+                lock (_lock) {
+                    _disposedClients.Clear();
                 }
 
                 _disposed = true;
