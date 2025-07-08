@@ -110,44 +110,58 @@ namespace DnsClientX {
         }
 
         private static async Task<List<byte[]>> SendAxfrOverTcp(byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
-            using var tcpClient = new TcpClient();
-            await ConnectAsync(tcpClient, dnsServer, port, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
-            using var stream = tcpClient.GetStream();
-
-            var lengthBytes = BitConverter.GetBytes((ushort)query.Length);
-            if (BitConverter.IsLittleEndian) Array.Reverse(lengthBytes);
-
-            var writeTask = stream.WriteAsync(lengthBytes, 0, lengthBytes.Length, cancellationToken);
-            var timeoutTask = Task.Delay(timeoutMilliseconds, cancellationToken);
-            if (await Task.WhenAny(writeTask, timeoutTask).ConfigureAwait(false) == timeoutTask) {
-                throw new TimeoutException($"Writing length to {dnsServer}:{port} timed out after {timeoutMilliseconds} milliseconds.");
-            }
-            await writeTask.ConfigureAwait(false);
-
-            writeTask = stream.WriteAsync(query, 0, query.Length, cancellationToken);
-            timeoutTask = Task.Delay(timeoutMilliseconds, cancellationToken);
-            if (await Task.WhenAny(writeTask, timeoutTask).ConfigureAwait(false) == timeoutTask) {
-                throw new TimeoutException($"Writing query to {dnsServer}:{port} timed out after {timeoutMilliseconds} milliseconds.");
-            }
-            await writeTask.ConfigureAwait(false);
-
-            var responses = new List<byte[]>();
-            var lenBuf = new byte[2];
-            while (true) {
+            TcpClient tcpClient = new();
+            try {
+                await ConnectAsync(tcpClient, dnsServer, port, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
+                NetworkStream stream = tcpClient.GetStream();
                 try {
-                    await ReadExactWithTimeoutAsync(stream, lenBuf, 0, 2, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
-                } catch (EndOfStreamException) when (responses.Count == 0) {
-                    throw new DnsClientException("Connection closed during zone transfer.");
-                } catch (EndOfStreamException) {
-                    break;
+                    var lengthBytes = BitConverter.GetBytes((ushort)query.Length);
+                    if (BitConverter.IsLittleEndian) {
+                        Array.Reverse(lengthBytes);
+                    }
+
+                    var writeTask = stream.WriteAsync(lengthBytes, 0, lengthBytes.Length, cancellationToken);
+                    var timeoutTask = Task.Delay(timeoutMilliseconds, cancellationToken);
+                    if (await Task.WhenAny(writeTask, timeoutTask).ConfigureAwait(false) == timeoutTask) {
+                        throw new TimeoutException($"Writing length to {dnsServer}:{port} timed out after {timeoutMilliseconds} milliseconds.");
+                    }
+                    await writeTask.ConfigureAwait(false);
+
+                    writeTask = stream.WriteAsync(query, 0, query.Length, cancellationToken);
+                    timeoutTask = Task.Delay(timeoutMilliseconds, cancellationToken);
+                    if (await Task.WhenAny(writeTask, timeoutTask).ConfigureAwait(false) == timeoutTask) {
+                        throw new TimeoutException($"Writing query to {dnsServer}:{port} timed out after {timeoutMilliseconds} milliseconds.");
+                    }
+                    await writeTask.ConfigureAwait(false);
+
+                    var responses = new List<byte[]>();
+                    var lenBuf = new byte[2];
+                    while (true) {
+                        try {
+                            await ReadExactWithTimeoutAsync(stream, lenBuf, 0, 2, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
+                        } catch (EndOfStreamException) when (responses.Count == 0) {
+                            throw new DnsClientException("Connection closed during zone transfer.");
+                        } catch (EndOfStreamException) {
+                            break;
+                        }
+                        if (BitConverter.IsLittleEndian) {
+                            Array.Reverse(lenBuf);
+                        }
+                        int length = BitConverter.ToUInt16(lenBuf, 0);
+                        var responseBuffer = new byte[length];
+                        await ReadExactWithTimeoutAsync(stream, responseBuffer, 0, length, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
+                        responses.Add(responseBuffer);
+                    }
+
+                    return responses;
+                } finally {
+                    stream.Close();
+                    stream.Dispose();
                 }
-                if (BitConverter.IsLittleEndian) Array.Reverse(lenBuf);
-                int length = BitConverter.ToUInt16(lenBuf, 0);
-                var responseBuffer = new byte[length];
-                await ReadExactWithTimeoutAsync(stream, responseBuffer, 0, length, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
-                responses.Add(responseBuffer);
+            } finally {
+                tcpClient.Close();
+                tcpClient.Dispose();
             }
-            return responses;
         }
 
         private static async Task ReadExactWithTimeoutAsync(NetworkStream stream, byte[] buffer, int offset, int count, int timeoutMilliseconds, CancellationToken cancellationToken) {
