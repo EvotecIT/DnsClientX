@@ -23,6 +23,36 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
+        public void AddServerDetailsLeavesBaseUriNullForUdp() {
+            var response = new DnsResponse {
+                Questions = new[] { new DnsQuestion { Name = "example.com", Type = DnsRecordType.A } }
+            };
+            var config = new Configuration("8.8.8.8", DnsRequestFormat.DnsOverUDP);
+
+            response.AddServerDetails(config);
+
+            Assert.Equal(config.Hostname, response.Questions[0].HostName);
+            Assert.Null(response.Questions[0].BaseUri);
+            Assert.Equal(config.RequestFormat, response.Questions[0].RequestFormat);
+            Assert.Equal(config.Port, response.Questions[0].Port);
+        }
+
+        [Fact]
+        public void AddServerDetailsLeavesBaseUriNullForTcp() {
+            var response = new DnsResponse {
+                Questions = new[] { new DnsQuestion { Name = "example.com", Type = DnsRecordType.A } }
+            };
+            var config = new Configuration("8.8.8.8", DnsRequestFormat.DnsOverTCP);
+
+            response.AddServerDetails(config);
+
+            Assert.Equal(config.Hostname, response.Questions[0].HostName);
+            Assert.Null(response.Questions[0].BaseUri);
+            Assert.Equal(config.RequestFormat, response.Questions[0].RequestFormat);
+            Assert.Equal(config.Port, response.Questions[0].Port);
+        }
+
+        [Fact]
         public void CommentConverterReadsArray() {
             var json = "[\"a\",\"b\"]";
             var options = new JsonSerializerOptions();

@@ -180,7 +180,13 @@ namespace DnsClientX.Examples {
             table.AddColumn("RequestFormat");
             table.AddColumn("BaseUri");
             foreach (var question in questions) {
-                table.AddRow(new Markup(question.Name), new Markup(question.Type.ToString()), new Markup(question.HostName), new Markup(question.Port.ToString()), new Markup(question.RequestFormat.ToString()), new Markup(question.BaseUri.ToString()));
+                table.AddRow(
+                    new Markup(question.Name),
+                    new Markup(question.Type.ToString()),
+                    new Markup(question.HostName),
+                    new Markup(question.Port.ToString()),
+                    new Markup(question.RequestFormat.ToString()),
+                    new Markup(question.BaseUri?.ToString() ?? string.Empty));
             }
             AnsiConsole.Write(table);
         }

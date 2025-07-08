@@ -122,7 +122,9 @@ namespace DnsClientX {
             }
             for (int i = 0; i < Questions.Length; i++) {
                 Questions[i].HostName = configuration.Hostname;
-                Questions[i].BaseUri = configuration.BaseUri;
+                if (configuration.BaseUri != null) {
+                    Questions[i].BaseUri = configuration.BaseUri;
+                }
                 Questions[i].RequestFormat = configuration.RequestFormat;
                 Questions[i].Port = configuration.Port;
             }
