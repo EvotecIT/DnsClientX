@@ -48,7 +48,8 @@ namespace DnsClientX {
 
             try {
                 // Send the DNS query over UDP and receive the response
-                using var udpClient = new UdpClient();
+                var address = IPAddress.Parse(dnsServer);
+                using var udpClient = new UdpClient(address.AddressFamily);
                 var responseBuffer = await SendQueryOverUdp(udpClient, queryBytes, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
                 // Deserialize the response from DNS wire format
@@ -99,7 +100,11 @@ namespace DnsClientX {
         /// <returns>Raw DNS response bytes.</returns>
         private static async Task<byte[]> SendQueryOverUdp(UdpClient udpClient, byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
             // Set the server IP address and port number
-            var serverEndpoint = new IPEndPoint(IPAddress.Parse(dnsServer), port);
+            var ipAddress = IPAddress.Parse(dnsServer);
+            if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6) {
+                udpClient.Client.DualMode = true;
+            }
+            var serverEndpoint = new IPEndPoint(ipAddress, port);
 
                 // Send the query
 #if NET5_0_OR_GREATER
