@@ -14,6 +14,14 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
+        public void DuplicateDnsServers_OrderIsPreserved() {
+            MethodInfo method = typeof(SystemInformation).GetMethod("DeduplicateDnsServers", BindingFlags.NonPublic | BindingFlags.Static)!;
+            var input = new List<string> { "2.2.2.2", "1.1.1.1", "2.2.2.2", "[2001:db8::1]", "1.1.1.1" };
+            var result = (List<string>)method.Invoke(null, new object[] { input })!;
+            Assert.Equal(new[] { "2.2.2.2", "1.1.1.1", "[2001:db8::1]" }, result);
+        }
+
+        [Fact]
         public void GetDnsFromActiveNetworkCard_ReturnsDistinctList() {
             var servers = SystemInformation.GetDnsFromActiveNetworkCard(refresh: true);
             var distinct = servers.Distinct().ToList();

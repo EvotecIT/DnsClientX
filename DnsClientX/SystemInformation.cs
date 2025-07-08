@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using System.IO;
 using System.Net;
@@ -178,16 +179,15 @@ namespace DnsClientX {
         }
 
         private static List<string> DeduplicateDnsServers(IEnumerable<string> servers) {
-            var unique = new HashSet<string>();
-            var result = new List<string>();
+            var unique = new OrderedDictionary(StringComparer.Ordinal);
 
             foreach (var server in servers) {
-                if (unique.Add(server)) {
-                    result.Add(server);
+                if (!unique.Contains(server)) {
+                    unique.Add(server, null);
                 }
             }
 
-            return result;
+            return unique.Keys.Cast<string>().ToList();
         }
 
         /// <summary>
