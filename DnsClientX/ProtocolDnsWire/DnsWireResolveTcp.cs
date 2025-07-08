@@ -89,17 +89,14 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>Raw DNS response bytes.</returns>
         private static async Task<byte[]> SendQueryOverTcp(byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
-            using var tcpClient = new TcpClient();
+            var tcpClient = new TcpClient();
+            NetworkStream? stream = null;
             try {
                 // Connect to the server with timeout
                 await ConnectAsync(tcpClient, dnsServer, port, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
 
-                // Stream operations wrapped in using/await using to ensure disposal on exceptions
-#if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-                await using var stream = tcpClient.GetStream();
-#else
-                using var stream = tcpClient.GetStream();
-#endif
+                // Stream operations are wrapped in try/finally to ensure disposal
+                stream = tcpClient.GetStream();
 
                 // Write the length of the query as a 16-bit big-endian integer
                 var lengthBytes = BitConverter.GetBytes((ushort)query.Length);
@@ -145,6 +142,16 @@ namespace DnsClientX {
                 return responseBuffer;
             } catch (OperationCanceledException) {
                 throw new TimeoutException($"The TCP DNS query timed out after {timeoutMilliseconds} milliseconds.");
+            } finally {
+#if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+                if (stream is not null) {
+                    await stream.DisposeAsync().ConfigureAwait(false);
+                }
+#else
+                stream?.Dispose();
+#endif
+                tcpClient.Close();
+                tcpClient.Dispose();
             }
         }
 
