@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Net.NetworkInformation;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
@@ -34,24 +35,21 @@ namespace DnsClientX.Tests {
             listener.Stop();
         }
 
-        private static async Task<bool> NetstatHasPortAsync(int port) {
-            string args = IsWindows() ? "-ano" : "-an";
-            using Process proc = new Process();
-            proc.StartInfo.FileName = "netstat";
-            proc.StartInfo.Arguments = args;
-            proc.StartInfo.RedirectStandardOutput = true;
-            proc.StartInfo.UseShellExecute = false;
-            proc.Start();
-            string output = await proc.StandardOutput.ReadToEndAsync();
-            proc.WaitForExit();
-            return output.Contains($":{port}");
+        private static Task<bool> HasOpenTcpConnectionAsync(int port) {
+            var connections = IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpConnections();
+            foreach (var c in connections) {
+                if (c.LocalEndPoint.Port == port || c.RemoteEndPoint.Port == port) {
+                    if (c.State != TcpState.TimeWait && c.State != TcpState.Closed) {
+                        return Task.FromResult(true);
+                    }
+                }
+            }
+
+            return Task.FromResult(false);
         }
 
         [Fact]
         public async Task TcpFailure_ShouldCloseSocket() {
-            if (!IsWindows() && !File.Exists("/bin/netstat") && !File.Exists("/usr/bin/netstat")) {
-                return; // skip if netstat is not available
-            }
 
             int port = GetFreePort();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -66,14 +64,14 @@ namespace DnsClientX.Tests {
             await serverTask;
             await Task.Delay(200);
 
-            bool hasConnection = await NetstatHasPortAsync(port);
+            bool hasConnection = await HasOpenTcpConnectionAsync(port);
             if (hasConnection)
             {
                 // give the OS some time to clean up TIME_WAIT sockets
                 for (int i = 0; i < 20 && hasConnection; i++)
                 {
                     await Task.Delay(100);
-                    hasConnection = await NetstatHasPortAsync(port);
+                    hasConnection = await HasOpenTcpConnectionAsync(port);
                 }
             }
 
