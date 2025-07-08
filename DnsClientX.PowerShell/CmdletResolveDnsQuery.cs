@@ -115,6 +115,24 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
         public int RetryDelayMs = 200;
 
+        /// <summary>
+        /// <para type="description">Request DNSSEC data (sets the DO bit).</para>
+        /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
+        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        public SwitchParameter RequestDnsSec;
+
+        /// <summary>
+        /// <para type="description">Validate DNSSEC signatures. Implies requesting DNSSEC data.</para>
+        /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
+        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        public SwitchParameter ValidateDnsSec;
+
         private InternalLogger _logger;
 
         private static readonly MethodInfo _isTransientResponse = typeof(ClientX).GetMethod("IsTransientResponse", BindingFlags.NonPublic | BindingFlags.Static)!;
@@ -166,6 +184,8 @@ namespace DnsClientX.PowerShell {
             var namesToUse = Pattern is null ? Name : ClientX.ExpandPattern(Pattern).ToArray();
             string names = string.Join(", ", namesToUse);
             string types = string.Join(", ", Type);
+            bool requestDnsSec = RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent;
+            bool validateDnsSec = ValidateDnsSec.IsPresent;
             if (Server.Count > 0) {
                 var validServers = new List<string>();
                 foreach (string serverEntry in Server) {
@@ -196,7 +216,7 @@ namespace DnsClientX.PowerShell {
                     var aggregatedResults = new List<DnsResponse>();
                     foreach (string serverName in serverOrder) {
                         _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, serverName);
-                        var result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
+                        var result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec));
                         aggregatedResults.AddRange(result);
                     }
                     results = aggregatedResults;
@@ -204,7 +224,7 @@ namespace DnsClientX.PowerShell {
                     var aggregatedResults = new List<DnsResponse>();
                     foreach (string serverName in serverOrder) {
                         _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, serverName);
-                        var result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
+                        var result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec));
                         aggregatedResults.AddRange(result);
                         if (aggregatedResults.Any(r => r.Status == DnsResponseCode.NoError)) {
                             break;
@@ -214,7 +234,7 @@ namespace DnsClientX.PowerShell {
                 } else {
                     string myServer = serverOrder.First();
                     _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, myServer);
-                    var result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, myServer, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
+                    var result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, myServer, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec));
                     results = result;
                 }
 
@@ -236,10 +256,10 @@ namespace DnsClientX.PowerShell {
                 DnsResponse[] result;
                 if (DnsProvider == null) {
                     _logger.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, "Default");
-                    result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
+                    result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec));
                 } else {
                     _logger.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, DnsProvider.Value);
-                    result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, DnsProvider.Value, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs));
+                    result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, DnsProvider.Value, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec));
                 }
 
                 foreach (var record in result) {
