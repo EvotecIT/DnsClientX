@@ -34,49 +34,11 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>An array of discovered services or an empty array if none found.</returns>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="domain"/> is null or whitespace.</exception>
-        public async Task<DnsServiceDiscovery[]> DiscoverServices(string domain, CancellationToken cancellationToken = default) {
+        public async Task<DnsService[]> DiscoverServices(string domain, CancellationToken cancellationToken = default) {
             if (string.IsNullOrWhiteSpace(domain)) throw new ArgumentNullException(nameof(domain));
-            string ptrQuery = $"_services._dns-sd._udp.{domain}";
-            var ptrResponse = await ResolveForSd(ptrQuery, DnsRecordType.PTR, cancellationToken).ConfigureAwait(false);
-            if (ptrResponse.Answers == null) return Array.Empty<DnsServiceDiscovery>();
-
-            var results = new List<DnsServiceDiscovery>();
-            foreach (var ptr in ptrResponse.Answers.Where(a => a.Type == DnsRecordType.PTR)) {
-                string serviceDomain = ptr.Data.TrimEnd('.');
-                var srvResponse = await ResolveForSd(serviceDomain, DnsRecordType.SRV, cancellationToken).ConfigureAwait(false);
-                var txtResponse = await ResolveForSd(serviceDomain, DnsRecordType.TXT, cancellationToken).ConfigureAwait(false);
-
-                var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var txt in txtResponse.Answers?.Where(a => a.Type == DnsRecordType.TXT) ?? Array.Empty<DnsAnswer>()) {
-                    foreach (string part in txt.DataStringsEscaped) {
-                        var idx = part.IndexOf('=');
-                        if (idx > 0) {
-                            string key = part.Substring(0, idx);
-                            string val = part.Substring(idx + 1);
-                            metadata[key] = val;
-                        } else {
-                            metadata[part] = string.Empty;
-                        }
-                    }
-                }
-
-                foreach (var srv in srvResponse.Answers?.Where(a => a.Type == DnsRecordType.SRV) ?? Array.Empty<DnsAnswer>()) {
-                    var bits = srv.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (bits.Length == 4 &&
-                        int.TryParse(bits[0], out int priority) &&
-                        int.TryParse(bits[1], out int weight) &&
-                        int.TryParse(bits[2], out int port)) {
-                        string target = bits[3].TrimEnd('.');
-                        results.Add(new DnsServiceDiscovery {
-                            ServiceName = serviceDomain,
-                            Target = target,
-                            Port = port,
-                            Priority = priority,
-                            Weight = weight,
-                            Metadata = metadata.Count > 0 ? new Dictionary<string, string>(metadata) : null
-                        });
-                    }
-                }
+            var results = new List<DnsService>();
+            await foreach (var svc in EnumerateServicesAsync(domain, cancellationToken).ConfigureAwait(false)) {
+                results.Add(svc);
             }
 
             return results.ToArray();
@@ -88,11 +50,11 @@ namespace DnsClientX {
         /// <param name="domain">Domain name to look up for advertised services.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>
-        /// An asynchronous enumeration of <see cref="DnsServiceDiscovery"/> instances
+        /// An asynchronous enumeration of <see cref="DnsService"/> instances
         /// returned as soon as each service record is processed.
         /// </returns>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="domain"/> is null or whitespace.</exception>
-        public async IAsyncEnumerable<DnsServiceDiscovery> EnumerateServicesAsync(
+        public async IAsyncEnumerable<DnsService> EnumerateServicesAsync(
             string domain,
             [EnumeratorCancellation] CancellationToken cancellationToken = default) {
             if (string.IsNullOrWhiteSpace(domain)) throw new ArgumentNullException(nameof(domain));
@@ -126,7 +88,7 @@ namespace DnsClientX {
                         int.TryParse(bits[1], out int weight) &&
                         int.TryParse(bits[2], out int port)) {
                         string target = bits[3].TrimEnd('.');
-                        yield return new DnsServiceDiscovery {
+                        yield return new DnsService {
                             ServiceName = serviceDomain,
                             Target = target,
                             Port = port,
