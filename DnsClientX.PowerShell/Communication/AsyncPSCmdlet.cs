@@ -38,9 +38,7 @@ public abstract class AsyncPSCmdlet : PSCmdlet, IDisposable {
     /// </summary>
     protected internal CancellationToken CancelToken { get => _cancelSource.Token; }
 
-    /// <summary>
-    /// Begins processing the cmdlet asynchronously.
-    /// </summary>
+    /// <inheritdoc />
     protected override void BeginProcessing()
         => RunBlockInAsync(BeginProcessingAsync);
 
@@ -51,9 +49,7 @@ public abstract class AsyncPSCmdlet : PSCmdlet, IDisposable {
     protected virtual Task BeginProcessingAsync()
         => Task.CompletedTask;
 
-    /// <summary>
-    /// Processes a record asynchronously.
-    /// </summary>
+    /// <inheritdoc />
     protected override void ProcessRecord()
         => RunBlockInAsync(ProcessRecordAsync);
 
@@ -64,9 +60,7 @@ public abstract class AsyncPSCmdlet : PSCmdlet, IDisposable {
     protected virtual Task ProcessRecordAsync()
         => Task.CompletedTask;
 
-    /// <summary>
-    /// Ends processing the cmdlet asynchronously.
-    /// </summary>
+    /// <inheritdoc />
     protected override void EndProcessing()
         => RunBlockInAsync(EndProcessingAsync);
 
@@ -77,9 +71,7 @@ public abstract class AsyncPSCmdlet : PSCmdlet, IDisposable {
     protected virtual Task EndProcessingAsync()
         => Task.CompletedTask;
 
-    /// <summary>
-    /// Stops the processing of the cmdlet.
-    /// </summary>
+    /// <inheritdoc />
     protected override void StopProcessing()
         => _cancelSource?.Cancel();
 

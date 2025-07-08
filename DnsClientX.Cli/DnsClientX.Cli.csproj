@@ -9,6 +9,7 @@
     </TargetFrameworks>
     <LangVersion>Latest</LangVersion>
     <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\DnsClientX\DnsClientX.csproj" />
