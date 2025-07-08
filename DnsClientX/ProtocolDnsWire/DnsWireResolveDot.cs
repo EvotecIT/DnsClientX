@@ -111,7 +111,16 @@ namespace DnsClientX {
                     Status = DnsResponseCode.Refused
                 };
                 failureResponse.AddServerDetails(endpointConfiguration);
-                string details = ex.InnerException?.Message is { Length: >0 } inner ? $"{ex.Message} {inner}" : ex.Message;
+
+                string details = ex.Message;
+                Exception? inner = ex.InnerException;
+                while (inner != null) {
+                    if (!string.IsNullOrWhiteSpace(inner.Message)) {
+                        details += $" {inner.Message}";
+                    }
+                    inner = inner.InnerException;
+                }
+
                 failureResponse.Error = $"Failed to query type {type} of \"{name}\" => {details}";
                 throw new DnsClientException(failureResponse.Error!, failureResponse);
             } catch (Exception ex) {
