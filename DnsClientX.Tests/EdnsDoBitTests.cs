@@ -137,7 +137,7 @@ namespace DnsClientX.Tests {
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTCP) { Port = port };
             Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveTcp")!;
             MethodInfo method = type.GetMethod("ResolveWireFormatTcp", BindingFlags.Static | BindingFlags.NonPublic)!;
-            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, true, false, false, config, 1, cts.Token })!;
+            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, true, false, false, config, cts.Token })!;
             await task;
             byte[] query = await tcpTask;
 
