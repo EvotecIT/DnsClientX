@@ -6,7 +6,9 @@ using DnsClientX;
 namespace DnsClientX.Cli {
     internal static class Program {
         private static async Task<int> Main(string[] args) {
-            if (args.Length == 0 || args[0] is "-h" or "--help") {
+            if (args.Length == 0 ||
+                string.Equals(args[0], "-h", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "--help", StringComparison.OrdinalIgnoreCase)) {
                 ShowHelp();
                 return 0;
             }
@@ -23,16 +25,16 @@ namespace DnsClientX.Cli {
 
             for (int i = 0; i < args.Length; i++) {
                 switch (args[i]) {
-                    case "-t":
-                    case "--type":
+                    case var opt when opt.Equals("-t", StringComparison.OrdinalIgnoreCase) ||
+                                       opt.Equals("--type", StringComparison.OrdinalIgnoreCase):
                         if (i + 1 >= args.Length) {
                             Console.Error.WriteLine("Missing value for --type");
                             return 1;
                         }
                         recordType = (DnsRecordType)Enum.Parse(typeof(DnsRecordType), args[++i], true);
                         break;
-                    case "-e":
-                    case "--endpoint":
+                    case var opt when opt.Equals("-e", StringComparison.OrdinalIgnoreCase) ||
+                                       opt.Equals("--endpoint", StringComparison.OrdinalIgnoreCase):
                         if (i + 1 >= args.Length) {
                             Console.Error.WriteLine("Missing value for --endpoint");
                             return 1;
