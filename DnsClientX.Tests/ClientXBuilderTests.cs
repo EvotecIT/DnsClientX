@@ -1,6 +1,7 @@
 using System.Net;
 using System.Reflection;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -32,6 +33,16 @@ namespace DnsClientX.Tests {
                 .Build();
 
             Assert.Same(options, client.EndpointConfiguration.EdnsOptions);
+        }
+
+        [Fact]
+        public void BuildShouldApplySigningKey() {
+            using var rsa = RSA.Create();
+            using var client = new ClientXBuilder()
+                .WithSigningKey(rsa)
+                .Build();
+
+            Assert.Same(rsa, client.EndpointConfiguration.SigningKey);
         }
 
         [Fact]

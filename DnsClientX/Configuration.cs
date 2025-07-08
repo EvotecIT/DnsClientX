@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 
 namespace DnsClientX {
     /// <summary>
@@ -83,6 +84,11 @@ namespace DnsClientX {
         /// Determines whether to fall back to TCP when a UDP response is truncated.
         /// </summary>
         public bool UseTcpFallback { get; set; } = true;
+
+        /// <summary>
+        /// Optional key used to sign outgoing DNS messages.
+        /// </summary>
+        public AsymmetricAlgorithm? SigningKey { get; set; }
 
         /// <summary>
         /// Gets or sets the UDP buffer size used when sending EDNS queries.

@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Security.Cryptography;
 
 namespace DnsClientX {
     /// <summary>
@@ -17,6 +18,7 @@ namespace DnsClientX {
         private readonly int _udpBufferSize;
         private readonly string? _subnet;
         private readonly bool _checkingDisabled;
+        private readonly AsymmetricAlgorithm? _signingKey;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DnsMessage"/> class.
@@ -25,7 +27,7 @@ namespace DnsClientX {
         /// <param name="type">The type.</param>
         /// <param name="requestDnsSec">if set to <c>true</c> [request DNS sec].</param>
         public DnsMessage(string name, DnsRecordType type, bool requestDnsSec)
-            : this(name, type, requestDnsSec, requestDnsSec, 4096, null, false) {
+            : this(name, type, requestDnsSec, requestDnsSec, 4096, null, false, null) {
         }
 
         /// <summary>
@@ -38,7 +40,7 @@ namespace DnsClientX {
         /// <param name="udpBufferSize">UDP buffer size for EDNS.</param>
         /// <param name="subnet">Optional EDNS client subnet.</param>
         /// <param name="checkingDisabled">Whether to set the CD bit in OPT TTL.</param>
-        public DnsMessage(string name, DnsRecordType type, bool requestDnsSec, bool enableEdns, int udpBufferSize, string? subnet, bool checkingDisabled) {
+        public DnsMessage(string name, DnsRecordType type, bool requestDnsSec, bool enableEdns, int udpBufferSize, string? subnet, bool checkingDisabled, AsymmetricAlgorithm? signingKey) {
             _name = name;
             _type = type;
             _requestDnsSec = requestDnsSec;
@@ -46,6 +48,7 @@ namespace DnsClientX {
             _udpBufferSize = udpBufferSize;
             _subnet = subnet;
             _checkingDisabled = checkingDisabled;
+            _signingKey = signingKey;
         }
 
         /// <summary>
@@ -89,7 +92,8 @@ namespace DnsClientX {
             stream.Write(buffer.ToArray(), 0, buffer.Length);
 
             // Write the additional count
-            BinaryPrimitives.WriteUInt16BigEndian(buffer, _enableEdns ? (ushort)1 : (ushort)0);
+            ushort additional = (ushort)((_enableEdns ? 1 : 0) + (_signingKey != null ? 1 : 0));
+            BinaryPrimitives.WriteUInt16BigEndian(buffer, additional);
             stream.Write(buffer.ToArray(), 0, buffer.Length);
 
             // Write the question name
@@ -125,6 +129,31 @@ namespace DnsClientX {
                 stream.Write(buffer.ToArray(), 0, buffer.Length);
                 if (optionData.Length > 0) {
                     stream.Write(optionData, 0, optionData.Length);
+                }
+            }
+
+            if (_signingKey != null) {
+                byte[] toSign = stream.ToArray();
+                byte[] signature;
+                if (_signingKey is RSA rsa) {
+                    signature = rsa.SignData(toSign, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                } else if (_signingKey is ECDsa ecdsa) {
+                    signature = ecdsa.SignData(toSign, HashAlgorithmName.SHA256);
+                } else {
+                    signature = Array.Empty<byte>();
+                }
+                stream.WriteByte(0);
+                BinaryPrimitives.WriteUInt16BigEndian(buffer, (ushort)DnsRecordType.SIG);
+                stream.Write(buffer.ToArray(), 0, buffer.Length);
+                BinaryPrimitives.WriteUInt16BigEndian(buffer, 255); // class ANY
+                stream.Write(buffer.ToArray(), 0, buffer.Length);
+                Span<byte> ttlSig = stackalloc byte[4];
+                BinaryPrimitives.WriteUInt32BigEndian(ttlSig, 0u);
+                stream.Write(ttlSig.ToArray(), 0, ttlSig.Length);
+                BinaryPrimitives.WriteUInt16BigEndian(buffer, (ushort)signature.Length);
+                stream.Write(buffer.ToArray(), 0, buffer.Length);
+                if (signature.Length > 0) {
+                    stream.Write(signature, 0, signature.Length);
                 }
             }
 
@@ -164,7 +193,8 @@ namespace DnsClientX {
                 ms.Write(bytes, 0, bytes.Length);
 
                 // Additional RRs
-                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)(_enableEdns ? 1 : 0)));
+                int additional = (_enableEdns ? 1 : 0) + (_signingKey != null ? 1 : 0);
+                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)additional));
                 ms.Write(bytes, 0, bytes.Length);
 
                 // Queries
@@ -201,6 +231,37 @@ namespace DnsClientX {
                     if (optionData.Length > 0)
                     {
                         ms.Write(optionData, 0, optionData.Length);
+                    }
+                }
+
+                if (_signingKey != null)
+                {
+                    byte[] toSign = ms.ToArray();
+                    byte[] signature;
+                    if (_signingKey is RSA rsa)
+                    {
+                        signature = rsa.SignData(toSign, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                    }
+                    else if (_signingKey is ECDsa ecdsa)
+                    {
+                        signature = ecdsa.SignData(toSign, HashAlgorithmName.SHA256);
+                    }
+                    else
+                    {
+                        signature = Array.Empty<byte>();
+                    }
+                    ms.WriteByte(0);
+                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)DnsRecordType.SIG));
+                    ms.Write(bytes, 0, bytes.Length);
+                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)255));
+                    ms.Write(bytes, 0, bytes.Length);
+                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder(0));
+                    ms.Write(bytes, 0, bytes.Length);
+                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)signature.Length));
+                    ms.Write(bytes, 0, bytes.Length);
+                    if (signature.Length > 0)
+                    {
+                        ms.Write(signature, 0, signature.Length);
                     }
                 }
 
