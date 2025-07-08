@@ -105,6 +105,14 @@ namespace DnsClientX {
                 var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
                 response.AddServerDetails(endpointConfiguration);
                 return response;
+            } catch (AuthenticationException ex) {
+                var failureResponse = new DnsResponse {
+                    Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverTLS, Type = type, OriginalName = name } ],
+                    Status = DnsResponseCode.Refused
+                };
+                failureResponse.AddServerDetails(endpointConfiguration);
+                failureResponse.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message + " " + ex.InnerException?.Message}";                
+                throw new DnsClientException(failureResponse.Error!, failureResponse);
             } catch (Exception ex) {
                 var failureResponse = new DnsResponse {
                     Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverTLS, Type = type, OriginalName = name } ],
