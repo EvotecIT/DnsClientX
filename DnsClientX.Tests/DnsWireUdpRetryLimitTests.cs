@@ -40,7 +40,7 @@ namespace DnsClientX.Tests {
             // fire on slower systems.
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
                 Port = port,
-                TimeOut = 50
+                TimeOut = 100
             };
             Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
             MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
