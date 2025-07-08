@@ -1,6 +1,10 @@
 using System.Threading.Tasks;
 
 namespace DnsClientX.Examples {
+    /// <summary>
+    /// Demonstrates resolving various DNS record types against a chosen
+    /// <see cref="DnsEndpoint"/>.
+    /// </summary>
     public class DemoRecords {
         /// <summary>
         /// Demo for the specified domain name with the specified type and endpoint.
