@@ -149,6 +149,13 @@ namespace DnsClientX {
         /// </value>
         public int Port { get; set; }
 
+        private void ApplyPortToBaseUri() {
+            if ((RequestFormat == DnsRequestFormat.DnsOverTLS || RequestFormat == DnsRequestFormat.DnsOverQuic) && BaseUri != null && BaseUri.Port != Port) {
+                var builder = new UriBuilder(BaseUri) { Port = Port };
+                BaseUri = builder.Uri;
+            }
+        }
+
         internal void AdvanceToNextHostname() {
             if (hostnames.Count <= 1) {
                 return;
@@ -191,6 +198,7 @@ namespace DnsClientX {
             } else {
                 Port = 443;
             }
+            ApplyPortToBaseUri();
         }
 
         /// <summary>
@@ -212,6 +220,7 @@ namespace DnsClientX {
             } else {
                 Port = 443;
             }
+            ApplyPortToBaseUri();
         }
 
         /// <summary>
@@ -222,6 +231,7 @@ namespace DnsClientX {
                 Hostname = hostnames[0];
                 if (baseUriFormat != null) {
                     BaseUri = new Uri(string.Format(baseUriFormat, Hostname));
+                    ApplyPortToBaseUri();
                 }
             } else if (hostnames.Count == 0) {
                 // use BaseUri as is
@@ -252,6 +262,7 @@ namespace DnsClientX {
                 }
 
                 BaseUri = new Uri(string.Format(baseUriFormat, Hostname));
+                ApplyPortToBaseUri();
             }
         }
 
@@ -437,6 +448,7 @@ namespace DnsClientX {
 
             if (baseUriFormat != null && !string.IsNullOrEmpty(Hostname)) {
                 BaseUri = new Uri(string.Format(baseUriFormat, Hostname));
+                ApplyPortToBaseUri();
             }
         }
     }
