@@ -24,9 +24,14 @@ namespace DnsClientX {
             Configuration endpointConfiguration, CancellationToken cancellationToken) {
             // For OpenDNS, we need to create a DNS message and base64url encode it
             var edns = endpointConfiguration.EdnsOptions;
-            bool enableEdns = edns?.EnableEdns ?? endpointConfiguration.EnableEdns;
-            int udpSize = edns?.UdpBufferSize ?? endpointConfiguration.UdpBufferSize;
-            string? subnet = edns?.Subnet ?? endpointConfiguration.Subnet;
+            bool enableEdns = endpointConfiguration.EnableEdns;
+            int udpSize = endpointConfiguration.UdpBufferSize;
+            string? subnet = endpointConfiguration.Subnet;
+            if (edns != null) {
+                enableEdns = edns.EnableEdns;
+                udpSize = edns.UdpBufferSize;
+                subnet = edns.Subnet;
+            }
             var dnsMessage = new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet, endpointConfiguration.CheckingDisabled, endpointConfiguration.SigningKey);
             var base64UrlDnsMessage = dnsMessage.ToBase64Url();
             string url = $"?dns={base64UrlDnsMessage}";

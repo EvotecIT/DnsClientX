@@ -24,9 +24,14 @@ namespace DnsClientX {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             var edns = endpointConfiguration.EdnsOptions;
-            bool enableEdns = edns?.EnableEdns ?? endpointConfiguration.EnableEdns;
-            int udpSize = edns?.UdpBufferSize ?? endpointConfiguration.UdpBufferSize;
-            string? subnet = edns?.Subnet ?? endpointConfiguration.Subnet;
+            bool enableEdns = endpointConfiguration.EnableEdns;
+            int udpSize = endpointConfiguration.UdpBufferSize;
+            string? subnet = endpointConfiguration.Subnet;
+            if (edns != null) {
+                enableEdns = edns.EnableEdns;
+                udpSize = edns.UdpBufferSize;
+                subnet = edns.Subnet;
+            }
             var query = new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet, endpointConfiguration.CheckingDisabled, endpointConfiguration.SigningKey);
             var queryBytes = query.SerializeDnsWireFormat();
 
