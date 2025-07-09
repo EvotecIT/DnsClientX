@@ -53,17 +53,11 @@ namespace DnsClientX {
                     foreach (HttpClient client in clients) {
                         if (TryAddDisposedClient(client)) {
                             client.Dispose();
-                            if (ReferenceEquals(client, mainClient) && handlerLocal != null) {
-                                TryAddDisposedClient(handlerLocal);
-                            }
                         }
                     }
 
                     if (mainClient != null && TryAddDisposedClient(mainClient)) {
                         mainClient.Dispose();
-                        if (handlerLocal != null) {
-                            TryAddDisposedClient(handlerLocal);
-                        }
                     }
 
                     if (handlerLocal != null && TryAddDisposedClient(handlerLocal)) {
@@ -125,9 +119,6 @@ namespace DnsClientX {
 #else
                         client.Dispose();
 #endif
-                        if (ReferenceEquals(client, mainClient) && handlerLocal != null) {
-                            TryAddDisposedClient(handlerLocal);
-                        }
                     }
                 }
 
@@ -141,9 +132,6 @@ namespace DnsClientX {
 #else
                     mainClient.Dispose();
 #endif
-                    if (handlerLocal != null) {
-                        TryAddDisposedClient(handlerLocal);
-                    }
                 }
 
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
