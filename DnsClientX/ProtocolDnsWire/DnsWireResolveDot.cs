@@ -112,11 +112,11 @@ namespace DnsClientX {
                 };
                 failureResponse.AddServerDetails(endpointConfiguration);
 
-                string details = ex.Message;
+                var details = new StringBuilder(ex.Message);
                 Exception? inner = ex.InnerException;
-                while (inner != null) {
+                while (inner is not null) {
                     if (!string.IsNullOrWhiteSpace(inner.Message)) {
-                        details += $" {inner.Message}";
+                        details.Append(' ').Append(inner.Message);
                     }
                     inner = inner.InnerException;
                 }
