@@ -14,9 +14,10 @@ namespace DnsClientX.Examples {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var serverTask = RunInvalidCertificateServerAsync(port, cts.Token);
 
-            var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTLS) { Port = port };
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTLS);
+            client.EndpointConfiguration.Port = port;
             try {
-                await DnsWireResolveDot.ResolveWireFormatDoT("127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, false, cts.Token);
+                await client.Resolve("example.com", DnsRecordType.A, cancellationToken: cts.Token);
             } catch (DnsClientException ex) {
                 Console.WriteLine(ex.Response.Error);
             }
