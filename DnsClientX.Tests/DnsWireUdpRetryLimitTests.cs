@@ -34,6 +34,28 @@ namespace DnsClientX.Tests {
             return count;
         }
 
+        private static async Task<int[]> RunUdpServerCapturePortsAsync(int port, int expected, CancellationToken token) {
+            using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
+            var ports = new int[expected];
+            int index = 0;
+            while (index < expected && !token.IsCancellationRequested) {
+#if NET5_0_OR_GREATER
+                var receiveTask = udp.ReceiveAsync(token).AsTask();
+#else
+                var receiveTask = udp.ReceiveAsync();
+#endif
+                var completed = await Task.WhenAny(receiveTask, Task.Delay(Timeout.Infinite, token));
+                if (completed == receiveTask) {
+                    var result = await receiveTask;
+                    ports[index++] = result.RemoteEndPoint.Port;
+                }
+            }
+            if (index < expected) {
+                Array.Resize(ref ports, index);
+            }
+            return ports;
+        }
+
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldRespectMaxRetries() {
             int port = GetFreePort();
@@ -57,5 +79,37 @@ namespace DnsClientX.Tests {
             Assert.Equal(2, attempts);
             Assert.NotEqual(DnsResponseCode.NoError, response.Status);
         }
-    }
-}
+
+        [Fact]
+        public async Task ResolveWireFormatUdp_ShouldDisposeClientOnEachRetry() {
+            int port = GetFreePort();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var serverTask = RunUdpServerCapturePortsAsync(port, 2, cts.Token);
+
+            var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
+                Port = port,
+                TimeOut = 100
+            };
+            Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
+            MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
+            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, 2, cts.Token })!;
+            await task;
+
+            int[] clientPorts = await serverTask;
+            cts.Cancel();
+
+            foreach (int clientPort in clientPorts) {
+                UdpClient? testClient = null;
+                Exception? ex = null;
+                try {
+                    testClient = new UdpClient(new IPEndPoint(IPAddress.Loopback, clientPort));
+                } catch (Exception e) {
+                    ex = e;
+                } finally {
+                    testClient?.Dispose();
+                }
+
+                Assert.Null(ex);
+            }
+        }
+    }}

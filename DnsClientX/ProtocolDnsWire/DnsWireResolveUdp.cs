@@ -71,7 +71,7 @@ namespace DnsClientX {
             Exception lastException = null;
             for (int attempt = 1; attempt <= Math.Max(1, maxRetries); attempt++) {
                 try {
-                    using var udpClient = new UdpClient(address.AddressFamily);
+                    var udpClient = new UdpClient(address.AddressFamily);
                     var responseBuffer = await SendQueryOverUdp(udpClient, queryBytes, address, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
                     var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
@@ -123,11 +123,12 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>Raw DNS response bytes.</returns>
         private static async Task<byte[]> SendQueryOverUdp(UdpClient udpClient, byte[] query, IPAddress ipAddress, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
-            // Set the server IP address and port number
-            if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6) {
-                udpClient.Client.DualMode = true;
-            }
-            var serverEndpoint = new IPEndPoint(ipAddress, port);
+            using (udpClient) {
+                // Set the server IP address and port number
+                if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6) {
+                    udpClient.Client.DualMode = true;
+                }
+                var serverEndpoint = new IPEndPoint(ipAddress, port);
 
                 // Send the query
 #if NET5_0_OR_GREATER
@@ -162,3 +163,4 @@ namespace DnsClientX {
             }
         }
     }
+}
