@@ -317,6 +317,9 @@ namespace DnsClientX {
             lock (_lock) {
                 if (Client != null && TryAddDisposedClient(Client)) {
                     Client.Dispose();
+                    if (handler != null) {
+                        TryAddDisposedClient(handler);
+                    }
                 }
                 if (handler != null && TryAddDisposedClient(handler)) {
                     handler.Dispose();
@@ -350,8 +353,8 @@ namespace DnsClientX {
                     if (kv.Key != strategy && TryAddDisposedClient(kv.Value)) {
                         kv.Value.Dispose();
                         if (ReferenceEquals(kv.Value, Client)) {
-                            if (handler != null && TryAddDisposedClient(handler)) {
-                                handler.Dispose();
+                            if (handler != null) {
+                                TryAddDisposedClient(handler);
                             }
                             handler = null;
                         }
@@ -363,6 +366,9 @@ namespace DnsClientX {
                 // dispose the currently assigned client and handler if present
                 if (Client != null && TryAddDisposedClient(Client)) {
                     Client.Dispose();
+                    if (handler != null) {
+                        TryAddDisposedClient(handler);
+                    }
                     if (handler != null && TryAddDisposedClient(handler)) {
                         handler.Dispose();
                     }

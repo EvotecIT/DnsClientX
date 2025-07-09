@@ -53,11 +53,19 @@ namespace DnsClientX {
                     foreach (HttpClient client in clients) {
                         if (TryAddDisposedClient(client)) {
                             client.Dispose();
+                            if (ReferenceEquals(client, mainClient) && handlerLocal != null) {
+                                // main client disposes the handler when disposed
+                                TryAddDisposedClient(handlerLocal);
+                            }
                         }
                     }
 
                     if (mainClient != null && TryAddDisposedClient(mainClient)) {
                         mainClient.Dispose();
+                        if (handlerLocal != null) {
+                            // mark handler as disposed by the client
+                            TryAddDisposedClient(handlerLocal);
+                        }
                     }
 
                     if (handlerLocal != null && TryAddDisposedClient(handlerLocal)) {
@@ -108,19 +116,29 @@ namespace DnsClientX {
                     handler = null;
                 }
 
+#if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
                 foreach (HttpClient client in clients) {
                     if (TryAddDisposedClient(client)) {
-#if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
                         if (client is IAsyncDisposable asyncClient) {
                             await asyncClient.DisposeAsync().ConfigureAwait(false);
                         } else {
                             client.Dispose();
                         }
-#else
-                        client.Dispose();
-#endif
+                        if (ReferenceEquals(client, mainClient) && handlerLocal != null) {
+                            TryAddDisposedClient(handlerLocal);
+                        }
                     }
                 }
+#else
+                foreach (HttpClient client in clients) {
+                    if (TryAddDisposedClient(client)) {
+                        client.Dispose();
+                        if (ReferenceEquals(client, mainClient) && handlerLocal != null) {
+                            TryAddDisposedClient(handlerLocal);
+                        }
+                    }
+                }
+#endif
 
                 if (mainClient != null && TryAddDisposedClient(mainClient)) {
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
@@ -132,6 +150,9 @@ namespace DnsClientX {
 #else
                     mainClient.Dispose();
 #endif
+                    if (handlerLocal != null) {
+                        TryAddDisposedClient(handlerLocal);
+                    }
                 }
 
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
