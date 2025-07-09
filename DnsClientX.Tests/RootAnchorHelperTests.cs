@@ -1,3 +1,6 @@
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 using DnsClientX;
 using Xunit;
 
@@ -29,5 +32,33 @@ public class RootAnchorHelperTests
         Assert.Equal(2, records.Length);
         Assert.Contains(records, r => r.KeyTag == 38696);
         Assert.Contains(records, r => r.KeyTag == 20326);
+    }
+
+    private class ThrowingHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => throw new HttpRequestException("fail");
+    }
+
+    [Fact]
+    public async Task FetchLatestAsync_Failure_ReturnsEmptyArrayAndLogsWarning()
+    {
+        using var client = new HttpClient(new ThrowingHandler());
+        RootAnchorHelper.ClientOverride = client;
+        LogEventArgs? logged = null;
+        EventHandler<LogEventArgs> handler = (_, e) => logged = e;
+        Settings.Logger.OnWarningMessage += handler;
+
+        try
+        {
+            RootDsRecord[] records = await RootAnchorHelper.FetchLatestAsync();
+            Assert.Empty(records);
+            Assert.NotNull(logged);
+        }
+        finally
+        {
+            Settings.Logger.OnWarningMessage -= handler;
+            RootAnchorHelper.ClientOverride = null;
+        }
     }
 }
