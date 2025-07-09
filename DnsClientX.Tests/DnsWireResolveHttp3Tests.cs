@@ -28,6 +28,12 @@ namespace DnsClientX.Tests {
             }
         }
 
+        private class Http3InvalidHandler : HttpMessageHandler {
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
+                throw new InvalidOperationException("invalid op");
+            }
+        }
+
 
         [Fact]
         public async Task ResolveWireFormatHttp3_UsesHttp3() {
@@ -52,6 +58,18 @@ namespace DnsClientX.Tests {
             Assert.Contains("server error", ex.Message);
             Assert.Equal(config.Hostname, ex.Response.Questions[0].HostName);
             Assert.Equal(config.Port, ex.Response.Questions[0].Port);
+        }
+
+        [Fact]
+        public async Task ResolveWireFormatHttp3_ReturnsServerFailureOnInvalidOperation() {
+            var handler = new Http3InvalidHandler();
+            using var client = new HttpClient(handler) { BaseAddress = new Uri("https://example.com/dns-query") };
+            var config = new Configuration(new Uri("https://example.com/dns-query"), DnsRequestFormat.DnsOverHttp3);
+
+            var response = await DnsWireResolveHttp3.ResolveWireFormatHttp3(client, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None);
+
+            Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
+            Assert.Contains("invalid op", response.Error);
         }
 
     }
