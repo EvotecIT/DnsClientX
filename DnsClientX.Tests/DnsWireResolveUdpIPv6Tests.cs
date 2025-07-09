@@ -55,5 +55,16 @@ namespace DnsClientX.Tests {
             await udpTask;
             Assert.Equal(DnsResponseCode.NoError, dnsResponse.Status);
         }
+
+        [Fact]
+        public async Task ResolveWireFormatUdp_ShouldReturnServerFailure_ForInvalidServer() {
+            Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
+            MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
+            var config = new Configuration("invalid", DnsRequestFormat.DnsOverUDP);
+            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "invalid", 53, "example.com", DnsRecordType.A, false, false, false, config, 1, CancellationToken.None })!;
+            DnsResponse response = await task;
+            Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
+            Assert.Contains("invalid dns server", response.Error, StringComparison.OrdinalIgnoreCase);
+        }
     }
 }
