@@ -14,7 +14,8 @@ namespace DnsClientX.Tests {
                     }
                 }
             };
-            Assert.True(DnsSecValidator.ValidateAgainstRoot(response));
+            Assert.True(DnsSecValidator.ValidateAgainstRoot(response, out string msg));
+            Assert.Equal(string.Empty, msg);
         }
 
         [Fact]
@@ -29,7 +30,8 @@ namespace DnsClientX.Tests {
                     }
                 }
             };
-            Assert.True(DnsSecValidator.ValidateAgainstRoot(response));
+            Assert.True(DnsSecValidator.ValidateAgainstRoot(response, out string msg));
+            Assert.Equal(string.Empty, msg);
         }
 
         [Fact]
@@ -44,7 +46,8 @@ namespace DnsClientX.Tests {
                     }
                 }
             };
-            Assert.False(DnsSecValidator.ValidateAgainstRoot(response));
+            Assert.False(DnsSecValidator.ValidateAgainstRoot(response, out string msg));
+            Assert.Contains("DS record", msg);
         }
 
         [Fact]
@@ -59,7 +62,8 @@ namespace DnsClientX.Tests {
                     }
                 }
             };
-            Assert.False(DnsSecValidator.ValidateAgainstRoot(response));
+            Assert.False(DnsSecValidator.ValidateAgainstRoot(response, out string msg));
+            Assert.Contains("DNSKEY record", msg);
         }
     }
 }

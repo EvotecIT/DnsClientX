@@ -150,13 +150,13 @@ namespace DnsClientX {
                     response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
                 }
                 if (EndpointConfiguration.ValidateRootDnsSec && (type == DnsRecordType.DS || type == DnsRecordType.DNSKEY)) {
-                    if (!DnsSecValidator.ValidateAgainstRoot(response)) {
-                        string validationError = "Root DNSSEC validation failed.";
+                    if (!DnsSecValidator.ValidateAgainstRoot(response, out string rootMessage)) {
+                        string validationError = $"Root DNSSEC validation failed: {rootMessage}";
                         response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
                     }
                 }
-                if (hasRrsig && !DnsSecValidator.ValidateChain(response)) {
-                    string validationError = "DNSSEC signature verification failed.";
+                if (hasRrsig && !DnsSecValidator.ValidateChain(response, out string chainMessage)) {
+                    string validationError = $"DNSSEC signature verification failed: {chainMessage}";
                     response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
                 }
             }
