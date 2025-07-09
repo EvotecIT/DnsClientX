@@ -91,7 +91,7 @@ namespace DnsClientX.Tests {
             var records = BindFileParser.ParseZoneFile(file, m => messages.Add(m));
 
             Assert.Single(records);
-            Assert.Contains(messages, m => m.Contains("negative value"));
+            Assert.Contains(messages, m => m.Contains("negative"));
         }
     }
 }

@@ -168,7 +168,7 @@ namespace DnsClientX {
                     var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length > 1 && TryParseTtl(parts[1], out int ttlDirective)) {
                         if (ttlDirective < 0) {
-                            debugPrint?.Invoke($"Skipping TTL directive with negative value: {line}");
+                            debugPrint?.Invoke($"Skipping TTL directive because TTL parsed as negative ({ttlDirective}): {line}");
                         } else {
                             defaultTtl = ttlDirective;
                         }
