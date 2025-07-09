@@ -145,6 +145,23 @@ namespace DnsClientX {
                 response.AddServerDetails(endpointConfiguration);
                 response.Error = $"Failed to query type {type} of \"{name}\" =>{ex.Message} {ex.InnerException?.Message}";
                 return response;
+            } catch (InvalidOperationException ex) {
+                DnsResponse response = new DnsResponse {
+                    Questions = [
+                        new DnsQuestion {
+                            Name = name,
+                            RequestFormat = DnsRequestFormat.DnsOverHttp3,
+                            HostName = client.BaseAddress.Host,
+                            Port = client.BaseAddress.Port,
+                            Type = type,
+                            OriginalName = name
+                        }
+                    ],
+                    Status = DnsResponseCode.ServerFailure
+                };
+                response.AddServerDetails(endpointConfiguration);
+                response.Error = $"Failed to query type {type} of \"{name}\" =>{ex.Message}";
+                return response;
             }
         }
     }
