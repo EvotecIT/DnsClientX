@@ -121,7 +121,7 @@ namespace DnsClientX {
                     inner = inner.InnerException;
                 }
 
-                failureResponse.Error = $"Failed to query type {type} of \"{name}\" => {details}";
+                failureResponse.Error = $"Failed to query type {type} of \"{name}\" => certificate error: {details}";
                 throw new DnsClientException(failureResponse.Error!, failureResponse);
             } catch (Exception ex) {
                 var failureResponse = new DnsResponse {
