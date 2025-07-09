@@ -24,9 +24,14 @@ namespace DnsClientX {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             var edns = endpointConfiguration.EdnsOptions;
-            bool enableEdns = edns?.EnableEdns ?? endpointConfiguration.EnableEdns;
-            int udpSize = edns?.UdpBufferSize ?? endpointConfiguration.UdpBufferSize;
-            string? subnet = edns?.Subnet ?? endpointConfiguration.Subnet;
+            bool enableEdns = endpointConfiguration.EnableEdns;
+            int udpSize = endpointConfiguration.UdpBufferSize;
+            string? subnet = endpointConfiguration.Subnet;
+            if (edns != null) {
+                enableEdns = edns.EnableEdns;
+                udpSize = edns.UdpBufferSize;
+                subnet = edns.Subnet;
+            }
             var query = new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet, endpointConfiguration.CheckingDisabled, endpointConfiguration.SigningKey);
             var queryBytes = query.SerializeDnsWireFormat();
 
@@ -46,12 +51,28 @@ namespace DnsClientX {
                 Settings.Logger.WriteDebug($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
 
+            if (!IPAddress.TryParse(dnsServer, out IPAddress address)) {
+                DnsResponse invalidAddress = new DnsResponse {
+                    Questions = [
+                        new DnsQuestion {
+                            Name = name,
+                            RequestFormat = DnsRequestFormat.DnsOverUDP,
+                            Type = type,
+                            OriginalName = name
+                        }
+                    ],
+                    Status = DnsResponseCode.ServerFailure
+                };
+                invalidAddress.AddServerDetails(endpointConfiguration);
+                invalidAddress.Error = $"Invalid DNS server '{dnsServer}'.";
+                return invalidAddress;
+            }
+
             Exception lastException = null;
             for (int attempt = 1; attempt <= Math.Max(1, maxRetries); attempt++) {
                 try {
-                    var address = IPAddress.Parse(dnsServer);
                     using var udpClient = new UdpClient(address.AddressFamily);
-                    var responseBuffer = await SendQueryOverUdp(udpClient, queryBytes, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
+                    var responseBuffer = await SendQueryOverUdp(udpClient, queryBytes, address, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
                     var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
                     if (response.IsTruncated && endpointConfiguration.UseTcpFallback) {
@@ -96,14 +117,13 @@ namespace DnsClientX {
         /// Sends a DNS query over UDP and returns the response.
         /// </summary>
         /// <param name="query"></param>
-        /// <param name="dnsServer"></param>
+        /// <param name="ipAddress"></param>
         /// <param name="port"></param>
         /// <param name="timeoutMilliseconds">Timeout in milliseconds.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>Raw DNS response bytes.</returns>
-        private static async Task<byte[]> SendQueryOverUdp(UdpClient udpClient, byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
+        private static async Task<byte[]> SendQueryOverUdp(UdpClient udpClient, byte[] query, IPAddress ipAddress, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
             // Set the server IP address and port number
-            var ipAddress = IPAddress.Parse(dnsServer);
             if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6) {
                 udpClient.Client.DualMode = true;
             }

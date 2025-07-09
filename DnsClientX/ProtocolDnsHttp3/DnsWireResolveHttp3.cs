@@ -26,9 +26,14 @@ namespace DnsClientX {
             DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug,
             Configuration endpointConfiguration, CancellationToken cancellationToken) {
             var edns = endpointConfiguration.EdnsOptions;
-            bool enableEdns = edns?.EnableEdns ?? endpointConfiguration.EnableEdns;
-            int udpSize = edns?.UdpBufferSize ?? endpointConfiguration.UdpBufferSize;
-            string? subnet = edns?.Subnet ?? endpointConfiguration.Subnet;
+            bool enableEdns = endpointConfiguration.EnableEdns;
+            int udpSize = endpointConfiguration.UdpBufferSize;
+            string? subnet = endpointConfiguration.Subnet;
+            if (edns != null) {
+                enableEdns = edns.EnableEdns;
+                udpSize = edns.UdpBufferSize;
+                subnet = edns.Subnet;
+            }
             var dnsMessage = new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet, endpointConfiguration.CheckingDisabled, endpointConfiguration.SigningKey);
             var base64UrlDnsMessage = dnsMessage.ToBase64Url();
             string url = $"?dns={base64UrlDnsMessage}";
@@ -48,6 +53,15 @@ namespace DnsClientX {
             try {
                 using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
                 byte[] responseBytes = await res.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+                if (responseBytes.Length == 0) {
+                    DnsResponse emptyResponse = new() {
+                        Status = DnsResponseCode.ServerFailure,
+                        Questions = [ new DnsQuestion { Name = name, Type = type, OriginalName = name } ]
+                    };
+                    emptyResponse.AddServerDetails(endpointConfiguration);
+                    string message = $"Failed to query type {type} of \"{name}\", received empty response with HTTP status code {res.StatusCode}.";
+                    throw new DnsClientException(message, emptyResponse);
+                }
                 DnsResponse response;
                 if (res.StatusCode == HttpStatusCode.OK) {
                     response = await res.DeserializeDnsWireFormat(debug, responseBytes).ConfigureAwait(false);
