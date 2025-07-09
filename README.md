@@ -588,6 +588,17 @@ var zoneRecords = await client.ZoneTransferAsync("example.com");
 Get-DnsZoneTransfer -Zone 'example.com' -Server '127.0.0.1' -Port 5353
 ```
 
+### Zone Transfer Streaming
+
+Process a DNS zone transfer as records arrive:
+
+```csharp
+using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = 5353 } };
+await foreach (var rrset in client.ZoneTransferStreamAsync("example.com")) {
+    Console.WriteLine(string.Join(", ", rrset));
+}
+```
+
 ### Multicast Queries
 
 Query devices advertising mDNS on your local network:
