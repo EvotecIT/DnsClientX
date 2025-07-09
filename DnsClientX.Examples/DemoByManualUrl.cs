@@ -68,6 +68,16 @@ namespace DnsClientX.Examples {
         }
 
         /// <summary>
+        /// Demonstrates querying using wire format over HTTP POST.
+        /// </summary>
+        public static async Task ExampleTestingWirePost() {
+            HelpersSpectre.AddLine("Resolve", "www.example.com", DnsRecordType.A, new Uri("https://1.1.1.1/dns-query"), DnsRequestFormat.DnsOverHttpsWirePost);
+            using var client = new ClientX(new Uri("https://1.1.1.1/dns-query"), DnsRequestFormat.DnsOverHttpsWirePost) { Debug = false };
+            var data = await client.Resolve("www.example.com", DnsRecordType.A);
+            data.DisplayTable();
+        }
+
+        /// <summary>
         /// Demonstrates querying via UDP transport.
         /// </summary>
         public static async Task ExampleTestingUdp() {

@@ -33,6 +33,7 @@ namespace DnsClientX.Examples {
             // await DemoQuery.ExampleTesting();
             // await DemoByManualUrl.ExampleTesting();
             // await DemoByManualUrl.ExampleTestingHttpOverPost();
+            // await DemoByManualUrl.ExampleTestingWirePost();
             // await DemoByManualUrl.ExampleTestingUdp();
             // await DemoByManualUrl.ExampleTestingTcp();
             // await DemoByManualUrl.ExampleGoogle();

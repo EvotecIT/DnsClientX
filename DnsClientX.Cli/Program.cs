@@ -18,6 +18,7 @@ namespace DnsClientX.Cli {
             DnsEndpoint endpoint = DnsEndpoint.System;
             bool requestDnsSec = false;
             bool validateDnsSec = false;
+            bool wirePost = false;
             bool doUpdate = false;
             string? zone = null;
             string? updateName = null;
@@ -53,6 +54,9 @@ namespace DnsClientX.Cli {
                         break;
                     case var opt when opt.Equals("--validate-dnssec", StringComparison.OrdinalIgnoreCase):
                         validateDnsSec = true;
+                        break;
+                    case var opt when opt.Equals("--wire-post", StringComparison.OrdinalIgnoreCase):
+                        wirePost = true;
                         break;
                     case var opt when opt.Equals("--update", StringComparison.OrdinalIgnoreCase):
                         if (i + 4 >= args.Length) {
@@ -94,7 +98,9 @@ namespace DnsClientX.Cli {
             }
 
             try {
-                await using var client = new ClientX(endpoint);
+                await using var client = wirePost
+                    ? new ClientX(new Configuration(endpoint).BaseUri!, DnsRequestFormat.DnsOverHttpsWirePost)
+                    : new ClientX(endpoint);
                 if (doUpdate) {
                     var response = await client.UpdateRecordAsync(zone!, updateName!, recordType, updateData!, ttl, cts.Token);
                     Console.WriteLine($"Update status: {response.Status}");
@@ -124,6 +130,7 @@ namespace DnsClientX.Cli {
             Console.WriteLine("  -e, --endpoint <name>    DNS endpoint name (default System)");
             Console.WriteLine("      --dnssec             Request DNSSEC records");
             Console.WriteLine("      --validate-dnssec    Validate DNSSEC records");
+            Console.WriteLine("      --wire-post          Use DNS over HTTPS wire POST");
             Console.WriteLine("      --update <zone> <name> <type> <data>  Send dynamic update");
             Console.WriteLine("      --ttl <seconds>       TTL for update (default 300)");
             Console.WriteLine();
