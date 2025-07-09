@@ -65,6 +65,11 @@ namespace DnsClientX.Tests {
                 field.SetValue(null, original);
             }
         }
+
+        [Fact]
+        public void WithEndpointCustom_ShouldThrowImmediately() {
+            Assert.Throws<ArgumentException>(() => new ClientXBuilder().WithEndpoint(DnsEndpoint.Custom));
+        }
     }
 }
 

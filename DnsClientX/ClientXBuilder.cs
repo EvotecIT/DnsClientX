@@ -20,6 +20,10 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="endpoint">Predefined DNS endpoint.</param>
         public ClientXBuilder WithEndpoint(DnsEndpoint endpoint) {
+            if (endpoint == DnsEndpoint.Custom) {
+                throw new ArgumentException("A hostname must be specified when using a custom endpoint.", nameof(endpoint));
+            }
+
             _endpoint = endpoint;
             return this;
         }
