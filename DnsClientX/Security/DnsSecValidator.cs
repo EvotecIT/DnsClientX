@@ -70,16 +70,30 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="response">DNS response to validate.</param>
         /// <returns><c>true</c> if the response can be validated; otherwise <c>false</c>.</returns>
-        public static bool ValidateAgainstRoot(DnsResponse response) {
+        public static bool ValidateAgainstRoot(DnsResponse response) => ValidateAgainstRoot(response, out _);
+
+        /// <summary>
+        /// Validates the supplied <see cref="DnsResponse"/> against known root DS records.
+        /// </summary>
+        /// <param name="response">DNS response to validate.</param>
+        /// <param name="message">Detailed failure message when validation fails.</param>
+        /// <returns><c>true</c> if the response can be validated; otherwise <c>false</c>.</returns>
+        public static bool ValidateAgainstRoot(DnsResponse response, out string message) {
+            message = string.Empty;
             if (response.Answers == null) {
+                message = "No answers to validate.";
                 return false;
             }
 
             foreach (DnsAnswer answer in response.Answers) {
                 if (answer.Type == DnsRecordType.DS) {
-                    if (TryParseDs(answer.DataRaw, out RootDsRecord ds) &&
-                        RootTrustAnchors.DsRecords.Any(r => r.KeyTag == ds.KeyTag && r.Algorithm == ds.Algorithm && r.DigestType == ds.DigestType && string.Equals(r.Digest, ds.Digest, StringComparison.OrdinalIgnoreCase))) {
-                        return true;
+                    if (TryParseDs(answer.DataRaw, out RootDsRecord ds)) {
+                        if (RootTrustAnchors.DsRecords.Any(r => r.KeyTag == ds.KeyTag && r.Algorithm == ds.Algorithm && r.DigestType == ds.DigestType && string.Equals(r.Digest, ds.Digest, StringComparison.OrdinalIgnoreCase))) {
+                            return true;
+                        }
+                        message = $"DS record {ds.KeyTag} did not match root anchors.";
+                    } else {
+                        message = $"Failed to parse DS record '{answer.DataRaw}'.";
                     }
                 } else if (answer.Type == DnsRecordType.DNSKEY) {
                     if (TryParseDnsKey(answer, out ushort flags, out byte protocol, out DnsKeyAlgorithm algorithm, out byte[] publicKey)) {
@@ -88,9 +102,17 @@ namespace DnsClientX {
                         if (RootTrustAnchors.DsRecords.Any(r => r.KeyTag == keyTag && r.Algorithm == algorithm && r.DigestType == 2 && string.Equals(r.Digest, digest, StringComparison.OrdinalIgnoreCase))) {
                             return true;
                         }
+                        message = $"DNSKEY record with tag {keyTag} did not match root anchors.";
+                    } else {
+                        message = $"Failed to parse DNSKEY record '{answer.DataRaw}'.";
                     }
                 }
             }
+
+            if (message.Length == 0) {
+                message = "No matching root trust anchor found.";
+            }
+
             return false;
         }
 
@@ -99,8 +121,18 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="response">DNS response to validate.</param>
         /// <returns><c>true</c> when validation succeeds; otherwise <c>false</c>.</returns>
-        public static bool ValidateChain(DnsResponse response) {
+        public static bool ValidateChain(DnsResponse response) => ValidateChain(response, out _);
+
+        /// <summary>
+        /// Validates DNSSEC data by verifying DS records and RRSIG signatures for DNSKEY sets.
+        /// </summary>
+        /// <param name="response">DNS response to validate.</param>
+        /// <param name="message">Detailed failure message when validation fails.</param>
+        /// <returns><c>true</c> when validation succeeds; otherwise <c>false</c>.</returns>
+        public static bool ValidateChain(DnsResponse response, out string message) {
+            message = string.Empty;
             if (response.Answers == null) {
+                message = "No answers to validate.";
                 return false;
             }
 
@@ -125,22 +157,30 @@ namespace DnsClientX {
             }
 
             if (dnsKeys.Count == 0 || rrsigs.Count == 0) {
+                message = "Missing DNSKEY or RRSIG records.";
                 return false;
             }
 
             foreach (RrsigRecord sig in rrsigs.Where(s => s.TypeCovered == DnsRecordType.DNSKEY)) {
                 if (!VerifyDnskeyRrsig(sig, dnsKeys)) {
+                    message = $"Invalid RRSIG for signer {sig.SignerName} tag {sig.KeyTag}.";
                     return false;
                 }
             }
 
             foreach (DsRecord ds in dsRecords) {
-                DnsKeyRecord? key = dnsKeys.FirstOrDefault(k => ComputeKeyTag(k.Flags, k.Protocol, k.Algorithm, k.PublicKey) == ds.KeyTag && k.Algorithm == ds.Algorithm);
-                if (key == null) {
+                DnsKeyRecord key = dnsKeys.FirstOrDefault(k =>
+                    ComputeKeyTag(k.Flags, k.Protocol, k.Algorithm, k.PublicKey) == ds.KeyTag &&
+                    k.Algorithm == ds.Algorithm);
+
+                if (key.Name is null) {
+                    message = $"No DNSKEY found for DS tag {ds.KeyTag}.";
                     return false;
                 }
-                string digest = ComputeDigest(ds.Name, key.Value.Flags, key.Value.Protocol, key.Value.Algorithm, key.Value.PublicKey);
+
+                string digest = ComputeDigest(ds.Name, key.Flags, key.Protocol, key.Algorithm, key.PublicKey);
                 if (!digest.Equals(ds.Digest, StringComparison.OrdinalIgnoreCase)) {
+                    message = $"Digest mismatch for DS tag {ds.KeyTag}.";
                     return false;
                 }
             }

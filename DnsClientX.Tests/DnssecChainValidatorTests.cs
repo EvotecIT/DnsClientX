@@ -83,7 +83,8 @@ namespace DnsClientX.Tests {
             string sigB64 = Convert.ToBase64String(sig);
             var rrsig = new DnsAnswer { Name = name, Type = DnsRecordType.RRSIG, TTL = 3600, DataRaw = $"DNSKEY {(int)alg} 2 3600 {(uint)(expiration - new DateTime(1970,1,1)).TotalSeconds} {(uint)(inception - new DateTime(1970,1,1)).TotalSeconds} {tag} {name} {sigB64}" };
             var response = new DnsResponse { Answers = new[] { dnskey, ds, rrsig } };
-            Assert.True(DnsSecValidator.ValidateChain(response));
+            Assert.True(DnsSecValidator.ValidateChain(response, out string msg));
+            Assert.Equal(string.Empty, msg);
         }
 
         [Fact]
@@ -107,7 +108,66 @@ namespace DnsClientX.Tests {
             string sigB64 = Convert.ToBase64String(sig);
             var rrsig = new DnsAnswer { Name = name, Type = DnsRecordType.RRSIG, TTL = 3600, DataRaw = $"DNSKEY 8 2 3600 {(uint)(expiration - new DateTime(1970,1,1)).TotalSeconds} {(uint)(inception - new DateTime(1970,1,1)).TotalSeconds} {tag} {name} {sigB64}" };
             var response = new DnsResponse { Answers = new[] { dnskey, ds, rrsig } };
-            Assert.False(DnsSecValidator.ValidateChain(response));
+            Assert.False(DnsSecValidator.ValidateChain(response, out string msg));
+            Assert.Contains("Invalid RRSIG", msg);
+        }
+
+        [Fact]
+        public void ValidateChain_MissingRecords() {
+            var response = new DnsResponse {
+                Answers = new[] {
+                    new DnsAnswer { Name = "example.com.", Type = DnsRecordType.DS, TTL = 3600, DataRaw = "1 8 2 ABCD" }
+                }
+            };
+            Assert.False(DnsSecValidator.ValidateChain(response, out string msg));
+            Assert.Contains("Missing DNSKEY or RRSIG", msg);
+        }
+
+        [Fact]
+        public void ValidateChain_NoMatchingDnsKey() {
+            using RSA rsa = RSA.Create(1024);
+            RSAParameters p = rsa.ExportParameters(true);
+            byte[] pub = BuildPublicKey(p);
+            string pubB64 = Convert.ToBase64String(pub);
+            const string name = "example.com.";
+            const ushort flags = 257;
+            const byte protocol = 3;
+            var dnskey = new DnsAnswer { Name = name, Type = DnsRecordType.DNSKEY, TTL = 3600, DataRaw = $"{flags} {protocol} 8 {pubB64}" };
+            ushort tag = ComputeKeyTag(flags, protocol, DnsKeyAlgorithm.RSASHA256, pub);
+            string digest = ComputeDigest(name, flags, protocol, DnsKeyAlgorithm.RSASHA256, pub);
+            var ds = new DnsAnswer { Name = name, Type = DnsRecordType.DS, TTL = 3600, DataRaw = $"{tag + 1} 8 2 {digest}" };
+            DateTime inception = DateTime.UtcNow.AddMinutes(-1);
+            DateTime expiration = DateTime.UtcNow.AddHours(1);
+            byte[] data = BuildSignedData(name, 3600, expiration, inception, tag, pub);
+            byte[] sig = rsa.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            string sigB64 = Convert.ToBase64String(sig);
+            var rrsig = new DnsAnswer { Name = name, Type = DnsRecordType.RRSIG, TTL = 3600, DataRaw = $"DNSKEY 8 2 3600 {(uint)(expiration - new DateTime(1970,1,1)).TotalSeconds} {(uint)(inception - new DateTime(1970,1,1)).TotalSeconds} {tag} {name} {sigB64}" };
+            var response = new DnsResponse { Answers = new[] { dnskey, ds, rrsig } };
+            Assert.False(DnsSecValidator.ValidateChain(response, out string msg));
+            Assert.Contains("No DNSKEY", msg);
+        }
+
+        [Fact]
+        public void ValidateChain_DigestMismatch() {
+            using RSA rsa = RSA.Create(1024);
+            RSAParameters p = rsa.ExportParameters(true);
+            byte[] pub = BuildPublicKey(p);
+            string pubB64 = Convert.ToBase64String(pub);
+            const string name = "example.com.";
+            const ushort flags = 257;
+            const byte protocol = 3;
+            var dnskey = new DnsAnswer { Name = name, Type = DnsRecordType.DNSKEY, TTL = 3600, DataRaw = $"{flags} {protocol} 8 {pubB64}" };
+            ushort tag = ComputeKeyTag(flags, protocol, DnsKeyAlgorithm.RSASHA256, pub);
+            var ds = new DnsAnswer { Name = name, Type = DnsRecordType.DS, TTL = 3600, DataRaw = $"{tag} 8 2 DEAD" };
+            DateTime inception = DateTime.UtcNow.AddMinutes(-1);
+            DateTime expiration = DateTime.UtcNow.AddHours(1);
+            byte[] data = BuildSignedData(name, 3600, expiration, inception, tag, pub);
+            byte[] sig = rsa.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            string sigB64 = Convert.ToBase64String(sig);
+            var rrsig = new DnsAnswer { Name = name, Type = DnsRecordType.RRSIG, TTL = 3600, DataRaw = $"DNSKEY 8 2 3600 {(uint)(expiration - new DateTime(1970,1,1)).TotalSeconds} {(uint)(inception - new DateTime(1970,1,1)).TotalSeconds} {tag} {name} {sigB64}" };
+            var response = new DnsResponse { Answers = new[] { dnskey, ds, rrsig } };
+            Assert.False(DnsSecValidator.ValidateChain(response, out string msg));
+            Assert.Contains("Digest mismatch", msg);
         }
 
         private static byte[] BuildPublicKey(RSAParameters p) {
