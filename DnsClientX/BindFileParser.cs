@@ -166,8 +166,12 @@ namespace DnsClientX {
 
                 if (line.StartsWith("$TTL", StringComparison.OrdinalIgnoreCase)) {
                     var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length > 1 && TryParseTtl(parts[1], out int ttlDirective) && ttlDirective >= 0) {
-                        defaultTtl = ttlDirective;
+                    if (parts.Length > 1 && TryParseTtl(parts[1], out int ttlDirective)) {
+                        if (ttlDirective < 0) {
+                            debugPrint?.Invoke($"Skipping TTL directive with negative value: {line}");
+                        } else {
+                            defaultTtl = ttlDirective;
+                        }
                     } else {
                         debugPrint?.Invoke($"Skipping invalid TTL directive: {line}");
                     }

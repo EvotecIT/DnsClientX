@@ -78,5 +78,20 @@ namespace DnsClientX.Tests {
             Assert.Equal(DnsRecordType.SOA, records[0].Type);
             Assert.Equal("ns.example.com. admin.example.com. 2024010101 7200 3600 1209600 3600", records[0].DataRaw);
         }
+
+        [Fact]
+        public void ParseZoneFile_WarnsOnNegativeTtlDirective() {
+            string file = Path.GetTempFileName();
+            File.WriteAllLines(file, new[] {
+                "$TTL -1",
+                "example.com. IN A 1.1.1.1"
+            });
+
+            var messages = new System.Collections.Generic.List<string>();
+            var records = BindFileParser.ParseZoneFile(file, m => messages.Add(m));
+
+            Assert.Single(records);
+            Assert.Contains(messages, m => m.Contains("negative value"));
+        }
     }
 }
