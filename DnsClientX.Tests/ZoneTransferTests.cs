@@ -161,14 +161,16 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
-        public async Task ZoneTransferAsync_FailsWithoutSoa() {
+        public async Task ZoneTransferAsync_NoSoa_ReturnsEmptyArray() {
             byte[] m1 = BuildMessage("example.com", ("www.example.com", DnsRecordType.A, new byte[] { 1, 2, 3, 4 }));
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var server = RunAxfrServerAsync(new[] { m1 }, cts.Token);
 
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
-            await Assert.ThrowsAsync<DnsClientException>(() => client.ZoneTransferAsync("example.com"));
+            var records = await client.ZoneTransferAsync("example.com");
             await server.Task;
+
+            Assert.Empty(records);
         }
 
         [Fact]
@@ -343,14 +345,16 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
-        public async Task ZoneTransferAsync_FailsWithInvalidOpcode() {
+        public async Task ZoneTransferAsync_InvalidOpcode_ReturnsEmptyArray() {
             byte[] m1 = BuildInvalidOpcodeMessage("example.com");
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var server = RunAxfrServerAsync(new[] { m1 }, cts.Token);
 
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
-            await Assert.ThrowsAsync<DnsClientException>(() => client.ZoneTransferAsync("example.com"));
+            var records = await client.ZoneTransferAsync("example.com");
             await server.Task;
+
+            Assert.Empty(records);
         }
 
         [Fact]
