@@ -60,7 +60,7 @@ namespace DnsClientX.Examples {
                     foreach (var domain in domains) {
                         foreach (var recordType in recordTypes) {
                             HelpersSpectre.AddLine("ResolveFirst", domain, recordType, endpoint);
-                            var response = await client.ResolveFirst(domain);
+                            var response = await client.ResolveFirst(domain, cancellationToken: CancellationToken.None);
                             response?.DisplayTable();
                         }
                     }

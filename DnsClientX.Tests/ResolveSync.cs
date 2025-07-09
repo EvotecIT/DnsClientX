@@ -255,7 +255,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForFirstSyncA(DnsEndpoint endpoint) {
             using var client = new ClientX(endpoint);
-            var answer = client.ResolveFirstSync("evotec.pl", DnsRecordType.A);
+            var answer = client.ResolveFirstSync("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);
             Assert.True(answer != null);
             Assert.True(answer.Value.Name == "evotec.pl");
             Assert.True(answer.Value.Type == DnsRecordType.A);

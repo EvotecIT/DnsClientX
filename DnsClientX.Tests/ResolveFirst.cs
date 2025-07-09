@@ -19,7 +19,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
-            var answer = await Client.ResolveFirst("github.com", DnsRecordType.TXT);
+            var answer = await Client.ResolveFirst("github.com", DnsRecordType.TXT, cancellationToken: CancellationToken.None);
             Assert.True(answer != null);
             Assert.True(answer.Value.Name == "github.com");
             Assert.True(answer.Value.Type == DnsRecordType.TXT);
@@ -45,7 +45,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
-            var answer = await Client.ResolveFirst("evotec.pl", DnsRecordType.A);
+            var answer = await Client.ResolveFirst("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);
             Assert.True(answer != null);
             Assert.True(answer.Value.Name == "evotec.pl");
             Assert.True(answer.Value.Type == DnsRecordType.A);
@@ -70,7 +70,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForTXT_Sync(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
-            var answer = Client.ResolveFirstSync("github.com", DnsRecordType.TXT);
+            var answer = Client.ResolveFirstSync("github.com", DnsRecordType.TXT, cancellationToken: CancellationToken.None);
             Assert.True(answer != null);
             Assert.True(answer.Value.Name == "github.com");
             Assert.True(answer.Value.Type == DnsRecordType.TXT);
@@ -96,7 +96,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForA_Sync(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
-            var answer = Client.ResolveFirstSync("evotec.pl", DnsRecordType.A);
+            var answer = Client.ResolveFirstSync("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);
             Assert.True(answer != null);
             Assert.True(answer.Value.Name == "evotec.pl");
             Assert.True(answer.Value.Type == DnsRecordType.A);
