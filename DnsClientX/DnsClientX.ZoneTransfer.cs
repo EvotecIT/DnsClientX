@@ -76,6 +76,10 @@ namespace DnsClientX {
                 }
             }
 
+            if (soaCount == 0) {
+                return Array.Empty<DnsAnswer[]>();
+            }
+
             if (soaCount < 2) {
                 throw new DnsClientException("Zone transfer incomplete: closing SOA record missing.");
             }
