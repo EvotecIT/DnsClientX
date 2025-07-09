@@ -163,6 +163,14 @@ namespace DnsClientX {
                 return string.Empty;
             }
 
+#if NETSTANDARD2_0 || NET472
+            string base64Url = Convert.ToBase64String(dnsMessageBytes)
+                .TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
+
+            return base64Url;
+#else
             int base64Length = ((dnsMessageBytes.Length + 2) / 3) * 4;
             char[] base64 = new char[base64Length];
             Convert.TryToBase64Chars(dnsMessageBytes, base64, out int charsWritten);
@@ -176,6 +184,7 @@ namespace DnsClientX {
                     span[i] = c switch { '+' => '-', '/' => '_', _ => c };
                 }
             });
+#endif
         }
 
         /// <summary>
