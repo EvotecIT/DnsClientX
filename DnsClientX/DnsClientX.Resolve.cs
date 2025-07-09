@@ -647,16 +647,19 @@ namespace DnsClientX {
         }
 
         private static int FindClosingBrace(string pattern, int openIndex) {
-            int depth = 0;
-            for (int i = openIndex; i < pattern.Length; i++) {
-                if (pattern[i] == '{') {
+            int depth = pattern[openIndex] == '{' ? 1 : 0;
+            for (int i = openIndex + 1; i < pattern.Length; i++) {
+                char c = pattern[i];
+                if (c == '{') {
                     depth++;
-                } else if (pattern[i] == '}') {
+                } else if (c == '}') {
                     depth--;
-                    if (depth == 0) return i;
+                    if (depth == 0) {
+                        return i;
+                    }
                 }
             }
+
             return -1;
         }
-    }
-}
+    }}
