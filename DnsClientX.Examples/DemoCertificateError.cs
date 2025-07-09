@@ -59,5 +59,4 @@ namespace DnsClientX.Examples {
 #endif
             listener.Stop();
         }
-    }
-}
+    }}
