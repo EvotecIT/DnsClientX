@@ -159,9 +159,32 @@ namespace DnsClientX {
 
             // Convert to base64url format
             var dnsMessageBytes = stream.ToArray();
-            string base64Url = Convert.ToBase64String(dnsMessageBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+            if (dnsMessageBytes.Length == 0) {
+                return string.Empty;
+            }
+
+#if NETSTANDARD2_0 || NET472
+            string base64Url = Convert.ToBase64String(dnsMessageBytes)
+                .TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
 
             return base64Url;
+#else
+            int base64Length = ((dnsMessageBytes.Length + 2) / 3) * 4;
+            char[] base64 = new char[base64Length];
+            Convert.TryToBase64Chars(dnsMessageBytes, base64, out int charsWritten);
+
+            int padding = (3 - (dnsMessageBytes.Length % 3)) % 3;
+            int finalLength = charsWritten - padding;
+
+            return string.Create(finalLength, base64, static (span, value) => {
+                for (int i = 0; i < span.Length; i++) {
+                    char c = value[i];
+                    span[i] = c switch { '+' => '-', '/' => '_', _ => c };
+                }
+            });
+#endif
         }
 
         /// <summary>
