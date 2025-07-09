@@ -31,5 +31,17 @@ namespace DnsClientX.Tests {
             Assert.Equal(0, exitCode);
             Assert.Equal(1, ClientX.DisposalCount);
         }
+
+        [Fact]
+        public async Task WirePostOption_Executes() {
+            ClientX.DisposalCount = 0;
+            var assembly = Assembly.Load("DnsClientX.Cli");
+            Type programType = assembly.GetType("DnsClientX.Cli.Program")!;
+            MethodInfo main = programType.GetMethod("Main", BindingFlags.NonPublic | BindingFlags.Static)!;
+            Task<int> task = (Task<int>)main.Invoke(null, new object[] { new[] { "--wire-post", "localhost" } })!;
+            int exitCode = await task;
+            Assert.Equal(0, exitCode);
+            Assert.True(ClientX.DisposalCount >= 1);
+        }
     }
 }

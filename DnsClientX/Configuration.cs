@@ -301,7 +301,7 @@ namespace DnsClientX {
                     break;
                 case DnsEndpoint.CloudflareWireFormatPost:
                     hostnames = new List<string> { "1.1.1.1", "1.0.0.1" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttpsPOST;
+                    RequestFormat = DnsRequestFormat.DnsOverHttpsWirePost;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.CloudflareJsonPost:
@@ -346,7 +346,7 @@ namespace DnsClientX {
                     break;
                 case DnsEndpoint.GoogleWireFormatPost:
                     hostnames = new List<string> { "8.8.8.8", "8.8.4.4" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttpsPOST;
+                    RequestFormat = DnsRequestFormat.DnsOverHttpsWirePost;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.GoogleJsonPost:

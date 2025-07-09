@@ -18,6 +18,11 @@ namespace DnsClientX {
         /// </summary>
         DnsOverHttpsPOST,
         /// <summary>
+        /// Wire format over HTTPS using POST request.
+        /// Alias for <see cref="DnsOverHttpsPOST"/> with an explicit name.
+        /// </summary>
+        DnsOverHttpsWirePost,
+        /// <summary>
         /// JSON format for DNS requests sent using POST method.
         /// </summary>
         DnsOverHttpsJSONPOST,
