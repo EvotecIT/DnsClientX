@@ -235,6 +235,8 @@ namespace DnsClientX {
                     if (data.Length > 1 && data.EndsWith("\"")) {
                         data = data.Substring(1, data.Length - 2);
                     }
+
+                    data = data.Replace("\\n", "\n");
                 }
 
                 records.Add(new DnsAnswer {

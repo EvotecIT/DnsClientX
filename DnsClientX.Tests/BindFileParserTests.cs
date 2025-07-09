@@ -43,6 +43,20 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
+        public void ParseZoneFile_ReplacesEscapedNewlinesInTxtRecords() {
+            string file = Path.GetTempFileName();
+            File.WriteAllLines(file, new[] {
+                "example.com. IN TXT \"line1\\nline2\""
+            });
+
+            var records = BindFileParser.ParseZoneFile(file);
+
+            Assert.Single(records);
+            Assert.Equal("example.com", records[0].Name);
+            Assert.Equal("line1\nline2", records[0].DataRaw);
+        }
+
+        [Fact]
         public void ParseZoneFile_ParsesTtlSuffixes() {
             string file = Path.GetTempFileName();
             File.WriteAllLines(file, new[] {
