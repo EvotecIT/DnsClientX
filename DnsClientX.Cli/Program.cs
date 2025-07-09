@@ -1,5 +1,6 @@
 using DnsClientX;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -24,6 +25,8 @@ namespace DnsClientX.Cli {
             string? updateName = null;
             string? updateData = null;
             int ttl = 300;
+
+            var invalidSwitches = new List<string>();
 
             using var cts = new CancellationTokenSource();
             Console.CancelKeyPress += (_, e) => {
@@ -77,14 +80,21 @@ namespace DnsClientX.Cli {
                         ttl = int.Parse(args[++i]);
                         break;
                     default:
-                        if (domain is null) {
+                        if (domain is null && !args[i].StartsWith("-", StringComparison.Ordinal)) {
                             domain = args[i];
                         } else {
-                            Console.Error.WriteLine($"Unknown argument: {args[i]}");
-                            return 1;
+                            invalidSwitches.Add(args[i]);
                         }
                         break;
                 }
+            }
+
+            if (invalidSwitches.Count > 0) {
+                foreach (string invalid in invalidSwitches) {
+                    Console.Error.WriteLine($"Unknown argument: {invalid}");
+                }
+                ShowHelp();
+                return 1;
             }
 
             if (doUpdate) {
