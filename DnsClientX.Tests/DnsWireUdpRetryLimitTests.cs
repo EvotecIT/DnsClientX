@@ -16,8 +16,9 @@ namespace DnsClientX.Tests {
             return port;
         }
 
-        private static async Task<int> RunUdpServerNoReplyAsync(int port, int expected, CancellationToken token) {
+        private static async Task<int[]> RunUdpServerNoReplyAsync(int port, int expected, CancellationToken token) {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
+            var ports = new int[expected];
             int count = 0;
             while (count < expected && !token.IsCancellationRequested) {
 #if NET5_0_OR_GREATER
@@ -27,11 +28,12 @@ namespace DnsClientX.Tests {
 #endif
                 var completed = await Task.WhenAny(receiveTask, Task.Delay(Timeout.Infinite, token));
                 if (completed == receiveTask) {
-                    await receiveTask;
+                    UdpReceiveResult result = await receiveTask;
+                    ports[count] = result.RemoteEndPoint.Port;
                     count++;
                 }
             }
-            return count;
+            return ports;
         }
 
         [Fact]
@@ -51,11 +53,25 @@ namespace DnsClientX.Tests {
             var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, 2, cts.Token })!;
             DnsResponse response = await task;
 
-            int attempts = await serverTask;
+            int[] clientPorts = await serverTask;
+            int attempts = clientPorts.Length;
             cts.Cancel();
 
             Assert.Equal(2, attempts);
             Assert.NotEqual(DnsResponseCode.NoError, response.Status);
+
+            foreach (int p in clientPorts) {
+                UdpClient? testClient = null;
+                Exception? ex = null;
+                try {
+                    testClient = new UdpClient(new IPEndPoint(IPAddress.Loopback, p));
+                } catch (Exception e) {
+                    ex = e;
+                } finally {
+                    testClient?.Dispose();
+                }
+
+                Assert.Null(ex);
+            }
         }
-    }
-}
+    }}
