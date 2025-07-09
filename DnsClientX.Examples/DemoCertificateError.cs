@@ -25,6 +25,8 @@ namespace DnsClientX.Examples {
                 Console.WriteLine(ex.Response.Error);
             }
 
+            // Output includes the certificate validation failure
+
             await serverTask;
         }
 
