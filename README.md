@@ -592,6 +592,8 @@ Get-DnsZoneTransfer -Zone 'example.com' -Server '127.0.0.1' -Port 5353
 
 Process a DNS zone transfer as records arrive:
 
+See `DnsClientX.Examples/DemoZoneTransferStream.cs` for a full example.
+
 ```csharp
 using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = 5353 } };
 await foreach (var rrset in client.ZoneTransferStreamAsync("example.com")) {
