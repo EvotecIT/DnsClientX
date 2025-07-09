@@ -27,6 +27,15 @@ namespace DnsClientX.Tests {
                 return Task.FromResult(response);
             }
         }
+        private class Http3EmptyHandler : HttpMessageHandler {
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
+                var response = new HttpResponseMessage(HttpStatusCode.OK) {
+                    Content = new ByteArrayContent(Array.Empty<byte>())
+                };
+                response.Version = HttpVersion.Version30;
+                return Task.FromResult(response);
+            }
+        }
 
 
         [Fact]
@@ -52,6 +61,19 @@ namespace DnsClientX.Tests {
             Assert.Contains("server error", ex.Message);
             Assert.Equal(config.Hostname, ex.Response.Questions[0].HostName);
             Assert.Equal(config.Port, ex.Response.Questions[0].Port);
+        }
+
+        [Fact]
+        public async Task ResolveWireFormatHttp3_ThrowsOnEmptyResponse() {
+            var handler = new Http3EmptyHandler();
+            using var client = new HttpClient(handler) { BaseAddress = new Uri("https://example.com/dns-query") };
+            var config = new Configuration(new Uri("https://example.com/dns-query"), DnsRequestFormat.DnsOverHttp3);
+
+            var ex = await Assert.ThrowsAsync<DnsClientException>(() =>
+                DnsWireResolveHttp3.ResolveWireFormatHttp3(client, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None));
+
+            Assert.Contains("empty response", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(HttpStatusCode.OK.ToString(), ex.Message);
         }
 
     }
