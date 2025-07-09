@@ -315,8 +315,12 @@ namespace DnsClientX {
         /// </summary>
         private void ConfigureClient() {
             lock (_lock) {
-                Client?.Dispose();
-                handler?.Dispose();
+                if (Client != null && TryAddDisposedClient(Client)) {
+                    Client.Dispose();
+                }
+                if (handler != null && TryAddDisposedClient(handler)) {
+                    handler.Dispose();
+                }
 
                 Client = CreateOptimizedHttpClient();
                 _clients[EndpointConfiguration.SelectionStrategy] = Client;
@@ -346,7 +350,9 @@ namespace DnsClientX {
                     if (kv.Key != strategy && TryAddDisposedClient(kv.Value)) {
                         kv.Value.Dispose();
                         if (ReferenceEquals(kv.Value, Client)) {
-                            handler?.Dispose();
+                            if (handler != null && TryAddDisposedClient(handler)) {
+                                handler.Dispose();
+                            }
                             handler = null;
                         }
                         System.Threading.Interlocked.Increment(ref DisposalCount);
@@ -357,7 +363,9 @@ namespace DnsClientX {
                 // dispose the currently assigned client and handler if present
                 if (Client != null && TryAddDisposedClient(Client)) {
                     Client.Dispose();
-                    handler?.Dispose();
+                    if (handler != null && TryAddDisposedClient(handler)) {
+                        handler.Dispose();
+                    }
                     handler = null;
                     System.Threading.Interlocked.Increment(ref DisposalCount);
                 }
