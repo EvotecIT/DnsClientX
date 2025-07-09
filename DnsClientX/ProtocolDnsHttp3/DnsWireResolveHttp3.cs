@@ -48,6 +48,15 @@ namespace DnsClientX {
             try {
                 using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
                 byte[] responseBytes = await res.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+                if (responseBytes.Length == 0) {
+                    DnsResponse emptyResponse = new() {
+                        Status = DnsResponseCode.ServerFailure,
+                        Questions = [ new DnsQuestion { Name = name, Type = type, OriginalName = name } ]
+                    };
+                    emptyResponse.AddServerDetails(endpointConfiguration);
+                    string message = $"Failed to query type {type} of \"{name}\", received empty response with HTTP status code {res.StatusCode}.";
+                    throw new DnsClientException(message, emptyResponse);
+                }
                 DnsResponse response;
                 if (res.StatusCode == HttpStatusCode.OK) {
                     response = await res.DeserializeDnsWireFormat(debug, responseBytes).ConfigureAwait(false);
