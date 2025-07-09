@@ -89,10 +89,10 @@ namespace DnsClientX.Tests {
             var server = RunAxfrServerAsync(new[] { m1 }, cts.Token);
 
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
-            var records = await client.ZoneTransferAsync("example.com");
+            var recordSets = await client.ZoneTransferAsync("example.com");
             await server.Task;
 
-            Assert.Empty(records);
+            Assert.Empty(recordSets);
         }
     }
 }

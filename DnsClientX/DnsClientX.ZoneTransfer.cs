@@ -64,14 +64,14 @@ namespace DnsClientX {
             var records = new List<DnsAnswer>();
             int soaCount = 0;
             foreach (var buffer in responses) {
-                var res = await DnsWire.DeserializeDnsWireFormat(null, Debug, buffer).ConfigureAwait(false);
-                res.AddServerDetails(EndpointConfiguration);
-                if (res.Status != DnsResponseCode.NoError) {
-                    throw new DnsClientException($"Zone transfer failed with {res.Status}", res);
+                var response = await DnsWire.DeserializeDnsWireFormat(null, Debug, buffer).ConfigureAwait(false);
+                response.AddServerDetails(EndpointConfiguration);
+                if (response.Status != DnsResponseCode.NoError) {
+                    throw new DnsClientException($"Zone transfer failed with {response.Status}", response);
                 }
-                if (res.Answers != null) {
-                    records.AddRange(res.Answers);
-                    soaCount += res.Answers.Count(a => a.Type == DnsRecordType.SOA);
+                if (response.Answers != null) {
+                    records.AddRange(response.Answers);
+                    soaCount += response.Answers.Count(a => a.Type == DnsRecordType.SOA);
                     if (soaCount >= 2) break;
                 }
             }
@@ -90,16 +90,16 @@ namespace DnsClientX {
                 throw new DnsClientException("Zone transfer incomplete: closing SOA record missing.");
             }
 
-            var rrsets = new List<List<DnsAnswer>>();
+            var recordSets = new List<List<DnsAnswer>>();
             foreach (var rec in records) {
-                if (rrsets.Count == 0 || rrsets[rrsets.Count - 1][0].Name != rec.Name || rrsets[rrsets.Count - 1][0].Type != rec.Type) {
-                    rrsets.Add(new List<DnsAnswer> { rec });
+                if (recordSets.Count == 0 || recordSets[recordSets.Count - 1][0].Name != rec.Name || recordSets[recordSets.Count - 1][0].Type != rec.Type) {
+                    recordSets.Add(new List<DnsAnswer> { rec });
                 } else {
-                    rrsets[rrsets.Count - 1].Add(rec);
+                    recordSets[recordSets.Count - 1].Add(rec);
                 }
             }
 
-            return rrsets.Select(r => r.ToArray()).ToArray();
+            return recordSets.Select(r => r.ToArray()).ToArray();
         }
 
         /// <summary>
@@ -135,8 +135,8 @@ namespace DnsClientX {
             int maxRetries = 3,
             int retryDelayMs = 100,
             [EnumeratorCancellation] CancellationToken cancellationToken = default) {
-            var rrsets = await ZoneTransferAsync(zone, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
-            foreach (var rrset in rrsets) {
+            var recordSets = await ZoneTransferAsync(zone, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+            foreach (var rrset in recordSets) {
                 yield return rrset;
             }
         }

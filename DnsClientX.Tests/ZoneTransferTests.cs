@@ -140,13 +140,13 @@ namespace DnsClientX.Tests {
             var server = RunAxfrServerAsync(new[] { m1, m2, m3 }, cts.Token);
 
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
-            var records = await client.ZoneTransferAsync("example.com");
+            var recordSets = await client.ZoneTransferAsync("example.com");
             await server.Task;
 
-            Assert.Equal(3, records.Length);
-            Assert.Equal(DnsRecordType.SOA, records[0][0].Type);
-            Assert.Equal(DnsRecordType.A, records[1][0].Type);
-            Assert.Equal(DnsRecordType.SOA, records[2][0].Type);
+            Assert.Equal(3, recordSets.Length);
+            Assert.Equal(DnsRecordType.SOA, recordSets[0][0].Type);
+            Assert.Equal(DnsRecordType.A, recordSets[1][0].Type);
+            Assert.Equal(DnsRecordType.SOA, recordSets[2][0].Type);
         }
 
         [Fact]
@@ -167,10 +167,10 @@ namespace DnsClientX.Tests {
             var server = RunAxfrServerAsync(new[] { m1 }, cts.Token);
 
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
-            var records = await client.ZoneTransferAsync("example.com");
+            var recordSets = await client.ZoneTransferAsync("example.com");
             await server.Task;
 
-            Assert.Empty(records);
+            Assert.Empty(recordSets);
         }
 
         [Fact]
@@ -273,10 +273,10 @@ namespace DnsClientX.Tests {
             var server = RunAxfrServerFailOnceAsync(new[] { m1, m2, m3 }, cts.Token);
 
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
-            var records = await client.ZoneTransferAsync("example.com", maxRetries: 2, retryDelayMs: 10);
+            var recordSets = await client.ZoneTransferAsync("example.com", maxRetries: 2, retryDelayMs: 10);
             await server.Task;
 
-            Assert.Equal(3, records.Length);
+            Assert.Equal(3, recordSets.Length);
         }
 
         [Fact]
@@ -351,10 +351,10 @@ namespace DnsClientX.Tests {
             var server = RunAxfrServerAsync(new[] { m1 }, cts.Token);
 
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
-            var records = await client.ZoneTransferAsync("example.com");
+            var recordSets = await client.ZoneTransferAsync("example.com");
             await server.Task;
 
-            Assert.Empty(records);
+            Assert.Empty(recordSets);
         }
 
         [Fact]
