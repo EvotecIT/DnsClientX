@@ -120,7 +120,7 @@ namespace DnsClientX.Tests {
                 }
             };
             Assert.False(DnsSecValidator.ValidateChain(response, out string msg));
-            Assert.Contains("Missing DNSKEY", msg);
+            Assert.Contains("Missing DNSKEY or RRSIG", msg);
         }
 
         [Fact]

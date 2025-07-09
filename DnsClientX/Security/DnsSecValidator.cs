@@ -169,12 +169,16 @@ namespace DnsClientX {
             }
 
             foreach (DsRecord ds in dsRecords) {
-                DnsKeyRecord? key = dnsKeys.FirstOrDefault(k => ComputeKeyTag(k.Flags, k.Protocol, k.Algorithm, k.PublicKey) == ds.KeyTag && k.Algorithm == ds.Algorithm);
-                if (key == null) {
+                DnsKeyRecord key = dnsKeys.FirstOrDefault(k =>
+                    ComputeKeyTag(k.Flags, k.Protocol, k.Algorithm, k.PublicKey) == ds.KeyTag &&
+                    k.Algorithm == ds.Algorithm);
+
+                if (key.Name is null) {
                     message = $"No DNSKEY found for DS tag {ds.KeyTag}.";
                     return false;
                 }
-                string digest = ComputeDigest(ds.Name, key.Value.Flags, key.Value.Protocol, key.Value.Algorithm, key.Value.PublicKey);
+
+                string digest = ComputeDigest(ds.Name, key.Flags, key.Protocol, key.Algorithm, key.PublicKey);
                 if (!digest.Equals(ds.Digest, StringComparison.OrdinalIgnoreCase)) {
                     message = $"Digest mismatch for DS tag {ds.KeyTag}.";
                     return false;
