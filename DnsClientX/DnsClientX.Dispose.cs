@@ -10,12 +10,12 @@ namespace DnsClientX {
     /// </summary>
     public partial class ClientX : IDisposable, IAsyncDisposable {
         private bool _disposed;
-        private readonly HashSet<object> _disposedClients = new();
+        private readonly HashSet<object> _disposedResources = new();
         internal static int DisposalCount;
 
-        private bool TryAddDisposedClient(object client) {
+        private bool TryAddDisposedResource(object client) {
             lock (_lock) {
-                return _disposedClients.Add(client);
+                return _disposedResources.Add(client);
             }
         }
 
@@ -51,24 +51,24 @@ namespace DnsClientX {
                 }
                 if (disposing) {
                     foreach (HttpClient client in clients) {
-                        if (TryAddDisposedClient(client)) {
+                        if (TryAddDisposedResource(client)) {
                             client.Dispose();
                         }
                     }
 
-                    if (mainClient != null && TryAddDisposedClient(mainClient)) {
+                    if (mainClient != null && TryAddDisposedResource(mainClient)) {
                         mainClient.Dispose();
                         if (_handlerOwnedByClient && handlerLocal != null) {
-                            TryAddDisposedClient(handlerLocal);
+                            TryAddDisposedResource(handlerLocal);
                         }
                     }
 
-                    if (!_handlerOwnedByClient && handlerLocal != null && TryAddDisposedClient(handlerLocal)) {
+                    if (!_handlerOwnedByClient && handlerLocal != null && TryAddDisposedResource(handlerLocal)) {
                         handlerLocal.Dispose();
                     }
 
                     lock (_lock) {
-                        _disposedClients.Clear();
+                        _disposedResources.Clear();
                     }
                 }
 
@@ -113,7 +113,7 @@ namespace DnsClientX {
 
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
                 foreach (HttpClient client in clients) {
-                    if (TryAddDisposedClient(client)) {
+                    if (TryAddDisposedResource(client)) {
                         if (client is IAsyncDisposable asyncClient) {
                             await asyncClient.DisposeAsync().ConfigureAwait(false);
                         } else {
@@ -123,34 +123,34 @@ namespace DnsClientX {
                 }
 #else
                 foreach (HttpClient client in clients) {
-                    if (TryAddDisposedClient(client)) {
+                    if (TryAddDisposedResource(client)) {
                         client.Dispose();
                     }
                 }
 #endif
 
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-                if (mainClient != null && TryAddDisposedClient(mainClient)) {
+                if (mainClient != null && TryAddDisposedResource(mainClient)) {
                     if (mainClient is IAsyncDisposable asyncClient) {
                         await asyncClient.DisposeAsync().ConfigureAwait(false);
                     } else {
                         mainClient.Dispose();
                     }
                     if (_handlerOwnedByClient && handlerLocal != null) {
-                        TryAddDisposedClient(handlerLocal);
+                        TryAddDisposedResource(handlerLocal);
                     }
                 }
 #else
-                if (mainClient != null && TryAddDisposedClient(mainClient)) {
+                if (mainClient != null && TryAddDisposedResource(mainClient)) {
                     mainClient.Dispose();
                     if (_handlerOwnedByClient && handlerLocal != null) {
-                        TryAddDisposedClient(handlerLocal);
+                        TryAddDisposedResource(handlerLocal);
                     }
                 }
 #endif
 
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-                if (!_handlerOwnedByClient && handlerLocal != null && TryAddDisposedClient(handlerLocal)) {
+                if (!_handlerOwnedByClient && handlerLocal != null && TryAddDisposedResource(handlerLocal)) {
                     if (handlerLocal is IAsyncDisposable asyncHandler) {
                         await asyncHandler.DisposeAsync().ConfigureAwait(false);
                     } else {
@@ -158,13 +158,13 @@ namespace DnsClientX {
                     }
                 }
 #else
-                if (!_handlerOwnedByClient && handlerLocal != null && TryAddDisposedClient(handlerLocal)) {
+                if (!_handlerOwnedByClient && handlerLocal != null && TryAddDisposedResource(handlerLocal)) {
                     handlerLocal.Dispose();
                 }
 #endif
 
                 lock (_lock) {
-                    _disposedClients.Clear();
+                    _disposedResources.Clear();
                 }
 
                 _disposed = true;

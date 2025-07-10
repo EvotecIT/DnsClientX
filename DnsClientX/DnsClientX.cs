@@ -318,13 +318,13 @@ namespace DnsClientX {
         /// </summary>
         private void ConfigureClient() {
             lock (_lock) {
-                if (Client != null && TryAddDisposedClient(Client)) {
+                if (Client != null && TryAddDisposedResource(Client)) {
                     Client.Dispose();
                     if (_handlerOwnedByClient && handler != null) {
-                        TryAddDisposedClient(handler);
+                        TryAddDisposedResource(handler);
                     }
                 }
-                if (!_handlerOwnedByClient && handler != null && TryAddDisposedClient(handler)) {
+                if (!_handlerOwnedByClient && handler != null && TryAddDisposedResource(handler)) {
                     handler.Dispose();
                 }
 
@@ -353,14 +353,14 @@ namespace DnsClientX {
 
                 // dispose any clients created for other strategies
                 foreach (KeyValuePair<DnsSelectionStrategy, HttpClient> kv in _clients) {
-                    if (kv.Key != strategy && TryAddDisposedClient(kv.Value)) {
+                    if (kv.Key != strategy && TryAddDisposedResource(kv.Value)) {
                         kv.Value.Dispose();
                         if (ReferenceEquals(kv.Value, Client)) {
-                            if (!_handlerOwnedByClient && handler != null && TryAddDisposedClient(handler)) {
+                            if (!_handlerOwnedByClient && handler != null && TryAddDisposedResource(handler)) {
                                 handler.Dispose();
                             }
                             if (_handlerOwnedByClient && handler != null) {
-                                TryAddDisposedClient(handler);
+                                TryAddDisposedResource(handler);
                             }
                             handler = null;
                         }
@@ -370,12 +370,12 @@ namespace DnsClientX {
                 _clients.Clear();
 
                 // dispose the currently assigned client and handler if present
-                if (Client != null && TryAddDisposedClient(Client)) {
+                if (Client != null && TryAddDisposedResource(Client)) {
                     Client.Dispose();
                     if (_handlerOwnedByClient && handler != null) {
-                        TryAddDisposedClient(handler);
+                        TryAddDisposedResource(handler);
                     }
-                    if (!_handlerOwnedByClient && handler != null && TryAddDisposedClient(handler)) {
+                    if (!_handlerOwnedByClient && handler != null && TryAddDisposedResource(handler)) {
                         handler.Dispose();
                     }
                     handler = null;

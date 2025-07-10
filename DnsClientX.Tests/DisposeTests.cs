@@ -192,7 +192,7 @@ namespace DnsClientX.Tests {
 
             clientX.Dispose();
 
-            var field = typeof(ClientX).GetField("_disposedClients", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var field = typeof(ClientX).GetField("_disposedResources", BindingFlags.NonPublic | BindingFlags.Instance)!;
             var disposedClients = (HashSet<object>)field.GetValue(clientX)!;
             Assert.Empty(disposedClients);
         }
