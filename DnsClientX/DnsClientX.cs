@@ -318,13 +318,13 @@ namespace DnsClientX {
         /// </summary>
         private void ConfigureClient() {
             lock (_lock) {
-                if (Client != null && TryAddDisposedResource(Client)) {
+                if (Client != null && TryAddDisposedClient(Client)) {
                     Client.Dispose();
                     if (_handlerOwnedByClient && handler != null) {
-                        TryAddDisposedResource(handler);
+                        TryAddDisposedClient(handler);
                     }
                 }
-                if (!_handlerOwnedByClient && handler != null && TryAddDisposedResource(handler)) {
+                if (!_handlerOwnedByClient && handler != null && TryAddDisposedClient(handler)) {
                     handler.Dispose();
                 }
 
@@ -353,33 +353,33 @@ namespace DnsClientX {
 
                 // dispose any clients created for other strategies
                 foreach (KeyValuePair<DnsSelectionStrategy, HttpClient> kv in _clients) {
-                    if (kv.Key != strategy && TryAddDisposedResource(kv.Value)) {
+                    if (kv.Key != strategy && TryAddDisposedClient(kv.Value)) {
                         kv.Value.Dispose();
                         if (ReferenceEquals(kv.Value, Client)) {
-                            if (!_handlerOwnedByClient && handler != null && TryAddDisposedResource(handler)) {
+                            if (!_handlerOwnedByClient && handler != null && TryAddDisposedClient(handler)) {
                                 handler.Dispose();
                             }
                             if (_handlerOwnedByClient && handler != null) {
-                                TryAddDisposedResource(handler);
+                                TryAddDisposedClient(handler);
                             }
                             handler = null;
                         }
-                        System.Threading.Interlocked.Increment(ref DisposalCount);
+                        DisposalCount++;
                     }
                 }
                 _clients.Clear();
 
                 // dispose the currently assigned client and handler if present
-                if (Client != null && TryAddDisposedResource(Client)) {
+                if (Client != null && TryAddDisposedClient(Client)) {
                     Client.Dispose();
                     if (_handlerOwnedByClient && handler != null) {
-                        TryAddDisposedResource(handler);
+                        TryAddDisposedClient(handler);
                     }
-                    if (!_handlerOwnedByClient && handler != null && TryAddDisposedResource(handler)) {
+                    if (!_handlerOwnedByClient && handler != null && TryAddDisposedClient(handler)) {
                         handler.Dispose();
                     }
                     handler = null;
-                    System.Threading.Interlocked.Increment(ref DisposalCount);
+                    DisposalCount++;
                 }
 
                 client = CreateOptimizedHttpClient();
