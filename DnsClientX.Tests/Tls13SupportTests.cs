@@ -9,6 +9,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using Xunit.Sdk;
 
 namespace DnsClientX.Tests {
     public class Tls13SupportTests {
@@ -29,7 +30,12 @@ namespace DnsClientX.Tests {
             using TcpClient client = await listener.AcceptTcpClientAsync();
 #endif
             using var sslStream = new SslStream(client.GetStream(), false);
-            await sslStream.AuthenticateAsServerAsync(cert, false, SslProtocols.Tls13, false);
+            try {
+                await sslStream.AuthenticateAsServerAsync(cert, false, SslProtocols.Tls13, false);
+            } catch (PlatformNotSupportedException ex) {
+                listener.Stop();
+                throw SkipException.ForSkip($"TLS 1.3 not supported: {ex.Message}");
+            }
             listener.Stop();
             return sslStream.SslProtocol;
         }
@@ -49,7 +55,12 @@ namespace DnsClientX.Tests {
             await Assert.ThrowsAsync<DnsClientException>(async () =>
                 await DnsWireResolveDot.ResolveWireFormatDoT("127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, true, cts.Token));
 
-            var protocol = await serverTask;
+            SslProtocols protocol;
+            try {
+                protocol = await serverTask;
+            } catch (SkipException ex) {
+                throw SkipException.ForSkip(ex.Message);
+            }
             Assert.Equal(SslProtocols.Tls13, protocol);
         }
     }
