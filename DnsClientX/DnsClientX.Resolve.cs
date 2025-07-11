@@ -109,6 +109,12 @@ namespace DnsClientX {
 #else
                     throw new DnsClientException("DNS over HTTP/3 is not supported on this platform.");
 #endif
+                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverGrpc) {
+#if NET8_0_OR_GREATER
+                    response = await DnsWireResolveGrpc.ResolveWireFormatGrpc(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+#else
+                    throw new DnsClientException("DNS over gRPC is not supported on this platform.");
+#endif
                 } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
                     response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, IgnoreCertificateErrors, cancellationToken).ConfigureAwait(false);
                 } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverQuic) {

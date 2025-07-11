@@ -63,6 +63,10 @@ namespace DnsClientX {
         /// </summary>
         ObliviousDnsOverHttps,
         /// <summary>
+        /// DNS over gRPC using wire format.
+        /// </summary>
+        DnsOverGrpc,
+        /// <summary>
         /// DNS over UDP multicast (mDNS on port 5353).
         /// </summary>
         Multicast,
