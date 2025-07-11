@@ -144,9 +144,12 @@ namespace DnsClientX.Tests {
             await server.Task;
 
             Assert.Equal(3, recordSets.Length);
-            Assert.Equal(DnsRecordType.SOA, recordSets[0][0].Type);
-            Assert.Equal(DnsRecordType.A, recordSets[1][0].Type);
-            Assert.Equal(DnsRecordType.SOA, recordSets[2][0].Type);
+            Assert.True(recordSets[0].IsOpening);
+            Assert.Equal(DnsRecordType.SOA, recordSets[0].Records[0].Type);
+            Assert.False(recordSets[1].IsOpening);
+            Assert.Equal(DnsRecordType.A, recordSets[1].Records[0].Type);
+            Assert.True(recordSets[2].IsClosing);
+            Assert.Equal(DnsRecordType.SOA, recordSets[2].Records[0].Type);
         }
 
         [Fact]
@@ -367,16 +370,18 @@ namespace DnsClientX.Tests {
             var server = RunAxfrServerAsync(new[] { m1, m2, m3 }, cts.Token);
 
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
-            var results = new System.Collections.Generic.List<DnsAnswer[]>();
+            var results = new System.Collections.Generic.List<ZoneTransferResult>();
             await foreach (var rrset in client.ZoneTransferStreamAsync("example.com")) {
                 results.Add(rrset);
             }
             await server.Task;
 
             Assert.Equal(3, results.Count);
-            Assert.Equal(DnsRecordType.SOA, results[0][0].Type);
-            Assert.Equal(DnsRecordType.A, results[1][0].Type);
-            Assert.Equal(DnsRecordType.SOA, results[2][0].Type);
+            Assert.True(results[0].IsOpening);
+            Assert.Equal(DnsRecordType.SOA, results[0].Records[0].Type);
+            Assert.Equal(DnsRecordType.A, results[1].Records[0].Type);
+            Assert.True(results[2].IsClosing);
+            Assert.Equal(DnsRecordType.SOA, results[2].Records[0].Type);
         }
 
         [Fact]

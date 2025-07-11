@@ -23,7 +23,7 @@ namespace DnsClientX {
         /// <returns>Ordered RRsets as returned by the server.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="DnsClientException">When the transfer fails.</exception>
-        public async Task<DnsAnswer[][]> ZoneTransferAsync(
+        public async Task<ZoneTransferResult[]> ZoneTransferAsync(
             string zone,
             bool retryOnTransient = true,
             int maxRetries = 3,
@@ -34,10 +34,10 @@ namespace DnsClientX {
             }
 
             if (cancellationToken.IsCancellationRequested) {
-                return await Task.FromCanceled<DnsAnswer[][]>(cancellationToken).ConfigureAwait(false);
+                return await Task.FromCanceled<ZoneTransferResult[]>(cancellationToken).ConfigureAwait(false);
             }
 
-            var results = new List<DnsAnswer[]>();
+            var results = new List<ZoneTransferResult>();
             try {
                 await foreach (var rrset in ZoneTransferStreamAsync(zone, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false)) {
                     results.Add(rrset);
@@ -62,7 +62,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Base delay in milliseconds between retries.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>Ordered RRsets as returned by the server.</returns>
-        public DnsAnswer[][] ZoneTransferSync(
+        public ZoneTransferResult[] ZoneTransferSync(
             string zone,
             bool retryOnTransient = true,
             int maxRetries = 3,
@@ -80,7 +80,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Base delay in milliseconds between retries.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>An asynchronous enumeration of ordered RRsets.</returns>
-        public async IAsyncEnumerable<DnsAnswer[]> ZoneTransferStreamAsync(
+        public async IAsyncEnumerable<ZoneTransferResult> ZoneTransferStreamAsync(
             string zone,
             bool retryOnTransient = true,
             int maxRetries = 3,
@@ -138,7 +138,7 @@ namespace DnsClientX {
             }
         }
 
-        private static async IAsyncEnumerable<DnsAnswer[]> SendAxfrOverTcp(
+        private static async IAsyncEnumerable<ZoneTransferResult> SendAxfrOverTcp(
             byte[] query,
             string dnsServer,
             int port,
@@ -177,6 +177,7 @@ namespace DnsClientX {
                     bool extraAfterClosing = false;
                     bool received = false;
                     bool started = false;
+                    int index = 0;
                     DnsAnswer? lastRecord = null;
 
                     while (true) {
@@ -230,7 +231,9 @@ namespace DnsClientX {
                             if (current.Count == 0 || (current[0].Name == rec.Name && current[0].Type == rec.Type)) {
                                 current.Add(rec);
                             } else {
-                                yield return current.ToArray();
+                                bool opening = index == 0 && current[0].Type == DnsRecordType.SOA;
+                                bool closing = sawClosing && current[0].Type == DnsRecordType.SOA;
+                                yield return new ZoneTransferResult(current.ToArray(), opening, closing, index++);
                                 current.Clear();
                                 current.Add(rec);
                             }
@@ -246,7 +249,9 @@ namespace DnsClientX {
                     }
 
                     if (current.Count > 0 && started) {
-                        yield return current.ToArray();
+                        bool opening = index == 0 && current[0].Type == DnsRecordType.SOA;
+                        bool closing = sawClosing && current[0].Type == DnsRecordType.SOA;
+                        yield return new ZoneTransferResult(current.ToArray(), opening, closing, index++);
                     }
 
                     if (soaCount == 0) {
