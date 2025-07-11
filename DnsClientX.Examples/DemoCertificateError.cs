@@ -11,7 +11,7 @@ namespace DnsClientX.Examples {
     /// <summary>
     /// Shows how <see cref="ClientX"/> exposes TLS certificate failures when using DoT.
     /// </summary>
-    internal class DemoCertificateError {
+    public static class DemoCertificateError {
         public static async Task Example() {
             int port = GetFreePort();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
