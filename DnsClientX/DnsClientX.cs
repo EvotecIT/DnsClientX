@@ -58,6 +58,7 @@ namespace DnsClientX {
         /// The handler
         /// </summary>
         private HttpClientHandler handler;
+        private bool _handlerOwnedByClient;
 
         /// <summary>
         /// Optional proxy used for HTTP requests
@@ -281,6 +282,8 @@ namespace DnsClientX {
                 Timeout = TimeSpan.FromMilliseconds(EndpointConfiguration.TimeOut) // Use realistic DNS timeout (1 second, not 3)
             };
 
+            _handlerOwnedByClient = true;
+
 #if NETCOREAPP2_1_OR_GREATER || NET5_0_OR_GREATER
             client.DefaultRequestVersion = EndpointConfiguration.HttpVersion;
 #endif
@@ -312,8 +315,15 @@ namespace DnsClientX {
         /// </summary>
         private void ConfigureClient() {
             lock (_lock) {
-                Client?.Dispose();
-                handler?.Dispose();
+                if (Client != null && TryAddDisposedClient(Client)) {
+                    Client.Dispose();
+                    if (_handlerOwnedByClient && handler != null) {
+                        TryAddDisposedClient(handler);
+                    }
+                }
+                if (!_handlerOwnedByClient && handler != null && TryAddDisposedClient(handler)) {
+                    handler.Dispose();
+                }
 
                 Client = CreateOptimizedHttpClient();
                 _clients[EndpointConfiguration.SelectionStrategy] = Client;
@@ -343,10 +353,15 @@ namespace DnsClientX {
                     if (kv.Key != strategy && TryAddDisposedClient(kv.Value)) {
                         kv.Value.Dispose();
                         if (ReferenceEquals(kv.Value, Client)) {
-                            handler?.Dispose();
+                            if (!_handlerOwnedByClient && handler != null && TryAddDisposedClient(handler)) {
+                                handler.Dispose();
+                            }
+                            if (_handlerOwnedByClient && handler != null) {
+                                TryAddDisposedClient(handler);
+                            }
                             handler = null;
                         }
-                        System.Threading.Interlocked.Increment(ref DisposalCount);
+                        System.Threading.Interlocked.Increment(ref _disposalCount);
                     }
                 }
                 _clients.Clear();
@@ -354,9 +369,14 @@ namespace DnsClientX {
                 // dispose the currently assigned client and handler if present
                 if (Client != null && TryAddDisposedClient(Client)) {
                     Client.Dispose();
-                    handler?.Dispose();
+                    if (_handlerOwnedByClient && handler != null) {
+                        TryAddDisposedClient(handler);
+                    }
+                    if (!_handlerOwnedByClient && handler != null && TryAddDisposedClient(handler)) {
+                        handler.Dispose();
+                    }
                     handler = null;
-                    System.Threading.Interlocked.Increment(ref DisposalCount);
+                    System.Threading.Interlocked.Increment(ref _disposalCount);
                 }
 
                 client = CreateOptimizedHttpClient();

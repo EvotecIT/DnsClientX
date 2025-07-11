@@ -49,7 +49,27 @@ namespace DnsClientX.Tests {
             clientField.SetValue(clientX, customClient);
             var handlerField = typeof(ClientX).GetField("handler", BindingFlags.NonPublic | BindingFlags.Instance)!;
             handlerField.SetValue(clientX, handler);
+            typeof(ClientX).GetField("_handlerOwnedByClient", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(clientX, false);
             Assert.Same(handler, handlerField.GetValue(clientX));
+
+            clientX.Dispose();
+
+            Assert.Equal(1, handler.DisposeCount);
+        }
+
+        [Fact]
+        public void Client_Dispose_ShouldNotDisposeHandlerTwice() {
+            var handler = new TrackingHandler();
+            var customClient = new HttpClient(handler) { BaseAddress = new Uri("https://example.com") };
+            using var clientX = new ClientX("example.com", DnsRequestFormat.DnsOverHttps);
+            var clientsField = typeof(ClientX).GetField("_clients", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var clients = (Dictionary<DnsSelectionStrategy, HttpClient>)clientsField.GetValue(clientX)!;
+            clients[clientX.EndpointConfiguration.SelectionStrategy] = customClient;
+            var clientField = typeof(ClientX).GetField("Client", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            clientField.SetValue(clientX, customClient);
+            var handlerField = typeof(ClientX).GetField("handler", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            handlerField.SetValue(clientX, handler);
+            typeof(ClientX).GetField("_handlerOwnedByClient", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(clientX, true);
 
             clientX.Dispose();
 
@@ -66,6 +86,26 @@ namespace DnsClientX.Tests {
             clients[clientX.EndpointConfiguration.SelectionStrategy] = customClient;
             var clientField = typeof(ClientX).GetField("Client", BindingFlags.NonPublic | BindingFlags.Instance)!;
             clientField.SetValue(clientX, customClient);
+            typeof(ClientX).GetField("_handlerOwnedByClient", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(clientX, true);
+
+            await clientX.DisposeAsync();
+
+            Assert.Equal(1, handler.DisposeCount);
+        }
+
+        [Fact]
+        public async Task Client_DisposeAsync_ShouldNotDisposeHandlerTwice() {
+            var handler = new TrackingHandler();
+            var customClient = new HttpClient(handler) { BaseAddress = new Uri("https://example.com") };
+            await using var clientX = new ClientX("example.com", DnsRequestFormat.DnsOverHttps);
+            var clientsField = typeof(ClientX).GetField("_clients", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var clients = (Dictionary<DnsSelectionStrategy, HttpClient>)clientsField.GetValue(clientX)!;
+            clients[clientX.EndpointConfiguration.SelectionStrategy] = customClient;
+            var clientField = typeof(ClientX).GetField("Client", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            clientField.SetValue(clientX, customClient);
+            var handlerField = typeof(ClientX).GetField("handler", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            handlerField.SetValue(clientX, handler);
+            typeof(ClientX).GetField("_handlerOwnedByClient", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(clientX, true);
 
             await clientX.DisposeAsync();
 
@@ -82,6 +122,7 @@ namespace DnsClientX.Tests {
             clients[clientX.EndpointConfiguration.SelectionStrategy] = customClient;
             var clientField = typeof(ClientX).GetField("Client", BindingFlags.NonPublic | BindingFlags.Instance)!;
             clientField.SetValue(clientX, customClient);
+            typeof(ClientX).GetField("_handlerOwnedByClient", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(clientX, true);
 
             var tasks = new List<Task>();
             for (int i = 0; i < 5; i++) {
@@ -102,6 +143,7 @@ namespace DnsClientX.Tests {
             clients[clientX.EndpointConfiguration.SelectionStrategy] = customClient;
             var clientField = typeof(ClientX).GetField("Client", BindingFlags.NonPublic | BindingFlags.Instance)!;
             clientField.SetValue(clientX, customClient);
+            typeof(ClientX).GetField("_handlerOwnedByClient", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(clientX, true);
 
             var tasks = new List<Task>();
             for (int i = 0; i < 5; i++) {
@@ -135,6 +177,7 @@ namespace DnsClientX.Tests {
             clientField.SetValue(clientX, customClient);
             var handlerField = typeof(ClientX).GetField("handler", BindingFlags.NonPublic | BindingFlags.Instance)!;
             handlerField.SetValue(clientX, handler);
+            typeof(ClientX).GetField("_handlerOwnedByClient", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(clientX, false);
 
             await clientX.DisposeAsync();
 
@@ -150,7 +193,7 @@ namespace DnsClientX.Tests {
             clientX.Dispose();
 
             var field = typeof(ClientX).GetField("_disposedClients", BindingFlags.NonPublic | BindingFlags.Instance)!;
-            var disposedClients = (HashSet<HttpClient>)field.GetValue(clientX)!;
+            var disposedClients = (HashSet<object>)field.GetValue(clientX)!;
             Assert.Empty(disposedClients);
         }
     }
