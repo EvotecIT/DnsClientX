@@ -274,7 +274,7 @@ namespace DnsClientX {
             }
 
             // Optimize connection settings for DNS workloads
-            handler.MaxConnectionsPerServer = 10; // Allow multiple connections for parallel requests
+            handler.MaxConnectionsPerServer = EndpointConfiguration.MaxConnectionsPerServer;
             handler.UseCookies = false; // DNS doesn't need cookies
 
             var client = new HttpClient(handler) {
