@@ -18,6 +18,7 @@ namespace DnsClientX.Tests {
             Assert.Equal(config.BaseUri, response.Questions[0].BaseUri);
             Assert.Equal(config.RequestFormat, response.Questions[0].RequestFormat);
             Assert.Equal(config.Port, response.Questions[0].Port);
+            Assert.Equal(config.Hostname, response.ServerAddress);
             Assert.Single(response.AnswersMinimal);
             Assert.Equal(config.Port, response.AnswersMinimal[0].Port);
         }
@@ -35,6 +36,7 @@ namespace DnsClientX.Tests {
             Assert.Null(response.Questions[0].BaseUri);
             Assert.Equal(config.RequestFormat, response.Questions[0].RequestFormat);
             Assert.Equal(config.Port, response.Questions[0].Port);
+            Assert.Equal(config.Hostname, response.ServerAddress);
         }
 
         [Fact]
@@ -50,6 +52,7 @@ namespace DnsClientX.Tests {
             Assert.Null(response.Questions[0].BaseUri);
             Assert.Equal(config.RequestFormat, response.Questions[0].RequestFormat);
             Assert.Equal(config.Port, response.Questions[0].Port);
+            Assert.Equal(config.Hostname, response.ServerAddress);
         }
 
         [Fact]

@@ -69,6 +69,12 @@ namespace DnsClientX {
         private DnsAnswerMinimal[] _answersMinimal;
 
         /// <summary>
+        /// Address of the DNS server that returned this response.
+        /// </summary>
+        [JsonIgnore]
+        public string? ServerAddress { get; private set; }
+
+        /// <summary>
         /// Gets the answers in their minimal form.
         /// </summary>
         [JsonIgnore]
@@ -128,6 +134,8 @@ namespace DnsClientX {
                 Questions[i].RequestFormat = configuration.RequestFormat;
                 Questions[i].Port = configuration.Port;
             }
+
+            ServerAddress = configuration.Hostname;
 
             if (Answers != null) {
                 _answersMinimal = Answers.Select(answer => new DnsAnswerMinimal {
