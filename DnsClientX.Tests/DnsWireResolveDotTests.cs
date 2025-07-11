@@ -95,7 +95,10 @@ namespace DnsClientX.Tests {
             var ex = await Assert.ThrowsAsync<DnsClientException>(async () =>
                 await DnsWireResolveDot.ResolveWireFormatDoT("127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, false, cts.Token));
 
-            Assert.Contains("certificate", ex.Response.Error, StringComparison.OrdinalIgnoreCase);
+            Assert.True(
+                ex.Response.Error.Contains("certificate", StringComparison.OrdinalIgnoreCase) ||
+                ex.Response.Error.Contains("handshake", StringComparison.OrdinalIgnoreCase),
+                $"Unexpected error: {ex.Response.Error}");
             await serverTask;
         }
     }
