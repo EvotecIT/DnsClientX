@@ -25,7 +25,9 @@ namespace DnsClientX.Examples {
                 Console.WriteLine(ex.Response.Error);
             }
 
-            // Output includes the certificate validation failure
+            // Example output:
+            // Failed to query type A of "example.com" => certificate error: The
+            // remote certificate is invalid because of errors in the certificate chain.
 
             await serverTask;
         }
