@@ -38,8 +38,16 @@ namespace DnsClientX {
             }
 
             var results = new List<DnsAnswer[]>();
-            await foreach (var rrset in ZoneTransferStreamAsync(zone, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false)) {
-                results.Add(rrset);
+            try {
+                await foreach (var rrset in ZoneTransferStreamAsync(zone, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false)) {
+                    results.Add(rrset);
+                }
+            } catch (DnsClientException) {
+                throw;
+            } catch (OperationCanceledException) {
+                throw;
+            } catch (Exception ex) {
+                throw new DnsClientException($"Zone transfer failed: {ex.Message}");
             }
 
             return results.ToArray();
@@ -114,7 +122,10 @@ namespace DnsClientX {
                 }
 
                 if (!(retryOnTransient && attempt < maxRetries - 1 && IsTransient(iterationException))) {
-                    throw iterationException;
+                    if (iterationException is DnsClientException || iterationException is OperationCanceledException) {
+                        throw iterationException;
+                    }
+                    throw new DnsClientException($"Zone transfer failed: {iterationException.Message}");
                 }
 
                 if (EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover) {
@@ -165,6 +176,7 @@ namespace DnsClientX {
                     bool sawClosing = false;
                     bool extraAfterClosing = false;
                     bool received = false;
+                    bool started = false;
                     DnsAnswer? lastRecord = null;
 
                     while (true) {
@@ -208,6 +220,13 @@ namespace DnsClientX {
                                 throw new DnsClientException("Zone transfer incomplete: closing SOA record not last.");
                             }
 
+                            if (!started) {
+                                if (rec.Type != DnsRecordType.SOA) {
+                                    continue;
+                                }
+                                started = true;
+                            }
+
                             if (current.Count == 0 || (current[0].Name == rec.Name && current[0].Type == rec.Type)) {
                                 current.Add(rec);
                             } else {
@@ -226,7 +245,7 @@ namespace DnsClientX {
                         }
                     }
 
-                    if (current.Count > 0) {
+                    if (current.Count > 0 && started) {
                         yield return current.ToArray();
                     }
 
