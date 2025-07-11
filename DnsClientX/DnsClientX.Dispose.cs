@@ -11,10 +11,10 @@ namespace DnsClientX {
     public partial class ClientX : IDisposable, IAsyncDisposable {
         private bool _disposed;
         private readonly HashSet<object> _disposedClients = new();
-        private static readonly System.Threading.AsyncLocal<int> _disposalCount = new();
+        private static int _disposalCount;
         internal static int DisposalCount {
-            get => _disposalCount.Value;
-            set => _disposalCount.Value = value;
+            get => _disposalCount;
+            set => _disposalCount = value;
         }
 
         private bool TryAddDisposedClient(object client) {
@@ -76,7 +76,7 @@ namespace DnsClientX {
                     }
                 }
 
-                DisposalCount++;
+                System.Threading.Interlocked.Increment(ref _disposalCount);
             }
         }
 
@@ -172,7 +172,7 @@ namespace DnsClientX {
                 }
 
                 _disposed = true;
-                DisposalCount++;
+                System.Threading.Interlocked.Increment(ref _disposalCount);
             }
         }
 

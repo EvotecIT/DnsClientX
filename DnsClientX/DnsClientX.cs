@@ -364,7 +364,7 @@ namespace DnsClientX {
                             }
                             handler = null;
                         }
-                        DisposalCount++;
+                        System.Threading.Interlocked.Increment(ref _disposalCount);
                     }
                 }
                 _clients.Clear();
@@ -379,7 +379,7 @@ namespace DnsClientX {
                         handler.Dispose();
                     }
                     handler = null;
-                    DisposalCount++;
+                    System.Threading.Interlocked.Increment(ref _disposalCount);
                 }
 
                 client = CreateOptimizedHttpClient();
