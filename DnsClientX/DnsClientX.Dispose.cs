@@ -13,8 +13,8 @@ namespace DnsClientX {
         private readonly HashSet<object> _disposedClients = new();
         private static int _disposalCount;
         internal static int DisposalCount {
-            get => _disposalCount;
-            set => _disposalCount = value;
+            get => System.Threading.Interlocked.CompareExchange(ref _disposalCount, 0, 0);
+            set => System.Threading.Interlocked.Exchange(ref _disposalCount, value);
         }
 
         private bool TryAddDisposedClient(object client) {
