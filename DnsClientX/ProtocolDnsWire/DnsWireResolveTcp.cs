@@ -90,6 +90,7 @@ namespace DnsClientX {
         /// <returns>Raw DNS response bytes.</returns>
         private static async Task<byte[]> SendQueryOverTcp(byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
             var tcpClient = new TcpClient();
+            tcpClient.LingerState = new LingerOption(true, 0);
             NetworkStream? stream = null;
             try {
                 // Connect to the server with timeout
