@@ -56,6 +56,11 @@ namespace DnsClientX {
         public const int DefaultTimeout = 1000;
 
         /// <summary>
+        /// Default connection limit per server for HTTP requests.
+        /// </summary>
+        public const int DefaultMaxConnectionsPerServer = 10;
+
+        /// <summary>
         /// Gets or sets the HTTP version used when communicating with the DNS provider.
         /// </summary>
         public Version HttpVersion { get; set; } = DefaultHttpVersion;
@@ -88,7 +93,7 @@ namespace DnsClientX {
         /// <summary>
         /// Gets or sets the maximum number of HTTP connections allowed per server.
         /// </summary>
-        public int MaxConnectionsPerServer { get; set; } = 10;
+        public int MaxConnectionsPerServer { get; set; } = DefaultMaxConnectionsPerServer;
 
         /// <summary>
         /// Optional key used to sign outgoing DNS messages.
