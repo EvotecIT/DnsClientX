@@ -240,9 +240,12 @@ namespace DnsClientX.PowerShell {
 
                 foreach (var record in results) {
                     string serverUsed = record.Questions.FirstOrDefault().HostName;
-                    if (record.Status == DnsResponseCode.NoError) {
-                        _logger.WriteVerbose("Query successful for {0} with type {1}, {2}", names, types, serverUsed);
-                    } else {
+                    if (record.Status == DnsResponseCode.NoError)
+                    {
+                        _logger.WriteVerbose("Query successful for {0} with type {1}, {2} (retries {3})", names, types, serverUsed, record.RetryCount);
+                    }
+                    else
+                    {
                         _logger.WriteWarning("Query failed for {0} with type {1}, {2} and error: {3}", names, types, serverUsed, record.Error);
                     }
 
@@ -263,11 +266,15 @@ namespace DnsClientX.PowerShell {
                 }
 
                 foreach (var record in result) {
-                    if (record.Status == DnsResponseCode.NoError) {
-                        if (DnsProvider == null) {
-                            _logger.WriteVerbose("Query successful for {0} with type {1}, {2}", names, types, "Default");
-                        } else {
-                            _logger.WriteVerbose("Query successful for {0} with type {1}, {2}", names, types, DnsProvider.Value);
+                    if (record.Status == DnsResponseCode.NoError)
+                    {
+                        if (DnsProvider == null)
+                        {
+                            _logger.WriteVerbose("Query successful for {0} with type {1}, {2} (retries {3})", names, types, "Default", record.RetryCount);
+                        }
+                        else
+                        {
+                            _logger.WriteVerbose("Query successful for {0} with type {1}, {2} (retries {3})", names, types, DnsProvider.Value, record.RetryCount);
                         }
                     } else {
                         if (DnsProvider == null) {

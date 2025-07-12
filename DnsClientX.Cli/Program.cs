@@ -118,10 +118,10 @@ namespace DnsClientX.Cli {
                 }
                 if (doUpdate) {
                     var response = await client.UpdateRecordAsync(zone!, updateName!, recordType, updateData!, ttl, cts.Token);
-                    Console.WriteLine($"Update status: {response.Status}");
+                    Console.WriteLine($"Update status: {response.Status} (retries {response.RetryCount})");
                 } else {
                     var response = await client.Resolve(domain, recordType, requestDnsSec, validateDnsSec, cancellationToken: cts.Token);
-                    Console.WriteLine($"Status: {response.Status}");
+                    Console.WriteLine($"Status: {response.Status} (retries {response.RetryCount})");
                     foreach (var answer in response.Answers) {
                         Console.WriteLine($"{answer.Name}\t{answer.Type}\t{answer.TTL}\t{answer.Data}");
                     }

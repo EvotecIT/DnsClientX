@@ -44,5 +44,29 @@ namespace DnsClientX.Tests {
             Assert.Equal(0, exitCode);
             Assert.True(ClientX.DisposalCount >= 1);
         }
+
+        [Fact]
+        public async Task Cli_DisplaysRetryCount() {
+            ClientX.DisposalCount = 0;
+
+            var assembly = Assembly.Load("DnsClientX.Cli");
+            Type programType = assembly.GetType("DnsClientX.Cli.Program")!;
+            MethodInfo main = programType.GetMethod("Main", BindingFlags.NonPublic | BindingFlags.Static)!;
+
+            using var sw = new StringWriter();
+            TextWriter original = Console.Out;
+            Console.SetOut(sw);
+            try {
+                Task<int> task = (Task<int>)main.Invoke(null, new object[] { new[] { "localhost" } })!;
+                int exitCode = await task;
+                Assert.Equal(0, exitCode);
+                string output = sw.ToString();
+                Assert.Contains("retries", output, StringComparison.OrdinalIgnoreCase);
+            } finally {
+                Console.SetOut(original);
+            }
+
+            Assert.True(ClientX.DisposalCount >= 1);
+        }
     }
 }
