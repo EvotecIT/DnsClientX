@@ -111,11 +111,37 @@ namespace DnsClientX {
                 response.AddServerDetails(endpointConfiguration);
                 return response;
             } catch (Exception ex) {
+                bool isAuthError = ex is AuthenticationException;
+                Exception? innerAuth = ex.InnerException;
+#if NET8_0_OR_GREATER
+                while (innerAuth is not null && innerAuth is not AuthenticationException)
+                    innerAuth = innerAuth.InnerException;
+#else
+                while (innerAuth != null && !(innerAuth is AuthenticationException))
+                    innerAuth = innerAuth.InnerException;
+#endif
+                if (innerAuth is AuthenticationException)
+                    isAuthError = true;
+
                 var failureResponse = new DnsResponse {
                     Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverTLS, Type = type, OriginalName = name } ],
                     Status = ex is TimeoutException ? DnsResponseCode.ServerFailure : DnsResponseCode.Refused
                 };
                 failureResponse.AddServerDetails(endpointConfiguration);
+
+                if (isAuthError) {
+                    var details = new StringBuilder(innerAuth?.Message ?? ex.Message);
+                    Exception? inner = innerAuth?.InnerException;
+                    while (inner != null) {
+                        if (!string.IsNullOrWhiteSpace(inner.Message)) {
+                            details.Append(' ').Append(inner.Message);
+                        }
+                        inner = inner.InnerException;
+                    }
+                    failureResponse.Error = $"Failed to query type {type} of \"{name}\" => certificate error: {details}";
+                    throw new DnsClientException(failureResponse.Error!, failureResponse);
+                }
+
                 failureResponse.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message}";
                 throw new DnsClientException(failureResponse.Error!, failureResponse);
             }
