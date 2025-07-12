@@ -12,7 +12,6 @@ using Xunit;
 using Xunit.Sdk;
 
 namespace DnsClientX.Tests {
-    [Collection("NoParallel")]
     public class Tls13SupportTests {
         private static int GetFreePort() {
             TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
