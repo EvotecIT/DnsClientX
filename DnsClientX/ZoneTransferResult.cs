@@ -4,7 +4,7 @@ namespace DnsClientX {
     /// <summary>
     /// Represents a chunk of records returned during a zone transfer.
     /// </summary>
-    public readonly struct ZoneTransferResult {
+    public readonly record struct ZoneTransferResult {
         /// <summary>
         /// Initializes a new instance of the <see cref="ZoneTransferResult"/> struct.
         /// </summary>
