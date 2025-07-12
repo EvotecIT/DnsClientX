@@ -6,6 +6,7 @@ using System.Net.Quic;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -52,12 +53,14 @@ namespace DnsClientX {
             bool enableEdns = endpointConfiguration.EnableEdns;
             int udpSize = endpointConfiguration.UdpBufferSize;
             string? subnet = endpointConfiguration.Subnet;
+            System.Collections.Generic.IEnumerable<EdnsOption>? ednsOptions = null;
             if (edns != null) {
                 enableEdns = edns.EnableEdns;
                 udpSize = edns.UdpBufferSize;
                 subnet = edns.Subnet;
+                ednsOptions = edns.Options;
             }
-            var query = new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet, endpointConfiguration.CheckingDisabled, endpointConfiguration.SigningKey);
+            var query = new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet, endpointConfiguration.CheckingDisabled, endpointConfiguration.SigningKey, ednsOptions);
             var queryBytes = query.SerializeDnsWireFormat();
 
             var lengthPrefix = BitConverter.GetBytes((ushort)queryBytes.Length);

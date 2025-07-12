@@ -1,10 +1,11 @@
 using System;
 using System.Buffers.Binary;
 using System.IO;
+using System.Collections.Generic;
 using System.Net;
-using System.Net.Sockets;
 using System.Text;
 using System.Security.Cryptography;
+using System.Linq;
 
 namespace DnsClientX {
     /// <summary>
@@ -19,6 +20,7 @@ namespace DnsClientX {
         private readonly string? _subnet;
         private readonly bool _checkingDisabled;
         private readonly AsymmetricAlgorithm? _signingKey;
+        private readonly EdnsOption[] _ednsOptions;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DnsMessage"/> class.
@@ -27,7 +29,7 @@ namespace DnsClientX {
         /// <param name="type">The type.</param>
         /// <param name="requestDnsSec">if set to <c>true</c> [request DNS sec].</param>
         public DnsMessage(string name, DnsRecordType type, bool requestDnsSec)
-            : this(name, type, requestDnsSec, requestDnsSec, 4096, null, false, null) {
+            : this(name, type, requestDnsSec, requestDnsSec, 4096, null, false, null, null) {
         }
 
         /// <summary>
@@ -40,11 +42,12 @@ namespace DnsClientX {
         /// <param name="udpBufferSize">UDP buffer size for EDNS.</param>
         /// <param name="subnet">Optional EDNS client subnet.</param>
         /// <param name="checkingDisabled">Whether to set the CD bit in OPT TTL.</param>
-        public DnsMessage(string name, DnsRecordType type, bool requestDnsSec, bool enableEdns, int udpBufferSize, string? subnet, bool checkingDisabled, AsymmetricAlgorithm? signingKey) {
+        public DnsMessage(string name, DnsRecordType type, bool requestDnsSec, bool enableEdns, int udpBufferSize, string? subnet, bool checkingDisabled, AsymmetricAlgorithm? signingKey, System.Collections.Generic.IEnumerable<EdnsOption>? options = null) {
             _name = name;
             _type = type;
             _requestDnsSec = requestDnsSec;
-            _enableEdns = enableEdns || requestDnsSec || !string.IsNullOrEmpty(subnet) || checkingDisabled;
+            _ednsOptions = options?.ToArray() ?? Array.Empty<EdnsOption>();
+            _enableEdns = enableEdns || requestDnsSec || !string.IsNullOrEmpty(subnet) || checkingDisabled || _ednsOptions.Length > 0;
             _udpBufferSize = udpBufferSize;
             _subnet = subnet;
             _checkingDisabled = checkingDisabled;
@@ -113,7 +116,7 @@ namespace DnsClientX {
             stream.Write(buffer.ToArray(), 0, buffer.Length);
 
             if (_enableEdns) {
-                byte[] optionData = _subnet != null ? BuildEcsOption(_subnet) : Array.Empty<byte>();
+                byte[] optionData = BuildOptions();
                 stream.WriteByte(0);
                 BinaryPrimitives.WriteUInt16BigEndian(buffer, (ushort)DnsRecordType.OPT);
                 stream.Write(buffer.ToArray(), 0, buffer.Length);
@@ -238,7 +241,7 @@ namespace DnsClientX {
 
                 if (_enableEdns)
                 {
-                    byte[] optionData = _subnet != null ? BuildEcsOption(_subnet) : Array.Empty<byte>();
+                    byte[] optionData = BuildOptions();
                     ms.WriteByte(0);
                     bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)DnsRecordType.OPT));
                     ms.Write(bytes, 0, bytes.Length);
@@ -292,34 +295,19 @@ namespace DnsClientX {
             }
         }
 
-        private static byte[] BuildEcsOption(string subnet) {
-            string[] parts = subnet.Split('/');
-            if (!IPAddress.TryParse(parts[0], out var ip)) {
-                throw new ArgumentException("Invalid subnet", nameof(subnet));
-            }
-            int prefixLength = parts.Length > 1 ? int.Parse(parts[1]) : (ip.AddressFamily == AddressFamily.InterNetwork ? 32 : 128);
-
-            ushort family = ip.AddressFamily == AddressFamily.InterNetwork ? (ushort)1 : (ushort)2;
-            byte[] addressBytes = ip.GetAddressBytes();
-            int addressBits = prefixLength;
-            int addressBytesLen = (addressBits + 7) / 8;
-            if (addressBytesLen > addressBytes.Length) addressBytesLen = addressBytes.Length;
-            byte[] truncated = new byte[addressBytesLen];
-            Array.Copy(addressBytes, truncated, addressBytesLen);
-            int unusedBits = addressBytesLen * 8 - addressBits;
-            if (unusedBits > 0 && addressBytesLen > 0) {
-                truncated[addressBytesLen - 1] &= (byte)(0xFF << unusedBits);
-            }
-
+        private byte[] BuildOptions() {
             using var ms = new MemoryStream();
-            void WriteUInt16(ushort value) => ms.Write(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)value)), 0, 2);
+            if (_subnet != null) {
+                var ecs = new EcsOption(_subnet);
+                byte[] bytes = ecs.ToByteArray();
+                ms.Write(bytes, 0, bytes.Length);
+            }
 
-            WriteUInt16(8); // OPTION-CODE for ECS
-            WriteUInt16((ushort)(4 + truncated.Length)); // OPTION-LENGTH
-            WriteUInt16(family);
-            ms.WriteByte((byte)prefixLength);
-            ms.WriteByte(0); // scope prefix length
-            ms.Write(truncated, 0, truncated.Length);
+            foreach (var opt in _ednsOptions) {
+                byte[] bytes = opt.ToByteArray();
+                ms.Write(bytes, 0, bytes.Length);
+            }
+
             return ms.ToArray();
         }
     }

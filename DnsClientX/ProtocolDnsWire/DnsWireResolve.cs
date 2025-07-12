@@ -3,6 +3,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using System;
+using System.Collections.Generic;
 
 namespace DnsClientX {
     internal static class DnsWireResolve {
@@ -27,12 +28,14 @@ namespace DnsClientX {
             bool enableEdns = endpointConfiguration.EnableEdns;
             int udpSize = endpointConfiguration.UdpBufferSize;
             string? subnet = endpointConfiguration.Subnet;
+            System.Collections.Generic.IEnumerable<EdnsOption>? options = null;
             if (edns != null) {
                 enableEdns = edns.EnableEdns;
                 udpSize = edns.UdpBufferSize;
                 subnet = edns.Subnet;
+                options = edns.Options;
             }
-            var dnsMessage = new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet, endpointConfiguration.CheckingDisabled, endpointConfiguration.SigningKey);
+            var dnsMessage = new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet, endpointConfiguration.CheckingDisabled, endpointConfiguration.SigningKey, options);
             var base64UrlDnsMessage = dnsMessage.ToBase64Url();
             string url = $"?dns={base64UrlDnsMessage}";
 

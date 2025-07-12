@@ -37,12 +37,14 @@ namespace DnsClientX {
             bool enableEdns = endpointConfiguration.EnableEdns;
             int udpSize = endpointConfiguration.UdpBufferSize;
             string? subnet = endpointConfiguration.Subnet;
+            System.Collections.Generic.IEnumerable<EdnsOption>? options = null;
             if (edns != null) {
                 enableEdns = edns.EnableEdns;
                 udpSize = edns.UdpBufferSize;
                 subnet = edns.Subnet;
+                options = edns.Options;
             }
-            var query = new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet, endpointConfiguration.CheckingDisabled, endpointConfiguration.SigningKey);
+            var query = new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet, endpointConfiguration.CheckingDisabled, endpointConfiguration.SigningKey, options);
             var queryBytes = query.SerializeDnsWireFormat();
 
             // Calculate the length prefix for the query
