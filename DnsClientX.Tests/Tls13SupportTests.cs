@@ -45,7 +45,9 @@ namespace DnsClientX.Tests {
             int port = GetFreePort();
             using RSA rsa = RSA.Create(2048);
             var request = new CertificateRequest("CN=localhost", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-            using X509Certificate2 cert = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+            using X509Certificate2 baseCert = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+            byte[] pfx = baseCert.Export(X509ContentType.Pfx);
+            using X509Certificate2 cert = new X509Certificate2(pfx, (string?)null, X509KeyStorageFlags.DefaultKeySet);
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var serverTask = RunTls13ServerAsync(cert, port, cts.Token);
