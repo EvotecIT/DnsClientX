@@ -1,3 +1,4 @@
+using System;
 using System.Net;
 using System.Reflection;
 using System.Collections.Generic;
@@ -69,6 +70,38 @@ namespace DnsClientX.Tests {
         [Fact]
         public void WithEndpointCustom_ShouldThrowImmediately() {
             Assert.Throws<ArgumentException>(() => new ClientXBuilder().WithEndpoint(DnsEndpoint.Custom));
+        }
+
+        [Fact]
+        public void BuildShouldApplyAdvancedSettings() {
+            var version = new Version(2, 0);
+
+            using var client = new ClientXBuilder()
+                .WithEndpoint(DnsEndpoint.Google)
+                .WithSelectionStrategy(DnsSelectionStrategy.Random)
+                .WithUserAgent("UnitTest")
+                .WithHttpVersion(version)
+                .WithIgnoreCertificateErrors()
+                .WithEnableCache()
+                .WithUseTcpFallback(false)
+                .Build();
+
+            Assert.Equal(DnsSelectionStrategy.Random, client.EndpointConfiguration.SelectionStrategy);
+            Assert.Equal("UnitTest", client.EndpointConfiguration.UserAgent);
+            Assert.Equal(version, client.EndpointConfiguration.HttpVersion);
+            Assert.True(client.IgnoreCertificateErrors);
+            Assert.True(client.CacheEnabled);
+            Assert.False(client.EndpointConfiguration.UseTcpFallback);
+        }
+
+        [Fact]
+        public void BuildWithHostname_ShouldConfigureCustomEndpoint() {
+            using var client = new ClientXBuilder()
+                .WithHostname("1.1.1.1", DnsRequestFormat.DnsOverHttps)
+                .Build();
+
+            Assert.Equal("1.1.1.1", client.EndpointConfiguration.Hostname);
+            Assert.Equal(DnsRequestFormat.DnsOverHttps, client.EndpointConfiguration.RequestFormat);
         }
     }
 }
