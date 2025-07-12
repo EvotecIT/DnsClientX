@@ -6,10 +6,14 @@ namespace DnsClientX.Tests {
     public class MaxConnectionsPerServerTests {
         [Fact]
         public void HandlerUsesConfigurationValue() {
-            using ClientX client = new ClientX(DnsEndpoint.Cloudflare);
+            using ClientX client = new ClientX(DnsEndpoint.Cloudflare) {
+                EndpointConfiguration = { MaxConnectionsPerServer = 5 }
+            };
+
             FieldInfo handlerField = typeof(ClientX).GetField("handler", BindingFlags.NonPublic | BindingFlags.Instance)!;
             HttpClientHandler handler = (HttpClientHandler)handlerField.GetValue(client)!;
-            Assert.Equal(client.EndpointConfiguration.MaxConnectionsPerServer, handler.MaxConnectionsPerServer);
+
+            Assert.Equal(5, handler.MaxConnectionsPerServer);
         }
     }
 }
