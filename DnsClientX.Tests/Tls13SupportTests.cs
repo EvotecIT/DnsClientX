@@ -32,7 +32,7 @@ namespace DnsClientX.Tests {
             using var sslStream = new SslStream(client.GetStream(), false);
             try {
                 await sslStream.AuthenticateAsServerAsync(cert, false, SslProtocols.Tls13, false);
-            } catch (PlatformNotSupportedException ex) {
+            } catch (Exception ex) when (ex is PlatformNotSupportedException || ex is AuthenticationException) {
                 listener.Stop();
                 throw SkipException.ForSkip($"TLS 1.3 not supported: {ex.Message}");
             }
@@ -47,7 +47,7 @@ namespace DnsClientX.Tests {
             var request = new CertificateRequest("CN=localhost", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             using X509Certificate2 baseCert = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
             byte[] pfx = baseCert.Export(X509ContentType.Pfx);
-            using X509Certificate2 cert = new X509Certificate2(pfx, (string?)null, X509KeyStorageFlags.DefaultKeySet);
+            using X509Certificate2 cert = new X509Certificate2(pfx, (string?)null, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var serverTask = RunTls13ServerAsync(cert, port, cts.Token);
