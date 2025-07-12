@@ -30,6 +30,7 @@ namespace DnsClientX.Tests {
             int exitCode = await task;
             Assert.Equal(0, exitCode);
             Assert.Equal(1, ClientX.DisposalCount);
+            ClientX.DisposalCount = 0;
         }
 
         [Fact]
