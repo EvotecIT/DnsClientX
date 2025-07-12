@@ -9,4 +9,9 @@ Describe 'Resolve-Dns cmdlet' {
         $result = Resolve-Dns -Name 'example.com' -Server @('127.0.0.1','127.0.0.1') -AllServers -FullResponse -TimeOut 10 -ErrorAction SilentlyContinue
         $result.Count | Should -Be 1
     }
+
+    It 'Returns typed records when requested' {
+        $result = Resolve-Dns -Name 'example.com' -Type A -TypedRecords -TimeOut 10 -ErrorAction SilentlyContinue | Select-Object -First 1
+        $result.TypedAnswers | Should -Not -BeNullOrEmpty
+    }
 }

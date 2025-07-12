@@ -24,7 +24,7 @@ namespace DnsClientX {
             var tasks = new List<Task<DnsResponse>>();
 
             foreach (DnsRecordType type in types) {
-                tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken));
+                tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken));
             }
 
             while (tasks.Count > 0) {
@@ -51,7 +51,7 @@ namespace DnsClientX {
 
             foreach (string n in names) {
                 foreach (DnsRecordType type in types) {
-                    tasks.Add(Resolve(n, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken));
+                    tasks.Add(Resolve(n, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken));
                 }
             }
 
@@ -78,7 +78,7 @@ namespace DnsClientX {
             var tasks = new List<Task<DnsResponse>>();
 
             foreach (string n in names) {
-                tasks.Add(Resolve(n, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken));
+                tasks.Add(Resolve(n, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken));
             }
 
             while (tasks.Count > 0) {

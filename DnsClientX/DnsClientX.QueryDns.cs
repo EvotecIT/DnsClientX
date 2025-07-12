@@ -24,7 +24,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
-        public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, CancellationToken cancellationToken = default) {
+        public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, CancellationToken cancellationToken = default) {
             if (dnsEndpoint == DnsEndpoint.RootServer) {
                 using var client = new ClientX();
                 if (cancellationToken.IsCancellationRequested) {
@@ -37,7 +37,7 @@ namespace DnsClientX {
                 if (cancellationToken.IsCancellationRequested) {
                     return await Task.FromCanceled<DnsResponse>(cancellationToken).ConfigureAwait(false);
                 }
-                var data = await client.Resolve(name, recordType, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
+                var data = await client.Resolve(name, recordType, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec, returnAllTypes: false, typedRecords: typedRecords, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
                 return data;
             }
         }
@@ -56,8 +56,8 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>The DNS response.</returns>
-        public static DnsResponse QueryDnsSync(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, CancellationToken cancellationToken = default) {
-            return QueryDns(name, recordType, dnsEndpoint, dnsSelectionStrategy, timeOutMilliseconds, retryOnTransient, maxRetries, retryDelayMs, requestDnsSec, validateDnsSec, cancellationToken).RunSync(cancellationToken);
+        public static DnsResponse QueryDnsSync(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, CancellationToken cancellationToken = default) {
+            return QueryDns(name, recordType, dnsEndpoint, dnsSelectionStrategy, timeOutMilliseconds, retryOnTransient, maxRetries, retryDelayMs, requestDnsSec, validateDnsSec, typedRecords, cancellationToken).RunSync(cancellationToken);
         }
 
         /// <summary>
@@ -74,7 +74,7 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
-        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, CancellationToken cancellationToken = default) {
+        public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, CancellationToken cancellationToken = default) {
             if (dnsEndpoint == DnsEndpoint.RootServer) {
                 var tasks = name.Select(n => {
                     using var client = new ClientX();
@@ -90,7 +90,7 @@ namespace DnsClientX {
                 if (cancellationToken.IsCancellationRequested) {
                     return await Task.FromCanceled<DnsResponse[]>(cancellationToken).ConfigureAwait(false);
                 }
-                var data = await client.Resolve(name, recordType, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
+                var data = await client.Resolve(name, recordType, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec, returnAllTypes: false, typedRecords: typedRecords, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
                 return data;
             }
         }
@@ -109,8 +109,8 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>The DNS response.</returns>
-        public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, CancellationToken cancellationToken = default) {
-            return QueryDns(name, recordType, dnsEndpoint, dnsSelectionStrategy, timeOutMilliseconds, retryOnTransient, maxRetries, retryDelayMs, requestDnsSec, validateDnsSec, cancellationToken).RunSync(cancellationToken);
+        public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, CancellationToken cancellationToken = default) {
+            return QueryDns(name, recordType, dnsEndpoint, dnsSelectionStrategy, timeOutMilliseconds, retryOnTransient, maxRetries, retryDelayMs, requestDnsSec, validateDnsSec, typedRecords, cancellationToken).RunSync(cancellationToken);
         }
 
         /// <summary>
@@ -127,13 +127,13 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
-        public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, CancellationToken cancellationToken = default) {
+        public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, CancellationToken cancellationToken = default) {
             using var client = new ClientX(dnsUri, requestFormat);
             client.EndpointConfiguration.TimeOut = timeOutMilliseconds;
             if (cancellationToken.IsCancellationRequested) {
                 return await Task.FromCanceled<DnsResponse>(cancellationToken).ConfigureAwait(false);
             }
-            var data = await client.Resolve(name, recordType, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
+            var data = await client.Resolve(name, recordType, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec, returnAllTypes: false, typedRecords: typedRecords, retryOnTransient: retryOnTransient, maxRetries: maxRetries, retryDelayMs: retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
             return data;
         }
 
@@ -151,8 +151,8 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>The DNS response.</returns>
-        public static DnsResponse QueryDnsSync(string name, DnsRecordType recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, CancellationToken cancellationToken = default) {
-            return QueryDns(name, recordType, dnsUri, requestFormat, timeOutMilliseconds, retryOnTransient, maxRetries, retryDelayMs, requestDnsSec, validateDnsSec, cancellationToken).RunSync(cancellationToken);
+        public static DnsResponse QueryDnsSync(string name, DnsRecordType recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, CancellationToken cancellationToken = default) {
+            return QueryDns(name, recordType, dnsUri, requestFormat, timeOutMilliseconds, retryOnTransient, maxRetries, retryDelayMs, requestDnsSec, validateDnsSec, typedRecords, cancellationToken).RunSync(cancellationToken);
         }
 
         /// <summary>
