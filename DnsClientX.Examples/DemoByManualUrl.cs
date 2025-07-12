@@ -55,6 +55,16 @@ namespace DnsClientX.Examples {
         }
 
         /// <summary>
+        /// Demonstrates DNS over TLS using TLS 1.3 when available.
+        /// </summary>
+        public static async Task ExampleTls13() {
+            HelpersSpectre.AddLine("Resolve", "example.com", DnsRecordType.A, "1.1.1.1", DnsRequestFormat.DnsOverTLS);
+            using var client = new ClientX("1.1.1.1", DnsRequestFormat.DnsOverTLS) { Debug = false };
+            var data = await client.Resolve("example.com", DnsRecordType.A);
+            data.DisplayTable();
+        }
+
+        /// <summary>
         /// Demonstrates querying using HTTP POST.
         /// </summary>
         public static async Task ExampleTestingHttpOverPost() {
