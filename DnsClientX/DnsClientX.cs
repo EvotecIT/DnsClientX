@@ -150,9 +150,11 @@ namespace DnsClientX {
             bool ignoreCertificateErrors = false,
             bool enableCache = false,
             bool useTcpFallback = true,
-            IWebProxy? webProxy = null) {
+            IWebProxy? webProxy = null,
+            int maxConnectionsPerServer = Configuration.DefaultMaxConnectionsPerServer) {
             EndpointConfiguration = new Configuration(endpoint, dnsSelectionStrategy) {
-                TimeOut = timeOutMilliseconds
+                TimeOut = timeOutMilliseconds,
+                MaxConnectionsPerServer = maxConnectionsPerServer
             };
             if (userAgent != null) {
                 EndpointConfiguration.UserAgent = userAgent;
@@ -188,9 +190,11 @@ namespace DnsClientX {
             bool ignoreCertificateErrors = false,
             bool enableCache = false,
             bool useTcpFallback = true,
-            IWebProxy? webProxy = null) {
+            IWebProxy? webProxy = null,
+            int maxConnectionsPerServer = Configuration.DefaultMaxConnectionsPerServer) {
             EndpointConfiguration = new Configuration(hostname, requestFormat) {
-                TimeOut = timeOutMilliseconds
+                TimeOut = timeOutMilliseconds,
+                MaxConnectionsPerServer = maxConnectionsPerServer
             };
             if (userAgent != null) {
                 EndpointConfiguration.UserAgent = userAgent;
@@ -226,9 +230,11 @@ namespace DnsClientX {
             bool ignoreCertificateErrors = false,
             bool enableCache = false,
             bool useTcpFallback = true,
-            IWebProxy? webProxy = null) {
+            IWebProxy? webProxy = null,
+            int maxConnectionsPerServer = Configuration.DefaultMaxConnectionsPerServer) {
             EndpointConfiguration = new Configuration(baseUri, requestFormat) {
-                TimeOut = timeOutMilliseconds
+                TimeOut = timeOutMilliseconds,
+                MaxConnectionsPerServer = maxConnectionsPerServer
             };
             if (userAgent != null) {
                 EndpointConfiguration.UserAgent = userAgent;
@@ -274,7 +280,7 @@ namespace DnsClientX {
             }
 
             // Optimize connection settings for DNS workloads
-            handler.MaxConnectionsPerServer = 10; // Allow multiple connections for parallel requests
+            handler.MaxConnectionsPerServer = EndpointConfiguration.MaxConnectionsPerServer;
             handler.UseCookies = false; // DNS doesn't need cookies
 
             var client = new HttpClient(handler) {

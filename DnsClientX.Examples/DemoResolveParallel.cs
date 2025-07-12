@@ -56,7 +56,9 @@ namespace DnsClientX.Examples {
                 }
 
                 // Create a new client for each endpoint
-                using (var client = new ClientX(endpoint) {
+                using (var client = new ClientX(
+                           endpoint,
+                           maxConnectionsPerServer: 20) {
                        Debug = false
                    }) {
                     foreach (var domain in domains) {

@@ -53,7 +53,10 @@ namespace DnsClientX.Examples {
                 }
 
                 // Create a new client for each endpoint
-                using (var client = new ClientX(endpoint, DnsSelectionStrategy.Random) {
+                using (var client = new ClientX(
+                           endpoint,
+                           DnsSelectionStrategy.Random,
+                           maxConnectionsPerServer: 20) {
                        Debug = false
                    }) {
                     foreach (var domain in domains) {
