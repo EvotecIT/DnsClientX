@@ -1,6 +1,6 @@
 using System;
-using System.Net;
 using System.Collections.Generic;
+using System.Net;
 using System.Reflection;
 using System.Security.Cryptography;
 
@@ -155,6 +155,7 @@ namespace DnsClientX {
             } else {
                 client = new ClientX(_endpoint, _strategy, _timeout, _userAgent, _httpVersion, _ignoreCertificateErrors, _enableCache, _useTcpFallback, _proxy);
             }
+            client.EndpointConfiguration.SelectHostNameStrategy();
             if (_ednsOptions != null) {
                 client.EndpointConfiguration.EdnsOptions = _ednsOptions;
             }
