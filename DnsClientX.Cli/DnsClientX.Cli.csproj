@@ -10,6 +10,8 @@
     <LangVersion>Latest</LangVersion>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Allows publishing as a single-file app when -p:PublishSingleFile=true -->
+    <PublishSingleFile Condition="'$(PublishSingleFile)' == ''">false</PublishSingleFile>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\DnsClientX\DnsClientX.csproj" />
