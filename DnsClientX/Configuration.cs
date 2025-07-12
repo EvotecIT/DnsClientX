@@ -86,6 +86,11 @@ namespace DnsClientX {
         public bool UseTcpFallback { get; set; } = true;
 
         /// <summary>
+        /// Gets or sets the maximum number of HTTP connections allowed per server.
+        /// </summary>
+        public int MaxConnectionsPerServer { get; set; } = 10;
+
+        /// <summary>
         /// Optional key used to sign outgoing DNS messages.
         /// </summary>
         public AsymmetricAlgorithm? SigningKey { get; set; }
