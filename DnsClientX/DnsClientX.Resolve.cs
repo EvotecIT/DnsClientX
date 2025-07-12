@@ -230,8 +230,14 @@ namespace DnsClientX {
         /// <see cref="DnsClientException"/> is thrown with the last response.
         /// </remarks>
         private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 100, Action? beforeRetry = null, bool useJitter = true, CancellationToken cancellationToken = default) {
-            if (maxRetries == 0) {
-                return await action().ConfigureAwait(false);
+            if (maxRetries == 0)
+            {
+                var result = await action().ConfigureAwait(false);
+                if (result is DnsResponse dns)
+                {
+                    dns.RetryCount = 0;
+                }
+                return result;
             }
 
             Exception lastException = null;
@@ -260,6 +266,10 @@ namespace DnsClientX {
                     }
 
                     // Success case or non-transient response
+                    if (result is DnsResponse success)
+                    {
+                        success.RetryCount = attempt - 1;
+                    }
                     return result;
                 } catch (Exception ex) when (IsTransient(ex)) {
                     lastException = ex;
@@ -293,10 +303,16 @@ namespace DnsClientX {
             }
 
             // If the last result indicates a transient failure, surface it as an exception
-            if (lastResult is DnsResponse lastResponse && IsTransientResponse(lastResponse)) {
+            if (lastResult is DnsResponse lastResponse && IsTransientResponse(lastResponse))
+            {
+                lastResponse.RetryCount = maxRetries - 1;
                 throw new DnsClientException("Transient DNS response after maximum retries.", lastResponse);
             }
 
+            if (lastResult is DnsResponse finalResponse)
+            {
+                finalResponse.RetryCount = maxRetries - 1;
+            }
             return lastResult;
         }
 

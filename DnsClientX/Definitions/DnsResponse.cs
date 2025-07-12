@@ -18,6 +18,12 @@ namespace DnsClientX {
         public DnsResponseCode Status { get; set; }
 
         /// <summary>
+        /// Number of retry attempts performed before receiving this response.
+        /// </summary>
+        [JsonIgnore]
+        public int RetryCount { get; internal set; }
+
+        /// <summary>
         /// Indicates whether the response was truncated. This can occur if the response is larger than the maximum size allowed by the transmission channel.
         /// This is typically false for DNS over HTTPS, as most providers support the maximum response size.
         /// </summary>

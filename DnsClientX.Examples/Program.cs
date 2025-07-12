@@ -18,6 +18,7 @@ namespace DnsClientX.Examples {
             await DemoServiceDiscovery.Example();
             await DemoServiceDiscovery.ExampleEnumerate();
             await DemoDnsLinq.Example();
+            await DemoRetryCount.Example();
 
             //await DemoQuery.ExampleTXTAll();
             //await DemoQuery.ExampleTXT();
