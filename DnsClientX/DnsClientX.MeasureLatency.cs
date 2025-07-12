@@ -17,8 +17,11 @@ namespace DnsClientX {
         /// <returns>Latency measured for the DNS query.</returns>
         public async Task<TimeSpan> MeasureLatencyAsync(string name = "example.com", DnsRecordType type = DnsRecordType.A, CancellationToken cancellationToken = default) {
             var sw = Stopwatch.StartNew();
-            await Resolve(name, type, cancellationToken: cancellationToken).ConfigureAwait(false);
-            sw.Stop();
+            try {
+                await Resolve(name, type, retryOnTransient: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+            } finally {
+                sw.Stop();
+            }
             return sw.Elapsed;
         }
 
