@@ -22,9 +22,15 @@ namespace DnsClientX {
 #endif
 
 
-        private List<string> hostnames = new List<string>();
+        private readonly List<string> hostnames = new();
+        private readonly Dictionary<string, DateTime> unavailable = new();
         private string baseUriFormat;
         private int hostnameIndex;
+
+        /// <summary>
+        /// Gets or sets the cooldown period for hosts marked as unavailable.
+        /// </summary>
+        public TimeSpan UnavailableCooldown { get; set; } = TimeSpan.FromMinutes(1);
 
 
         /// <summary>
@@ -156,6 +162,36 @@ namespace DnsClientX {
             }
         }
 
+        private bool IsUnavailable(string host) {
+            lock (unavailable) {
+                if (unavailable.TryGetValue(host, out var until)) {
+                    if (until > DateTime.UtcNow) {
+                        return true;
+                    }
+
+                    unavailable.Remove(host);
+                }
+
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Marks the specified host as unavailable for the configured cooldown period.
+        /// </summary>
+        public void MarkHostnameUnavailable(string? host) {
+            if (string.IsNullOrEmpty(host)) return;
+
+            lock (unavailable) {
+                unavailable[host] = DateTime.UtcNow.Add(UnavailableCooldown);
+            }
+        }
+
+        /// <summary>
+        /// Marks the current hostname as unavailable.
+        /// </summary>
+        public void MarkCurrentHostnameUnavailable() => MarkHostnameUnavailable(Hostname);
+
         internal void AdvanceToNextHostname() {
             if (hostnames.Count <= 1) {
                 return;
@@ -240,7 +276,6 @@ namespace DnsClientX {
                 switch (SelectionStrategy) {
                     case DnsSelectionStrategy.First:
                         hostnameIndex = 0;
-                        Hostname = hostnames[hostnameIndex];
                         break;
                     case DnsSelectionStrategy.Random:
 #if NET6_0_OR_GREATER
@@ -250,15 +285,31 @@ namespace DnsClientX {
                             hostnameIndex = _rand.Next(hostnames.Count);
                         }
 #endif
-                        Hostname = hostnames[hostnameIndex];
                         break;
                     case DnsSelectionStrategy.Failover:
                         if (hostnameIndex >= hostnames.Count) {
                             hostnameIndex = 0;
                         }
-
-                        Hostname = hostnames[hostnameIndex];
                         break;
+                }
+
+                var startIndex = hostnameIndex;
+                for (var i = 0; i < hostnames.Count; i++) {
+                    var candidate = hostnames[hostnameIndex];
+                    if (!IsUnavailable(candidate)) {
+                        Hostname = candidate;
+                        break;
+                    }
+
+                    hostnameIndex++;
+                    if (hostnameIndex >= hostnames.Count) {
+                        hostnameIndex = 0;
+                    }
+
+                    if (hostnameIndex == startIndex) {
+                        Hostname = candidate;
+                        break;
+                    }
                 }
 
                 BaseUri = new Uri(string.Format(baseUriFormat, Hostname));
