@@ -34,7 +34,7 @@ namespace DnsClientX {
             if (edns != null) {
                 enableEdns = edns.EnableEdns;
                 udpSize = edns.UdpBufferSize;
-                subnet = edns.Subnet;
+                subnet = edns.Subnet?.Subnet;
                 options = edns.Options;
             }
             var dnsMessage = new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet, endpointConfiguration.CheckingDisabled, endpointConfiguration.SigningKey, options);

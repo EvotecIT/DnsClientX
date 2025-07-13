@@ -62,7 +62,7 @@ namespace DnsClientX.Tests {
 
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
                 Port = port,
-                EdnsOptions = new EdnsOptions { EnableEdns = true, Subnet = "192.0.2.1/24" }
+                EdnsOptions = new EdnsOptions { EnableEdns = true, Subnet = new EdnsClientSubnetOption("192.0.2.1/24") }
             };
             Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
             MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;

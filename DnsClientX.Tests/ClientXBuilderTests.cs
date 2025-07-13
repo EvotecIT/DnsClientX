@@ -27,7 +27,7 @@ namespace DnsClientX.Tests {
 
         [Fact]
         public void BuildShouldApplyEdnsOptions() {
-            var options = new EdnsOptions { EnableEdns = true, UdpBufferSize = 2048, Subnet = "192.0.2.0/24" };
+            var options = new EdnsOptions { EnableEdns = true, UdpBufferSize = 2048, Subnet = new EdnsClientSubnetOption("192.0.2.0/24") };
 
             using var client = new ClientXBuilder()
                 .WithEdnsOptions(options)

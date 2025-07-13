@@ -17,7 +17,7 @@ namespace DnsClientX {
         private readonly bool _requestDnsSec;
         private readonly bool _enableEdns;
         private readonly int _udpBufferSize;
-        private readonly string? _subnet;
+        private readonly EdnsClientSubnetOption? _subnet;
         private readonly bool _checkingDisabled;
         private readonly AsymmetricAlgorithm? _signingKey;
         private readonly EdnsOption[] _ednsOptions;
@@ -29,7 +29,7 @@ namespace DnsClientX {
         /// <param name="type">The type.</param>
         /// <param name="requestDnsSec">if set to <c>true</c> [request DNS sec].</param>
         public DnsMessage(string name, DnsRecordType type, bool requestDnsSec)
-            : this(name, type, requestDnsSec, requestDnsSec, 4096, null, false, null, null) {
+            : this(name, type, new DnsMessageOptions(requestDnsSec, requestDnsSec)) {
         }
 
         /// <summary>
@@ -42,16 +42,27 @@ namespace DnsClientX {
         /// <param name="udpBufferSize">UDP buffer size for EDNS.</param>
         /// <param name="subnet">Optional EDNS client subnet.</param>
         /// <param name="checkingDisabled">Whether to set the CD bit in OPT TTL.</param>
-        public DnsMessage(string name, DnsRecordType type, bool requestDnsSec, bool enableEdns, int udpBufferSize, string? subnet, bool checkingDisabled, AsymmetricAlgorithm? signingKey, System.Collections.Generic.IEnumerable<EdnsOption>? options = null) {
+        public DnsMessage(string name, DnsRecordType type, bool requestDnsSec, bool enableEdns, int udpBufferSize, string? subnet, bool checkingDisabled, AsymmetricAlgorithm? signingKey, System.Collections.Generic.IEnumerable<EdnsOption>? options = null)
+            : this(name, type, new DnsMessageOptions(requestDnsSec, enableEdns, udpBufferSize,
+                string.IsNullOrEmpty(subnet) ? null : new EdnsClientSubnetOption(subnet), checkingDisabled, signingKey, options)) {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DnsMessage"/> class with structured options.
+        /// </summary>
+        /// <param name="name">Domain name to query.</param>
+        /// <param name="type">Record type to query.</param>
+        /// <param name="options">Message options.</param>
+        public DnsMessage(string name, DnsRecordType type, DnsMessageOptions options) {
             _name = name;
             _type = type;
-            _requestDnsSec = requestDnsSec;
-            _ednsOptions = options?.ToArray() ?? Array.Empty<EdnsOption>();
-            _enableEdns = enableEdns || requestDnsSec || !string.IsNullOrEmpty(subnet) || checkingDisabled || _ednsOptions.Length > 0;
-            _udpBufferSize = udpBufferSize;
-            _subnet = subnet;
-            _checkingDisabled = checkingDisabled;
-            _signingKey = signingKey;
+            _requestDnsSec = options.RequestDnsSec;
+            _ednsOptions = options.Options?.ToArray() ?? Array.Empty<EdnsOption>();
+            _enableEdns = options.EnableEdns || options.RequestDnsSec || options.Subnet != null || options.CheckingDisabled || _ednsOptions.Length > 0;
+            _udpBufferSize = options.UdpBufferSize;
+            _subnet = options.Subnet;
+            _checkingDisabled = options.CheckingDisabled;
+            _signingKey = options.SigningKey;
         }
 
         /// <summary>
@@ -298,7 +309,7 @@ namespace DnsClientX {
         private byte[] BuildOptions() {
             using var ms = new MemoryStream();
             if (_subnet != null) {
-                var ecs = new EcsOption(_subnet);
+                var ecs = new EcsOption(_subnet.Value.Subnet);
                 byte[] bytes = ecs.ToByteArray();
                 ms.Write(bytes, 0, bytes.Length);
             }

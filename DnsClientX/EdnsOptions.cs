@@ -16,7 +16,7 @@ namespace DnsClientX {
         /// <summary>
         /// Gets or sets the EDNS Client Subnet (ECS) in CIDR notation.
         /// </summary>
-        public string? Subnet { get; set; }
+        public EdnsClientSubnetOption? Subnet { get; set; }
 
         /// <summary>
         /// Gets the additional EDNS options to include in the OPT record.
