@@ -34,7 +34,7 @@ namespace DnsClientX {
             try {
                 while (enumerator.MoveNext()) {
                     DnsRecordType type = enumerator.Current;
-                    yield return await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+                    yield return await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
                 }
             } finally {
                 enumerator.Dispose();
@@ -71,7 +71,7 @@ namespace DnsClientX {
                     try {
                         while (typeEnumerator.MoveNext()) {
                             DnsRecordType type = typeEnumerator.Current;
-                            yield return await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+                            yield return await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
                         }
                     } finally {
                         typeEnumerator.Dispose();
@@ -108,7 +108,7 @@ namespace DnsClientX {
             try {
                 while (enumerator.MoveNext()) {
                     string name = enumerator.Current;
-                    yield return await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+                    yield return await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
                 }
             } finally {
                 enumerator.Dispose();
@@ -133,7 +133,7 @@ namespace DnsClientX {
                     try {
                         while (typeEnumerator.MoveNext()) {
                             DnsRecordType type = typeEnumerator.Current;
-                            yield return await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+                            yield return await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
                         }
                     } finally {
                         typeEnumerator.Dispose();

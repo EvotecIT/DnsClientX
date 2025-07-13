@@ -28,13 +28,13 @@ namespace DnsClientX {
             try {
                 res = retryOnTransient && maxRetries > 1
                     ? await RetryAsync(
-                        () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken),
+                        () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken: cancellationToken),
                         maxRetries,
                         retryDelayMs,
                         EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover ? EndpointConfiguration.AdvanceToNextHostname : null,
                         true,
                         cancellationToken).ConfigureAwait(false)
-                    : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken).ConfigureAwait(false);
+                    : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken: cancellationToken).ConfigureAwait(false);
             } catch (DnsClientException ex) {
                 res = ex.Response;
             }
@@ -64,13 +64,13 @@ namespace DnsClientX {
             try {
                 res = retryOnTransient && maxRetries > 1
                     ? await RetryAsync(
-                        () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken),
+                        () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken: cancellationToken),
                         maxRetries,
                         retryDelayMs,
                         EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover ? EndpointConfiguration.AdvanceToNextHostname : null,
                         true,
                         cancellationToken).ConfigureAwait(false)
-                    : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken).ConfigureAwait(false);
+                    : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken: cancellationToken).ConfigureAwait(false);
             } catch (DnsClientException ex) {
                 res = ex.Response;
             }
@@ -102,13 +102,13 @@ namespace DnsClientX {
             try {
                 res = retryOnTransient && maxRetries > 1
                     ? await RetryAsync(
-                        () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken),
+                        () => Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken: cancellationToken),
                         maxRetries,
                         retryDelayMs,
                         EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover ? EndpointConfiguration.AdvanceToNextHostname : null,
                         true,
                         cancellationToken).ConfigureAwait(false)
-                    : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken).ConfigureAwait(false);
+                    : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken: cancellationToken).ConfigureAwait(false);
             } catch (DnsClientException ex) {
                 res = ex.Response;
             }

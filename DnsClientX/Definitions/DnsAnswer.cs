@@ -90,6 +90,12 @@ namespace DnsClientX {
         public string[] DataStrings => ConvertToMultiString();
 
         /// <summary>
+        /// Returns the record parsed into a typed representation when supported.
+        /// </summary>
+        [JsonIgnore]
+        public object? TypedRecord => DnsRecordFactory.Create(this);
+
+        /// <summary>
         /// The value of the DNS record for the given name and type, escaped if necessary removing the quotes completely.
         /// </summary>
         [JsonIgnore]

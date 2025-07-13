@@ -69,6 +69,12 @@ namespace DnsClientX {
         public DnsAnswer[] Answers { get; set; }
 
         /// <summary>
+        /// When typed parsing is enabled, contains typed representations of <see cref="Answers"/>.
+        /// </summary>
+        [JsonIgnore]
+        public object[]? TypedAnswers { get; internal set; }
+
+        /// <summary>
         /// Gets the answers in their minimal form.
         /// </summary>
         [JsonIgnore]

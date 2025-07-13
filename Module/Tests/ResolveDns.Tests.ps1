@@ -9,4 +9,13 @@ Describe 'Resolve-Dns cmdlet' {
         $result = Resolve-Dns -Name 'example.com' -Server @('127.0.0.1','127.0.0.1') -AllServers -FullResponse -TimeOut 10 -ErrorAction SilentlyContinue
         $result.Count | Should -Be 1
     }
+
+    It 'Returns typed records when requested' {
+        $answer = [DnsClientX.DnsAnswer]@{
+            Type    = [DnsClientX.DnsRecordType]::A
+            DataRaw = '127.0.0.1'
+        }
+        $typed = [DnsClientX.DnsRecordFactory]::Create($answer)
+        $typed | Should -Not -BeNullOrEmpty
+    }
 }
