@@ -27,7 +27,7 @@ public static class DnsRecordFactory {
             case DnsRecordType.CNAME:
                 return new CNameRecord(answer.Data.TrimEnd('.'));
             case DnsRecordType.MX:
-                var parts = answer.Data.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var parts = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length == 2 && int.TryParse(parts[0], out int pref)) {
                     return new MxRecord(pref, parts[1].TrimEnd('.'));
                 }
@@ -39,7 +39,7 @@ public static class DnsRecordFactory {
             case DnsRecordType.TXT:
                 return new TxtRecord(answer.DataStrings);
             case DnsRecordType.SOA:
-                var soa = answer.Data.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var soa = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (soa.Length == 7 &&
                     uint.TryParse(soa[2], out var serial) &&
                     uint.TryParse(soa[3], out var refresh) &&
@@ -50,7 +50,7 @@ public static class DnsRecordFactory {
                 }
                 break;
             case DnsRecordType.SRV:
-                var srv = answer.Data.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var srv = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (srv.Length == 4 &&
                     ushort.TryParse(srv[0], out var prio) &&
                     ushort.TryParse(srv[1], out var weight) &&
@@ -59,7 +59,7 @@ public static class DnsRecordFactory {
                 }
                 break;
             case DnsRecordType.DNSKEY:
-                var dnskey = answer.Data.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var dnskey = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (dnskey.Length >= 4 &&
                     ushort.TryParse(dnskey[0], out var flags) &&
                     byte.TryParse(dnskey[1], out var protocol) &&
@@ -68,7 +68,7 @@ public static class DnsRecordFactory {
                 }
                 break;
             case DnsRecordType.DS:
-                var ds = answer.Data.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var ds = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (ds.Length >= 4 &&
                     ushort.TryParse(ds[0], out var keyTag) &&
                     Enum.TryParse<DnsKeyAlgorithm>(ds[1], true, out var dsAlg) &&
@@ -77,13 +77,13 @@ public static class DnsRecordFactory {
                 }
                 break;
             case DnsRecordType.CAA:
-                var caa = answer.Data.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+                var caa = answer.Data.Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
                 if (caa.Length == 3 && byte.TryParse(caa[0], out var flag)) {
                     return new CaaRecord(flag, caa[1], caa[2].Trim('"'));
                 }
                 break;
             case DnsRecordType.TLSA:
-                var tlsa = answer.Data.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var tlsa = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (tlsa.Length >= 4 &&
                     byte.TryParse(tlsa[0], out var cu) &&
                     byte.TryParse(tlsa[1], out var selector) &&
@@ -92,7 +92,7 @@ public static class DnsRecordFactory {
                 }
                 break;
             case DnsRecordType.NAPTR:
-                var naptr = answer.Data.Split(' ', 6, StringSplitOptions.RemoveEmptyEntries);
+                var naptr = answer.Data.Split(new[] { ' ' }, 6, StringSplitOptions.RemoveEmptyEntries);
                 if (naptr.Length >= 6 &&
                     ushort.TryParse(naptr[0], out var order) &&
                     ushort.TryParse(naptr[1], out var preference)) {
@@ -102,7 +102,7 @@ public static class DnsRecordFactory {
             case DnsRecordType.DNAME:
                 return new DnameRecord(answer.Data.TrimEnd('.'));
             case DnsRecordType.LOC:
-                var loc = answer.Data.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var loc = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (loc.Length >= 11 &&
                     int.TryParse(loc[0], out var latDeg) &&
                     int.TryParse(loc[1], out var latMin) &&
