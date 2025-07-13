@@ -63,5 +63,21 @@ namespace DnsClientX.Tests {
             string result = JsonSerializer.Deserialize<string>(json, options)!;
             Assert.Equal("a; b", result);
         }
+
+        [Fact]
+        public void ExtendedDnsErrorInfoReflectsErrors() {
+            var response = new DnsResponse {
+                ExtendedDnsErrors = new[] {
+                    new ExtendedDnsError { InfoCode = 10, ExtraText = "one" },
+                    new ExtendedDnsError { InfoCode = 20, ExtraText = "two" }
+                }
+            };
+
+            Assert.Equal(2, response.ExtendedDnsErrorInfo.Length);
+            Assert.Equal(10, response.ExtendedDnsErrorInfo[0].Code);
+            Assert.Equal("one", response.ExtendedDnsErrorInfo[0].Text);
+            Assert.Equal(20, response.ExtendedDnsErrorInfo[1].Code);
+            Assert.Equal("two", response.ExtendedDnsErrorInfo[1].Text);
+        }
     }
 }
