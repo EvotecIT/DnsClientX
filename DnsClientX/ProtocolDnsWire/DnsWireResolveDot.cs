@@ -84,7 +84,11 @@ namespace DnsClientX {
                 using var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) =>
                     sslPolicyErrors == SslPolicyErrors.None || ignoreCertificateErrors);
 
+#if NET6_0_OR_GREATER
+                await sslStream.AuthenticateAsClientAsync(dnsServer, null, SslProtocols.Tls12 | SslProtocols.Tls13, false).ConfigureAwait(false);
+#else
                 await sslStream.AuthenticateAsClientAsync(dnsServer, null, SslProtocols.Tls12, false).ConfigureAwait(false);
+#endif
 
                 // Write the combined query bytes to the SSL stream and flush it
                 await sslStream.WriteAsync(combinedQueryBytes, 0, combinedQueryBytes.Length, cancellationToken).ConfigureAwait(false);
