@@ -117,6 +117,20 @@ namespace DnsClientX {
         [JsonPropertyName("extended_dns_errors")]
         public ExtendedDnsError[] ExtendedDnsErrors { get; set; }
 
+        [JsonIgnore]
+        private ExtendedDnsErrorInfo[]? _extendedDnsErrorInfo;
+
+        /// <summary>
+        /// Gets the extended DNS error information in a simplified form.
+        /// </summary>
+        [JsonIgnore]
+        public ExtendedDnsErrorInfo[] ExtendedDnsErrorInfo => _extendedDnsErrorInfo ??=
+            ExtendedDnsErrors == null
+                ? Array.Empty<ExtendedDnsErrorInfo>()
+                : ExtendedDnsErrors
+                    .Select(e => new ExtendedDnsErrorInfo { Code = e.InfoCode, Text = e.ExtraText })
+                    .ToArray();
+
 
         /// <summary>
         /// The client subnet information that the DNS server used to generate the response.
