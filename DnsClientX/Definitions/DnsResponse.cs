@@ -117,11 +117,14 @@ namespace DnsClientX {
         [JsonPropertyName("extended_dns_errors")]
         public ExtendedDnsError[] ExtendedDnsErrors { get; set; }
 
+        [JsonIgnore]
+        private ExtendedDnsErrorInfo[]? _extendedDnsErrorInfo;
+
         /// <summary>
         /// Gets the extended DNS error information in a simplified form.
         /// </summary>
         [JsonIgnore]
-        public ExtendedDnsErrorInfo[] ExtendedDnsErrorInfo =>
+        public ExtendedDnsErrorInfo[] ExtendedDnsErrorInfo => _extendedDnsErrorInfo ??=
             ExtendedDnsErrors == null
                 ? Array.Empty<ExtendedDnsErrorInfo>()
                 : ExtendedDnsErrors
