@@ -1,3 +1,4 @@
+using System;
 using System.Management.Automation;
 using System.Threading.Tasks;
 
@@ -40,6 +41,7 @@ public sealed class CmdletDnsUpdate : AsyncPSCmdlet {
 
     /// <summary>TTL for the new record. Defaults to 300 seconds.</summary>
     [Parameter]
+    [ValidateRange(1, int.MaxValue)]
     public int Ttl { get; set; } = 300;
 
     /// <summary>If specified, the record is removed instead of added.</summary>
