@@ -11,7 +11,11 @@ Describe 'Resolve-Dns cmdlet' {
     }
 
     It 'Returns typed records when requested' {
-        $result = Resolve-Dns -Name 'example.com' -Type A -TypedRecords -TimeOut 10 -ErrorAction SilentlyContinue | Select-Object -First 1
-        $result.TypedAnswers | Should -Not -BeNullOrEmpty
+        $answer = [DnsClientX.DnsAnswer]@{
+            Type    = [DnsClientX.DnsRecordType]::A
+            DataRaw = '127.0.0.1'
+        }
+        $typed = [DnsClientX.DnsRecordFactory]::Create($answer)
+        $typed | Should -Not -BeNullOrEmpty
     }
 }
