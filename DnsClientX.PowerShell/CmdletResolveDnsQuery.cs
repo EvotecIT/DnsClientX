@@ -164,7 +164,7 @@ namespace DnsClientX.PowerShell {
                 }
 
                 if (attempt < RetryCount) {
-                    await Task.Delay(RetryDelayMs);
+                    await Task.Delay(RetryDelayMs, CancelToken);
                 }
             }
 

@@ -36,6 +36,7 @@
   <ItemGroup>
     <ProjectReference Include="..\DnsClientX\DnsClientX.csproj" />
     <ProjectReference Include="..\DnsClientX.Cli\DnsClientX.Cli.csproj" />
+    <ProjectReference Include="..\DnsClientX.PowerShell\DnsClientX.PowerShell.csproj" />
   </ItemGroup>
 
     <ItemGroup>
