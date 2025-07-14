@@ -90,7 +90,11 @@ namespace DnsClientX {
         /// Gets the answers in their minimal form.
         /// </summary>
         [JsonIgnore]
-        public DnsAnswerMinimal[] AnswersMinimal => _answersMinimal ?? Answers.Select(answer => (DnsAnswerMinimal)answer).ToArray();
+        public DnsAnswerMinimal[] AnswersMinimal =>
+            _answersMinimal ??
+            (Answers == null
+                ? Array.Empty<DnsAnswerMinimal>()
+                : Answers.Select(answer => (DnsAnswerMinimal)answer).ToArray());
 
         /// <summary>
         /// The authority records provided by the DNS server.

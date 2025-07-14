@@ -79,5 +79,12 @@ namespace DnsClientX.Tests {
             Assert.Equal(20, response.ExtendedDnsErrorInfo[1].Code);
             Assert.Equal("two", response.ExtendedDnsErrorInfo[1].Text);
         }
+
+        [Fact]
+        public void AnswersMinimalReturnsEmptyWhenAnswersNull() {
+            var response = new DnsResponse();
+
+            Assert.Empty(response.AnswersMinimal);
+        }
     }
 }
