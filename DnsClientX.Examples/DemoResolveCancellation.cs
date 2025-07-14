@@ -16,7 +16,7 @@ namespace DnsClientX.Examples {
                 HelpersSpectre.AddLine("Resolve", "github.com", DnsRecordType.A, DnsEndpoint.Cloudflare);
                 var response = await client.Resolve("github.com", cancellationToken: cts.Token);
                 response.DisplayTable();
-            } catch (TaskCanceledException) {
+            } catch (OperationCanceledException) {
                 Console.WriteLine("Resolve operation canceled.");
             }
         }

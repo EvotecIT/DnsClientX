@@ -75,7 +75,7 @@ namespace DnsClientX.Tests {
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            await Assert.ThrowsAsync<TaskCanceledException>(() => client.Resolve("example.com", DnsRecordType.A, cancellationToken: cts.Token));
+            await Assert.ThrowsAsync<OperationCanceledException>(() => client.Resolve("example.com", DnsRecordType.A, cancellationToken: cts.Token));
         }
     }
 }
