@@ -11,6 +11,9 @@ namespace DnsClientX {
     /// <summary>
     /// Partial <see cref="ClientX"/> class providing zone transfer functionality.
     /// </summary>
+    /// <remarks>
+    /// Zone transfers retrieve all records in a zone using the AXFR protocol.
+    /// </remarks>
     public partial class ClientX {
         /// <summary>
         /// Performs a DNS zone transfer (AXFR) using TCP.

@@ -5,6 +5,9 @@ namespace DnsClientX;
 /// <summary>
 /// Represents a LOC record containing geographic information.
 /// </summary>
+/// <remarks>
+/// The format of this record is specified in <a href="https://www.rfc-editor.org/rfc/rfc1876">RFC 1876</a>.
+/// </remarks>
 public sealed class LocRecord {
     public double Latitude { get; }
     public double Longitude { get; }

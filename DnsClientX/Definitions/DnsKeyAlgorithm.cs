@@ -8,6 +8,10 @@ namespace DnsClientX {
     /// <a href="https://www.rfc-editor.org/rfc/rfc4034">RFC 4034</a>
     /// and <a href="https://www.rfc-editor.org/rfc/rfc8624">RFC 8624</a>.
     /// </summary>
+    /// <remarks>
+    /// When validating DNSSEC signatures these values determine which
+    /// cryptographic algorithm was used to create the signature.
+    /// </remarks>
     public enum DnsKeyAlgorithm {
         /// <summary>
         /// RSA/MD5

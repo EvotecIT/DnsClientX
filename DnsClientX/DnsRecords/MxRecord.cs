@@ -2,6 +2,9 @@ namespace DnsClientX;
 /// <summary>
 /// Represents an MX record containing a mail exchange server.
 /// </summary>
+/// <remarks>
+/// Mail exchange records route email according to <a href="https://www.rfc-editor.org/rfc/rfc5321">RFC 5321</a>.
+/// </remarks>
 public sealed class MxRecord {
     /// <summary>Gets the preference value.</summary>
     public int Preference { get; }

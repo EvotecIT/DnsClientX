@@ -10,6 +10,9 @@ namespace DnsClientX {
     /// The structure mirrors the response format described in
     /// <a href="https://www.rfc-editor.org/rfc/rfc1035">RFC 1035</a>.
     /// </summary>
+    /// <remarks>
+    /// Instances are produced by <see cref="ClientX"/> when a query completes.
+    /// </remarks>
     public class DnsResponse {
         /// <summary>
         /// The status code of the DNS response.

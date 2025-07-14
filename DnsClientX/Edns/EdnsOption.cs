@@ -7,6 +7,9 @@ using System.Net;
 /// <summary>
 /// Base class for EDNS options.
 /// </summary>
+/// <remarks>
+/// All specific EDNS option implementations derive from this type.
+/// </remarks>
 public abstract class EdnsOption {
     /// <summary>
     /// Gets the option code as defined in RFC 6891.

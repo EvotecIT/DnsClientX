@@ -3,6 +3,9 @@ namespace DnsClientX;
 /// <summary>
 /// Represents a NAPTR record used for dynamic service discovery.
 /// </summary>
+/// <remarks>
+/// Naming Authority Pointer records are specified in <a href="https://www.rfc-editor.org/rfc/rfc2915">RFC 2915</a>.
+/// </remarks>
 public sealed class NaptrRecord {
     public ushort Order { get; }
     public ushort Preference { get; }

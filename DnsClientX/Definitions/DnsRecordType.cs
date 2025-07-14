@@ -4,6 +4,10 @@ namespace DnsClientX;
 /// <a href="https://www.rfc-editor.org/rfc/rfc1035#section-3.2.2">RFC 1035 section 3.2.2</a>.
 /// See also the <a href="https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-4">IANA DNS Parameters</a> registry.
 /// </summary>
+/// <remarks>
+/// These values are used when constructing queries via <see cref="ClientX"/> to
+/// indicate the resource record type to request.
+/// </remarks>
 public enum DnsRecordType : ushort {
     /// <summary>
     /// Reserved record type.

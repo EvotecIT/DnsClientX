@@ -7,6 +7,9 @@ namespace DnsClientX {
     /// <summary>
     /// Partial <see cref="ClientX"/> class providing latency measurement helper.
     /// </summary>
+    /// <remarks>
+    /// Allows determining the responsiveness of configured DNS servers.
+    /// </remarks>
     public partial class ClientX {
         /// <summary>
         /// Sends a simple DNS query and returns the round-trip time.

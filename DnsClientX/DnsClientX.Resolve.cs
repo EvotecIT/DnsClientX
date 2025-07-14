@@ -13,6 +13,9 @@ namespace DnsClientX {
     /// <summary>
     /// Partial <see cref="ClientX"/> class containing main resolve methods.
     /// </summary>
+    /// <remarks>
+    /// These methods return strongly typed answers for various record types.
+    /// </remarks>
     public partial class ClientX {
         /// <summary>
         /// Resolves a domain name using DNS over HTTPS. This method provides full control over the output.

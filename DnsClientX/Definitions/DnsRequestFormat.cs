@@ -4,6 +4,9 @@ namespace DnsClientX {
     /// Includes DNS over HTTPS (<a href="https://www.rfc-editor.org/rfc/rfc8484">RFC 8484</a>)
     /// and DNS over TLS (<a href="https://www.rfc-editor.org/rfc/rfc7858">RFC 7858</a>).
     /// </summary>
+    /// <remarks>
+    /// The selected format determines how <see cref="ClientX"/> sends queries to the remote resolver.
+    /// </remarks>
     public enum DnsRequestFormat {
         /// <summary>
         /// Wire format using GET method for DNS requests.

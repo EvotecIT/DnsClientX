@@ -9,6 +9,9 @@ namespace DnsClientX {
     /// <summary>
     /// Partial <see cref="ClientX"/> class for resolving all matching records.
     /// </summary>
+    /// <remarks>
+    /// Useful when multiple records of the same type are expected in the response.
+    /// </remarks>
     public partial class ClientX {
         /// <summary>
         /// Resolves a domain name using DNS over HTTPS and returns all answers of the provided type.

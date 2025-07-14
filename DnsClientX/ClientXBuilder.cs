@@ -8,6 +8,9 @@ namespace DnsClientX {
     /// <summary>
     /// Builder class for creating configured <see cref="ClientX"/> instances.
     /// </summary>
+    /// <remarks>
+    /// The fluent API allows step by step configuration of endpoints, timeouts and other options.
+    /// </remarks>
     public class ClientXBuilder {
         private DnsEndpoint _endpoint = DnsEndpoint.Cloudflare;
         private int _timeout = Configuration.DefaultTimeout;

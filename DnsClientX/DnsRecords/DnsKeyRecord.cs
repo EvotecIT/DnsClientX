@@ -3,6 +3,9 @@ namespace DnsClientX;
 /// <summary>
 /// Represents a DNSKEY record containing public key information.
 /// </summary>
+/// <remarks>
+/// DNSSEC uses this record type for key distribution as specified in <a href="https://www.rfc-editor.org/rfc/rfc4034">RFC 4034</a>.
+/// </remarks>
 public sealed class DnsKeyRecord {
     public ushort Flags { get; }
     public byte Protocol { get; }

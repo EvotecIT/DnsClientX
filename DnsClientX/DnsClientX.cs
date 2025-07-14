@@ -12,6 +12,9 @@ namespace DnsClientX {
     /// <summary>
     /// The primary class for sending DNS over HTTPS queries.
     /// </summary>
+    /// <remarks>
+    /// All high level query methods are implemented as partial members across multiple files.
+    /// </remarks>
     public partial class ClientX {
         /// <summary>
         /// The client

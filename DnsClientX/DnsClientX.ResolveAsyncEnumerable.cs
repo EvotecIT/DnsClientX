@@ -7,6 +7,9 @@ namespace DnsClientX {
     /// <summary>
     /// Partial <see cref="ClientX"/> class providing concurrent resolve helpers.
     /// </summary>
+    /// <remarks>
+    /// Enables streaming of results as each DNS query completes.
+    /// </remarks>
     public partial class ClientX {
         /// <summary>
         /// Resolves multiple DNS record types for a single domain name concurrently and yields responses as they complete.

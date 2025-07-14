@@ -10,6 +10,9 @@ namespace DnsClientX {
     /// <summary>
     /// Partial <see cref="ClientX"/> class containing service discovery helpers.
     /// </summary>
+    /// <remarks>
+    /// These members implement <see href="https://www.rfc-editor.org/rfc/rfc6763">RFC 6763</see> lookups for browsing services.
+    /// </remarks>
     public partial class ClientX {
         internal Func<string, DnsRecordType, CancellationToken, Task<DnsResponse>>? ResolverOverride;
 

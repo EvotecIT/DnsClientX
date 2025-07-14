@@ -8,6 +8,9 @@ namespace DnsClientX {
     /// <summary>
     /// Partial <see cref="ClientX"/> class implementing disposal logic.
     /// </summary>
+    /// <remarks>
+    /// Responsible for releasing HTTP clients and other managed resources.
+    /// </remarks>
     public partial class ClientX : IDisposable, IAsyncDisposable {
         private bool _disposed;
         private readonly HashSet<object> _disposedClients = new();

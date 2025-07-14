@@ -6,6 +6,9 @@ namespace DnsClientX {
     /// <summary>
     /// Partial <see cref="ClientX"/> class implementing root server resolution logic.
     /// </summary>
+    /// <remarks>
+    /// These methods directly query the root DNS servers and follow referrals to authoritative servers.
+    /// </remarks>
     public partial class ClientX {
         /// <summary>
         /// Resolves a domain name by iteratively querying root servers

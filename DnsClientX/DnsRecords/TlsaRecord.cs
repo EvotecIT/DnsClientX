@@ -3,6 +3,9 @@ namespace DnsClientX;
 /// <summary>
 /// Represents a TLSA record for DANE validation.
 /// </summary>
+/// <remarks>
+/// See <a href="https://www.rfc-editor.org/rfc/rfc6698">RFC 6698</a> for the specification.
+/// </remarks>
 public sealed class TlsaRecord {
     public byte CertificateUsage { get; }
     public byte Selector { get; }
