@@ -62,6 +62,8 @@ namespace DnsClientX {
         }
 
         private async Task<DnsResponse> ResolveInternal(string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool returnAllTypes, int maxRetries, int retryDelayMs, bool typedRecords, CancellationToken cancellationToken) {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             bool originalCd = EndpointConfiguration.CheckingDisabled;

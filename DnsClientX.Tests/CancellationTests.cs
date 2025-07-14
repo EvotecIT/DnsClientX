@@ -68,5 +68,14 @@ namespace DnsClientX.Tests {
 
             Assert.Equal(1, ClientX.DisposalCount);
         }
+
+        [Fact]
+        public async Task Resolve_AlreadyCancelledToken_ShouldThrow() {
+            using var client = new ClientX("1.1.1.1", DnsRequestFormat.DnsOverHttps);
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAsync<TaskCanceledException>(() => client.Resolve("example.com", DnsRecordType.A, cancellationToken: cts.Token));
+        }
     }
 }
