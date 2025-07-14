@@ -3,6 +3,9 @@ namespace DnsClientX {
     /// Defines how <see cref="DnsClientX"/> chooses between multiple DNS endpoints.
     /// This behavior is implementation specific and not defined by any RFC.
     /// </summary>
+    /// <remarks>
+    /// The strategy influences which server will be contacted for each query.
+    /// </remarks>
     public enum DnsSelectionStrategy {
         /// <summary>
         /// First DNS server in the list.

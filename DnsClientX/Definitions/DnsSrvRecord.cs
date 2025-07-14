@@ -4,6 +4,9 @@ namespace DnsClientX {
     /// <summary>
     /// Represents a SRV record optionally including resolved target addresses.
     /// </summary>
+    /// <remarks>
+    /// The record follows the format defined in <a href="https://www.rfc-editor.org/rfc/rfc2782">RFC 2782</a>.
+    /// </remarks>
     public class DnsSrvRecord {
         /// <summary>Gets or sets the target host.</summary>
         public string Target { get; set; } = string.Empty;

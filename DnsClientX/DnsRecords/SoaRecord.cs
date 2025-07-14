@@ -2,6 +2,9 @@ namespace DnsClientX;
 /// <summary>
 /// Represents a SOA record with zone information.
 /// </summary>
+/// <remarks>
+/// Start of Authority records describe global parameters for a DNS zone.
+/// </remarks>
 public sealed class SoaRecord {
     public string PrimaryNameServer { get; }
     public string ResponsiblePerson { get; }

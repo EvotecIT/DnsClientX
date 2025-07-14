@@ -13,6 +13,9 @@ namespace DnsClientX {
     /// <summary>
     /// Defines the class for getting system information.
     /// </summary>
+    /// <remarks>
+    /// Methods in this class assist in obtaining DNS server details from the operating system.
+    /// </remarks>
     public class SystemInformation {
         private static Lazy<List<string>> cachedDnsServers = new(LoadDnsServers, LazyThreadSafetyMode.ExecutionAndPublication);
 

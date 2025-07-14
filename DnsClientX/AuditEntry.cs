@@ -5,6 +5,9 @@ namespace DnsClientX {
     /// Represents a single audit log entry containing query details,
     /// the resulting response and any exception that occurred.
     /// </summary>
+    /// <remarks>
+    /// The audit trail collected by <see cref="ClientX"/> exposes these entries to callers for troubleshooting.
+    /// </remarks>
     public class AuditEntry {
         /// <summary>
         /// Initializes a new instance of the <see cref="AuditEntry"/> class.

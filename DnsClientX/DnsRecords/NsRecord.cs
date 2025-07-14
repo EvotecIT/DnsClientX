@@ -2,6 +2,9 @@ namespace DnsClientX;
 /// <summary>
 /// Represents an NS record containing a name server host.
 /// </summary>
+/// <remarks>
+/// NS records delegate authority to another name server, see <a href="https://www.rfc-editor.org/rfc/rfc1035">RFC 1035</a>.
+/// </remarks>
 public sealed class NsRecord {
     /// <summary>Gets the host name.</summary>
     public string Host { get; }

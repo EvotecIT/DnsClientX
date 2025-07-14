@@ -6,6 +6,9 @@ namespace DnsClientX {
     /// <summary>
     /// Partial <see cref="ClientX"/> class providing DNS UPDATE operations.
     /// </summary>
+    /// <remarks>
+    /// DNS UPDATE is described in <see href="https://www.rfc-editor.org/rfc/rfc2136">RFC 2136</see> and allows dynamic modification of zone data.
+    /// </remarks>
     public partial class ClientX {
         /// <summary>
         /// Sends a DNS UPDATE request to add or modify a record in a zone.

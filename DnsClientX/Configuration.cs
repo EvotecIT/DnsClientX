@@ -9,6 +9,9 @@ namespace DnsClientX {
     /// <summary>
     /// Class representing the configuration for a DNS-over-HTTPS endpoint.
     /// </summary>
+    /// <remarks>
+    /// Instances of this class are used by <see cref="ClientXBuilder"/> to describe the target server and connection settings.
+    /// </remarks>
     public class Configuration {
         /// <summary>
         /// Random generator used for hostname selection on frameworks lacking

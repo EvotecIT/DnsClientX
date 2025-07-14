@@ -4,6 +4,9 @@ namespace DnsClientX {
     /// <summary>
     /// Represents a single service entry discovered via DNS Service Discovery.
     /// </summary>
+    /// <remarks>
+    /// This type models the data returned when browsing services using the <c>_services._dns-sd._udp</c> entry point.
+    /// </remarks>
     public class DnsServiceDiscovery {
         /// <summary>
         /// Gets or sets the full service name returned in the PTR record,

@@ -5,6 +5,9 @@ namespace DnsClientX;
 /// <summary>
 /// Internal logger that allows writing diagnostic information to various sinks.
 /// </summary>
+/// <remarks>
+/// The logger is used internally by <see cref="ClientX"/> and can be subscribed to for troubleshooting output.
+/// </remarks>
 public class InternalLogger {
     private readonly object _lock = new object();
 

@@ -2,9 +2,12 @@ using System;
 
 namespace DnsClientX {
     /// <summary>
-    /// Represents exceptions specific to DnsClientX. This exception provides additional context 
+    /// Represents exceptions specific to DnsClientX. This exception provides additional context
     /// by exposing the DNS response that caused the exception.
     /// </summary>
+    /// <remarks>
+    /// Thrown when an error occurs during resolution and the underlying response should be inspected.
+    /// </remarks>
     public class DnsClientException : Exception {
         /// <summary>
         /// Gets or sets the DNS response that caused this exception.

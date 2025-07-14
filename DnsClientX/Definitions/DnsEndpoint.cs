@@ -9,6 +9,10 @@ namespace DnsClientX {
     /// providers as well as system resolvers. DNS-over-HTTPS is defined in
     /// <a href="https://www.rfc-editor.org/rfc/rfc8484">RFC 8484</a>.
     /// </summary>
+    /// <remarks>
+    /// The values correlate with predefined settings that can be selected
+    /// via <see cref="ClientXBuilder"/> when instantiating <see cref="ClientX"/>.
+    /// </remarks>
     public enum DnsEndpoint {
         /// <summary>
         /// Use the system's default DNS resolver using UDP. When using this option, the system's default DNS resolver will be used.

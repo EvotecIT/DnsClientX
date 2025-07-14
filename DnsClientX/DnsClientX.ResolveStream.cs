@@ -7,6 +7,9 @@ namespace DnsClientX {
     /// <summary>
     /// Partial <see cref="ClientX"/> class providing streaming DNS resolution helpers.
     /// </summary>
+    /// <remarks>
+    /// Streaming allows large result sets to be processed without storing them all in memory.
+    /// </remarks>
     public partial class ClientX {
         /// <summary>
         /// Resolves multiple DNS record types for a single domain name and streams the responses.

@@ -2,6 +2,9 @@ namespace DnsClientX;
 /// <summary>
 /// Represents an SRV record specifying host and port for a service.
 /// </summary>
+/// <remarks>
+/// Defined in <a href="https://www.rfc-editor.org/rfc/rfc2782">RFC 2782</a>.
+/// </remarks>
 public sealed class SrvRecord {
     public ushort Priority { get; }
     public ushort Weight { get; }

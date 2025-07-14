@@ -4,6 +4,10 @@ namespace DnsClientX {
     /// See <a href="https://www.rfc-editor.org/rfc/rfc1035#section-4.1.1">RFC 1035 section 4.1.1</a>
     /// and <a href="https://www.rfc-editor.org/rfc/rfc6895">RFC 6895</a> for details.
     /// </summary>
+    /// <remarks>
+    /// This enumeration maps the numeric values returned in the DNS header's
+    /// <c>RCODE</c> field to friendly names.
+    /// </remarks>
     public enum DnsResponseCode : byte {
         /// <summary>
         /// The DNS query completed successfully.

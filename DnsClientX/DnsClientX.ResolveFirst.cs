@@ -9,6 +9,9 @@ namespace DnsClientX {
     /// <summary>
     /// Partial <see cref="ClientX"/> class with helpers for resolving first matching records.
     /// </summary>
+    /// <remarks>
+    /// These convenience methods return only the first answer for scenarios where only one result is expected.
+    /// </remarks>
     public partial class ClientX {
         /// <summary>
         /// Resolves a domain name using DNS over HTTPS and returns the first answer of the provided type.

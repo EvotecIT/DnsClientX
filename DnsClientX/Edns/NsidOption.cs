@@ -5,6 +5,9 @@ using System;
 /// <summary>
 /// Implements the NSID option defined in RFC 5001.
 /// </summary>
+/// <remarks>
+/// Servers may include the name server identifier in responses when this option is sent.
+/// </remarks>
 public sealed class NsidOption : EdnsOption {
     /// <summary>
     /// Initializes a new instance of the <see cref="NsidOption"/> class.

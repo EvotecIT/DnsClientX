@@ -3,6 +3,9 @@ namespace DnsClientX {
     /// Settings for the DnsClientX library.
     /// Provides interface for setting logging levels and number of threads to use.
     /// </summary>
+    /// <remarks>
+    /// Adjust these settings before issuing queries to control the verbosity of diagnostic information.
+    /// </remarks>
     public class Settings {
         /// <summary>
         /// The logger instance.

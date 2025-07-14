@@ -9,6 +9,9 @@ namespace DnsClientX {
     /// <summary>
     /// Partial <see cref="ClientX"/> class containing core DNS query logic.
     /// </summary>
+    /// <remarks>
+    /// Provides synchronous and asynchronous methods for performing DNS lookups.
+    /// </remarks>
     public partial class ClientX {
         /// <summary>
         /// Sends a DNS query for a specific record type to a DNS server.

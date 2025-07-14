@@ -2,6 +2,9 @@ namespace DnsClientX;
 /// <summary>
 /// Represents a TXT record containing one or more text strings.
 /// </summary>
+/// <remarks>
+/// TXT records are often used for miscellaneous domain metadata.
+/// </remarks>
 public sealed class TxtRecord {
     /// <summary>Gets the text strings.</summary>
     public string[] Text { get; }

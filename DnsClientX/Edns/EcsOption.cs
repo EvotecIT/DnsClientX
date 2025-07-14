@@ -8,6 +8,9 @@ using System.Net.Sockets;
 /// <summary>
 /// Implements the EDNS Client Subnet option (ECS) as defined in RFC 7871.
 /// </summary>
+/// <remarks>
+/// This option allows resolvers to tailor responses based on the network of the client.
+/// </remarks>
 public sealed class EcsOption : EdnsOption {
     /// <summary>
     /// Gets the subnet in CIDR notation.
