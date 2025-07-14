@@ -74,7 +74,7 @@ namespace DnsClientX {
             Exception lastException = null;
             for (int attempt = 1; attempt <= Math.Max(1, maxRetries); attempt++) {
                 try {
-                    var udpClient = new UdpClient(address.AddressFamily);
+                    using var udpClient = new UdpClient(address.AddressFamily);
                     var responseBuffer = await SendQueryOverUdp(udpClient, queryBytes, address, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
                     var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
