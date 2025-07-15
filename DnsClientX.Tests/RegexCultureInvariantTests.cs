@@ -51,5 +51,30 @@ namespace DnsClientX.Tests {
                 Thread.CurrentThread.CurrentCulture = original;
             }
         }
+
+        [Theory]
+        [InlineData("en-US")]
+        [InlineData("tr-TR")]
+        public void FilterAnswers_ConsistentAcrossCultures(string culture) {
+            var client = new ClientX();
+            MethodInfo method = typeof(ClientX).GetMethod("FilterAnswers", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var answers = new[] {
+                new DnsAnswer {
+                    Name = "example.com",
+                    Type = DnsRecordType.CNAME,
+                    TTL = 300,
+                    DataRaw = "EXAMPLEI.COM"
+                }
+            };
+
+            var original = Thread.CurrentThread.CurrentCulture;
+            try {
+                Thread.CurrentThread.CurrentCulture = new CultureInfo(culture);
+                var result = (DnsAnswer[])method.Invoke(client, new object[] { answers, "i.com", DnsRecordType.CNAME })!;
+                Assert.Single(result);
+            } finally {
+                Thread.CurrentThread.CurrentCulture = original;
+            }
+        }
     }
 }
