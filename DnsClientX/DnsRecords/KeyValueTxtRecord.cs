@@ -26,7 +26,7 @@ public sealed class KeyValueTxtRecord {
         var parts = record.Split(new[] { ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
         var tags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var part in parts) {
-            var kv = part.Split('=', 2);
+            var kv = part.Split(new[] { '=' }, 2);
             if (kv.Length != 2) {
                 return false;
             }

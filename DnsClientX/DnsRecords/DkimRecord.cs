@@ -26,7 +26,7 @@ public sealed class DkimRecord {
         var tags = record.Split(';')
             .Select(t => t.Trim())
             .Where(t => t.Length > 0)
-            .Select(t => t.Split('=', 2))
+            .Select(t => t.Split(new[] { '=' }, 2))
             .Where(parts => parts.Length >= 1)
             .ToDictionary(parts => parts[0], parts => parts.Length > 1 ? parts[1] : string.Empty, StringComparer.OrdinalIgnoreCase);
         result = new DkimRecord(tags);

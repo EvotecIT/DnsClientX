@@ -22,7 +22,7 @@ public sealed class SpfRecord {
         if (string.IsNullOrWhiteSpace(record) || !record.StartsWith("v=spf1", StringComparison.OrdinalIgnoreCase)) {
             return false;
         }
-        var mechanisms = record.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var mechanisms = record.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
         result = new SpfRecord(mechanisms);
         return true;
     }
