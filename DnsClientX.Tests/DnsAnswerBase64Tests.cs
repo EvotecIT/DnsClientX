@@ -1,8 +1,14 @@
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Unit tests for base64 parsing of <see cref="DnsAnswer"/> data.
+    /// </summary>
     public class DnsAnswerBase64Tests {
         [Fact]
+        /// <summary>
+        /// Ensures conversion returns an empty string when no raw data is provided.
+        /// </summary>
         public void ConvertData_TlsaEmptyDataRaw_ReturnsEmpty() {
             var answer = new DnsAnswer {
                 Name = "example.com",

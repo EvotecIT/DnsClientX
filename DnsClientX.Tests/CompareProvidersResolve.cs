@@ -1,6 +1,9 @@
 using Xunit.Abstractions;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests that compare DNS responses between multiple providers.
+    /// </summary>
     public class CompareProvidersResolve(ITestOutputHelper output) {
         /// <summary>
         /// Compares DNS answers returned by various providers.
@@ -35,6 +38,8 @@ namespace DnsClientX.Tests {
 
         [InlineData("google.com", DnsRecordType.MX, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         /// <summary>
+        /// Performs a comparison of DNS responses across multiple providers.
+        /// </summary>
         [InlineData("108.138.7.68", DnsRecordType.PTR, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("sip2sip.info", DnsRecordType.NAPTR, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         public async Task CompareRecordsImproved(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
@@ -199,8 +204,11 @@ namespace DnsClientX.Tests {
 
         [InlineData("google.com", DnsRecordType.MX)]
         [InlineData("1.1.1.1", DnsRecordType.PTR)]
-[InlineData("108.138.7.68", DnsRecordType.PTR)]
-[InlineData("sip2sip.info", DnsRecordType.NAPTR)]
+        [InlineData("108.138.7.68", DnsRecordType.PTR)]
+        [InlineData("sip2sip.info", DnsRecordType.NAPTR)]
+        /// <summary>
+        /// Legacy implementation used to compare responses between providers.
+        /// </summary>
         public async Task CompareRecords(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 

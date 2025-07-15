@@ -1,8 +1,14 @@
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for the lightweight <see cref="DnsAnswerMinimal"/> structure.
+    /// </summary>
     public class DnsAnswerMinimalTests {
         [Fact]
+        /// <summary>
+        /// Verifies that explicit conversion from <see cref="DnsAnswer"/> copies all fields.
+        /// </summary>
         public void ExplicitConversionCopiesFields() {
             var answer = new DnsAnswer {
                 Name = "example.com",
@@ -20,6 +26,9 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
+        /// <summary>
+        /// Checks that converting an array of <see cref="DnsAnswer"/> objects to <see cref="DnsAnswerMinimal"/> produces matching elements.
+        /// </summary>
         public void ConvertFromDnsAnswerArrayConvertsAll() {
             var answers = new[] {
                 new DnsAnswer { Name = "a.com", Type = DnsRecordType.A, TTL = 60, DataRaw = "1.1.1.1" },

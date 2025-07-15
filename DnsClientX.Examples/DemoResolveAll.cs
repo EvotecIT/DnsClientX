@@ -69,6 +69,9 @@ namespace DnsClientX.Examples {
             }
         }
 
+        /// <summary>
+        /// Executes a simplified resolve-all example against a single endpoint.
+        /// </summary>
         public static async Task Example2() {
             var dnsEndpoints = new List<DnsEndpoint> {
                 DnsEndpoint.Cloudflare,

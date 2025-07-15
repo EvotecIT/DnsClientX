@@ -38,6 +38,9 @@ namespace DnsClientX.Tests {
 #endif
 
         [Fact]
+        /// <summary>
+        /// Ensures that calling <see cref="ClientX.Dispose"/> does not dispose the underlying <see cref="HttpClient"/> twice.
+        /// </summary>
         public void Client_Dispose_ShouldNotDisposeHttpClientTwice() {
             var handler = new TrackingHandler();
             var customClient = new HttpClient(handler, disposeHandler: false) { BaseAddress = new Uri("https://example.com") };
@@ -58,6 +61,9 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
+        /// <summary>
+        /// Verifies that disposing <see cref="ClientX"/> does not dispose the HTTP handler multiple times.
+        /// </summary>
         public void Client_Dispose_ShouldNotDisposeHandlerTwice() {
             var handler = new TrackingHandler();
             var customClient = new HttpClient(handler) { BaseAddress = new Uri("https://example.com") };
@@ -77,6 +83,9 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
+        /// <summary>
+        /// Ensures the asynchronous dispose method does not dispose the <see cref="HttpClient"/> twice.
+        /// </summary>
         public async Task Client_DisposeAsync_ShouldNotDisposeHttpClientTwice() {
             var handler = new TrackingHandler();
             var customClient = new HttpClient(handler) { BaseAddress = new Uri("https://example.com") };
@@ -94,6 +103,9 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
+        /// <summary>
+        /// Checks that <see cref="ClientX.DisposeAsync"/> does not dispose the HTTP handler more than once.
+        /// </summary>
         public async Task Client_DisposeAsync_ShouldNotDisposeHandlerTwice() {
             var handler = new TrackingHandler();
             var customClient = new HttpClient(handler) { BaseAddress = new Uri("https://example.com") };
@@ -113,6 +125,9 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
+        /// <summary>
+        /// Ensures that concurrent calls to <see cref="ClientX.Dispose"/> only dispose once.
+        /// </summary>
         public async Task Client_Dispose_CalledConcurrently_ShouldOnlyDisposeOnce() {
             var handler = new TrackingHandler();
             var customClient = new HttpClient(handler) { BaseAddress = new Uri("https://example.com") };
@@ -134,6 +149,9 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
+        /// <summary>
+        /// Ensures concurrent invocations of <see cref="ClientX.DisposeAsync"/> only dispose once.
+        /// </summary>
         public async Task Client_DisposeAsync_CalledConcurrently_ShouldOnlyDisposeOnce() {
             var handler = new TrackingHandler();
             var customClient = new HttpClient(handler) { BaseAddress = new Uri("https://example.com") };
@@ -155,6 +173,9 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
+        /// <summary>
+        /// Validates that the disposal counter is incremented when <see cref="ClientX.DisposeAsync"/> is called.
+        /// </summary>
         public async Task Client_DisposeAsync_ShouldIncrementDisposalCount() {
             ClientX.DisposalCount = 0;
             await using var clientX = new ClientX("example.com", DnsRequestFormat.DnsOverHttps);
@@ -166,6 +187,9 @@ namespace DnsClientX.Tests {
 
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
         [Fact]
+        /// <summary>
+        /// Tests that asynchronous disposal prefers calling <see cref="IAsyncDisposable.DisposeAsync"/> on the handler when available.
+        /// </summary>
         public async Task Client_DisposeAsync_ShouldPreferAsyncHandlerDisposal() {
             var handler = new TrackingAsyncHandler();
             var customClient = new HttpClient(handler, disposeHandler: false) { BaseAddress = new Uri("https://example.com") };
@@ -187,6 +211,9 @@ namespace DnsClientX.Tests {
 #endif
 
         [Fact]
+        /// <summary>
+        /// Ensures the list tracking disposed clients is cleared upon disposal.
+        /// </summary>
         public void Client_Dispose_ShouldClearDisposedClientsList() {
             var clientX = new ClientX("example.com", DnsRequestFormat.DnsOverHttps);
 
