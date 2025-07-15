@@ -7,7 +7,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests related to the audit trail functionality of <see cref="ClientX"/>.
+    /// </summary>
     public class AuditTrailTests {
+        /// <summary>
+        /// Ensures that no audit entries are created when auditing is disabled.
+        /// </summary>
         [Fact]
         public async Task ShouldNotRecordWhenDisabled() {
             using var client = new ClientX();
@@ -15,6 +21,9 @@ namespace DnsClientX.Tests {
             Assert.Empty(client.AuditTrail);
         }
 
+        /// <summary>
+        /// Ensures that responses are recorded when auditing is enabled.
+        /// </summary>
         [Fact]
         public async Task ShouldRecordResponseWhenEnabled() {
             using var client = new ClientX { EnableAudit = true };
@@ -33,6 +42,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Ensures that exceptions are captured in the audit trail.
+        /// </summary>
         [Fact]
         public async Task ShouldRecordException() {
             var handler = new ThrowingHandler();

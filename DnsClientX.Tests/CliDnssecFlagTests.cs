@@ -9,6 +9,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for CLI options that control DNSSEC flags on outbound queries.
+    /// </summary>
     [Collection("NoParallel")]
     public class CliDnssecFlagTests {
         private static byte[] CreateDnsHeader() {
@@ -55,6 +58,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(0x00008010u, ttl);
         }
 
+        /// <summary>
+        /// Running the CLI with <c>--dnssec</c> and <c>--validate-dnssec</c> should set the DO and CD bits.
+        /// </summary>
         [Fact]
         public async Task Cli_ShouldSetDoAndCdBits_WhenDnssecValidationEnabled() {
             if (!CanBindPort(53)) {

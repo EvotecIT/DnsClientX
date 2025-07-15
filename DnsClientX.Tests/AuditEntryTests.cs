@@ -2,7 +2,13 @@ using System;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Unit tests for <see cref="AuditEntry"/>.
+    /// </summary>
     public class AuditEntryTests {
+        /// <summary>
+        /// Verifies that the constructor correctly initializes all properties.
+        /// </summary>
         [Fact]
         public void Constructor_SetsProperties() {
             var entry = new AuditEntry("example.com", DnsRecordType.A);

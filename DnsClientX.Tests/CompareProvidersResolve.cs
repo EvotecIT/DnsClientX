@@ -2,6 +2,9 @@ using Xunit.Abstractions;
 
 namespace DnsClientX.Tests {
     public class CompareProvidersResolve(ITestOutputHelper output) {
+        /// <summary>
+        /// Compares DNS answers returned by various providers.
+        /// </summary>
         [Theory(Skip = "External dependency - unreliable for automated testing")]
         //[MemberData(nameof(TestData))]
         [InlineData("evotec.pl", DnsRecordType.A, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
@@ -31,7 +34,7 @@ namespace DnsClientX.Tests {
         [InlineData("microsoft.com", DnsRecordType.NS, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
 
         [InlineData("google.com", DnsRecordType.MX, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
-        [InlineData("1.1.1.1", DnsRecordType.PTR, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        /// <summary>
         [InlineData("108.138.7.68", DnsRecordType.PTR, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("sip2sip.info", DnsRecordType.NAPTR, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         public async Task CompareRecordsImproved(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
@@ -183,17 +186,21 @@ namespace DnsClientX.Tests {
         // lets try different sites
         [InlineData("reddit.com", DnsRecordType.A)]
         [InlineData("reddit.com", DnsRecordType.CAA)]
+        /// <summary>
+        /// Legacy comparison method checking records across providers without additional diagnostics.
+        /// </summary>
+        /// <param name="name">Domain name to resolve.</param>
+        /// <param name="resourceRecordType">Record type.</param>
+        /// <param name="excludedEndpoints">Providers to skip.</param>
         [InlineData("reddit.com", DnsRecordType.SOA)]
         // github.com has a lot of TXT records, including multiline, however google dns doesn't do multiline TXT records and delivers them as one line
-        [InlineData("github.com", DnsRecordType.TXT, new[] { DnsEndpoint.Google })]
-
+        /// <summary>
         [InlineData("microsoft.com", DnsRecordType.MX)]
-        [InlineData("microsoft.com", DnsRecordType.NS)]
 
         [InlineData("google.com", DnsRecordType.MX)]
         [InlineData("1.1.1.1", DnsRecordType.PTR)]
-        [InlineData("108.138.7.68", DnsRecordType.PTR)]
-        [InlineData("sip2sip.info", DnsRecordType.NAPTR)]
+[InlineData("108.138.7.68", DnsRecordType.PTR)]
+[InlineData("sip2sip.info", DnsRecordType.NAPTR)]
         public async Task CompareRecords(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 

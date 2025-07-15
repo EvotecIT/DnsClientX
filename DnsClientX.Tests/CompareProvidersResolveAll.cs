@@ -1,7 +1,16 @@
 using Xunit.Abstractions;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Compares <see cref="ClientX.ResolveAll(string,DnsRecordType,bool,bool,bool,bool,int,int,System.Threading.CancellationToken)"/> results across providers.
+    /// </summary>
     public class CompareProviders(ITestOutputHelper output) {
+        /// <summary>
+        /// Performs a ResolveAll comparison across various providers.
+        /// </summary>
+        /// <param name="name">Domain name to resolve.</param>
+        /// <param name="resourceRecordType">Type of record.</param>
+        /// <param name="excludedEndpoints">Optional providers to skip.</param>
         [Theory(Skip = "External dependency - unreliable for automated testing")]
         [InlineData("evotec.pl", DnsRecordType.A, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("evotec.pl", DnsRecordType.SOA, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
@@ -15,20 +24,15 @@ namespace DnsClientX.Tests {
         [InlineData("evotec.pl", DnsRecordType.SPF, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("evotec.pl", DnsRecordType.TXT, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("evotec.pl", DnsRecordType.SRV, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
-        // for some reason OpenDNS doesn't support SRV record output in NSEC record
         [InlineData("evotec.pl", DnsRecordType.NSEC, new[] { DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily, DnsEndpoint.Google })]
         [InlineData("cloudflare.com", DnsRecordType.NSEC, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("mail-db3pr0202cu00100.inbound.protection.outlook.com", DnsRecordType.PTR, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
-        // lets try different sites
         [InlineData("reddit.com", DnsRecordType.A, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("reddit.com", DnsRecordType.CAA, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("reddit.com", DnsRecordType.SOA, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
-        // github.com has a lot of TXT records, including multiline, however google dns doesn't do multiline TXT records and delivers them as one line
         [InlineData("github.com", DnsRecordType.TXT, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
-
         [InlineData("microsoft.com", DnsRecordType.MX, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("microsoft.com", DnsRecordType.NS, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
-
         [InlineData("google.com", DnsRecordType.MX, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("_25._tcp.mail.ietf.org", DnsRecordType.TLSA, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         public async Task CompareRecordsImproved(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {

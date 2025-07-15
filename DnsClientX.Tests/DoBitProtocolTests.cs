@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests verifying that the DO bit is set appropriately across protocols.
+    /// </summary>
     public class DoBitProtocolTests {
         private static void AssertDoBit(byte[] query, string name) {
             int additionalCount = (query[10] << 8) | query[11];
@@ -24,6 +27,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(0x00008000u, ttl);
         }
 
+        /// <summary>
+        /// DNS over TLS requests should set the DO bit when requested.
+        /// </summary>
         [Fact]
         public void DotRequest_ShouldIncludeDoBit_WhenRequested() {
             var message = new DnsMessage("example.com", DnsRecordType.A, true);
@@ -55,6 +61,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// DOH requests should include the DO bit when enabled.
+        /// </summary>
         [Fact]
         public async Task DohRequest_ShouldIncludeDoBit_WhenRequested() {
             var handler = new Http2Handler();
@@ -78,6 +87,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// DOH3 requests should include the DO bit when enabled.
+        /// </summary>
         [Fact]
         public async Task Doh3Request_ShouldIncludeDoBit_WhenRequested() {
             var handler = new Http3Handler();
@@ -90,6 +102,9 @@ namespace DnsClientX.Tests {
         }
 #endif
 
+        /// <summary>
+        /// DOQ requests should include the DO bit when enabled.
+        /// </summary>
         [Fact]
         public void DoqRequest_ShouldIncludeDoBit_WhenRequested() {
             var message = new DnsMessage("example.com", DnsRecordType.A, true);

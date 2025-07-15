@@ -4,7 +4,16 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Compares provider results when using <see cref="ClientX.ResolveFilter"/>.
+    /// </summary>
     public class CompareProvidersResolveFilter(ITestOutputHelper output) {
+        /// <summary>
+        /// Performs a filtered resolve across providers and compares outcomes.
+        /// </summary>
+        /// <param name="name">Domain name to query.</param>
+        /// <param name="resourceRecordType">Record type.</param>
+        /// <param name="excludedEndpoints">Optional providers to exclude.</param>
         [Theory(Skip = "External dependency - unreliable for automated testing")]
         [InlineData("evotec.pl", DnsRecordType.TXT, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("microsoft.com", DnsRecordType.TXT, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]

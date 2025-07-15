@@ -2,7 +2,13 @@ using System;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Unit tests for <see cref="Configuration"/>.
+    /// </summary>
     public class ConfigurationTests {
+        /// <summary>
+        /// Constructing from a hostname should populate base URI and port.
+        /// </summary>
         [Fact]
         public void ShouldCreateConfigurationFromHostname() {
             var config = new Configuration("1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON);
@@ -10,6 +16,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(443, config.Port);
         }
 
+        /// <summary>
+        /// Hostname is required when creating a custom configuration.
+        /// </summary>
         [Theory]
         [InlineData(null)]
         [InlineData("")]
@@ -18,6 +27,9 @@ namespace DnsClientX.Tests {
             Assert.Throws<ArgumentException>(() => new Configuration(hostname!, DnsRequestFormat.DnsOverHttpsJSON));
         }
 
+        /// <summary>
+        /// Changing the request format should update the default port.
+        /// </summary>
         [Fact]
         public void ShouldUpdatePortWhenFormatChanges() {
             var config = new Configuration("1.1.1.1", DnsRequestFormat.DnsOverHttps);
