@@ -196,6 +196,9 @@ namespace DnsClientX.PowerShell {
             if (TimeOut <= 0) {
                 throw new ArgumentOutOfRangeException(nameof(TimeOut), "TimeOut must be greater than zero.");
             }
+            if (AllServers.IsPresent && Server.Count == 0) {
+                throw new InvalidOperationException("AllServers requires at least one server.");
+            }
             var namesToUse = Pattern is null ? Name : ClientX.ExpandPattern(Pattern).ToArray();
             string names = string.Join(", ", namesToUse);
             string types = string.Join(", ", Type);
