@@ -6,7 +6,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests that sockets are properly disposed when connection attempts time out.
+    /// </summary>
     public class ConnectTimeoutDisposalTests {
+        /// <summary>
+        /// <see cref="ClientX"/> should dispose the socket when <c>ConnectAsync</c> exceeds the timeout.
+        /// </summary>
         [Fact]
         public async Task ConnectAsync_ShouldDisposeSocketOnTimeout() {
             MethodInfo method = typeof(ClientX).GetMethod("ConnectAsync", BindingFlags.NonPublic | BindingFlags.Static)!;

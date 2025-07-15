@@ -3,7 +3,13 @@ using System.IO;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for the <see cref="BindFileParser"/> helper.
+    /// </summary>
     public class BindFileParserTests {
+        /// <summary>
+        /// Ensures that zone files are parsed and default values are applied.
+        /// </summary>
         [Fact]
         public void ParseZoneFile_ReadsRecordsAndAppliesDefaults() {
             string file = Path.GetTempFileName();
@@ -27,6 +33,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("example.com.", records[1].DataRaw);
         }
 
+        /// <summary>
+        /// Verifies that multiline TXT records are combined into a single value.
+        /// </summary>
         [Fact]
         public void ParseZoneFile_CombinesMultiLineTxtRecords() {
             string file = Path.GetTempFileName();
@@ -42,6 +51,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("line1 line2", records[0].DataRaw);
         }
 
+        /// <summary>
+        /// Ensures that escaped newlines in TXT records are converted to actual newline characters.
+        /// </summary>
         [Fact]
         public void ParseZoneFile_ReplacesEscapedNewlinesInTxtRecords() {
             string file = Path.GetTempFileName();
@@ -56,6 +68,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("line1\nline2", records[0].DataRaw);
         }
 
+        /// <summary>
+        /// Confirms that TTL suffixes such as <c>h</c> and <c>m</c> are correctly parsed.
+        /// </summary>
         [Fact]
         public void ParseZoneFile_ParsesTtlSuffixes() {
             string file = Path.GetTempFileName();
@@ -74,6 +89,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(7200, records[2].TTL);
         }
 
+        /// <summary>
+        /// Verifies that parenthesized records are joined together across lines.
+        /// </summary>
         [Fact]
         public void ParseZoneFile_JoinsParenthesizedRecords() {
             string file = Path.GetTempFileName();
@@ -93,6 +111,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("ns.example.com. admin.example.com. 2024010101 7200 3600 1209600 3600", records[0].DataRaw);
         }
 
+        /// <summary>
+        /// Ensures that a warning is produced when a negative TTL directive is encountered.
+        /// </summary>
         [Fact]
         public void ParseZoneFile_WarnsOnNegativeTtlDirective() {
             string file = Path.GetTempFileName();

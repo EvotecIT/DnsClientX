@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests verifying cancellation behavior during DNS queries.
+    /// </summary>
     public class CancellationTests {
         private class DelayingHandler : HttpMessageHandler {
             protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
@@ -17,6 +20,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Ensures that <see cref="ClientX.Resolve(string,DnsRecordType,bool,bool,bool,bool,int,int,CancellationToken)"/> respects early cancellation.
+        /// </summary>
         [Fact]
         public async Task ResolveShouldCancelEarly() {
             var handler = new DelayingHandler();
@@ -33,6 +39,9 @@ namespace DnsClientX.Tests {
             await Assert.ThrowsAsync<TaskCanceledException>(() => clientX.Resolve("example.com", DnsRecordType.A, cancellationToken: cts.Token));
         }
 
+        /// <summary>
+        /// Verifies that <see cref="ClientX.QueryDns(string,DnsRecordType,DnsEndpoint,DnsSelectionStrategy,int,bool,int,int,bool,bool,bool,CancellationToken)"/> throws when the token is already cancelled.
+        /// </summary>
         [Fact]
         public async Task QueryDnsShouldCancelEarly() {
             using var cts = new CancellationTokenSource();
@@ -40,6 +49,9 @@ namespace DnsClientX.Tests {
             await Assert.ThrowsAsync<TaskCanceledException>(() => ClientX.QueryDns("example.com", DnsRecordType.A, cancellationToken: cts.Token));
         }
 
+        /// <summary>
+        /// Confirms that the overload accepting an array of names respects a cancelled token.
+        /// </summary>
         [Fact]
         public async Task QueryDns_ArrayNames_ShouldCancelEarly() {
             using var cts = new CancellationTokenSource();
@@ -49,6 +61,9 @@ namespace DnsClientX.Tests {
                 () => ClientX.QueryDns(new[] { "example.com" }, DnsRecordType.A, cancellationToken: cts.Token));
         }
 
+        /// <summary>
+        /// Confirms that the overload accepting an array of types respects a cancelled token.
+        /// </summary>
         [Fact]
         public async Task QueryDns_ArrayTypes_ShouldCancelEarly() {
             using var cts = new CancellationTokenSource();
@@ -58,6 +73,9 @@ namespace DnsClientX.Tests {
                 () => ClientX.QueryDns(new[] { "example.com" }, new[] { DnsRecordType.A }, cancellationToken: cts.Token));
         }
 
+        /// <summary>
+        /// Ensures the underlying client is disposed when cancellation occurs.
+        /// </summary>
         [Fact]
         public async Task QueryDns_ShouldDisposeClient_WhenCancelled() {
             ClientX.DisposalCount = 0;
@@ -69,6 +87,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(1, ClientX.DisposalCount);
         }
 
+        /// <summary>
+        /// Ensures that providing an already cancelled token results in an <see cref="OperationCanceledException"/>.
+        /// </summary>
         [Fact]
         public async Task Resolve_AlreadyCancelledToken_ShouldThrow() {
             using var client = new ClientX("1.1.1.1", DnsRequestFormat.DnsOverHttps);

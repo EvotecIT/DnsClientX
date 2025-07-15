@@ -5,8 +5,14 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests validation of command line arguments for the CLI application.
+    /// </summary>
     [Collection("NoParallel")]
     public class CliArgumentValidationTests {
+        /// <summary>
+        /// Running the CLI with an unknown option should display help and return an error code.
+        /// </summary>
         [Fact]
         public async Task UnknownOption_ShowsHelpAndReturnsError() {
             var assembly = Assembly.Load("DnsClientX.Cli");

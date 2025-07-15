@@ -1,10 +1,19 @@
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Compares results between JSON and wire-format endpoints.
+    /// </summary>
     public class CompareJsonWithDnsWire {
+
+        /// <summary>
+        /// Compares answers returned from two different endpoints for the same query.
+        /// </summary>
+        /// <param name="name">Domain to resolve.</param>
+        /// <param name="endpoint">Primary endpoint.</param>
+        /// <param name="endpointCompare">Endpoint to compare against.</param>
+        /// <param name="resourceRecordType">The record type to query.</param>
         [Theory(Skip = "External dependency - unreliable for automated testing")]
         [InlineData("evotec.pl", DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS, DnsRecordType.A)]
         [InlineData("reddit.com", DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS, DnsRecordType.A)]
-        // Removed www.example.com as it uses Akamai CDN which returns different IPs based on geographic location
-        // [InlineData("www.example.com", DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS, DnsRecordType.A)]
         [InlineData("evotec.pl", DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS, DnsRecordType.AAAA)]
         [InlineData("www.microsoft.com", DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS, DnsRecordType.CNAME)]
         public async Task CompareAnswersRecord(string name, DnsEndpoint endpoint, DnsEndpoint endpointCompare, DnsRecordType resourceRecordType) {

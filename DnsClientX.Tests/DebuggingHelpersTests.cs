@@ -3,6 +3,9 @@ using System.Reflection;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for helper methods used when debugging DNS wire traffic.
+    /// </summary>
     public class DebuggingHelpersTests {
         private class CapturingLogger : InternalLogger {
             public string? LastMessage { get; private set; }
@@ -21,6 +24,9 @@ namespace DnsClientX.Tests {
             field.SetValue(null, logger);
         }
 
+        /// <summary>
+        /// Verifies that <see cref="DebuggingHelpers.TroubleshootingDnsWire2"/> reads two bytes and logs them.
+        /// </summary>
         [Fact]
         public void TroubleshootingDnsWire2_ReadsValueAndLogs() {
             var logger = new CapturingLogger();
@@ -33,6 +39,9 @@ namespace DnsClientX.Tests {
             Assert.Contains("01-02", logger.LastMessage);
         }
 
+        /// <summary>
+        /// Verifies that <see cref="DebuggingHelpers.TroubleshootingDnsWire4"/> reads four bytes and logs them.
+        /// </summary>
         [Fact]
         public void TroubleshootingDnsWire4_ReadsValueAndLogs() {
             var logger = new CapturingLogger();

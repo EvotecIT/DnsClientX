@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests that verify the behavior of the Checking Disabled (CD) bit.
+    /// </summary>
     public class CdBitTests {
         private static byte[] CreateDnsHeader() {
             byte[] bytes = new byte[12];
@@ -70,6 +73,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(expectedTtl, ttl);
         }
 
+        /// <summary>
+        /// Ensures UDP queries set the CD bit when <see cref="Configuration.CheckingDisabled"/> is true.
+        /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldIncludeCdBit_WhenConfigured() {
             int port = GetFreePort();
@@ -87,6 +93,9 @@ namespace DnsClientX.Tests {
             AssertCdBit(query, "example.com", 0x10u);
         }
 
+        /// <summary>
+        /// Ensures TCP queries set the CD bit when <see cref="Configuration.CheckingDisabled"/> is true.
+        /// </summary>
         [Fact]
         public async Task TcpRequest_ShouldIncludeCdBit_WhenConfigured() {
             int port = GetFreePort();
@@ -104,6 +113,9 @@ namespace DnsClientX.Tests {
             AssertCdBit(query, "example.com", 0x10u);
         }
 
+        /// <summary>
+        /// When DNSSEC validation is requested, the CD bit must also be set.
+        /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldIncludeCdBit_WhenValidateDnsSecTrue() {
             int port = GetFreePort();
@@ -121,6 +133,9 @@ namespace DnsClientX.Tests {
             AssertCdBit(query, "example.com", 0x10u);
         }
 
+        /// <summary>
+        /// Ensures DOT requests include the CD bit when configured.
+        /// </summary>
         [Fact]
         public void DotRequest_ShouldIncludeCdBit_WhenConfigured() {
             var message = new DnsMessage("example.com", DnsRecordType.A, false, true, 4096, null, true, null);
@@ -128,6 +143,9 @@ namespace DnsClientX.Tests {
             AssertCdBit(data, "example.com", 0x10u);
         }
 
+        /// <summary>
+        /// Ensures DOQ requests include the CD bit when configured.
+        /// </summary>
         [Fact]
         public void DoqRequest_ShouldIncludeCdBit_WhenConfigured() {
             var message = new DnsMessage("example.com", DnsRecordType.A, false, true, 4096, null, true, null);

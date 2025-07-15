@@ -5,7 +5,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for service discovery using DNS-SD records.
+    /// </summary>
     public class DiscoverServicesTests {
+        /// <summary>
+        /// Ensures that PTR, SRV and TXT responses are combined into a service record.
+        /// </summary>
         [Fact]
         public async Task ShouldParseResponses() {
             var ptrResponse = new DnsResponse {
