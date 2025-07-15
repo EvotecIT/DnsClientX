@@ -10,7 +10,7 @@ namespace DnsClientX {
     /// </summary>
     internal static class DnsWireUpdateTcp {
         private static async Task<byte[]> SendMessageOverTcp(byte[] message, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
-            var tcpClient = new TcpClient();
+            using TcpClient tcpClient = DnsWireResolveTcp.TcpClientFactory();
             NetworkStream? stream = null;
             try {
                 await ConnectAsync(tcpClient, dnsServer, port, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
@@ -32,8 +32,6 @@ namespace DnsClientX {
 #else
                 stream?.Dispose();
 #endif
-                tcpClient.Close();
-                tcpClient.Dispose();
             }
         }
 

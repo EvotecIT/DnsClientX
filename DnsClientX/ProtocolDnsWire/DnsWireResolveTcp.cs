@@ -7,6 +7,7 @@ using System.Threading;
 
 namespace DnsClientX {
     internal class DnsWireResolveTcp {
+        internal static Func<TcpClient> TcpClientFactory { get; set; } = () => new TcpClient();
         /// <summary>
         /// Sends a DNS query in wire format using DNS over TCP (53) and returns the response.
         /// </summary>
@@ -97,7 +98,7 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>Raw DNS response bytes.</returns>
         private static async Task<byte[]> SendQueryOverTcp(byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
-            var tcpClient = new TcpClient();
+            using var tcpClient = TcpClientFactory();
             NetworkStream? stream = null;
             try {
                 // Connect to the server with timeout
@@ -158,8 +159,6 @@ namespace DnsClientX {
 #else
                 stream?.Dispose();
 #endif
-                tcpClient.Close();
-                tcpClient.Dispose();
             }
         }
 

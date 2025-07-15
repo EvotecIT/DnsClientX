@@ -149,11 +149,10 @@ namespace DnsClientX {
             bool debug,
             Configuration configuration,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
-            TcpClient tcpClient = new();
+            using TcpClient tcpClient = DnsWireResolveTcp.TcpClientFactory();
+            await ConnectAsync(tcpClient, dnsServer, port, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
+            NetworkStream stream = tcpClient.GetStream();
             try {
-                await ConnectAsync(tcpClient, dnsServer, port, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
-                NetworkStream stream = tcpClient.GetStream();
-                try {
                     var lengthBytes = BitConverter.GetBytes((ushort)query.Length);
                     if (BitConverter.IsLittleEndian) {
                         Array.Reverse(lengthBytes);
@@ -268,10 +267,6 @@ namespace DnsClientX {
                     stream.Close();
                     stream.Dispose();
                 }
-            } finally {
-                tcpClient.Close();
-                tcpClient.Dispose();
-            }
         }
 
         private static async Task ReadExactWithTimeoutAsync(NetworkStream stream, byte[] buffer, int offset, int count, int timeoutMilliseconds, CancellationToken cancellationToken) {
