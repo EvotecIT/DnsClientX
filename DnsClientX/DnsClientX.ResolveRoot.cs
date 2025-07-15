@@ -16,11 +16,12 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="name">Domain name to resolve.</param>
         /// <param name="type">Record type to resolve.</param>
+        /// <param name="maxRetries">Maximum referral retries.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
-        public async Task<DnsResponse> ResolveFromRoot(string name, DnsRecordType type = DnsRecordType.A, CancellationToken cancellationToken = default) {
+        public async Task<DnsResponse> ResolveFromRoot(string name, DnsRecordType type = DnsRecordType.A, int maxRetries = 10, CancellationToken cancellationToken = default) {
             var servers = RootServers.Servers.ToArray();
             DnsResponse lastResponse = new();
-            for (var depth = 0; depth < 10; depth++) {
+            for (var depth = 0; depth < maxRetries; depth++) {
                 foreach (var server in servers) {
                     var host = server.TrimEnd('.');
                     var cfg = new Configuration(host, DnsRequestFormat.DnsOverUDP) { UseTcpFallback = true };
@@ -45,7 +46,7 @@ namespace DnsClientX {
                 if (ns == null) {
                     return lastResponse;
                 }
-                var nsResponse = await ResolveFromRoot(ns, DnsRecordType.A, cancellationToken).ConfigureAwait(false);
+                var nsResponse = await ResolveFromRoot(ns, DnsRecordType.A, maxRetries, cancellationToken).ConfigureAwait(false);
                 servers = nsResponse.Answers?.Select(a => a.Data.TrimEnd('.')).ToArray() ?? RootServers.Servers;
             }
             return lastResponse;
