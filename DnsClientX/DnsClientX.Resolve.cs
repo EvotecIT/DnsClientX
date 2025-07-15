@@ -42,6 +42,7 @@ namespace DnsClientX {
             int maxRetries = 3,
             int retryDelayMs = 100,
             bool typedRecords = false,
+            bool typedTxtAsTxt = false,
             CancellationToken cancellationToken = default) {
             if (retryOnTransient) {
                 try {
@@ -50,7 +51,7 @@ namespace DnsClientX {
                         : null;
 
                     return await RetryAsync(
-                        () => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, cancellationToken),
+                        () => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, typedTxtAsTxt, cancellationToken),
                         maxRetries,
                         retryDelayMs,
                         beforeRetry,
@@ -60,11 +61,11 @@ namespace DnsClientX {
                     return ex.Response;
                 }
             } else {
-                return await ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, cancellationToken).ConfigureAwait(false);
+                return await ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, typedTxtAsTxt, cancellationToken).ConfigureAwait(false);
             }
         }
 
-        private async Task<DnsResponse> ResolveInternal(string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool returnAllTypes, int maxRetries, int retryDelayMs, bool typedRecords, CancellationToken cancellationToken) {
+        private async Task<DnsResponse> ResolveInternal(string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool returnAllTypes, int maxRetries, int retryDelayMs, bool typedRecords, bool typedTxtAsTxt, CancellationToken cancellationToken) {
             cancellationToken.ThrowIfCancellationRequested();
 
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
@@ -157,7 +158,7 @@ namespace DnsClientX {
 
             if (typedRecords && response.Answers != null) {
                 response.TypedAnswers = response.Answers
-                    .Select(a => DnsRecordFactory.Create(a))
+                    .Select(a => DnsRecordFactory.Create(a, typedTxtAsTxt))
                     .Where(o => o != null)
                     .ToArray()!;
             }
@@ -455,8 +456,8 @@ namespace DnsClientX {
         /// <returns>The DNS response.</returns>
         /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
-        public DnsResponse ResolveSync(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, bool typedRecords = false) {
-            return Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords).RunSync();
+        public DnsResponse ResolveSync(string name, DnsRecordType type = DnsRecordType.A, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, bool typedRecords = false, bool typedTxtAsTxt = false) {
+            return Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, typedTxtAsTxt).RunSync();
         }
 
         /// <summary>
@@ -474,10 +475,10 @@ namespace DnsClientX {
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of DNS responses.</returns>
         /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
-        public async Task<DnsResponse[]> Resolve(string name, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool typedRecords = false, CancellationToken cancellationToken = default) {
+        public async Task<DnsResponse[]> Resolve(string name, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool typedRecords = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
             Task<DnsResponse>[] tasks = new Task<DnsResponse>[types.Length];
             for (int i = 0; i < tasks.Length; i++) {
-                tasks[i] = Resolve(name, types[i], requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, cancellationToken);
+                tasks[i] = Resolve(name, types[i], requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, typedTxtAsTxt, cancellationToken);
             }
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
@@ -505,8 +506,8 @@ namespace DnsClientX {
         /// <returns>An array of DNS responses.</returns>
         /// <exception cref="DnsClientException">Thrown when an invalid RequestFormat is provided.</exception>
         /// <exception cref="ArgumentNullException">Thrown when the provided name is null or empty.</exception>
-        public DnsResponse[] ResolveSync(string name, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool typedRecords = false) {
-            return Resolve(name, types, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords).RunSync();
+        public DnsResponse[] ResolveSync(string name, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool typedRecords = false, bool typedTxtAsTxt = false) {
+            return Resolve(name, types, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, typedTxtAsTxt).RunSync();
         }
 
         /// <summary>
@@ -522,12 +523,12 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of DNS responses.</returns>
-        public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool typedRecords = false, CancellationToken cancellationToken = default) {
+        public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool typedRecords = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
             var tasks = new List<Task<DnsResponse>>();
 
             foreach (var name in names) {
                 foreach (var type in types) {
-                    tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, cancellationToken));
+                    tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, typedTxtAsTxt, cancellationToken));
                 }
             }
 
@@ -548,8 +549,8 @@ namespace DnsClientX {
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>An array of DNS responses.</returns>
-        public DnsResponse[] ResolveSync(string[] names, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool typedRecords = false) {
-            return Resolve(names, types, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords).RunSync();
+        public DnsResponse[] ResolveSync(string[] names, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool typedRecords = false, bool typedTxtAsTxt = false) {
+            return Resolve(names, types, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, typedTxtAsTxt).RunSync();
         }
 
         /// <summary>
@@ -565,11 +566,11 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>The array of DNS responses from all queries.</returns>
-        public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool typedRecords = false, CancellationToken cancellationToken = default) {
+        public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool typedRecords = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
             var tasks = new List<Task<DnsResponse>>();
 
             foreach (var name in names) {
-                tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, cancellationToken));
+                tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, typedTxtAsTxt, cancellationToken));
             }
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
@@ -589,8 +590,8 @@ namespace DnsClientX {
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <returns>An array of DNS responses.</returns>
-        public DnsResponse[] ResolveSync(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool typedRecords = false) {
-            return Resolve(names, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords).RunSync();
+        public DnsResponse[] ResolveSync(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool typedRecords = false, bool typedTxtAsTxt = false) {
+            return Resolve(names, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, typedTxtAsTxt).RunSync();
         }
 
         /// <summary>
@@ -618,9 +619,10 @@ namespace DnsClientX {
             int maxRetries = 3,
             int retryDelayMs = 200,
             bool typedRecords = false,
+            bool typedTxtAsTxt = false,
             CancellationToken cancellationToken = default) {
             string[] names = ExpandPattern(pattern).ToArray();
-            return await Resolve(names, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, cancellationToken).ConfigureAwait(false);
+            return await Resolve(names, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, typedTxtAsTxt, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

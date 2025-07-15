@@ -95,5 +95,47 @@ namespace DnsClientX.Tests {
             Assert.Equal(10000d, typed.HorizontalPrecisionMeters);
             Assert.Equal(10d, typed.VerticalPrecisionMeters);
         }
+
+        [Fact]
+        public void Factory_Parses_Dmarc_Record() {
+            var ans = new DnsAnswer { Type = DnsRecordType.TXT, DataRaw = "v=DMARC1; p=none; rua=mailto:example@example.com" };
+            var typed = DnsRecordFactory.Create(ans) as DmarcRecord;
+            Assert.NotNull(typed);
+            Assert.Equal("DMARC1", typed.Tags["v"]);
+            Assert.Equal("none", typed.Tags["p"]);
+        }
+
+        [Fact]
+        public void Factory_Parses_Dkim_Record() {
+            var ans = new DnsAnswer { Type = DnsRecordType.TXT, DataRaw = "v=DKIM1; k=rsa; p=ABC" };
+            var typed = DnsRecordFactory.Create(ans) as DkimRecord;
+            Assert.NotNull(typed);
+            Assert.Equal("DKIM1", typed.Tags["v"]);
+            Assert.Equal("rsa", typed.Tags["k"]);
+        }
+
+        [Fact]
+        public void Factory_Parses_Spf_Record() {
+            var ans = new DnsAnswer { Type = DnsRecordType.SPF, DataRaw = "v=spf1 include:example.com -all" };
+            var typed = DnsRecordFactory.Create(ans) as SpfRecord;
+            Assert.NotNull(typed);
+            Assert.Contains("include:example.com", typed.Mechanisms);
+        }
+
+        [Fact]
+        public void Factory_Parses_KeyValue_Record() {
+            var ans = new DnsAnswer { Type = DnsRecordType.TXT, DataRaw = "foo=bar baz=qux" };
+            var typed = DnsRecordFactory.Create(ans) as KeyValueTxtRecord;
+            Assert.NotNull(typed);
+            Assert.Equal("bar", typed.Tags["foo"]);
+            Assert.Equal("qux", typed.Tags["baz"]);
+        }
+
+        [Fact]
+        public void Factory_Respects_TypedTxtAsTxt() {
+            var ans = new DnsAnswer { Type = DnsRecordType.TXT, DataRaw = "v=spf1 -all" };
+            var typed = DnsRecordFactory.Create(ans, typedTxtAsTxt: true);
+            Assert.IsType<TxtRecord>(typed);
+        }
     }
 }
