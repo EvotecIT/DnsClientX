@@ -96,5 +96,14 @@ namespace DnsClientX.Tests {
             await Assert.ThrowsAsync<DnsClientException>(() => client.UpdateRecordAsync("example.com", "www.example.com", DnsRecordType.A, "1.2.3.4"));
             await server.Task;
         }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public async Task UpdateRecordAsync_InvalidTtl_Throws(int ttl) {
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP);
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                () => client.UpdateRecordAsync("example.com", "www.example.com", DnsRecordType.A, "1.2.3.4", ttl));
+        }
     }
 }

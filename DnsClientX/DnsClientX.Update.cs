@@ -24,6 +24,7 @@ namespace DnsClientX {
         public async Task<DnsResponse> UpdateRecordAsync(string zone, string name, DnsRecordType type, string data, int ttl = 300, CancellationToken cancellationToken = default) {
             if (string.IsNullOrEmpty(zone)) throw new ArgumentNullException(nameof(zone));
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+            if (ttl <= 0) throw new ArgumentOutOfRangeException(nameof(ttl));
             EndpointConfiguration.SelectHostNameStrategy();
             DnsResponse response;
             if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
