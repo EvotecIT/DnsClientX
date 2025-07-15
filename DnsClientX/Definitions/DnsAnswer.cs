@@ -430,7 +430,7 @@ namespace DnsClientX {
                 return DataRaw;
             } else {
                 // Some records return the data in a higher case (microsoft.com/NS/Quad9ECS) which needs to be fixed
-                return DataRaw.ToLower();
+                return DataRaw.ToLowerInvariant();
             }
         }
 
@@ -512,7 +512,7 @@ namespace DnsClientX {
             // Check if the data is already in a standard format. Allow '_' as
             // it commonly appears in service discovery names like "_http".
             if (data.All(c => char.IsLetterOrDigit(c) || c == '-' || c == '.' || c == '_')) {
-                return data.TrimEnd('.').ToLower();
+                return data.TrimEnd('.').ToLowerInvariant();
             }
 
             var result = new StringBuilder();
@@ -538,7 +538,7 @@ namespace DnsClientX {
             }
 
             // Remove the trailing dot and return the result
-            return result.ToString().TrimEnd('.').ToLower();
+            return result.ToString().TrimEnd('.').ToLowerInvariant();
         }
 
         /// <summary>

@@ -144,7 +144,7 @@ namespace DnsClientX {
                 if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
                     // For TXT records, check if any line contains the filter
                     var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-                    var matchingLines = lines.Where(line => line.ToLower().Contains(filter.ToLower())).ToArray();
+                    var matchingLines = lines.Where(line => line.ToLowerInvariant().Contains(filter.ToLowerInvariant())).ToArray();
 
                     if (matchingLines.Length > 0) {
                         // Create a new answer with only the matching lines
@@ -160,7 +160,7 @@ namespace DnsClientX {
                     }
                 } else {
                     // For non-TXT records, use the original logic
-                    if (answer.Data.ToLower().Contains(filter.ToLower())) {
+                    if (answer.Data.ToLowerInvariant().Contains(filter.ToLowerInvariant())) {
                         filteredAnswers.Add(answer);
                     }
                 }
@@ -231,12 +231,12 @@ namespace DnsClientX {
 
                 if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
                     var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-                    var matchingLines = lines.Where(line => line.ToLower().Contains(filter.ToLower())).ToArray();
+                    var matchingLines = lines.Where(line => line.ToLowerInvariant().Contains(filter.ToLowerInvariant())).ToArray();
                     if (matchingLines.Length > 0) {
                         return true;
                     }
                 } else {
-                    if (answer.Data.ToLower().Contains(filter.ToLower())) {
+                    if (answer.Data.ToLowerInvariant().Contains(filter.ToLowerInvariant())) {
                         return true;
                     }
                 }
