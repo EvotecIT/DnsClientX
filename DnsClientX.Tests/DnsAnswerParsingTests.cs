@@ -3,6 +3,9 @@ using System.Text;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for parsing various DNS answer formats.
+    /// </summary>
     public class DnsAnswerParsingTests {
         private static byte[] PtrBytes => new byte[] {
             3, (byte)'w', (byte)'w', (byte)'w',
@@ -12,12 +15,18 @@ namespace DnsClientX.Tests {
         };
 
         [Fact]
+        /// <summary>
+        /// Validates that PTR records encoded as a DNS name are parsed correctly.
+        /// </summary>
         public void PtrDataFromSpecialFormatIsConverted() {
             var answer = new DnsAnswer { Type = DnsRecordType.PTR, DataRaw = Encoding.UTF8.GetString(PtrBytes) };
             Assert.Equal("www.google.com", answer.Data);
         }
 
         [Fact]
+        /// <summary>
+        /// Ensures that base64-encoded PTR data is converted properly.
+        /// </summary>
         public void PtrDataFromBase64IsConverted() {
             var base64 = Convert.ToBase64String(PtrBytes);
             var answer = new DnsAnswer { Type = DnsRecordType.PTR, DataRaw = base64 };
@@ -25,6 +34,9 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
+        /// <summary>
+        /// Tests parsing of base64 encoded NAPTR record data.
+        /// </summary>
         public void NaptrDataFromBase64IsParsed() {
             byte[] rdata = {
                 0x00, 0x01, // order = 1

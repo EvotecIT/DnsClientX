@@ -140,12 +140,18 @@ namespace DnsClientX.Examples {
             AnsiConsole.Write(table);
         }
 
+        /// <summary>
+        /// Displays each DNS response in an individual table.
+        /// </summary>
         public static void DisplayTable(this DnsResponse[] responses) {
             foreach (var response in responses) {
                 response.DisplayTable();
             }
         }
 
+        /// <summary>
+        /// Renders a table for a collection of DNS answers.
+        /// </summary>
         public static void DisplayTable(this DnsAnswer[] answers) {
             var table = new Table().Border(TableBorder.Rounded);
             table.AddColumn("Type");
@@ -159,6 +165,9 @@ namespace DnsClientX.Examples {
 
             AnsiConsole.Write(table);
         }
+        /// <summary>
+        /// Renders a table for a single DNS answer.
+        /// </summary>
         public static void DisplayTable(this DnsAnswer answer) {
             var table = new Table().Border(TableBorder.Rounded);
             table.AddColumn("Type");
@@ -171,6 +180,9 @@ namespace DnsClientX.Examples {
             AnsiConsole.Write(table);
         }
 
+        /// <summary>
+        /// Displays a table listing DNS questions that were executed.
+        /// </summary>
         public static void DisplayTable(this DnsQuestion[] questions) {
             var table = new Table().Border(TableBorder.Rounded);
             table.AddColumn("Name");

@@ -153,6 +153,9 @@ namespace DnsClientX.Tests {
         [InlineData("microsoft.com", DnsRecordType.TXT)]
         [InlineData("disneyplus.com", DnsRecordType.TXT)]
         [InlineData("github.com", DnsRecordType.TXT)]
+        /// <summary>
+        /// Compares provider answers after filtering responses for a specific pattern.
+        /// </summary>
         public async Task CompareRecords(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 
@@ -249,6 +252,9 @@ namespace DnsClientX.Tests {
 
         [Theory(Skip = "External dependency - unreliable for automated testing")]
         [InlineData(new[] { "evotec.pl", "microsoft.com", "disneyplus.com" }, DnsRecordType.TXT)]
+        /// <summary>
+        /// Executes filtered resolve tests for multiple domains simultaneously.
+        /// </summary>
         public async Task CompareRecordsMulti(string[] names, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             string filter = "v=spf1";
             var primaryEndpoint = DnsEndpoint.Cloudflare;

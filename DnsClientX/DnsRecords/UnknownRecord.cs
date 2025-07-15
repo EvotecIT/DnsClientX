@@ -9,6 +9,10 @@ public sealed class UnknownRecord {
     /// <summary>Gets the raw record data.</summary>
     public string Data { get; }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="UnknownRecord"/> class.
+    /// </summary>
+    /// <param name="data">The raw record data.</param>
     public UnknownRecord(string data) => Data = data;
 }
 

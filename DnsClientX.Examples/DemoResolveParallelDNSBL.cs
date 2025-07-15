@@ -7,7 +7,11 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace DnsClientX.Examples {
+    /// <summary>
+    /// Demonstrates querying multiple DNS blacklists in parallel.
+    /// </summary>
     public static class DemoResolveParallelBlackList {
+        /// <summary>List of common DNSBL providers.</summary>
         public static List<string> dnsBlacklist { get; } = [
             "all.s5h.net",
             "auth.spamrats.com",
@@ -124,6 +128,9 @@ namespace DnsClientX.Examples {
             "zombie.dnsbl.sorbs.net"
         ];
 
+        /// <summary>
+        /// Queries all configured DNS blacklists in parallel for a single IP address.
+        /// </summary>
         public static async Task Example() {
             var endpoint = DnsEndpoint.OpenDNS;
             string ipAddress = "89.74.48.96";

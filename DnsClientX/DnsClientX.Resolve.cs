@@ -623,6 +623,11 @@ namespace DnsClientX {
             return await Resolve(names, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Expands a pattern containing brace or range expressions into a set of DNS names.
+        /// </summary>
+        /// <param name="pattern">The pattern which may contain brace expressions or numeric ranges.</param>
+        /// <returns>An enumeration of expanded names.</returns>
         public static IEnumerable<string> ExpandPattern(string pattern) {
             if (string.IsNullOrEmpty(pattern)) yield break;
 

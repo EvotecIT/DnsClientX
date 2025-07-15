@@ -3,6 +3,9 @@ using System.Reflection;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for decoding DNAME and LOC record wire formats.
+    /// </summary>
     public class DnameLocRecordTests {
         private static byte[] EncodeDnsName(string name) {
             name = name.TrimEnd('.');
@@ -18,6 +21,9 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
+        /// <summary>
+        /// Verifies that DNAME record wire data is decoded correctly.
+        /// </summary>
         public void ProcessRecordData_DecodesDnameWireFormat() {
             byte[] rdata = EncodeDnsName("target.example.com.");
             Type wireType = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWire")!;
@@ -27,6 +33,9 @@ namespace DnsClientX.Tests {
         }
 
         [Fact]
+        /// <summary>
+        /// Verifies that LOC record wire data is decoded correctly.
+        /// </summary>
         public void ProcessRecordData_DecodesLocWireFormat() {
             byte[] rdata = new byte[16];
             rdata[0] = 0x00; // version
