@@ -14,6 +14,14 @@ namespace DnsClientX.Examples {
         }
 
         /// <summary>
+        /// Demonstrates adding a record to a zone with a custom TTL.
+        /// </summary>
+        public static async Task ExampleAddWithTtl() {
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP);
+            await client.UpdateRecordAsync("example.com", "www.example.com", DnsRecordType.A, "1.2.3.4", 600);
+        }
+
+        /// <summary>
         /// Demonstrates deleting a record from a zone.
         /// </summary>
         public static async Task ExampleDelete() {
