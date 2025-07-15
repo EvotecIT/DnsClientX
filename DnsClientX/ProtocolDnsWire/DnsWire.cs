@@ -478,7 +478,7 @@ namespace DnsClientX {
                         string algorithmName = Enum.IsDefined(typeof(DnsKeyAlgorithm), (int)algorithmVal)
                             ? ((DnsKeyAlgorithm)algorithmVal).ToString()
                             : algorithmVal.ToString();
-                        string digest = BitConverter.ToString(digestBytes).Replace("-", "").ToLower();
+                        string digest = BitConverter.ToString(digestBytes).Replace("-", string.Empty).ToLowerInvariant();
                         return $"{keyTag} {algorithmName} {digestType} {digest}";
                     } else if (type == DnsRecordType.LOC) {
                         return reader.DecodeLOCRecord(rdLength);
