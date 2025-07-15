@@ -57,9 +57,21 @@ namespace DnsClientX.Tests {
 
         private static async Task RunReferralServerAsync(int port, byte[] response, CancellationToken token) {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
-            while (!token.IsCancellationRequested) {
-                var result = await udp.ReceiveAsync();
-                await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
+            using var reg = token.Register(() => udp.Close());
+            try {
+                while (!token.IsCancellationRequested) {
+                    UdpReceiveResult result;
+                    try {
+                        result = await udp.ReceiveAsync();
+                    } catch (ObjectDisposedException) when (token.IsCancellationRequested) {
+                        break;
+                    } catch (SocketException) when (token.IsCancellationRequested) {
+                        break;
+                    }
+                    await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
+                }
+            } catch (ObjectDisposedException) when (token.IsCancellationRequested) {
+                // ignore
             }
         }
 
@@ -72,10 +84,11 @@ namespace DnsClientX.Tests {
 
             byte[] resp = CreateReferralResponse("example.com", "invalid.");
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var serverTask = RunReferralServerAsync(53, resp, cts.Token);
+            const int testPort = 53000;
+            var serverTask = RunReferralServerAsync(testPort, resp, cts.Token);
             try {
                 using var client = new ClientX();
-                DnsResponse response = await client.ResolveFromRoot("example.com", maxRetries: 2, cancellationToken: cts.Token);
+                DnsResponse response = await client.ResolveFromRoot("example.com", maxRetries: 2, port: testPort, cancellationToken: cts.Token);
                 Assert.Empty(response.Answers);
                 Assert.Equal("invalid.", response.Authorities.Single().Data);
             } finally {

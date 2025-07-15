@@ -17,14 +17,15 @@ namespace DnsClientX {
         /// <param name="name">Domain name to resolve.</param>
         /// <param name="type">Record type to resolve.</param>
         /// <param name="maxRetries">Maximum referral retries.</param>
+        /// <param name="port">Port used to query each server.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
-        public async Task<DnsResponse> ResolveFromRoot(string name, DnsRecordType type = DnsRecordType.A, int maxRetries = 10, CancellationToken cancellationToken = default) {
+        public async Task<DnsResponse> ResolveFromRoot(string name, DnsRecordType type = DnsRecordType.A, int maxRetries = 10, int port = 53, CancellationToken cancellationToken = default) {
             var servers = RootServers.Servers.ToArray();
             DnsResponse lastResponse = new();
             for (var depth = 0; depth < maxRetries; depth++) {
                 foreach (var server in servers) {
                     var host = server.TrimEnd('.');
-                    var cfg = new Configuration(host, DnsRequestFormat.DnsOverUDP) { UseTcpFallback = true };
+                    var cfg = new Configuration(host, DnsRequestFormat.DnsOverUDP) { UseTcpFallback = true, Port = port };
                     lastResponse = await DnsWireResolveUdp.ResolveWireFormatUdp(host, cfg.Port, name, type, false, false, Debug, cfg, 1, cancellationToken).ConfigureAwait(false);
                     if (lastResponse.Answers?.Any(a => a.Type == type) == true) {
                         return lastResponse;
@@ -46,7 +47,7 @@ namespace DnsClientX {
                 if (ns == null) {
                     return lastResponse;
                 }
-                var nsResponse = await ResolveFromRoot(ns, DnsRecordType.A, maxRetries, cancellationToken).ConfigureAwait(false);
+                var nsResponse = await ResolveFromRoot(ns, DnsRecordType.A, maxRetries, port, cancellationToken).ConfigureAwait(false);
                 servers = nsResponse.Answers?.Select(a => a.Data.TrimEnd('.')).ToArray() ?? RootServers.Servers;
             }
             return lastResponse;
