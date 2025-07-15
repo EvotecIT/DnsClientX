@@ -12,7 +12,7 @@ public static class DnsRecordFactory {
     /// </summary>
     /// <param name="answer">Answer to parse.</param>
     /// <returns>Typed record instance or <c>null</c> if the type is not supported.</returns>
-    public static object? Create(DnsAnswer answer) {
+    public static object? Create(DnsAnswer answer, bool typedTxtAsTxt = false) {
         switch (answer.Type) {
             case DnsRecordType.A:
                 if (IPAddress.TryParse(answer.Data, out var ip4)) {
@@ -37,6 +37,22 @@ public static class DnsRecordFactory {
             case DnsRecordType.PTR:
                 return new PtrRecord(answer.Data.TrimEnd('.'));
             case DnsRecordType.TXT:
+            case DnsRecordType.SPF:
+                if (typedTxtAsTxt) {
+                    return new TxtRecord(answer.DataStrings);
+                }
+                if (DmarcRecord.TryParse(answer.Data, out var dmarc)) {
+                    return dmarc;
+                }
+                if (DkimRecord.TryParse(answer.Data, out var dkim)) {
+                    return dkim;
+                }
+                if (SpfRecord.TryParse(answer.Data, out var spf)) {
+                    return spf;
+                }
+                if (KeyValueTxtRecord.TryParse(answer.Data, out var kv)) {
+                    return kv;
+                }
                 return new TxtRecord(answer.DataStrings);
             case DnsRecordType.SOA:
                 var soa = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
