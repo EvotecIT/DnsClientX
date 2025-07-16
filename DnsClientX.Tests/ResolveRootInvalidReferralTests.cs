@@ -55,8 +55,7 @@ namespace DnsClientX.Tests {
             return ms.ToArray();
         }
 
-        private static async Task RunReferralServerAsync(int port, byte[] response, CancellationToken token) {
-            using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
+        private static async Task RunReferralServerAsync(UdpClient udp, byte[] response, CancellationToken token) {
             using var reg = token.Register(() => udp.Close());
             try {
                 while (!token.IsCancellationRequested) {
@@ -79,8 +78,9 @@ namespace DnsClientX.Tests {
         public async Task ResolveFromRoot_ReturnsLastResponse_OnInvalidReferrals() {
             byte[] resp = CreateReferralResponse("example.com", "invalid.");
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            const int testPort = 53000;
-            var serverTask = RunReferralServerAsync(testPort, resp, cts.Token);
+            using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            int testPort = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
+            var serverTask = RunReferralServerAsync(udp, resp, cts.Token);
             try {
                 using var client = new ClientX();
                 DnsResponse response = await client.ResolveFromRoot(
