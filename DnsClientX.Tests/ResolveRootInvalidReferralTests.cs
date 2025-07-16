@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
-    [Collection("NoParallel")]
     public class ResolveRootInvalidReferralTests {
         private static byte[] EncodeName(string name) {
             using var ms = new System.IO.MemoryStream();
@@ -78,26 +77,23 @@ namespace DnsClientX.Tests {
 
         [Fact]
         public async Task ResolveFromRoot_ReturnsLastResponse_OnInvalidReferrals() {
-            string[] original = RootServers.Servers.ToArray();
-            for (int i = 0; i < RootServers.Servers.Length; i++) {
-                RootServers.Servers[i] = "127.0.0.1";
-            }
-
             byte[] resp = CreateReferralResponse("example.com", "invalid.");
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             const int testPort = 53000;
             var serverTask = RunReferralServerAsync(testPort, resp, cts.Token);
             try {
                 using var client = new ClientX();
-                DnsResponse response = await client.ResolveFromRoot("example.com", maxRetries: 2, port: testPort, cancellationToken: cts.Token);
+                DnsResponse response = await client.ResolveFromRoot(
+                    "example.com",
+                    servers: new[] { "127.0.0.1" },
+                    maxRetries: 2,
+                    port: testPort,
+                    cancellationToken: cts.Token);
                 Assert.Empty(response.Answers);
                 Assert.Equal("invalid.", response.Authorities.Single().Data);
             } finally {
                 cts.Cancel();
                 await serverTask;
-                for (int i = 0; i < original.Length; i++) {
-                    RootServers.Servers[i] = original[i];
-                }
             }
         }
     }
