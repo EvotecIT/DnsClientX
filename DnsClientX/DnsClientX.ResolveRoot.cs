@@ -57,8 +57,13 @@ namespace DnsClientX {
                     lastResponse.RetryCount = depth;
                     return lastResponse;
                 }
-                var nsResponse = await ResolveFromRoot(ns, DnsRecordType.A, servers ?? serverList, maxRetries, port, cancellationToken).ConfigureAwait(false);
-                serverList = nsResponse.Answers?.Select(a => a.Data.TrimEnd('.')).ToArray() ?? (servers ?? RootServers.Servers).ToArray();
+                int remaining = maxRetries - depth - 1;
+                if (remaining <= 0) {
+                    lastResponse.RetryCount = depth;
+                    return lastResponse;
+                }
+                var nsResponse = await ResolveFromRoot(ns, DnsRecordType.A, servers ?? serverList, remaining, port, cancellationToken).ConfigureAwait(false);
+                serverList = nsResponse.Answers?.Select(a => a.Data.TrimEnd('.')).ToArray() ?? serverList;
             }
             lastResponse.RetryCount = maxRetries - 1;
             return lastResponse;

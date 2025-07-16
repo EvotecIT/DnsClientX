@@ -19,6 +19,17 @@ namespace DnsClientX.Tests {
             return ms.ToArray();
         }
 
+        private static string DecodeName(byte[] data) {
+            var labels = new System.Collections.Generic.List<string>();
+            int index = 0;
+            while (index < data.Length && data[index] != 0) {
+                int len = data[index++];
+                labels.Add(System.Text.Encoding.ASCII.GetString(data, index, len));
+                index += len;
+            }
+            return string.Join('.', labels);
+        }
+
         private static byte[] CreateReferralResponse(string qname, string ns) {
             using var ms = new System.IO.MemoryStream();
             ushort id = 0x1234;
@@ -83,8 +94,12 @@ namespace DnsClientX.Tests {
                     maxRetries: 2,
                     port: testPort,
                     cancellationToken: cts.Token);
+
                 Assert.Empty(response.AnswersMinimal);
-                Assert.Equal("invalid.", response.Authorities.Single().Data);
+
+                string authority = DecodeName(Convert.FromBase64String(response.Authorities.Single().DataRaw)) + ".";
+                Assert.Equal("invalid.", authority);
+                Assert.Equal(1, response.RetryCount);
             } finally {
                 cts.Cancel();
                 await serverTask;
