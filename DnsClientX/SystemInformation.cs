@@ -18,6 +18,7 @@ namespace DnsClientX {
     /// </remarks>
     public class SystemInformation {
         private static Lazy<List<string>> cachedDnsServers = new(LoadDnsServers, LazyThreadSafetyMode.ExecutionAndPublication);
+        private static readonly object dnsServersLock = new();
         private static Func<List<string>>? dnsServerProvider;
 
         internal static void SetDnsServerProvider(Func<List<string>>? provider) {
@@ -33,7 +34,12 @@ namespace DnsClientX {
         /// <returns></returns>
         public static List<string> GetDnsFromActiveNetworkCard(bool refresh = false) {
             if (refresh || dnsServerProvider != null && !cachedDnsServers.IsValueCreated) {
-                cachedDnsServers = new Lazy<List<string>>(LoadDnsServers, LazyThreadSafetyMode.ExecutionAndPublication);
+                var newLazy = new Lazy<List<string>>(LoadDnsServers, LazyThreadSafetyMode.ExecutionAndPublication);
+                lock (dnsServersLock) {
+                    if (refresh || dnsServerProvider != null && !cachedDnsServers.IsValueCreated) {
+                        cachedDnsServers = newLazy;
+                    }
+                }
             }
 
             return new List<string>(cachedDnsServers.Value);
