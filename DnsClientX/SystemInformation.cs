@@ -18,6 +18,12 @@ namespace DnsClientX {
     /// </remarks>
     public class SystemInformation {
         private static Lazy<List<string>> cachedDnsServers = new(LoadDnsServers, LazyThreadSafetyMode.ExecutionAndPublication);
+        private static Func<List<string>>? dnsServerProvider;
+
+        internal static void SetDnsServerProvider(Func<List<string>>? provider) {
+            dnsServerProvider = provider;
+            cachedDnsServers = new Lazy<List<string>>(LoadDnsServers, LazyThreadSafetyMode.ExecutionAndPublication);
+        }
 
         /// <summary>
         /// Gets the DNS from active network card with improved cross-platform reliability.
@@ -26,7 +32,7 @@ namespace DnsClientX {
         /// <param name="refresh">Set to <c>true</c> to force cache refresh.</param>
         /// <returns></returns>
         public static List<string> GetDnsFromActiveNetworkCard(bool refresh = false) {
-            if (refresh) {
+            if (refresh || dnsServerProvider != null && !cachedDnsServers.IsValueCreated) {
                 cachedDnsServers = new Lazy<List<string>>(LoadDnsServers, LazyThreadSafetyMode.ExecutionAndPublication);
             }
 
@@ -34,6 +40,14 @@ namespace DnsClientX {
         }
 
         private static List<string> LoadDnsServers() {
+            if (dnsServerProvider is not null) {
+                try {
+                    return DeduplicateDnsServers(dnsServerProvider.Invoke() ?? new List<string>());
+                } catch {
+                    return new List<string>();
+                }
+            }
+
             var dnsServers = new List<string>();
             bool debug = Environment.GetEnvironmentVariable("DNSCLIENTX_DEBUG_SYSTEMDNS") == "1";
 

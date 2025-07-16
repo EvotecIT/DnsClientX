@@ -75,13 +75,11 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public void BuildShouldThrowOnInvalidHostname() {
-            var field = typeof(SystemInformation).GetField("cachedDnsServers", BindingFlags.NonPublic | BindingFlags.Static)!;
-            var original = (Lazy<List<string>>)field.GetValue(null)!;
+            SystemInformation.SetDnsServerProvider(() => new List<string> { "inv@lid_host" });
             try {
-                field.SetValue(null, new Lazy<List<string>>(() => new List<string> { "inv@lid_host" }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication));
                 Assert.Throws<ArgumentException>(() => new ClientXBuilder().WithEndpoint(DnsEndpoint.System).Build());
             } finally {
-                field.SetValue(null, original);
+                SystemInformation.SetDnsServerProvider(null);
             }
         }
 

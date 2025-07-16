@@ -12,7 +12,6 @@ namespace DnsClientX.Tests {
     /// <summary>
     /// Tests for CLI options that control DNSSEC flags on outbound queries.
     /// </summary>
-    [Collection("NoParallel")]
     public class CliDnssecFlagTests {
         private static byte[] CreateDnsHeader() {
             byte[] bytes = new byte[12];
@@ -67,9 +66,7 @@ namespace DnsClientX.Tests {
                 return; // Skip test on systems without permission for port 53
             }
 
-            var dnsField = typeof(SystemInformation).GetField("cachedDnsServers", BindingFlags.NonPublic | BindingFlags.Static)!;
-            var original = (Lazy<List<string>>)dnsField.GetValue(null)!;
-            dnsField.SetValue(null, new Lazy<List<string>>(() => new List<string> { "127.0.0.1" }, LazyThreadSafetyMode.ExecutionAndPublication));
+            SystemInformation.SetDnsServerProvider(() => new List<string> { "127.0.0.1" });
 
             var response = CreateDnsHeader();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -83,7 +80,7 @@ namespace DnsClientX.Tests {
                 int exitCode = await task;
                 Assert.Equal(0, exitCode);
             } finally {
-                dnsField.SetValue(null, original);
+                SystemInformation.SetDnsServerProvider(null);
             }
 
             byte[] query = await udpTask;
