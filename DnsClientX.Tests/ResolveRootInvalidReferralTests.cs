@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    [Collection("NoParallel")]
     public class ResolveRootInvalidReferralTests {
         private static byte[] EncodeName(string name) {
             using var ms = new System.IO.MemoryStream();
