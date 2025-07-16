@@ -23,47 +23,30 @@ namespace DnsClientX.Tests {
             using var ms = new System.IO.MemoryStream();
             ushort id = 0x1234;
             ms.WriteByte((byte)(id >> 8));
-            ms.WriteByte((byte)id);
+            ms.WriteByte((byte)(id & 0xFF));
             ushort flags = 0x8180;
             ms.WriteByte((byte)(flags >> 8));
-            ms.WriteByte((byte)flags);
-            ms.WriteByte(0);
-            ms.WriteByte(1);
-            ms.WriteByte(0);
-            ms.WriteByte(0);
-            ms.WriteByte(0);
-            ms.WriteByte(1);
-            ms.WriteByte(0);
-            ms.WriteByte(0);
+            ms.WriteByte((byte)(flags & 0xFF));
+            ms.WriteByte(0); ms.WriteByte(1); // QDCOUNT
+            ms.WriteByte(0); ms.WriteByte(0); // ANCOUNT
+            ms.WriteByte(0); ms.WriteByte(1); // NSCOUNT
+            ms.WriteByte(0); ms.WriteByte(0); // ARCOUNT
+
             byte[] qn = EncodeName(qname);
             ms.Write(qn, 0, qn.Length);
-            ms.WriteByte(0);
-            ms.WriteByte(1);
-            ms.WriteByte(0);
-            ms.WriteByte(1);
-            byte[] authName = EncodeName(qname);
-            ms.Write(authName, 0, authName.Length);
-            ms.WriteByte(0);
-            ms.WriteByte(2);
-            ms.WriteByte(0);
-            ms.WriteByte(1);
-            ms.Write(new byte[] { 0, 0, 0, 0 }, 0, 4);
+            ms.WriteByte(0); ms.WriteByte(1); // QTYPE A
+            ms.WriteByte(0); ms.WriteByte(1); // QCLASS IN
+
+            // authority record
+            ms.WriteByte(0xC0); ms.WriteByte(0x0C); // pointer to qname
+            ms.WriteByte(0); ms.WriteByte(2); // TYPE NS
+            ms.WriteByte(0); ms.WriteByte(1); // CLASS IN
+            ms.Write(new byte[] { 0, 0, 0, 0 }, 0, 4); // TTL
             byte[] nsBytes = EncodeName(ns);
             ms.WriteByte((byte)(nsBytes.Length >> 8));
             ms.WriteByte((byte)(nsBytes.Length & 0xFF));
             ms.Write(nsBytes, 0, nsBytes.Length);
             return ms.ToArray();
-        }
-
-        private static string DecodeName(ReadOnlySpan<byte> data, ref int offset) {
-            var labels = new System.Collections.Generic.List<string>();
-            while (true) {
-                byte len = data[offset++];
-                if (len == 0) break;
-                labels.Add(System.Text.Encoding.ASCII.GetString(data.Slice(offset, len)));
-                offset += len;
-            }
-            return string.Join('.', labels);
         }
 
         private static async Task RunReferralServerAsync(UdpClient udp, string referralNs, CancellationToken token) {
@@ -78,9 +61,7 @@ namespace DnsClientX.Tests {
                     } catch (SocketException) when (token.IsCancellationRequested) {
                         break;
                     }
-                    int offset = 12; // header size
-                    string qname = DecodeName(result.Buffer, ref offset);
-                    byte[] resp = CreateReferralResponse(qname, referralNs);
+                    byte[] resp = CreateReferralResponse("example.com", referralNs);
                     await udp.SendAsync(resp, resp.Length, result.RemoteEndPoint);
                 }
             } catch (ObjectDisposedException) when (token.IsCancellationRequested) {
