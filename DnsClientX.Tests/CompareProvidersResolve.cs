@@ -199,7 +199,6 @@ namespace DnsClientX.Tests {
         /// <param name="excludedEndpoints">Providers to skip.</param>
         [InlineData("reddit.com", DnsRecordType.SOA)]
         // github.com has a lot of TXT records, including multiline, however google dns doesn't do multiline TXT records and delivers them as one line
-        /// <summary>
         [InlineData("microsoft.com", DnsRecordType.MX)]
 
         [InlineData("google.com", DnsRecordType.MX)]
