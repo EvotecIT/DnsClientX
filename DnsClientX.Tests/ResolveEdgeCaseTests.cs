@@ -20,7 +20,7 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Ensures <see cref="ClientX.ResolveFilter(string,DnsRecordType,string,bool,int,int,bool,bool,int?,System.Threading.CancellationToken)"/> throws on invalid name.
+        /// Ensures <see cref="ClientX.ResolveFilter(string,DnsRecordType,string,bool,bool,bool,int,int,System.Threading.CancellationToken)"/> throws on invalid name.
         /// </summary>
         [Fact]
         public async Task ResolveFilter_InvalidName_Throws() {

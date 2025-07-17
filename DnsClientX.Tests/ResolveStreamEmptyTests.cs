@@ -4,7 +4,8 @@ using Xunit;
 
 namespace DnsClientX.Tests {
     /// <summary>
-    /// Tests <see cref="ClientX.ResolveStream"/> when provided with no domain names.
+    /// Tests <see cref="ClientX.ResolveStream(string[],DnsRecordType[],bool,bool,bool,bool,int,int,System.Threading.CancellationToken)"/>
+    /// when provided with no domain names.
     /// </summary>
     public class ResolveStreamEmptyTests {
         /// <summary>
