@@ -1,6 +1,9 @@
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for <see cref="DnsMessageOptions"/> serialization.
+    /// </summary>
     public class DnsMessageOptionsTests {
         private static void AssertEcsOption(byte[] query, string name) {
             int offset = 12;
@@ -14,6 +17,9 @@ namespace DnsClientX.Tests {
             Assert.Equal((ushort)DnsRecordType.OPT, type);
         }
 
+        /// <summary>
+        /// Ensures EDNS client subnet options are included in wire format serialization.
+        /// </summary>
         [Fact]
         public void SerializeDnsWireFormat_ShouldIncludeEcsOption_WhenUsingOptionsStruct() {
             var opts = new DnsMessageOptions(EnableEdns: true, Subnet: new EdnsClientSubnetOption("192.0.2.1/24"));

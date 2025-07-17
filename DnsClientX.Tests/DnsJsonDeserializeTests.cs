@@ -6,7 +6,13 @@ using Xunit;
 using DnsClientX;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for JSON deserialization helper methods.
+    /// </summary>
     public class DnsJsonDeserializeTests {
+        /// <summary>
+        /// Ensures an exception is thrown when the HTTP response has no content.
+        /// </summary>
         [Fact]
         public async Task Deserialize_ContentLengthZero_ThrowsException() {
             using var response = new HttpResponseMessage(HttpStatusCode.OK) {

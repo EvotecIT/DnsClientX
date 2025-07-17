@@ -31,13 +31,13 @@ namespace DnsClientX.Tests {
         [InlineData("reddit.com", DnsRecordType.CAA, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("reddit.com", DnsRecordType.SOA, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("github.com", DnsRecordType.TXT, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
-        /// <summary>
-        /// Compares results returned from multiple providers using <see cref="ClientX.ResolveAll"/>.
-        /// </summary>
         [InlineData("microsoft.com", DnsRecordType.MX, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("microsoft.com", DnsRecordType.NS, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("google.com", DnsRecordType.MX, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("_25._tcp.mail.ietf.org", DnsRecordType.TLSA, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        /// <summary>
+        /// Compares results returned from multiple providers using <see cref="ClientX.ResolveAll"/>.
+        /// </summary>
         public async Task CompareRecordsImproved(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 

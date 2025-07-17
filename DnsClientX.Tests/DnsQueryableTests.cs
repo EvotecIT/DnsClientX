@@ -4,7 +4,13 @@ using DnsClientX.Linq;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for LINQ-based DNS querying APIs.
+    /// </summary>
     public class DnsQueryableTests {
+        /// <summary>
+        /// Demonstrates filtering query results via LINQ.
+        /// </summary>
         [Fact(Skip = "External dependency - network unreachable in CI")]
         public async Task ShouldFilterResults() {
             using var client = new ClientX(DnsEndpoint.Cloudflare);

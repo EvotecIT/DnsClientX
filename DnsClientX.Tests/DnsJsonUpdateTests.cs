@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for DNS record updates via JSON API.
+    /// </summary>
     public class DnsJsonUpdateTests {
         private class JsonUpdateHandler : HttpMessageHandler {
             public HttpRequestMessage? Request { get; private set; }
@@ -26,6 +29,9 @@ namespace DnsClientX.Tests {
             clientField.SetValue(client, httpClient);
         }
 
+        /// <summary>
+        /// Verifies that an update request is posted using JSON.
+        /// </summary>
         [Fact]
         public async Task UpdateRecordJsonPost_Add() {
             var handler = new JsonUpdateHandler();
@@ -40,6 +46,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(DnsResponseCode.NoError, response.Status);
         }
 
+        /// <summary>
+        /// Verifies that deleting a record uses a JSON POST request.
+        /// </summary>
         [Fact]
         public async Task DeleteRecordJsonPost_Delete() {
             var handler = new JsonUpdateHandler();

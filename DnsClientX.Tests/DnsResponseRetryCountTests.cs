@@ -5,7 +5,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests that the <see cref="DnsResponse.RetryCount"/> property is set correctly.
+    /// </summary>
     public class DnsResponseRetryCountTests {
+        /// <summary>
+        /// Ensures the retry counter reflects the number of attempts.
+        /// </summary>
         [Fact]
         public async Task RetryCountIsSetOnSuccess() {
             int call = 0;
