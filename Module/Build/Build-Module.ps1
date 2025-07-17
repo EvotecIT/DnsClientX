@@ -14,6 +14,7 @@ Build-Module -ModuleName 'DnsClientX' {
         IconUri              = 'https://raw.githubusercontent.com/EvotecIT/DnsClientX/master/Assets/Icons/DnsClientX3_128x128.png'
         ProjectUri           = 'https://github.com/EvotecIT/DnsClientX'
         PowerShellVersion    = '5.1'
+        #FormatsToProcess     = @('DnsClientX.Format.ps1xml')
     }
     New-ConfigurationManifest @Manifest
 
@@ -81,6 +82,9 @@ Build-Module -ModuleName 'DnsClientX' {
     }
 
     New-ConfigurationBuild @newConfigurationBuildSplat
+
+    # Copy formatting file to module output
+   # New-ConfigurationModule -Type RequiredFile -Path "$PSScriptRoot\..\..\DnsClientX.PowerShell\DnsClientX.Format.ps1xml" -Destination 'DnsClientX.Format.ps1xml'
 
     New-ConfigurationArtefact -Type Unpacked -Enable -Path "$PSScriptRoot\..\Artefacts\Unpacked" -RequiredModulesPath "$PSScriptRoot\..\Artefacts\Unpacked\Modules"
     New-ConfigurationArtefact -Type Packed -Enable -Path "$PSScriptRoot\..\Artefacts\Packed" -IncludeTagName -ArtefactName "DnsClientX-PowerShellModule.<TagModuleVersionWithPreRelease>.zip" -ID 'ToGitHub'

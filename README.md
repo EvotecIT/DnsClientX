@@ -225,7 +225,7 @@ DNS query response times can vary significantly:
 #### Timeout and Retry Behavior
 
 DnsClientX implements intelligent timeout and retry logic:
-- **Default timeout**: 1000ms (1 second) - optimized for fast responses
+- **Default timeout**: 2000ms (2 seconds) - optimized for fast responses
 - **Automatic retry**: Failed queries are retried with exponential backoff
 - **Provider fallback**: Can automatically switch between providers
 - **Protocol fallback**: UDP → TCP → HTTPS/TLS as needed
@@ -307,13 +307,13 @@ The system applies intelligent filtering to ensure reliable DNS servers:
 #### System UDP (`DnsEndpoint.System`)
 - **Primary protocol**: DNS over UDP (port 53)
 - **Automatic fallback**: Switches to TCP when UDP packet size limit exceeded
-- **Timeout**: 1000ms default (configurable)
+- **Timeout**: 2000ms default (configurable)
 - **Best for**: General DNS queries, fastest response times
 
 #### System TCP (`DnsEndpoint.SystemTcp`)
 - **Primary protocol**: DNS over TCP (port 53)
 - **Connection management**: Efficient connection pooling
-- **Timeout**: 1000ms default (configurable)
+- **Timeout**: 2000ms default (configurable)
 - **Best for**: Large responses, firewall-restricted environments
 
 ### Platform-Specific Behavior
