@@ -16,12 +16,14 @@ namespace DnsClientX {
         /// <summary>
         /// Resolves a domain name using DNS over HTTPS and returns the first answer of the provided type.
         /// This helper method is useful when you only need the first answer of a specific type.
-        /// Alternatively, <see cref="Resolve(string, DnsRecordType, bool, bool, bool, bool, int, int, CancellationToken)"/> may be used to get full control over the response.
+        /// Alternatively, <see cref="ClientX.Resolve(string, DnsRecordType, bool, bool, bool, bool, int, int, bool, bool, CancellationToken)"/> may be used to get full control over the response.
         /// </summary>
         /// <param name="name">The fully qualified domain name (FQDN) to resolve. Example: <c>foo.bar.example.com</c></param>
         /// <param name="type">The DNS resource type to resolve. By default, this is the <c>A</c> record.</param>
         /// <param name="requestDnsSec">Whether to request DNSSEC data in the response. When requested, it will be accessible under the <see cref="DnsAnswer"/> array.</param>
         /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedRecords">Whether to convert DNS answers to typed records.</param>
+        /// <param name="typedTxtAsTxt">When true, typed TXT records are returned as plain TXT records.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
@@ -51,6 +53,8 @@ namespace DnsClientX {
         /// <param name="type">The DNS resource type to resolve. By default, this is the <c>A</c> record.</param>
         /// <param name="requestDnsSec">Whether to request DNSSEC data in the response. When requested, it will be accessible under the <see cref="DnsAnswer"/> array.</param>
         /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedRecords">Whether to convert DNS answers to typed records.</param>
+        /// <param name="typedTxtAsTxt">When true, typed TXT records are returned as plain TXT records.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
