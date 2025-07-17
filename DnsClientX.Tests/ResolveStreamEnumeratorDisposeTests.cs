@@ -8,7 +8,8 @@ using Xunit;
 
 namespace DnsClientX.Tests {
     /// <summary>
-    /// Tests that enumerators returned from <see cref="ClientX.ResolveStream"/> are disposed correctly.
+    /// Tests that enumerators returned from <see cref="ClientX.ResolveStream(string[],DnsRecordType[],bool,bool,bool,bool,int,int,System.Threading.CancellationToken)"/>
+    /// are disposed correctly.
     /// </summary>
     public class ResolveStreamEnumeratorDisposeTests {
         private class TrackingEnumerable<T> : IEnumerable<T> {
