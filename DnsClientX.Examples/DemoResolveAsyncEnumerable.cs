@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace DnsClientX.Examples {
     /// <summary>
-    /// Demonstrates resolving DNS queries concurrently using <see cref="ClientX.ResolveAsyncEnumerable"/>.
+    /// Demonstrates resolving DNS queries concurrently using <see cref="ClientX.ResolveAsyncEnumerable(string[], DnsRecordType[], bool, bool, bool, bool, int, int, System.Threading.CancellationToken)"/>.
     /// </summary>
     internal class DemoResolveAsyncEnumerable {
         /// <summary>Runs the demo.</summary>
