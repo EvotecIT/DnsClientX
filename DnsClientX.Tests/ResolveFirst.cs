@@ -3,6 +3,9 @@ namespace DnsClientX.Tests {
     /// Tests the <see cref="ClientX.ResolveFirst"/> helper across various endpoints.
     /// </summary>
     public class ResolveFirst {
+        /// <summary>
+        /// Resolves the first TXT record for the specified endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -19,10 +22,7 @@ namespace DnsClientX.Tests {
 
 
         [InlineData(DnsEndpoint.OpenDNS)]
-[InlineData(DnsEndpoint.OpenDNSFamily)]
-        /// <summary>
-        /// Resolves the first TXT record for the specified endpoint.
-        /// </summary>
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             var answer = await Client.ResolveFirst("github.com", DnsRecordType.TXT, cancellationToken: CancellationToken.None);
@@ -32,6 +32,9 @@ namespace DnsClientX.Tests {
             Assert.True(answer.Value.Data.Length > 0);
         }
 
+        /// <summary>
+        /// Resolves the first A record for the specified endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -48,10 +51,7 @@ namespace DnsClientX.Tests {
 
 
         [InlineData(DnsEndpoint.OpenDNS)]
-[InlineData(DnsEndpoint.OpenDNSFamily)]
-        /// <summary>
-        /// Resolves the first A record for the specified endpoint.
-        /// </summary>
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             var answer = await Client.ResolveFirst("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);
@@ -60,6 +60,9 @@ namespace DnsClientX.Tests {
             Assert.True(answer.Value.Type == DnsRecordType.A);
         }
 
+        /// <summary>
+        /// Resolves the first TXT record synchronously for the specified endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -72,14 +75,8 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-
-
-
         [InlineData(DnsEndpoint.OpenDNS)]
-[InlineData(DnsEndpoint.OpenDNSFamily)]
-        /// <summary>
-        /// Resolves the first TXT record synchronously for the specified endpoint.
-        /// </summary>
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForTXT_Sync(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             var answer = Client.ResolveFirstSync("github.com", DnsRecordType.TXT, cancellationToken: CancellationToken.None);
@@ -89,6 +86,9 @@ namespace DnsClientX.Tests {
             Assert.True(answer.Value.Data.Length > 0);
         }
 
+        /// <summary>
+        /// Resolves the first A record synchronously for the specified endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -101,14 +101,8 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-
-
-
         [InlineData(DnsEndpoint.OpenDNS)]
-[InlineData(DnsEndpoint.OpenDNSFamily)]
-        /// <summary>
-        /// Resolves the first A record synchronously for the specified endpoint.
-        /// </summary>
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForA_Sync(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             var answer = Client.ResolveFirstSync("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);
