@@ -7,13 +7,13 @@ namespace DnsClientX.PowerShell;
 /// This class allow connecting to the InternalLogger class of ADPlayground and act on events from it in different streams
 /// </summary>
 public class InternalLoggerPowerShell {
-    private readonly InternalLogger _logger;
-    private readonly Action<string> _writeVerboseAction;
-    private readonly Action<string> _writeDebugAction;
-    private readonly Action<InformationRecord> _writeInformationAction;
-    private readonly Action<string> _writeWarningAction;
-    private readonly Action<ErrorRecord> _writeErrorAction;
-    private readonly Action<ProgressRecord> _writeProgressAction;
+    private readonly InternalLogger? _logger;
+    private readonly Action<string>? _writeVerboseAction;
+    private readonly Action<string>? _writeDebugAction;
+    private readonly Action<InformationRecord>? _writeInformationAction;
+    private readonly Action<string>? _writeWarningAction;
+    private readonly Action<ErrorRecord>? _writeErrorAction;
+    private readonly Action<ProgressRecord>? _writeProgressAction;
 
     /// <summary>
     /// Initialize the InternalLoggerPowerShell class

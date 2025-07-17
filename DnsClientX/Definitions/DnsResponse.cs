@@ -63,13 +63,13 @@ namespace DnsClientX {
         /// this property will be <c>null</c>.
         /// </summary>
         [JsonPropertyName("Question")]
-        public DnsQuestion[] Questions { get; set; }
+        public DnsQuestion[] Questions { get; set; } = Array.Empty<DnsQuestion>();
 
         /// <summary>
         /// The answers provided by the DNS server.
         /// </summary>
         [JsonPropertyName("Answer")]
-        public DnsAnswer[] Answers { get; set; }
+        public DnsAnswer[] Answers { get; set; } = Array.Empty<DnsAnswer>();
 
         /// <summary>
         /// When typed parsing is enabled, contains typed representations of <see cref="Answers"/>.
@@ -81,7 +81,7 @@ namespace DnsClientX {
         /// Gets the answers in their minimal form.
         /// </summary>
         [JsonIgnore]
-        private DnsAnswerMinimal[] _answersMinimal;
+        private DnsAnswerMinimal[] _answersMinimal = Array.Empty<DnsAnswerMinimal>();
 
         /// <summary>
         /// Address of the DNS server that returned this response.
@@ -103,32 +103,32 @@ namespace DnsClientX {
         /// The authority records provided by the DNS server.
         /// </summary>
         [JsonPropertyName("Authority")]
-        public DnsAnswer[] Authorities { get; set; }
+        public DnsAnswer[] Authorities { get; set; } = Array.Empty<DnsAnswer>();
 
         /// <summary>
         /// Any additional records provided by the DNS server.
         /// </summary>
         [JsonPropertyName("Additional")]
-        public DnsAnswer[] Additional { get; set; }
+        public DnsAnswer[] Additional { get; set; } = Array.Empty<DnsAnswer>();
 
         /// <summary>
         /// An error message, if there was an issue with the DNS query. This is typically included when the HTTP status code is 400 (Bad Request).
         /// </summary>
         [JsonPropertyName("error")]
-        public string Error { get; set; }
+        public string Error { get; set; } = string.Empty;
 
         /// <summary>
         /// An extended DNS error code message. For more information, see the <a href="https://developers.cloudflare.com/1.1.1.1/infrastructure/extended-dns-error-codes/">Cloudflare documentation</a>.
         /// </summary>
         [JsonPropertyName("Comment")]
         [JsonConverter(typeof(CommentConverter))]
-        public string Comments { get; set; }
+        public string Comments { get; set; } = string.Empty;
 
         /// <summary>
         /// Extended DNS error information provided by the DNS server.
         /// </summary>
         [JsonPropertyName("extended_dns_errors")]
-        public ExtendedDnsError[] ExtendedDnsErrors { get; set; }
+        public ExtendedDnsError[] ExtendedDnsErrors { get; set; } = Array.Empty<ExtendedDnsError>();
 
         [JsonIgnore]
         private ExtendedDnsErrorInfo[]? _extendedDnsErrorInfo;
@@ -149,7 +149,7 @@ namespace DnsClientX {
         /// The client subnet information that the DNS server used to generate the response.
         /// </summary>
         [JsonPropertyName("edns_client_subnet")]
-        public string EdnsClientSubnet { get; set; }
+        public string EdnsClientSubnet { get; set; } = string.Empty;
 
         /// <summary>
         /// Adds the server details to the DNS questions for output purposes.

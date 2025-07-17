@@ -14,32 +14,32 @@ public class InternalLogger {
     /// <summary>
     /// Occurs when a verbose message is logged.
     /// </summary>
-    public event EventHandler<LogEventArgs> OnVerboseMessage;
+    public event EventHandler<LogEventArgs>? OnVerboseMessage;
 
     /// <summary>
     /// Occurs when a warning message is logged.
     /// </summary>
-    public event EventHandler<LogEventArgs> OnWarningMessage;
+    public event EventHandler<LogEventArgs>? OnWarningMessage;
 
     /// <summary>
     /// Occurs when an error message is logged.
     /// </summary>
-    public event EventHandler<LogEventArgs> OnErrorMessage;
+    public event EventHandler<LogEventArgs>? OnErrorMessage;
 
     /// <summary>
     /// Occurs when a debug message is logged.
     /// </summary>
-    public event EventHandler<LogEventArgs> OnDebugMessage;
+    public event EventHandler<LogEventArgs>? OnDebugMessage;
 
     /// <summary>
     /// Occurs when a progress message is logged.
     /// </summary>
-    public event EventHandler<LogEventArgs> OnProgressMessage;
+    public event EventHandler<LogEventArgs>? OnProgressMessage;
 
     /// <summary>
     /// Occurs when an information message is logged.
     /// </summary>
-    public event EventHandler<LogEventArgs> OnInformationMessage;
+    public event EventHandler<LogEventArgs>? OnInformationMessage;
 
     /// <summary>
     /// Gets or sets a value indicating whether verbose messages should be logged.
@@ -235,22 +235,22 @@ public class LogEventArgs : EventArgs {
     /// <summary>
     /// Progress current operation
     /// </summary>
-    public string ProgressCurrentOperation { get; set; }
+    public string ProgressCurrentOperation { get; set; } = string.Empty;
 
     /// <summary>
     /// Progress activity
     /// </summary>
-    public string ProgressActivity { get; set; }
+    public string ProgressActivity { get; set; } = string.Empty;
 
     /// <summary>
     /// Message to be written including arguments substitution
     /// </summary>
-    public string FullMessage { get; set; }
+    public string FullMessage { get; set; } = string.Empty;
 
     /// <summary>
     /// Message to be written
     /// </summary>
-    public string Message { get; set; }
+    public string Message { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the arguments.
@@ -258,7 +258,7 @@ public class LogEventArgs : EventArgs {
     /// <value>
     /// The arguments.
     /// </value>
-    public object[] Args { get; set; }
+    public object[] Args { get; set; } = Array.Empty<object>();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LogEventArgs"/> class.

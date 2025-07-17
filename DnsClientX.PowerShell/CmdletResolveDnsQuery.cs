@@ -26,14 +26,14 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ServerName")]
-        public string[] Name;
+        public string[] Name { get; set; } = Array.Empty<string>();
 
         /// <summary>
         /// <para type="description">Pattern to expand into multiple DNS queries.</para>
         /// </summary>
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternDnsProvider")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternServerName")]
-        public string Pattern;
+        public string? Pattern { get; set; }
         /// <summary>
         /// <para type="description">The type of the record to query for. If not specified, A record is queried.</para>
         /// </summary>
@@ -153,7 +153,7 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
         public SwitchParameter ValidateDnsSec;
 
-        private InternalLogger _logger;
+        private InternalLogger? _logger;
 
         private static readonly MethodInfo _isTransientResponse = typeof(ClientX).GetMethod("IsTransientResponse", BindingFlags.NonPublic | BindingFlags.Static)!;
         private static readonly MethodInfo _isTransientException = typeof(ClientX).GetMethod("IsTransient", BindingFlags.NonPublic | BindingFlags.Static)!;
