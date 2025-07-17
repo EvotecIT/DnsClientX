@@ -27,7 +27,7 @@ namespace DnsClientX {
 
         private readonly List<string> hostnames = new();
         private readonly Dictionary<string, DateTime> unavailable = new();
-        private string baseUriFormat;
+        private string? baseUriFormat;
         private int hostnameIndex;
 
         /// <summary>
