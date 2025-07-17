@@ -18,6 +18,7 @@ namespace DnsClientX {
         /// <param name="validateDnsSec"></param>
         /// <param name="debug"></param>
         /// <param name="endpointConfiguration">Provide configuration so it can be added to Question for display purposes</param>
+        /// <param name="maxRetries">Maximum number of retry attempts.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>The DNS response.</returns>
         /// <exception cref="ArgumentNullException"></exception>
@@ -119,7 +120,8 @@ namespace DnsClientX {
         /// <summary>
         /// Sends a DNS query over UDP and returns the response.
         /// </summary>
-        /// <param name="query"></param>
+        /// <param name="udpClient">Client used for sending the query.</param>
+        /// <param name="query">Wire-format query bytes.</param>
         /// <param name="ipAddress"></param>
         /// <param name="port"></param>
         /// <param name="timeoutMilliseconds">Timeout in milliseconds.</param>
