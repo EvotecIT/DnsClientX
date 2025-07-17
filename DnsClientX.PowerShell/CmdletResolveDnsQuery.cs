@@ -59,7 +59,7 @@ namespace DnsClientX.PowerShell {
         public List<string> Server = new List<string>();
 
         /// <summary>
-        /// <para type="description">If specified, all servers listed in <paramref name="Server"/> are queried sequentially and the responses are aggregated in server order.</para>
+        /// <para type="description">If specified, all servers listed in <see cref="Server"/> are queried sequentially and the responses are aggregated in server order.</para>
         /// <para type="description">When not specified, only the first server is queried for faster results.</para>
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
@@ -75,7 +75,7 @@ namespace DnsClientX.PowerShell {
         public SwitchParameter Fallback;
 
         /// <summary>
-        /// <para type="description">If specified, the order of servers defined in <paramref name="Server"/> is randomized before querying.</para>
+        /// <para type="description">If specified, the order of servers defined in <see cref="Server"/> is randomized before querying.</para>
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
