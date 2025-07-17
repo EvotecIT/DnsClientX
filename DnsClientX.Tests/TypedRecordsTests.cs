@@ -158,6 +158,7 @@ namespace DnsClientX.Tests {
             var ans = new DnsAnswer { Type = DnsRecordType.SPF, DataRaw = "v=spf1 include:example.com -all" };
             var typed = DnsRecordFactory.Create(ans) as SpfRecord;
             Assert.NotNull(typed);
+            Assert.Equal("v=spf1", typed.Version);
             Assert.Contains("include:example.com", typed.Mechanisms);
         }
 
@@ -181,6 +182,18 @@ namespace DnsClientX.Tests {
             var ans = new DnsAnswer { Type = DnsRecordType.TXT, DataRaw = "v=spf1 -all" };
             var typed = DnsRecordFactory.Create(ans, typedTxtAsTxt: true);
             Assert.IsType<TxtRecord>(typed);
+        }
+
+        /// <summary>
+        /// Parses a domain verification TXT record.
+        /// </summary>
+        [Fact]
+        public void Factory_Parses_DomainVerification_Record() {
+            var ans = new DnsAnswer { Type = DnsRecordType.TXT, DataRaw = "openai-domain-verification=abc" };
+            var typed = DnsRecordFactory.Create(ans) as DomainVerificationRecord;
+            Assert.NotNull(typed);
+            Assert.Equal("openai-domain-verification", typed.Provider);
+            Assert.Equal("abc", typed.Token);
         }
     }
 }

@@ -51,6 +51,9 @@ public static class DnsRecordFactory {
                 if (SpfRecord.TryParse(answer.Data, out var spf)) {
                     return spf;
                 }
+                if (DomainVerificationRecord.TryParse(answer.Data, out var verify)) {
+                    return verify;
+                }
                 if (KeyValueTxtRecord.TryParse(answer.Data, out var kv)) {
                     return kv;
                 }
