@@ -15,7 +15,7 @@ namespace DnsClientX.Tests {
         public void DuplicateDnsServers_AreRemoved() {
             MethodInfo method = typeof(SystemInformation).GetMethod("DeduplicateDnsServers", BindingFlags.NonPublic | BindingFlags.Static)!;
             var input = new List<string> { "1.1.1.1", "1.1.1.1", "[2001:db8::1]", "[2001:db8::1]" };
-            var result = (List<string>)method.Invoke(null, new object[] { input })!;
+            var result = (List<string>)method.Invoke(null, new object?[] { input })!;
             Assert.Equal(new[] { "1.1.1.1", "[2001:db8::1]" }, result);
         }
 
@@ -26,7 +26,7 @@ namespace DnsClientX.Tests {
         public void DuplicateDnsServers_OrderIsPreserved() {
             MethodInfo method = typeof(SystemInformation).GetMethod("DeduplicateDnsServers", BindingFlags.NonPublic | BindingFlags.Static)!;
             var input = new List<string> { "2.2.2.2", "1.1.1.1", "2.2.2.2", "[2001:db8::1]", "1.1.1.1" };
-            var result = (List<string>)method.Invoke(null, new object[] { input })!;
+            var result = (List<string>)method.Invoke(null, new object?[] { input })!;
             Assert.Equal(new[] { "2.2.2.2", "1.1.1.1", "[2001:db8::1]" }, result);
         }
 

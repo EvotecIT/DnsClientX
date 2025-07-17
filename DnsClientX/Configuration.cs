@@ -27,7 +27,7 @@ namespace DnsClientX {
 
         private readonly List<string> hostnames = new();
         private readonly Dictionary<string, DateTime> unavailable = new();
-        private string baseUriFormat;
+        private string? baseUriFormat;
         private int hostnameIndex;
 
         /// <summary>
@@ -339,7 +339,7 @@ namespace DnsClientX {
         public Configuration(DnsEndpoint endpoint, DnsSelectionStrategy selectionStrategy = DnsSelectionStrategy.First) {
             List<string> hostnames;
             SelectionStrategy = selectionStrategy;
-            string baseUriFormat;
+            string? baseUriFormat;
             switch (endpoint) {
                 case DnsEndpoint.System:
                     // Use the system's default DNS resolver

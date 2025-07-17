@@ -54,7 +54,7 @@ namespace DnsClientX {
                 Settings.Logger.WriteDebug($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
 
-            if (!IPAddress.TryParse(dnsServer, out IPAddress address)) {
+            if (!IPAddress.TryParse(dnsServer, out IPAddress? address)) {
                 DnsResponse invalidAddress = new DnsResponse {
                     Questions = [
                         new DnsQuestion {
@@ -71,11 +71,11 @@ namespace DnsClientX {
                 return invalidAddress;
             }
 
-            Exception lastException = null;
+            Exception? lastException = null;
             for (int attempt = 1; attempt <= Math.Max(1, maxRetries); attempt++) {
                 try {
-                    using var udpClient = new UdpClient(address.AddressFamily);
-                    var responseBuffer = await SendQueryOverUdp(udpClient, queryBytes, address, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
+                    using var udpClient = new UdpClient(address!.AddressFamily);
+                    var responseBuffer = await SendQueryOverUdp(udpClient, queryBytes, address!, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
                     var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
                     if (response.IsTruncated && endpointConfiguration.UseTcpFallback) {
