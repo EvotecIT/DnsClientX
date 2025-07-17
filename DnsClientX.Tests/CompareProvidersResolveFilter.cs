@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace DnsClientX.Tests {
     /// <summary>
-    /// Compares provider results when using <see cref="ClientX.ResolveFilter"/>.
+    /// Compares provider results when using <see cref="ClientX.ResolveFilter(string, DnsRecordType, string, bool, bool, bool, int, int, System.Threading.CancellationToken)"/>.
     /// </summary>
     public class CompareProvidersResolveFilter(ITestOutputHelper output) {
         /// <summary>

@@ -39,7 +39,7 @@ namespace DnsClientX.Tests {
 #endif
 
         /// <summary>
-        /// Ensures that calling <see cref="ClientX.Dispose"/> does not dispose the underlying <see cref="HttpClient"/> twice.
+        /// Ensures that calling <see cref="ClientX.Dispose()"/> does not dispose the underlying <see cref="HttpClient"/> twice.
         /// </summary>
         [Fact]
         public void Client_Dispose_ShouldNotDisposeHttpClientTwice() {
@@ -104,7 +104,7 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Checks that <see cref="ClientX.DisposeAsync"/> does not dispose the HTTP handler more than once.
+        /// Checks that <see cref="ClientX.DisposeAsync()"/> does not dispose the HTTP handler more than once.
         /// </summary>
         [Fact]
         public async Task Client_DisposeAsync_ShouldNotDisposeHandlerTwice() {
@@ -126,7 +126,7 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Ensures that concurrent calls to <see cref="ClientX.Dispose"/> only dispose once.
+        /// Ensures that concurrent calls to <see cref="ClientX.Dispose()"/> only dispose once.
         /// </summary>
         [Fact]
         public async Task Client_Dispose_CalledConcurrently_ShouldOnlyDisposeOnce() {
@@ -150,7 +150,7 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Ensures concurrent invocations of <see cref="ClientX.DisposeAsync"/> only dispose once.
+        /// Ensures concurrent invocations of <see cref="ClientX.DisposeAsync()"/> only dispose once.
         /// </summary>
         [Fact]
         public async Task Client_DisposeAsync_CalledConcurrently_ShouldOnlyDisposeOnce() {
@@ -174,7 +174,7 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Validates that the disposal counter is incremented when <see cref="ClientX.DisposeAsync"/> is called.
+        /// Validates that the disposal counter is incremented when <see cref="ClientX.DisposeAsync()"/> is called.
         /// </summary>
         [Fact]
         public async Task Client_DisposeAsync_ShouldIncrementDisposalCount() {
