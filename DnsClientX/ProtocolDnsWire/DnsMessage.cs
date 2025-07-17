@@ -46,7 +46,7 @@ namespace DnsClientX {
         /// <param name="options">Additional EDNS options.</param>
         public DnsMessage(string name, DnsRecordType type, bool requestDnsSec, bool enableEdns, int udpBufferSize, string? subnet, bool checkingDisabled, AsymmetricAlgorithm? signingKey, System.Collections.Generic.IEnumerable<EdnsOption>? options = null)
             : this(name, type, new DnsMessageOptions(requestDnsSec, enableEdns, udpBufferSize,
-                string.IsNullOrEmpty(subnet) ? null : new EdnsClientSubnetOption(subnet), checkingDisabled, signingKey, options)) {
+                string.IsNullOrEmpty(subnet) ? null : new EdnsClientSubnetOption(subnet!), checkingDisabled, signingKey, options)) {
         }
 
         /// <summary>

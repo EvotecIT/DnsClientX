@@ -12,7 +12,7 @@ namespace DnsClientX.Examples {
                         Settings.Logger.WriteInformation($"TXT: {txt.Text}");
                         break;
                     default:
-                        Settings.Logger.WriteInformation(typed.ToString());
+                        Settings.Logger.WriteInformation(typed.ToString()!);
                         break;
                 }
             }
