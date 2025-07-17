@@ -126,7 +126,16 @@ namespace DnsClientX {
                     response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, IgnoreCertificateErrors, cancellationToken).ConfigureAwait(false);
                 } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverQuic) {
 #if NET8_0_OR_GREATER
-                response = await DnsWireResolveQuic.ResolveWireFormatQuic(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) {
+                    response = await DnsWireResolveQuic.ResolveWireFormatQuic(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                } else {
+                    response = new DnsResponse {
+                        Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverQuic, Type = type, OriginalName = name } ],
+                        Status = DnsResponseCode.NotImplemented
+                    };
+                    response.AddServerDetails(EndpointConfiguration);
+                    response.Error = "DNS over QUIC is not supported on this platform.";
+                }
 #else
                     throw new DnsClientException("DNS over QUIC is not supported on this platform.");
 #endif

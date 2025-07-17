@@ -7,6 +7,7 @@ using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Collections.Generic;
+using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,6 +17,9 @@ namespace DnsClientX {
     /// <summary>
     /// Helper methods for resolving DNS queries over QUIC transport.
     /// </summary>
+    [SupportedOSPlatform("windows")]
+    [SupportedOSPlatform("linux")]
+    [SupportedOSPlatform("macos")]
     internal static class DnsWireResolveQuic {
         /// <summary>Custom DNS host name resolution delegate used during tests.</summary>
         internal static Func<string, IPHostEntry>? HostEntryResolver;
@@ -103,6 +107,16 @@ namespace DnsClientX {
 
             if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6) {
                 ipString = $"[{ipString}]";
+            }
+
+            if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) {
+                var response = new DnsResponse {
+                    Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverQuic, Type = type, OriginalName = name } ],
+                    Status = DnsResponseCode.NotImplemented
+                };
+                response.AddServerDetails(endpointConfiguration);
+                response.Error = "DNS over QUIC is not supported on this platform.";
+                return response;
             }
 
             var endPoint = IPEndPoint.Parse($"{ipString}:{port}");

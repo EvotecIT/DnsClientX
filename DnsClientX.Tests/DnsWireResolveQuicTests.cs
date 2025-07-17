@@ -6,12 +6,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Net.Quic;
 using System.Runtime.Serialization;
+using System.Runtime.Versioning;
 using Xunit;
 
 namespace DnsClientX.Tests {
     /// <summary>
     /// Tests for the QUIC DNS wire resolver.
     /// </summary>
+    [SupportedOSPlatform("windows")]
+    [SupportedOSPlatform("linux")]
+    [SupportedOSPlatform("macos")]
     public class DnsWireResolveQuicTests {
         /// <summary>
         /// Ensures server failure is returned when the host has no addresses.
