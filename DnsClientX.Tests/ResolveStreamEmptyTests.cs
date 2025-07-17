@@ -3,7 +3,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests <see cref="ClientX.ResolveStream"/> when provided with no domain names.
+    /// </summary>
     public class ResolveStreamEmptyTests {
+        /// <summary>
+        /// Ensures an empty result is returned when no names are supplied.
+        /// </summary>
         [Fact]
         public async Task ResolveStream_NoNames_YieldsNoResults() {
             using var client = new ClientX(DnsEndpoint.System);

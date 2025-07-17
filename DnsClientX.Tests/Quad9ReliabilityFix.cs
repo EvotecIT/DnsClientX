@@ -10,6 +10,10 @@ namespace DnsClientX.Tests {
     public class Quad9ReliabilityFix {
         private readonly ITestOutputHelper output;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Quad9ReliabilityFix"/> class.
+        /// </summary>
+        /// <param name="output">The output helper used for test diagnostics.</param>
         public Quad9ReliabilityFix(ITestOutputHelper output) {
             this.output = output;
         }

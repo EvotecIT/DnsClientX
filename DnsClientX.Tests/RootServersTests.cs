@@ -2,7 +2,13 @@ using System.Linq;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests regarding the built-in list of DNS root servers.
+    /// </summary>
     public class RootServersTests {
+        /// <summary>
+        /// Ensures the number of IPv4 and IPv6 servers matches expectations.
+        /// </summary>
         [Fact]
         public void RootServersList_HasExpectedCounts() {
             var servers = RootServers.Servers;
@@ -11,6 +17,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(13, servers.Count(s => s.Contains(':')));
         }
 
+        /// <summary>
+        /// Verifies that the list of root servers contains only unique addresses.
+        /// </summary>
         [Fact]
         public void RootServersList_HasOnlyUniqueValues() {
             var servers = RootServers.Servers;

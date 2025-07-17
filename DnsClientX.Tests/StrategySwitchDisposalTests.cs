@@ -8,8 +8,11 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
-    [Collection("DisposalTests")]
-    public class StrategySwitchDisposalTests {
+/// <summary>
+/// Tests disposal counts when switching between DNS strategies.
+/// </summary>
+[Collection("DisposalTests")]
+public class StrategySwitchDisposalTests {
         private class JsonResponseHandler : HttpMessageHandler {
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
                 var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"Status\":0}") };
@@ -25,6 +28,9 @@ namespace DnsClientX.Tests {
             clientField.SetValue(client, httpClient);
         }
 
+        /// <summary>
+        /// Ensures each strategy switch increments the disposal counter.
+        /// </summary>
         [Fact]
         public async Task MultipleStrategySwitches_ShouldIncreaseDisposalCount() {
             var initialCount = ClientX.DisposalCount;

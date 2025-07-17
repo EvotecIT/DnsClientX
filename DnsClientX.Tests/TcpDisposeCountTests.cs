@@ -7,8 +7,11 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
-    [Collection("DisposalTests")]
-    public class TcpDisposeCountTests {
+/// <summary>
+/// Ensures TCP connections are properly disposed by the resolver.
+/// </summary>
+[Collection("DisposalTests")]
+public class TcpDisposeCountTests {
         private class CountingTcpClient : TcpClient {
             private readonly Action _onDispose;
             private volatile int _disposeCount = 0;
@@ -59,6 +62,9 @@ namespace DnsClientX.Tests {
             listener.Stop();
         }
 
+        /// <summary>
+        /// Verifies the TCP connection object is disposed after resolving.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatTcp_ShouldDisposeConnection() {
             int disposed = 0;

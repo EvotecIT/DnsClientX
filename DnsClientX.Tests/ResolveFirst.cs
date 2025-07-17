@@ -1,4 +1,7 @@
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests the <see cref="ClientX.ResolveFirst"/> helper across various endpoints.
+    /// </summary>
     public class ResolveFirst {
         [Theory]
         [InlineData(DnsEndpoint.System)]
@@ -16,7 +19,10 @@ namespace DnsClientX.Tests {
 
 
         [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
+[InlineData(DnsEndpoint.OpenDNSFamily)]
+        /// <summary>
+        /// Resolves the first TXT record for the specified endpoint.
+        /// </summary>
         public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             var answer = await Client.ResolveFirst("github.com", DnsRecordType.TXT, cancellationToken: CancellationToken.None);
@@ -42,7 +48,10 @@ namespace DnsClientX.Tests {
 
 
         [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
+[InlineData(DnsEndpoint.OpenDNSFamily)]
+        /// <summary>
+        /// Resolves the first A record for the specified endpoint.
+        /// </summary>
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             var answer = await Client.ResolveFirst("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);
@@ -67,7 +76,10 @@ namespace DnsClientX.Tests {
 
 
         [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
+[InlineData(DnsEndpoint.OpenDNSFamily)]
+        /// <summary>
+        /// Resolves the first TXT record synchronously for the specified endpoint.
+        /// </summary>
         public void ShouldWorkForTXT_Sync(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             var answer = Client.ResolveFirstSync("github.com", DnsRecordType.TXT, cancellationToken: CancellationToken.None);
@@ -93,7 +105,10 @@ namespace DnsClientX.Tests {
 
 
         [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
+[InlineData(DnsEndpoint.OpenDNSFamily)]
+        /// <summary>
+        /// Resolves the first A record synchronously for the specified endpoint.
+        /// </summary>
         public void ShouldWorkForA_Sync(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             var answer = Client.ResolveFirstSync("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);

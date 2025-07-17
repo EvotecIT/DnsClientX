@@ -5,6 +5,9 @@ using System.Reflection;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests helper methods that classify transient DNS errors.
+    /// </summary>
     public class TransientDetectionTests {
         private static bool InvokeIsTransient(Exception ex) {
             MethodInfo method = typeof(ClientX).GetMethod("IsTransient", BindingFlags.NonPublic | BindingFlags.Static)!;
@@ -16,6 +19,9 @@ namespace DnsClientX.Tests {
             return (bool)method.Invoke(null, new object[] { response })!;
         }
 
+        /// <summary>
+        /// Verifies that a server failure results in a transient exception.
+        /// </summary>
         [Fact]
         public void IsTransient_DnsClientExceptionWithServerFailure_ShouldBeTrue() {
             var response = new DnsResponse { Status = DnsResponseCode.ServerFailure };
@@ -24,6 +30,9 @@ namespace DnsClientX.Tests {
             Assert.True(InvokeIsTransient(ex));
         }
 
+        /// <summary>
+        /// HTTP request errors are considered transient.
+        /// </summary>
         [Fact]
         public void IsTransient_HttpRequestException_ShouldBeTrue() {
             var ex = new HttpRequestException("network error");
@@ -31,6 +40,9 @@ namespace DnsClientX.Tests {
             Assert.True(InvokeIsTransient(ex));
         }
 
+        /// <summary>
+        /// Timeouts should be treated as transient errors.
+        /// </summary>
         [Fact]
         public void IsTransient_TimeoutException_ShouldBeTrue() {
             var ex = new TimeoutException();
@@ -38,6 +50,9 @@ namespace DnsClientX.Tests {
             Assert.True(InvokeIsTransient(ex));
         }
 
+        /// <summary>
+        /// Responses with server failure status and error message are transient.
+        /// </summary>
         [Fact]
         public void IsTransientResponse_ServerFailureWithError_ShouldBeTrue() {
             var response = new DnsResponse {
@@ -48,6 +63,9 @@ namespace DnsClientX.Tests {
             Assert.True(InvokeIsTransientResponse(response));
         }
 
+        /// <summary>
+        /// Responses with answers are not considered transient even if server failure status is returned.
+        /// </summary>
         [Fact]
         public void IsTransientResponse_ServerFailureWithAnswers_ShouldBeFalse() {
             var answer = new DnsAnswer { Name = "a", Type = DnsRecordType.A, TTL = 60, DataRaw = "1.1.1.1" };
@@ -59,6 +77,9 @@ namespace DnsClientX.Tests {
             Assert.False(InvokeIsTransientResponse(response));
         }
 
+        /// <summary>
+        /// Certain response codes indicate transient conditions.
+        /// </summary>
         [Theory]
         [InlineData(DnsResponseCode.Refused)]
         [InlineData(DnsResponseCode.NotImplemented)]
@@ -68,6 +89,9 @@ namespace DnsClientX.Tests {
             Assert.True(InvokeIsTransientResponse(response));
         }
 
+        /// <summary>
+        /// NXDOMAIN is not treated as a transient error.
+        /// </summary>
         [Fact]
         public void IsTransientResponse_NxDomain_ShouldBeFalse() {
             var response = new DnsResponse { Status = DnsResponseCode.NXDomain };
@@ -75,6 +99,9 @@ namespace DnsClientX.Tests {
             Assert.False(InvokeIsTransientResponse(response));
         }
 
+        /// <summary>
+        /// Socket errors such as connection reset are transient.
+        /// </summary>
         [Theory]
         [InlineData(SocketError.ConnectionReset)]
         [InlineData(SocketError.NetworkUnreachable)]

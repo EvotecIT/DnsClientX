@@ -4,18 +4,12 @@ namespace DnsClientX.Tests {
     /// <summary>
     /// Tests for the <see cref="ClientX.ResolveAll"/> API.
     /// </summary>
+    /// <summary>
+    /// Tests covering the <see cref="ClientX.ResolveAll"/> method using different endpoints.
+    /// </summary>
     public class ResolveAll {
         /// <summary>
-        /// Resolves TXT records for the given endpoint.
-        /// </summary>
-        /// <summary>
-        /// Resolves A records for the given endpoint.
-        /// </summary>
-        /// <summary>
-        /// Synchronous TXT resolution across endpoints.
-        /// </summary>
-        /// <summary>
-        /// Synchronous A record resolution across endpoints.
+        /// Resolves TXT records from the specified endpoint using asynchronous API.
         /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
@@ -29,9 +23,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-
-
-
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
 #if DNS_OVER_QUIC
@@ -69,6 +60,9 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.CloudflareQuic)]
         [InlineData(DnsEndpoint.GoogleQuic)]
 #endif
+        /// <summary>
+        /// Resolves A records from the specified endpoint using asynchronous API.
+        /// </summary>
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = await Client.ResolveAll("evotec.pl", DnsRecordType.A);
@@ -96,6 +90,9 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.CloudflareQuic)]
         [InlineData(DnsEndpoint.GoogleQuic)]
 #endif
+        /// <summary>
+        /// Resolves TXT records synchronously using the specified endpoint.
+        /// </summary>
         public void ShouldWorkForTXT_Sync(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = Client.ResolveAllSync("github.com", DnsRecordType.TXT);
@@ -127,6 +124,9 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.CloudflareQuic)]
         [InlineData(DnsEndpoint.GoogleQuic)]
 #endif
+        /// <summary>
+        /// Resolves A records synchronously using the specified endpoint.
+        /// </summary>
         public void ShouldWorkForA_Sync(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = Client.ResolveAllSync("evotec.pl", DnsRecordType.A);

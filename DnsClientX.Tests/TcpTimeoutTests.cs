@@ -3,7 +3,13 @@ using System.Runtime.InteropServices;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests covering timeout handling for TCP DNS queries.
+    /// </summary>
     public class TcpTimeoutTests {
+        /// <summary>
+        /// Uses a very short timeout to ensure the call times out.
+        /// </summary>
         [Fact(Skip = "Skipped on macOS due to platform-specific issues")]
         public async Task SystemTcp_ShouldTimeoutOnSlowServer() {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
@@ -22,6 +28,9 @@ namespace DnsClientX.Tests {
             Assert.NotNull(response.Questions);
         }
 
+        /// <summary>
+        /// Confirms queries succeed with a standard timeout value.
+        /// </summary>
         [Fact(Skip = "Skipped on macOS due to platform-specific issues")]
         public async Task SystemTcp_ShouldWorkWithNormalTimeout() {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))

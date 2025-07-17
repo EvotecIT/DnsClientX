@@ -6,7 +6,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for the internal retry helper methods.
+    /// </summary>
     public class RetryAsyncTests {
+        /// <summary>
+        /// Ensures the action is retried the configured number of times.
+        /// </summary>
         [Fact]
         public async Task ShouldRetrySpecifiedNumberOfTimes() {
             int attempts = 0;
@@ -25,6 +31,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(3, attempts);
         }
 
+        /// <summary>
+        /// Verifies that a delay is inserted between retries.
+        /// </summary>
         [Fact]
         public async Task ShouldDelayBetweenRetries() {
             int attempts = 0;
@@ -62,6 +71,9 @@ namespace DnsClientX.Tests {
             Assert.InRange(delays[1], 80, 1500);
         }
 
+        /// <summary>
+        /// Confirms exponential backoff is used when enabled.
+        /// </summary>
         [Fact]
         public async Task ShouldUseExponentialBackoff() {
             int attempts = 0;
@@ -107,6 +119,9 @@ namespace DnsClientX.Tests {
             Assert.True(ratio >= 0.5 && ratio <= 5.0, $"Unexpected ratio: {ratio}");
         }
 
+        /// <summary>
+        /// Throws <see cref="DnsClientException"/> when a transient response is encountered.
+        /// </summary>
         [Fact]
         public async Task ShouldThrowDnsClientExceptionOnTransientResponse() {
             var transientResponse = new DnsResponse { Status = DnsResponseCode.ServerFailure };
@@ -123,6 +138,9 @@ namespace DnsClientX.Tests {
             Assert.Same(transientResponse, ex.Response);
         }
 
+        /// <summary>
+        /// Ensures cancellation during retry delay stops further attempts.
+        /// </summary>
         [Fact]
         public async Task ShouldCancelDuringDelay() {
             int attempts = 0;

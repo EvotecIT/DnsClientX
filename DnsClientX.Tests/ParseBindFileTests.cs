@@ -9,6 +9,9 @@ namespace DnsClientX.Tests {
     /// Unit tests for <see cref="BindFileParser"/> helpers.
     /// </summary>
     public class ParseBindFileTests {
+        /// <summary>
+        /// Ensures the parser returns an empty collection when the zone file is missing.
+        /// </summary>
         [Fact]
         public void MissingFile_ReturnsEmptyList() {
             string tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -17,6 +20,9 @@ namespace DnsClientX.Tests {
             Assert.Empty(result);
         }
 
+        /// <summary>
+        /// Parses a simple zone file containing multiple record types.
+        /// </summary>
         [Fact]
         public void ParsesBasicZoneFile() {
             string tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".zone");
@@ -31,6 +37,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(600, result[2].TTL);
         }
 
+        /// <summary>
+        /// Records with a negative TTL should be skipped by the parser.
+        /// </summary>
         [Fact]
         public void NegativeTtl_SkipsRecord() {
             string tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".zone");
@@ -41,6 +50,9 @@ namespace DnsClientX.Tests {
             Assert.Empty(result);
         }
 
+        /// <summary>
+        /// Verifies that semicolons inside quoted text are not treated as comments.
+        /// </summary>
         [Fact]
         public void SemicolonInQuotedText_IsNotComment() {
             string tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".zone");

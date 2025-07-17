@@ -11,6 +11,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests verifying TLS 1.3 support for DNS over TLS.
+    /// </summary>
     public class Tls13SupportTests {
         private static int GetFreePort() {
             TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
@@ -34,6 +37,9 @@ namespace DnsClientX.Tests {
             return sslStream.SslProtocol;
         }
 
+        /// <summary>
+        /// Starts a TLS 1.3 server and ensures the client negotiates TLS 1.3.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatDoT_UsesTls13WhenAvailable() {
             int port = GetFreePort();

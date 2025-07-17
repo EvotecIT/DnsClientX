@@ -9,6 +9,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Ensures socket resources are properly disposed between queries.
+    /// </summary>
     public class SocketCountTests {
         private static byte[] CreateDnsHeader() {
             byte[] bytes = new byte[12];
@@ -56,6 +59,9 @@ namespace DnsClientX.Tests {
             listener.Stop();
         }
 
+        /// <summary>
+        /// Performs repeated queries to ensure no socket handles are leaked.
+        /// </summary>
         [Fact]
         public async Task RepeatedCalls_ShouldNotLeakSockets() {
             int port = GetFreePort();

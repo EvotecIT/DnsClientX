@@ -12,6 +12,9 @@ using System.IO;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Regression tests ensuring TCP sockets are cleaned up after failures.
+    /// </summary>
     public class TcpCleanupRegressionTests {
         private static bool IsWindows() {
 #if NET6_0_OR_GREATER
@@ -76,6 +79,9 @@ namespace DnsClientX.Tests {
             return false;
         }
 
+        /// <summary>
+        /// Simulates a TCP failure and verifies the socket is closed.
+        /// </summary>
         [Fact]
         public async Task TcpFailure_ShouldCloseSocket() {
 

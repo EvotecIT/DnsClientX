@@ -1,7 +1,13 @@
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for the <see cref="DnsSecValidator"/> verifying root trust anchors.
+    /// </summary>
     public class RootDnssecValidatorTests {
+        /// <summary>
+        /// Validates a DS record using the embedded root anchors.
+        /// </summary>
         [Fact]
         public void ValidateAgainstRoot_DsRecord() {
             var response = new DnsResponse {
@@ -18,6 +24,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(string.Empty, msg);
         }
 
+        /// <summary>
+        /// Validates a DNSKEY record using the embedded root anchors.
+        /// </summary>
         [Fact]
         public void ValidateAgainstRoot_DnsKeyRecord() {
             var response = new DnsResponse {
@@ -34,6 +43,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(string.Empty, msg);
         }
 
+        /// <summary>
+        /// Ensures validation fails when DS algorithm is not supported.
+        /// </summary>
         [Fact]
         public void ValidateAgainstRoot_InvalidDsAlgorithm_ReturnsFalse() {
             var response = new DnsResponse {
@@ -50,6 +62,9 @@ namespace DnsClientX.Tests {
             Assert.Contains("DS record", msg);
         }
 
+        /// <summary>
+        /// Ensures validation fails when DNSKEY algorithm is not supported.
+        /// </summary>
         [Fact]
         public void ValidateAgainstRoot_InvalidDnsKeyAlgorithm_ReturnsFalse() {
             var response = new DnsResponse {
