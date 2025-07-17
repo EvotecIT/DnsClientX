@@ -6,6 +6,9 @@ using System.Security.Cryptography;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests the DNSSEC chain validation helper.
+    /// </summary>
     public class DnssecChainValidatorTests {
         private static byte[] DomainToWireFormat(string domain) {
             if (string.IsNullOrEmpty(domain) || domain == ".") return new byte[] { 0 };
@@ -62,6 +65,9 @@ namespace DnsClientX.Tests {
         }
 
 
+        /// <summary>
+        /// Validates a correct DNSSEC chain returns success.
+        /// </summary>
         [Fact]
         public void ValidateChain_Succeeds() {
             using RSA rsa = RSA.Create(1024);
@@ -87,6 +93,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(string.Empty, msg);
         }
 
+        /// <summary>
+        /// Detects invalid signatures in the DNSSEC chain.
+        /// </summary>
         [Fact]
         public void ValidateChain_InvalidSignature() {
             using RSA rsa = RSA.Create(1024);
@@ -112,6 +121,9 @@ namespace DnsClientX.Tests {
             Assert.Contains("Invalid RRSIG", msg);
         }
 
+        /// <summary>
+        /// Fails validation when DNSKEY or RRSIG records are missing.
+        /// </summary>
         [Fact]
         public void ValidateChain_MissingRecords() {
             var response = new DnsResponse {
@@ -123,6 +135,9 @@ namespace DnsClientX.Tests {
             Assert.Contains("Missing DNSKEY or RRSIG", msg);
         }
 
+        /// <summary>
+        /// Fails when DS records do not match any DNSKEY.
+        /// </summary>
         [Fact]
         public void ValidateChain_NoMatchingDnsKey() {
             using RSA rsa = RSA.Create(1024);
@@ -147,6 +162,9 @@ namespace DnsClientX.Tests {
             Assert.Contains("No DNSKEY", msg);
         }
 
+        /// <summary>
+        /// Detects digest mismatches in DS records.
+        /// </summary>
         [Fact]
         public void ValidateChain_DigestMismatch() {
             using RSA rsa = RSA.Create(1024);

@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests EDNS options handling for wire format queries.
+    /// </summary>
     public class EdnsOptionsTests {
         private static byte[] CreateDnsHeader() {
             byte[] bytes = new byte[12];
@@ -53,6 +56,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(8, optionCode);
         }
 
+        /// <summary>
+        /// Ensures the ECS option is added when EDNS is enabled.
+        /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldIncludeEcsOption_WhenOptionsConfigured() {
             int port = GetFreePort();
@@ -73,6 +79,9 @@ namespace DnsClientX.Tests {
             AssertEcsOption(query, "example.com");
         }
 
+        /// <summary>
+        /// Verifies that null EDNS options do not throw during UDP requests.
+        /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldNotThrow_WhenEdnsOptionsNull() {
             int port = GetFreePort();

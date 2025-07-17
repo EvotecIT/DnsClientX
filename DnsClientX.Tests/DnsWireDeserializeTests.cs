@@ -5,7 +5,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for deserializing DNS wire format responses.
+    /// </summary>
     public class DnsWireDeserializeTests {
+        /// <summary>
+        /// Ensures passing null to the deserializer throws.
+        /// </summary>
         [Fact]
         public async Task DeserializeDnsWireFormat_NullInputs_ThrowsArgumentNullException() {
             Type wireType = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWire")!;
@@ -14,6 +20,9 @@ namespace DnsClientX.Tests {
             await Assert.ThrowsAsync<ArgumentNullException>(() => task);
         }
 
+        /// <summary>
+        /// Validates that byte-only input is accepted by the deserializer.
+        /// </summary>
         [Fact]
         public async Task DeserializeDnsWireFormat_BytesOnly_DoesNotThrow() {
             Type wireType = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWire")!;

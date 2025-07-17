@@ -4,7 +4,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests concurrency when refreshing DNS server information.
+    /// </summary>
     public class GetDnsFromActiveNetworkCardConcurrencyTests {
+        /// <summary>
+        /// Multiple concurrent refresh calls should return identical results.
+        /// </summary>
         [Fact]
         public async Task RefreshConcurrentCalls_ShouldReturnConsistentResults() {
             var expected = new List<string> { "1.1.1.1", "8.8.8.8" };

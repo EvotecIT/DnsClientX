@@ -221,6 +221,14 @@ namespace DnsClientX.Tests {
                 }
         }
         }
+        /// <summary>
+        /// Compares multiline TXT record responses between two providers.
+        /// </summary>
+        /// <param name="name">Domain name to resolve.</param>
+        /// <param name="resourceRecordType">Record type under test.</param>
+        /// <param name="primaryEndpoint">Primary provider.</param>
+        /// <param name="endpointCompare">Provider to compare against.</param>
+
 
         [Theory(Skip = "External dependency - unreliable for automated testing")]
         [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.CloudflareFamily)]

@@ -5,7 +5,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests the DNS failover selection strategy.
+    /// </summary>
     public class FailoverStrategyTests {
+        /// <summary>
+        /// Ensures hostnames cycle correctly when failover is used.
+        /// </summary>
         [Fact]
         public void SelectHostNameStrategy_ShouldUseCurrentIndex() {
             var config = new Configuration(DnsEndpoint.Cloudflare, DnsSelectionStrategy.Failover);
@@ -21,6 +27,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("1.1.1.1", config.Hostname);
         }
 
+        /// <summary>
+        /// Verifies that retry logic advances the hostname after failure.
+        /// </summary>
         [Fact]
         public async Task RetryAsync_ShouldAdvanceHostnameOnFailure() {
             var config = new Configuration(DnsEndpoint.Cloudflare, DnsSelectionStrategy.Failover);

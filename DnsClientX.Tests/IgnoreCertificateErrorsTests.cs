@@ -4,7 +4,13 @@ using System.Reflection;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests ignoring certificate validation errors when constructing <see cref="ClientX"/>.
+    /// </summary>
     public class IgnoreCertificateErrorsTests {
+        /// <summary>
+        /// Validates that certificate validation callbacks are registered when enabled.
+        /// </summary>
         [Fact]
         public void ShouldEnableCertificateValidationCallback() {
             using var client = new ClientX(DnsEndpoint.Cloudflare, ignoreCertificateErrors: true);

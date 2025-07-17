@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Unit tests covering DNS UPDATE operations.
+    /// </summary>
     public class DnsUpdateTests {
         private static byte[] EncodeName(string name) {
             name = name.TrimEnd('.');
@@ -76,6 +79,9 @@ namespace DnsClientX.Tests {
             return new UpdateServer(port, Serve());
         }
 
+        /// <summary>
+        /// Sends an UPDATE request and expects a successful status.
+        /// </summary>
         [Fact]
         public async Task UpdateRecordAsync_ReturnsSuccess() {
             byte[] resp = BuildResponse(DnsResponseCode.NoError);
@@ -87,6 +93,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(DnsResponseCode.NoError, res.Status);
         }
 
+        /// <summary>
+        /// Sends an UPDATE request that should fail with a server error.
+        /// </summary>
         [Fact]
         public async Task UpdateRecordAsync_FailsWithError() {
             byte[] resp = BuildResponse(DnsResponseCode.Refused);
@@ -97,6 +106,9 @@ namespace DnsClientX.Tests {
             await server.Task;
         }
 
+        /// <summary>
+        /// Ensures invalid TTL values throw an exception.
+        /// </summary>
         [Theory]
         [InlineData(0)]
         [InlineData(-1)]

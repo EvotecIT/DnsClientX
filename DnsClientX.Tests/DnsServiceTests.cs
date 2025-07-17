@@ -2,7 +2,13 @@ using System.Collections.Generic;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for the <see cref="DnsService"/> data type.
+    /// </summary>
     public class DnsServiceTests {
+        /// <summary>
+        /// Verifies that properties are correctly stored and returned.
+        /// </summary>
         [Fact]
         public void PropertiesStoreValues() {
             var svc = new DnsService {

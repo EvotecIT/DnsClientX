@@ -5,7 +5,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests DNS over gRPC resolution logic.
+    /// </summary>
     public class DnsWireResolveGrpcTests {
+        /// <summary>
+        /// Ensures exceptions are reported as server failures.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatGrpc_ReturnsServerFailure_OnException() {
             var prevFactory = DnsWireResolveGrpc.ClientFactory;
@@ -20,6 +26,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Verifies that the provided HTTP call delegate is invoked.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatGrpc_UsesProvidedCallFunc() {
             var prevClient = DnsWireResolveGrpc.ClientFactory;

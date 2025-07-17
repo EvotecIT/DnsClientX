@@ -3,7 +3,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests querying DNSSEC-enabled records.
+    /// </summary>
     public class DnssecTests {
+        /// <summary>
+        /// Resolves DNSKEY records with DNSSEC enabled.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.Cloudflare)]
         [InlineData(DnsEndpoint.Google)]
@@ -15,6 +21,9 @@ namespace DnsClientX.Tests {
             Assert.True(response.AuthenticData || response.Answers.Any(a => a.Type == DnsRecordType.RRSIG));
         }
 
+        /// <summary>
+        /// Resolves DS records with DNSSEC enabled.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.Cloudflare)]
         [InlineData(DnsEndpoint.Google)]
