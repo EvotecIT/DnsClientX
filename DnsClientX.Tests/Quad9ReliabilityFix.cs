@@ -87,7 +87,7 @@ namespace DnsClientX.Tests {
 
                 } catch (Exception ex) {
                     output.WriteLine($"{provider}: ❌ Exception - {ex.GetType().Name}: {ex.Message}");
-                    Assert.True(false, $"{provider} threw exception: {ex.Message}");
+                    Assert.Fail($"{provider} threw exception: {ex.Message}");
                 }
             }
         }
