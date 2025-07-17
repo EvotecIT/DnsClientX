@@ -1,9 +1,12 @@
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests scenarios where queries are expected to return errors while still producing a response.
+    /// </summary>
     public class QueryDnsSpecialCases {
         /// <summary>
-        /// This test case is for a special case where the query is expected to fail.
+        /// Queries a domain known to fail and verifies the response is returned with an error status.
         /// </summary>
-        /// <param name="endpoint"></param>
+        /// <param name="endpoint">The endpoint used for the query.</param>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]

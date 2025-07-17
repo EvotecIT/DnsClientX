@@ -3,7 +3,13 @@ using DnsClientX;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests the <see cref="DnsRecordFactory"/> producing strongly typed records.
+    /// </summary>
     public class TypedRecordsTests {
+        /// <summary>
+        /// Parses an A record into an <see cref="ARecord"/> instance.
+        /// </summary>
         [Fact]
         public void Factory_Parses_A_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.A, DataRaw = "1.2.3.4" };
@@ -12,6 +18,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(IPAddress.Parse("1.2.3.4"), typed.Address);
         }
 
+        /// <summary>
+        /// Parses an AAAA record into an <see cref="AAAARecord"/> instance.
+        /// </summary>
         [Fact]
         public void Factory_Parses_AAAA_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.AAAA, DataRaw = "2001:db8::1" };
@@ -20,6 +29,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(IPAddress.Parse("2001:db8::1"), typed.Address);
         }
 
+        /// <summary>
+        /// Parses an MX record into an <see cref="MxRecord"/> instance.
+        /// </summary>
         [Fact]
         public void Factory_Parses_MX_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.MX, DataRaw = "10 mail.example.com." };
@@ -29,6 +41,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("mail.example.com", typed.Exchange);
         }
 
+        /// <summary>
+        /// Parses a CNAME record into a <see cref="CNameRecord"/> instance.
+        /// </summary>
         [Fact]
         public void Factory_Parses_CNAME_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.CNAME, DataRaw = "alias.example.com." };
@@ -37,6 +52,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("alias.example.com", typed.CName);
         }
 
+        /// <summary>
+        /// Parses a DNSKEY record into a <see cref="DnsKeyRecord"/> instance.
+        /// </summary>
         [Fact]
         public void Factory_Parses_DNSKEY_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.DNSKEY, DataRaw = "256 3 RSASHA256 AQID" };
@@ -48,6 +66,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("AQID", typed.PublicKey);
         }
 
+        /// <summary>
+        /// Parses a DS record into a <see cref="DsRecord"/> instance.
+        /// </summary>
         [Fact]
         public void Factory_Parses_DS_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.DS, DataRaw = "20326 RSASHA256 2 ABCD" };
@@ -59,6 +80,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("ABCD", typed.Digest);
         }
 
+        /// <summary>
+        /// Parses a TLSA record into a <see cref="TlsaRecord"/> instance.
+        /// </summary>
         [Fact]
         public void Factory_Parses_TLSA_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.TLSA, DataRaw = "3 1 1 DEADBEEF" };
@@ -70,6 +94,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("DEADBEEF", typed.AssociationData);
         }
 
+        /// <summary>
+        /// Parses a NAPTR record into a <see cref="NaptrRecord"/> instance.
+        /// </summary>
         [Fact]
         public void Factory_Parses_NAPTR_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.NAPTR, DataRaw = "1 2 \"u\" \"sip\" \"\" example.com" };
@@ -83,6 +110,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("example.com", typed.Replacement);
         }
 
+        /// <summary>
+        /// Parses a LOC record into a <see cref="LocRecord"/> instance.
+        /// </summary>
         [Fact]
         public void Factory_Parses_LOC_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.LOC, DataRaw = "0 0 0.000 N 0 0 0.000 E 0m 1m 10000m 10m" };
@@ -96,6 +126,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(10d, typed.VerticalPrecisionMeters);
         }
 
+        /// <summary>
+        /// Parses a DMARC TXT record into a <see cref="DmarcRecord"/> instance.
+        /// </summary>
         [Fact]
         public void Factory_Parses_Dmarc_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.TXT, DataRaw = "v=DMARC1; p=none; rua=mailto:example@example.com" };
@@ -105,6 +138,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("none", typed.Tags["p"]);
         }
 
+        /// <summary>
+        /// Parses a DKIM TXT record into a <see cref="DkimRecord"/> instance.
+        /// </summary>
         [Fact]
         public void Factory_Parses_Dkim_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.TXT, DataRaw = "v=DKIM1; k=rsa; p=ABC" };
@@ -114,6 +150,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("rsa", typed.Tags["k"]);
         }
 
+        /// <summary>
+        /// Parses an SPF record into a <see cref="SpfRecord"/> instance.
+        /// </summary>
         [Fact]
         public void Factory_Parses_Spf_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.SPF, DataRaw = "v=spf1 include:example.com -all" };
@@ -122,6 +161,9 @@ namespace DnsClientX.Tests {
             Assert.Contains("include:example.com", typed.Mechanisms);
         }
 
+        /// <summary>
+        /// Parses a TXT record containing key=value pairs.
+        /// </summary>
         [Fact]
         public void Factory_Parses_KeyValue_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.TXT, DataRaw = "foo=bar baz=qux" };
@@ -131,6 +173,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("qux", typed.Tags["baz"]);
         }
 
+        /// <summary>
+        /// Ensures TXT parsing can be disabled for typed TXT records.
+        /// </summary>
         [Fact]
         public void Factory_Respects_TypedTxtAsTxt() {
             var ans = new DnsAnswer { Type = DnsRecordType.TXT, DataRaw = "v=spf1 -all" };

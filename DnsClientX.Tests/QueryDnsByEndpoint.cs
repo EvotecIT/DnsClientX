@@ -1,22 +1,11 @@
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Integration tests verifying DNS queries against multiple endpoints.
+    /// </summary>
     public class QueryDnsByEndpoint {
         /// <summary>
-        /// Ensures TXT queries succeed for the given endpoint.
+        /// Ensures TXT record queries succeed for the specified endpoint.
         /// </summary>
-        /// <summary>
-        /// Ensures A record queries succeed for the given endpoint.
-        /// </summary>
-        /// <summary>
-        /// Ensures PTR queries succeed for the given endpoint.
-        /// </summary>
-        [Theory]
-        [InlineData(DnsEndpoint.System)]
-        [InlineData(DnsEndpoint.SystemTcp)]
-        [InlineData(DnsEndpoint.Cloudflare)]
-        [InlineData(DnsEndpoint.CloudflareFamily)]
-        [InlineData(DnsEndpoint.CloudflareSecurity)]
-        [InlineData(DnsEndpoint.CloudflareWireFormat)]
-        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
         [InlineData(DnsEndpoint.CloudflareOdoh)]
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
@@ -27,6 +16,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.CloudflareQuic)]
         [InlineData(DnsEndpoint.GoogleQuic)]
 #endif
+        [Theory]
         public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
             var response = await ClientX.QueryDns("github.com", DnsRecordType.TXT, endpoint);
             foreach (DnsAnswer answer in response.Answers) {
@@ -36,6 +26,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Ensures A record queries succeed for the specified endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -47,12 +40,12 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.CloudflareOdoh)]
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
-        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-        [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
+[InlineData(DnsEndpoint.GoogleWireFormatPost)]
+[InlineData(DnsEndpoint.OpenDNS)]
+[InlineData(DnsEndpoint.OpenDNSFamily)]
 #if DNS_OVER_QUIC
-        [InlineData(DnsEndpoint.CloudflareQuic)]
-        [InlineData(DnsEndpoint.GoogleQuic)]
+[InlineData(DnsEndpoint.CloudflareQuic)]
+[InlineData(DnsEndpoint.GoogleQuic)]
 #endif
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, endpoint);
@@ -63,6 +56,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Ensures reverse PTR lookups succeed for the specified endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]

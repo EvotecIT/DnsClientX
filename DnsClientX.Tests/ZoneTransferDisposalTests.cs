@@ -8,7 +8,13 @@ using System.Collections.Generic;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests disposal of resources when performing zone transfers.
+    /// </summary>
     public class ZoneTransferDisposalTests {
+        /// <summary>
+        /// Verifies resources are disposed when AXFR over TCP times out.
+        /// </summary>
         [Fact]
         public async Task SendAxfrOverTcp_ShouldDisposeResources_OnTimeout() {
             MethodInfo method = typeof(ClientX).GetMethod(

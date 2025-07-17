@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests zone transfer responses that contain no SOA record.
+    /// </summary>
     public class ZoneTransferEmptyTests {
         private static byte[] EncodeName(string name) {
             name = name.TrimEnd('.');
@@ -82,6 +85,9 @@ namespace DnsClientX.Tests {
             return new AxfrServer(port, Serve());
         }
 
+        /// <summary>
+        /// Performs a zone transfer and expects no SOA record to be present.
+        /// </summary>
         [Fact]
         public async Task ZoneTransferAsync_NoSoa_ReturnsEmptyArray() {
             byte[] m1 = BuildEmptyMessage("example.com");

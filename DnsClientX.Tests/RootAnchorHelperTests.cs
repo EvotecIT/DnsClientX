@@ -6,8 +6,14 @@ using Xunit;
 
 namespace DnsClientX.Tests;
 
+/// <summary>
+/// Tests for helper methods dealing with DNS root trust anchors.
+/// </summary>
 public class RootAnchorHelperTests
 {
+    /// <summary>
+    /// Parses embedded XML and verifies returned records.
+    /// </summary>
     [Fact]
     public void ParseFromXml_ParsesRecords()
     {
@@ -40,6 +46,9 @@ public class RootAnchorHelperTests
             => throw new HttpRequestException("fail");
     }
 
+    /// <summary>
+    /// Simulates a download failure and ensures an empty array is returned.
+    /// </summary>
     [Fact]
     public async Task FetchLatestAsync_Failure_ReturnsEmptyArrayAndLogsWarning()
     {

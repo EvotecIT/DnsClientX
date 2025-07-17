@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests that enumerators returned from <see cref="ClientX.ResolveStream"/> are disposed correctly.
+    /// </summary>
     public class ResolveStreamEnumeratorDisposeTests {
         private class TrackingEnumerable<T> : IEnumerable<T> {
             private readonly T[] _items;
@@ -42,6 +45,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Enumerates results and ensures underlying enumerators are disposed.
+        /// </summary>
         [Fact]
         public async Task ResolveStream_ShouldDisposeEnumerators() {
             using var client = new ClientX(DnsEndpoint.System);

@@ -5,6 +5,10 @@ namespace DnsClientX.Tests {
     /// Tests for composing the NSID EDNS option.
     /// </summary>
     public class NsidOptionTests {
+        /// <summary>
+        /// Verifies that the NSID option is properly serialized when included
+        /// in an OPT record.
+        /// </summary>
         [Fact]
         public void SerializeDnsWireFormat_ShouldIncludeNsidOption() {
             var option = new NsidOption();

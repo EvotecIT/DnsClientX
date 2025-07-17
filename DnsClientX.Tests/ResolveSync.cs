@@ -4,9 +4,16 @@ using Xunit;
 using Xunit.Abstractions;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests synchronous resolution APIs of <see cref="ClientX"/>.
+    /// </summary>
     public class ResolveSync {
         private readonly ITestOutputHelper _output;
 
+        /// <summary>
+        /// Initializes a new instance of the test class.
+        /// </summary>
+        /// <param name="output">XUnit output helper.</param>
         public ResolveSync(ITestOutputHelper output)
         {
             _output = output;
@@ -85,7 +92,10 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
+[InlineData(DnsEndpoint.OpenDNSFamily)]
+        /// <summary>
+        /// Performs synchronous TXT resolution for the specified endpoint.
+        /// </summary>
         public async Task ShouldWorkForTXTSync(DnsEndpoint endpoint)
         {
             using var client = new ClientX(endpoint);
@@ -113,7 +123,10 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
+[InlineData(DnsEndpoint.OpenDNSFamily)]
+        /// <summary>
+        /// Performs synchronous TXT resolution returning only the first record.
+        /// </summary>
         public async Task ShouldWorkForFirstSyncTXT(DnsEndpoint endpoint)
         {
             using var client = new ClientX(endpoint);
@@ -139,7 +152,10 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
+[InlineData(DnsEndpoint.OpenDNSFamily)]
+        /// <summary>
+        /// Performs synchronous TXT resolution returning all records.
+        /// </summary>
         public async Task ShouldWorkForAllSyncTXT(DnsEndpoint endpoint)
         {
             using var client = new ClientX(endpoint);
@@ -167,7 +183,10 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
+[InlineData(DnsEndpoint.OpenDNSFamily)]
+        /// <summary>
+        /// Performs asynchronous A record resolution for the specified endpoint.
+        /// </summary>
         public async Task ShouldWorkForASync(DnsEndpoint endpoint)
         {
             using var client = new ClientX(endpoint);
@@ -196,6 +215,9 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
+        /// <summary>
+        /// Synchronously resolves PTR records for reverse lookups.
+        /// </summary>
         public void ShouldWorkForPTRSync(DnsEndpoint endpoint) {
             using var client = new ClientX(endpoint);
             var response = client.ResolveSync("1.1.1.1", DnsRecordType.PTR);
@@ -209,6 +231,9 @@ namespace DnsClientX.Tests {
 
         [Theory]
         [InlineData(DnsEndpoint.Cloudflare)]
+        /// <summary>
+        /// Resolves multiple domains synchronously for the given endpoint.
+        /// </summary>
         public void ShouldWorkForMultipleDomainsSync(DnsEndpoint endpoint) {
             using var client = new ClientX(endpoint);
             var domains = new[] { "evotec.pl", "google.com" };
@@ -225,6 +250,9 @@ namespace DnsClientX.Tests {
 
         [Theory]
         [InlineData(DnsEndpoint.Cloudflare)]
+        /// <summary>
+        /// Resolves multiple record types synchronously for a single domain.
+        /// </summary>
         public void ShouldWorkForMultipleTypesSync(DnsEndpoint endpoint) {
             using var client = new ClientX(endpoint);
             var types = new[] { DnsRecordType.A, DnsRecordType.TXT };
@@ -253,6 +281,9 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
+        /// <summary>
+        /// Resolves the first A record synchronously for the given endpoint.
+        /// </summary>
         public void ShouldWorkForFirstSyncA(DnsEndpoint endpoint) {
             using var client = new ClientX(endpoint);
             var answer = client.ResolveFirstSync("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);
@@ -276,6 +307,9 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
+        /// <summary>
+        /// Resolves all A records synchronously for the given endpoint.
+        /// </summary>
         public void ShouldWorkForAllSyncA(DnsEndpoint endpoint) {
             using var client = new ClientX(endpoint);
             var answers = client.ResolveAllSync("evotec.pl", DnsRecordType.A);
