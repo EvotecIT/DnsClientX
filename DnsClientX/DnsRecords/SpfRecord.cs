@@ -34,9 +34,13 @@ public sealed class SpfRecord {
             return false;
         }
         var version = parts[0];
-        var mechanisms = parts.Length > 1
-            ? parts[1..]
-            : Array.Empty<string>();
+        string[] mechanisms;
+        if (parts.Length > 1) {
+            mechanisms = new string[parts.Length - 1];
+            Array.Copy(parts, 1, mechanisms, 0, mechanisms.Length);
+        } else {
+            mechanisms = Array.Empty<string>();
+        }
         result = new SpfRecord(version, mechanisms);
         return true;
     }

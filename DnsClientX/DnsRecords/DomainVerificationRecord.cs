@@ -28,7 +28,7 @@ public sealed class DomainVerificationRecord {
         if (string.IsNullOrWhiteSpace(record)) {
             return false;
         }
-        var parts = record.Split('=', 2);
+        var parts = record.Split(new[] { '=' }, 2);
         if (parts.Length != 2) {
             return false;
         }
