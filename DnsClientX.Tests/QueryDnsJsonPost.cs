@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests that JSON-based DoH endpoints are invoked using HTTP POST.
+    /// </summary>
     public class QueryDnsJsonPost {
         private class JsonPostHandler : HttpMessageHandler {
             public HttpRequestMessage? Request { get; private set; }
@@ -31,6 +34,9 @@ namespace DnsClientX.Tests {
             clientField.SetValue(client, httpClient);
         }
 
+        /// <summary>
+        /// Sends a query and verifies that the request uses POST with a JSON payload.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.CloudflareJsonPost)]
         [InlineData(DnsEndpoint.GoogleJsonPost)]

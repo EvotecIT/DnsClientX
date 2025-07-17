@@ -1,5 +1,11 @@
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests scenarios expected to fail such as unreachable servers.
+    /// </summary>
     public class QueryDnsFailing {
+        /// <summary>
+        /// Queries an invalid server expecting a timeout.
+        /// </summary>
         [Theory]
         [InlineData("8.8.1.1", DnsRequestFormat.DnsOverUDP)]
         [InlineData("a1akam1.net", DnsRequestFormat.DnsOverUDP)]
@@ -9,6 +15,9 @@ namespace DnsClientX.Tests {
         }
 
 
+        /// <summary>
+        /// Resolves using a <see cref="ClientX"/> instance pointing at an invalid server expecting failure.
+        /// </summary>
         [Theory]
         [InlineData("8.8.1.1", DnsRequestFormat.DnsOverUDP)]
         [InlineData("a1akam1.net", DnsRequestFormat.DnsOverUDP)]

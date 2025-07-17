@@ -1,7 +1,22 @@
 using System.Diagnostics;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for the <see cref="ClientX.ResolveAll"/> API.
+    /// </summary>
     public class ResolveAll {
+        /// <summary>
+        /// Resolves TXT records for the given endpoint.
+        /// </summary>
+        /// <summary>
+        /// Resolves A records for the given endpoint.
+        /// </summary>
+        /// <summary>
+        /// Synchronous TXT resolution across endpoints.
+        /// </summary>
+        /// <summary>
+        /// Synchronous A record resolution across endpoints.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -75,9 +90,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-
-
-
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
 #if DNS_OVER_QUIC
@@ -124,6 +136,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Ensures no delay occurs when <c>maxRetries</c> is set to one.
+        /// </summary>
         [Fact]
         public async Task ShouldNotDelayWhenMaxRetriesIsOne() {
             using var Client = new ClientX(DnsEndpoint.Cloudflare);
