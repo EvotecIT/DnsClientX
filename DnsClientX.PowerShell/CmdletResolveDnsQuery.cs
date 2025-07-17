@@ -275,7 +275,7 @@ namespace DnsClientX.PowerShell {
                     if (FullResponse.IsPresent) {
                         WriteObject(record);
                     } else if (TypedRecords.IsPresent && record.TypedAnswers != null) {
-                        WriteObject(record.TypedAnswers);
+                        WriteObject(record.TypedAnswers, true);
                     } else {
                         WriteObject(record.AnswersMinimal);
                     }
@@ -311,7 +311,7 @@ namespace DnsClientX.PowerShell {
                     if (FullResponse.IsPresent) {
                         WriteObject(record);
                     } else if (TypedRecords.IsPresent && record.TypedAnswers != null) {
-                        WriteObject(record.TypedAnswers);
+                        WriteObject(record.TypedAnswers, true);
                     } else {
                         WriteObject(record.AnswersMinimal);
                     }
