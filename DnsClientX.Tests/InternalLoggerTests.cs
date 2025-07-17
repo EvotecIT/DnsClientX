@@ -1,7 +1,13 @@
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for the <see cref="InternalLogger"/> helper.
+    /// </summary>
     public class InternalLoggerTests {
+        /// <summary>
+        /// Ensures progress events set the expected percentage.
+        /// </summary>
         [Fact]
         public void WriteProgress_SetsPercentage() {
             var logger = new InternalLogger();
@@ -16,6 +22,9 @@ namespace DnsClientX.Tests {
             Assert.Null(args.ProgressTotalSteps);
         }
 
+        /// <summary>
+        /// Ensures step information is included with progress updates.
+        /// </summary>
         [Fact]
         public void WriteProgress_WithSteps_SetsPercentage() {
             var logger = new InternalLogger();

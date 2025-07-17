@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests DNS over TLS resolution logic.
+    /// </summary>
     [Collection("NoParallel")]
     public class DnsWireResolveDotTests {
         private static int GetFreePort() {
@@ -32,6 +35,9 @@ namespace DnsClientX.Tests {
             listener.Stop();
         }
 
+        /// <summary>
+        /// Ensures authentication failures are converted to <see cref="DnsClientException"/>.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatDoT_ShouldWrapAuthenticationException() {
             int port = GetFreePort();

@@ -108,6 +108,9 @@ namespace DnsClientX.Tests {
             return count == 0;
         }
 
+        /// <summary>
+        /// Verifies that cache TTL values below the minimum are clamped.
+        /// </summary>
         [Fact]
         public async Task ShouldClampToMinCacheTtl() {
             ClearCache();
@@ -125,6 +128,9 @@ namespace DnsClientX.Tests {
             Assert.InRange(Math.Abs((ttl - client.MinCacheTtl).TotalSeconds), 0, 1);
         }
 
+        /// <summary>
+        /// Verifies that cache TTL values above the maximum are clamped.
+        /// </summary>
         [Fact]
         public async Task ShouldClampToMaxCacheTtl() {
             ClearCache();
@@ -142,6 +148,9 @@ namespace DnsClientX.Tests {
             Assert.InRange(Math.Abs((ttl - client.MaxCacheTtl).TotalSeconds), 0, 1);
         }
 
+        /// <summary>
+        /// Ensures responses with a TTL of zero are not cached.
+        /// </summary>
         [Fact]
         public async Task ShouldNotCacheWhenTtlZero() {
             ClearCache();

@@ -2,7 +2,13 @@ using System.Net;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for <see cref="DnsSrvRecord"/> functionality.
+    /// </summary>
     public class DnsSrvRecordTests {
+        /// <summary>
+        /// Ensures property values are preserved after assignment.
+        /// </summary>
         [Fact]
         public void PropertiesStoreValues() {
             var record = new DnsSrvRecord {

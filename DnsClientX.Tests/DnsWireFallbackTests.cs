@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests fallback behavior from UDP to TCP queries.
+    /// </summary>
     public class DnsWireFallbackTests {
         private static byte[] CreateDnsHeader(bool truncated) {
             byte[] bytes = new byte[12];
@@ -53,6 +56,9 @@ namespace DnsClientX.Tests {
             listener.Stop();
         }
 
+        /// <summary>
+        /// UDP queries should automatically retry over TCP when truncated.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldFallbackToTcpWhenTruncated() {
             int port = GetFreePort();
@@ -74,6 +80,9 @@ namespace DnsClientX.Tests {
             Assert.False(response.IsTruncated);
         }
 
+        /// <summary>
+        /// Ensures TCP fallback can be disabled for UDP queries.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldNotFallbackWhenDisabled() {
             int port = GetFreePort();

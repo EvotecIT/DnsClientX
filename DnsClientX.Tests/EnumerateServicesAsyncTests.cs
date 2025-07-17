@@ -5,7 +5,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests asynchronous enumeration of DNS-SD services.
+    /// </summary>
     public class EnumerateServicesAsyncTests {
+        /// <summary>
+        /// Streams service records and verifies parsing logic.
+        /// </summary>
         [Fact]
         public async Task ShouldStreamServices() {
             var ptrResponse = new DnsResponse {

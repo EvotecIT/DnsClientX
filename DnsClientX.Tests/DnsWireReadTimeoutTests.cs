@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests TCP read timeout handling.
+    /// </summary>
     public class DnsWireReadTimeoutTests {
         private static int GetFreePort() {
             TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
@@ -31,6 +34,9 @@ namespace DnsClientX.Tests {
             listener.Stop();
         }
 
+        /// <summary>
+        /// Ensures TCP DNS queries time out when the server stalls.
+        /// </summary>
         [Fact]
         public async Task SendQueryOverTcp_ShouldTimeoutOnStalledServer() {
             int port = GetFreePort();

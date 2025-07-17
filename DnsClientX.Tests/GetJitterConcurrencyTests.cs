@@ -4,7 +4,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests thread safety of the jitter generation method.
+    /// </summary>
     public class GetJitterConcurrencyTests {
+        /// <summary>
+        /// Invokes jitter generation concurrently to ensure no conflicts.
+        /// </summary>
         [Fact]
         public async Task GetJitter_ShouldBeThreadSafe() {
             MethodInfo method = typeof(ClientX).GetMethod("GetJitter", BindingFlags.NonPublic | BindingFlags.Static)!;
