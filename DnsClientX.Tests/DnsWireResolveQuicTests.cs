@@ -5,7 +5,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Net.Quic;
-using System.Runtime.Serialization;
+using System.Runtime.CompilerServices;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -83,8 +83,8 @@ namespace DnsClientX.Tests {
                 DnsWireResolveQuic.ConnectionDisposeCount = 0;
                 DnsWireResolveQuic.StreamDisposeCount = 0;
                 DnsWireResolveQuic.HostEntryResolver = _ => new IPHostEntry { AddressList = [IPAddress.Loopback] };
-                DnsWireResolveQuic.QuicConnectionFactory = (_, _) => new ValueTask<QuicConnection>((QuicConnection)FormatterServices.GetUninitializedObject(typeof(QuicConnection)));
-                DnsWireResolveQuic.StreamFactory = (_, _) => new ValueTask<QuicStream>((QuicStream)FormatterServices.GetUninitializedObject(typeof(QuicStream)));
+                DnsWireResolveQuic.QuicConnectionFactory = (_, _) => new ValueTask<QuicConnection>((QuicConnection)RuntimeHelpers.GetUninitializedObject(typeof(QuicConnection)));
+                DnsWireResolveQuic.StreamFactory = (_, _) => new ValueTask<QuicStream>((QuicStream)RuntimeHelpers.GetUninitializedObject(typeof(QuicStream)));
                 DnsWireResolveQuic.ConnectionDisposer = _ => { DnsWireResolveQuic.ConnectionDisposeCount++; return ValueTask.CompletedTask; };
                 DnsWireResolveQuic.StreamDisposer = _ => { DnsWireResolveQuic.StreamDisposeCount++; return ValueTask.CompletedTask; };
 
