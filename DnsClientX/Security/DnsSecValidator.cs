@@ -441,7 +441,7 @@ namespace DnsClientX {
                 }
 #if NET5_0_OR_GREATER
                 else if (key.Algorithm == DnsKeyAlgorithm.ECDSAP256SHA256 || key.Algorithm == DnsKeyAlgorithm.ECDSAP384SHA384) {
-                    if (TryGetEcdsa(key.PublicKey, key.Algorithm, out ECDsa? ecdsa)) {
+                    if (TryGetEcdsa(key.PublicKey, key.Algorithm, out ECDsa? ecdsa) && ecdsa != null) {
                         using (ecdsa) {
                             HashAlgorithmName hashAlg = key.Algorithm == DnsKeyAlgorithm.ECDSAP256SHA256 ? HashAlgorithmName.SHA256 : HashAlgorithmName.SHA384;
                             if (ecdsa.VerifyData(data, rrsig.Signature, hashAlg)) {

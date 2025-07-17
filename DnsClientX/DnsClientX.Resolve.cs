@@ -254,9 +254,9 @@ namespace DnsClientX {
                 return result;
             }
 
-            Exception lastException = null;
-            DnsClientException lastDnsClientException = null;
-            T lastResult = default(T);
+            Exception? lastException = null;
+            DnsClientException? lastDnsClientException = null;
+            T? lastResult = default;
 
             for (int attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
@@ -327,7 +327,7 @@ namespace DnsClientX {
             {
                 finalResponse.RetryCount = maxRetries - 1;
             }
-            return lastResult;
+            return lastResult!;
         }
 
         /// <summary>

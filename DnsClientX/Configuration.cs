@@ -339,7 +339,7 @@ namespace DnsClientX {
         public Configuration(DnsEndpoint endpoint, DnsSelectionStrategy selectionStrategy = DnsSelectionStrategy.First) {
             List<string> hostnames;
             SelectionStrategy = selectionStrategy;
-            string baseUriFormat;
+            string? baseUriFormat;
             switch (endpoint) {
                 case DnsEndpoint.System:
                     // Use the system's default DNS resolver

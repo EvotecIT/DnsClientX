@@ -24,7 +24,7 @@ namespace DnsClientX.Tests {
             LogDiagnostics($"DNS Servers: {string.Join(", ", SystemInformation.GetDnsFromActiveNetworkCard())}");
 
             DnsResponse response = new DnsResponse();
-            Exception lastException = null;
+            Exception? lastException = null;
 
             for (int attempt = 1; attempt <= maxRetries; attempt++)
             {

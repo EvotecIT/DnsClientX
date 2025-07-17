@@ -69,7 +69,7 @@ namespace DnsClientX.Tests {
 
             int before = GetTcpConnectionCount(port);
             for (int i = 0; i < iterations; i++) {
-                var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, cts.Token })!;
+                var task = (Task<DnsResponse>)method.Invoke(null, new object?[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, cts.Token })!;
                 await task;
             }
             await serverTask;
