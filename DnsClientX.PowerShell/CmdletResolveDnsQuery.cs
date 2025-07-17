@@ -216,7 +216,7 @@ namespace DnsClientX.PowerShell {
                     if (IPAddress.TryParse(trimmed, out _)) {
                         validServers.Add(trimmed);
                     } else {
-                        _logger.WriteError("Malformed server address '{0}'.", serverEntry);
+                    _logger?.WriteError("Malformed server address '{0}'.", serverEntry);
                     }
                 }
 
@@ -238,7 +238,7 @@ namespace DnsClientX.PowerShell {
                     }
                     var aggregatedResults = new List<DnsResponse>();
                     foreach (string serverName in serverOrder) {
-                        _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, serverName);
+                        _logger?.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, serverName);
                         var result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec, typedRecords: TypedRecords.IsPresent, typedTxtAsTxt: TypedTxtAsTxt.IsPresent));
                         aggregatedResults.AddRange(result);
                     }
@@ -246,7 +246,7 @@ namespace DnsClientX.PowerShell {
                 } else if (Fallback.IsPresent) {
                     var aggregatedResults = new List<DnsResponse>();
                     foreach (string serverName in serverOrder) {
-                        _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, serverName);
+                        _logger?.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, serverName);
                         var result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec, typedRecords: TypedRecords.IsPresent, typedTxtAsTxt: TypedTxtAsTxt.IsPresent));
                         aggregatedResults.AddRange(result);
                         if (aggregatedResults.Any(r => r.Status == DnsResponseCode.NoError)) {
@@ -256,7 +256,7 @@ namespace DnsClientX.PowerShell {
                     results = aggregatedResults;
                 } else {
                     string myServer = serverOrder.First();
-                    _logger.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, myServer);
+                    _logger?.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, myServer);
                     var result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, myServer, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec, typedRecords: TypedRecords.IsPresent, typedTxtAsTxt: TypedTxtAsTxt.IsPresent));
                     results = result;
                 }
@@ -265,11 +265,11 @@ namespace DnsClientX.PowerShell {
                     string serverUsed = record.Questions.FirstOrDefault().HostName;
                     if (record.Status == DnsResponseCode.NoError)
                     {
-                        _logger.WriteVerbose("Query successful for {0} with type {1}, {2} (retries {3})", names, types, serverUsed, record.RetryCount);
+                        _logger?.WriteVerbose("Query successful for {0} with type {1}, {2} (retries {3})", names, types, serverUsed, record.RetryCount);
                     }
                     else
                     {
-                        _logger.WriteWarning("Query failed for {0} with type {1}, {2} and error: {3}", names, types, serverUsed, record.Error);
+                        _logger?.WriteWarning("Query failed for {0} with type {1}, {2} and error: {3}", names, types, serverUsed, record.Error);
                     }
 
                     if (FullResponse.IsPresent) {
@@ -281,10 +281,10 @@ namespace DnsClientX.PowerShell {
             } else {
                 DnsResponse[] result;
                 if (DnsProvider == null) {
-                    _logger.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, "Default");
+                    _logger?.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, "Default");
                     result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec, typedRecords: TypedRecords.IsPresent, typedTxtAsTxt: TypedTxtAsTxt.IsPresent));
                 } else {
-                    _logger.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, DnsProvider.Value);
+                    _logger?.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, DnsProvider.Value);
                     result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, DnsProvider.Value, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec, typedRecords: TypedRecords.IsPresent, typedTxtAsTxt: TypedTxtAsTxt.IsPresent));
                 }
 
@@ -293,17 +293,17 @@ namespace DnsClientX.PowerShell {
                     {
                         if (DnsProvider == null)
                         {
-                            _logger.WriteVerbose("Query successful for {0} with type {1}, {2} (retries {3})", names, types, "Default", record.RetryCount);
+                            _logger?.WriteVerbose("Query successful for {0} with type {1}, {2} (retries {3})", names, types, "Default", record.RetryCount);
                         }
                         else
                         {
-                            _logger.WriteVerbose("Query successful for {0} with type {1}, {2} (retries {3})", names, types, DnsProvider.Value, record.RetryCount);
+                            _logger?.WriteVerbose("Query successful for {0} with type {1}, {2} (retries {3})", names, types, DnsProvider.Value, record.RetryCount);
                         }
                     } else {
                         if (DnsProvider == null) {
-                            _logger.WriteWarning("Query failed for {0} with type {1}, {2} and error: {3}", names, types, "Default", record.Error);
+                            _logger?.WriteWarning("Query failed for {0} with type {1}, {2} and error: {3}", names, types, "Default", record.Error);
                         } else {
-                            _logger.WriteWarning("Query failed for {0} with type {1}, {2} and error: {3}", names, types, DnsProvider.Value, record.Error);
+                            _logger?.WriteWarning("Query failed for {0} with type {1}, {2} and error: {3}", names, types, DnsProvider.Value, record.Error);
                         }
                     }
                     if (FullResponse.IsPresent) {

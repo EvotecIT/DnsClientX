@@ -43,7 +43,7 @@ namespace DnsClientX {
             }
 
             // If the response is null, return an empty array
-            if (res.Answers is null) return Array.Empty<DnsAnswer>();
+            if (res?.Answers is null) return Array.Empty<DnsAnswer>();
 
             return res.Answers.Where(x => x.Type == type).ToArray();
         }
@@ -79,7 +79,7 @@ namespace DnsClientX {
             }
 
             // If the response is null, return an empty array
-            if (res.Answers is null) return Array.Empty<DnsAnswer>();
+            if (res?.Answers is null) return Array.Empty<DnsAnswer>();
 
             return res.Answers
                 .Where(x => x.Type == type && x.Data.Contains(filter))
@@ -117,7 +117,7 @@ namespace DnsClientX {
             }
 
             // If the response is null, return an empty array
-            if (res.Answers is null) return Array.Empty<DnsAnswer>();
+            if (res?.Answers is null) return Array.Empty<DnsAnswer>();
 
             return res.Answers
                 .Where(x => x.Type == type && regexPattern.IsMatch(x.Data))

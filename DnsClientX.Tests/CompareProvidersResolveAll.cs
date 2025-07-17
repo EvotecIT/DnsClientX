@@ -2,7 +2,7 @@ using Xunit.Abstractions;
 
 namespace DnsClientX.Tests {
     /// <summary>
-    /// Compares <see cref="ClientX.ResolveAll(string,DnsRecordType,bool,bool,bool,bool,int,int,System.Threading.CancellationToken)"/> results across providers.
+    /// Compares <see cref="ClientX.ResolveAll(string,DnsRecordType,bool,bool,bool,int,int,System.Threading.CancellationToken)"/> results across providers.
     /// </summary>
     public class CompareProviders(ITestOutputHelper output) {
         /// <summary>

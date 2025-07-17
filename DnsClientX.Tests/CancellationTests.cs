@@ -22,7 +22,7 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Ensures that <see cref="ClientX.Resolve(string,DnsRecordType,bool,bool,bool,bool,int,int,CancellationToken)"/> respects early cancellation.
+        /// Ensures that <see cref="ClientX.Resolve(string,DnsRecordType,bool,bool,bool,bool,int,int,bool,bool,System.Threading.CancellationToken)"/> respects early cancellation.
         /// </summary>
         [Fact]
         public async Task ResolveShouldCancelEarly() {
@@ -41,7 +41,7 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Verifies that <see cref="ClientX.QueryDns(string,DnsRecordType,DnsEndpoint,DnsSelectionStrategy,int,bool,int,int,bool,bool,bool,CancellationToken)"/> throws when the token is already cancelled.
+        /// Verifies that <see cref="ClientX.QueryDns(string,DnsRecordType,DnsEndpoint,DnsSelectionStrategy,int,bool,int,int,bool,bool,bool,bool,System.Threading.CancellationToken)"/> throws when the token is already cancelled.
         /// </summary>
         [Fact]
         public async Task QueryDnsShouldCancelEarly() {
