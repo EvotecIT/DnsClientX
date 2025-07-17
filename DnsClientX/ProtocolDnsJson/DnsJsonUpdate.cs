@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 using System.Text.Json;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Helper methods for performing DNS UPDATE operations using the JSON API.
+    /// </summary>
     internal static class DnsJsonUpdate {
         internal static async Task<DnsResponse> UpdateJsonFormatPost(this HttpClient client, string zone, string name,
             DnsRecordType type, string data, int ttl, bool debug, Configuration configuration, CancellationToken cancellationToken) {

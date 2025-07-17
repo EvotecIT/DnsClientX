@@ -9,6 +9,9 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Implements DNS over TLS (DoT) resolution using raw wire format messages.
+    /// </summary>
     internal static class DnsWireResolveDot {
         /// <summary>
         /// Sends a DNS query in wire format using DNS over TLS (DoT) and returns the response.

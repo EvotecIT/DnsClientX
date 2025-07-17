@@ -4,8 +4,14 @@ using System.Threading.Tasks;
 using DnsClientX;
 
 namespace RetryTest {
-    class Program {
-        static async Task Main(string[] args) {
+    /// <summary>
+    /// Small console application used to test retry behaviour of <see cref="DnsClientX"/>.
+    /// </summary>
+    internal class Program {
+        /// <summary>
+        /// Application entry point.
+        /// </summary>
+        private static async Task Main(string[] args) {
             // Cancel all DNS operations after a timeout to prevent endless waits.
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             await RunAsync(cts.Token);

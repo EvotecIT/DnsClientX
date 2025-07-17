@@ -6,6 +6,9 @@ using System;
 using System.Collections.Generic;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Methods for performing DNS queries over various HTTP transports using raw wire format.
+    /// </summary>
     internal static class DnsWireResolve {
         /// <summary>
         /// Sends a DNS query in wire format over HTTP GET and returns the response.

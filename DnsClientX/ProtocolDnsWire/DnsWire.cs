@@ -9,6 +9,9 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Provides serialization and deserialization helpers for DNS wire format messages.
+    /// </summary>
     internal static class DnsWire {
         /// <summary>
         /// Deserializes the DNS wire format.

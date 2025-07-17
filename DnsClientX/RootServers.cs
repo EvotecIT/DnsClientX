@@ -1,4 +1,7 @@
 namespace DnsClientX {
+    /// <summary>
+    /// Contains the well known DNS root server addresses used for iterative queries.
+    /// </summary>
     internal static class RootServers {
         /// <summary>
         /// List of well known DNS root servers used when performing iterative resolution.

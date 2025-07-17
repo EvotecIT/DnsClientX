@@ -7,6 +7,9 @@ using System.Collections.Generic;
 using System;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Extension methods for performing DNS queries using the DNS JSON API.
+    /// </summary>
     internal static class DnsJsonResolve {
         /// <summary>
         /// Sends a DNS query in JSON format and returns the response.

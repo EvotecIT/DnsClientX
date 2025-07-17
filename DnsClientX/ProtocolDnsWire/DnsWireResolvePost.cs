@@ -6,6 +6,9 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Implements DNS queries sent via HTTP POST using the DNS wire format.
+    /// </summary>
     internal static class DnsWireResolvePost {
         /// <summary>
         /// Sends a DNS query in wire format using HTTP POST and returns the response.

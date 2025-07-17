@@ -3,6 +3,9 @@ using System.Buffers.Binary;
 using System.IO;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Utility helpers that assist in printing and parsing DNS wire data for debugging purposes.
+    /// </summary>
     internal static class DebuggingHelpers {
         /// <summary>
         /// Troubleshooting the DNS wire with 2 bytes.
