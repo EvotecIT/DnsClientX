@@ -2,11 +2,22 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-    <TargetFrameworks>net8.0</TargetFrameworks>
-    <LangVersion>Latest</LangVersion>
-    <Nullable>enable</Nullable>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
+        <AssemblyName>DnsClientX.Examples</AssemblyName>
+        <AssemblyTitle>DnsClientX Examples</AssemblyTitle>
+        <Title>DnsClientX Examples</Title>
+        <Description>Example applications demonstrating DnsClientX library features and capabilities.</Description>
+        <VersionPrefix>1.0.0</VersionPrefix>
+        <AssemblyVersion>1.0.0</AssemblyVersion>
+        <FileVersion>1.0.0</FileVersion>
+        <Company>Evotec</Company>
+        <Authors>Przemyslaw Klys</Authors>
+        <Copyright>(c) 2011 - 2025 Przemyslaw Klys @ Evotec. All rights reserved.</Copyright>
+        <TargetFrameworks>net8.0</TargetFrameworks>
+        <LangVersion>Latest</LangVersion>
+        <Nullable>enable</Nullable>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
 
   <ItemGroup>
         <PackageReference Include="Spectre.Console" Version="0.50.0" />
