@@ -109,6 +109,10 @@ namespace DnsClientX.Cli {
 
             try {
                 await using var client = new ClientX(endpoint);
+                string? envPort = Environment.GetEnvironmentVariable("DNSCLIENTX_CLI_PORT");
+                if (int.TryParse(envPort, out int customPort) && customPort > 0) {
+                    client.EndpointConfiguration.Port = customPort;
+                }
                 if (wirePost &&
                     (client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps ||
                      client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST ||
