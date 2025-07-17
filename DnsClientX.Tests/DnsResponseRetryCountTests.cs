@@ -27,7 +27,7 @@ namespace DnsClientX.Tests {
             MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<DnsResponse> Invoke() {
                 var generic = method.MakeGenericMethod(typeof(DnsResponse));
-                return (Task<DnsResponse>)generic.Invoke(null, new object?[] { action, 3, 1, null, false, CancellationToken.None })!;
+                return (Task<DnsResponse>)generic.Invoke(null!, new object?[] { action, 3, 1, null!, false, CancellationToken.None })!;
             }
 
             DnsResponse res = await Invoke();
