@@ -105,8 +105,8 @@ namespace DnsClientX {
                     new DnsQuestion() {
                         Name = name,
                         RequestFormat = DnsRequestFormat.DnsOverHttps,
-                        HostName = client.BaseAddress.Host,
-                        Port = client.BaseAddress.Port,
+                        HostName = client.BaseAddress?.Host ?? string.Empty,
+                        Port = client.BaseAddress?.Port ?? 0,
                         Type = type,
                         OriginalName = name
                     }

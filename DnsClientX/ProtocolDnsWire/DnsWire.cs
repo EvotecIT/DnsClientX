@@ -39,7 +39,8 @@ namespace DnsClientX {
                 if (bytes != null) {
                     dnsWireFormatBytes = bytes;
                 } else {
-                    using Stream stream = await res.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                    HttpResponseMessage notNullRes = res ?? throw new ArgumentNullException(nameof(res));
+                    using Stream stream = await notNullRes.Content.ReadAsStreamAsync().ConfigureAwait(false);
                     if (stream.Length == 0) throw new DnsClientException("Response content is empty, can't parse as DNS wire format.");
                     // Ensure the stream's position is at the start
                     stream.Position = 0;
@@ -49,9 +50,9 @@ namespace DnsClientX {
                 }
 
                 if (debug) {
-                    if (res != null) {
+                    if (res?.RequestMessage?.RequestUri is { } requestUri) {
                         // Print the DNS wire format bytes to the logger
-                        Settings.Logger.WriteDebug("Response Uri: " + res.RequestMessage.RequestUri);
+                        Settings.Logger.WriteDebug("Response Uri: " + requestUri);
                     }
 
                     Settings.Logger.WriteDebug("Response DnsWireFormatBytes: " + BitConverter.ToString(dnsWireFormatBytes));
