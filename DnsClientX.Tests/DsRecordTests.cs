@@ -5,9 +5,15 @@ using System.Threading;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for DS record parsing helpers.
+    /// </summary>
     public class DsRecordTests {
         private const string DsString = "20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D";
 
+        /// <summary>
+        /// Verifies that DS record data is parsed correctly from string form.
+        /// </summary>
         [Fact]
         public void ConvertData_ParsesDsRecord() {
             var answer = new DnsAnswer {
@@ -20,6 +26,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("20326 RSASHA256 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D", answer.Data);
         }
 
+        /// <summary>
+        /// Ensures wire format DS records are decoded properly.
+        /// </summary>
         [Fact]
         public void ProcessRecordData_DecodesDsWireFormat() {
             byte[] digest = HexToBytes("E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D");
@@ -37,6 +46,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("20326 RSASHA256 2 e06d44b80b8f1d39a95c0b0d7c65d08458e880409bbc683457104237c7f8ec8d", result);
         }
 
+        /// <summary>
+        /// Confirms DS record decoding is culture invariant.
+        /// </summary>
         [Theory]
         [InlineData("en-US")]
         [InlineData("tr-TR")]

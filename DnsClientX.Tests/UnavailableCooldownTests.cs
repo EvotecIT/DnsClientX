@@ -3,7 +3,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests the handling of unavailable hostname cooldowns.
+    /// </summary>
     public class UnavailableCooldownTests {
+        /// <summary>
+        /// Verifies that host selection skips unavailable hosts until cooldown expires.
+        /// </summary>
         [Fact]
         public async Task SelectHostNameStrategy_ShouldSkipUnavailableUntilCooldownExpires() {
             var config = new Configuration(DnsEndpoint.Cloudflare, DnsSelectionStrategy.Failover) {

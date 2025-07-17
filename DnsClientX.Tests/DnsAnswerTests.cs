@@ -7,10 +7,10 @@ namespace DnsClientX.Tests {
     /// Tests for helper methods on <see cref="DnsAnswer"/>.
     /// </summary>
     public class DnsAnswerTests {
-        [Fact]
         /// <summary>
         /// Ensures conversion to a string array returns an empty array when data is null.
         /// </summary>
+        [Fact]
         public void ConvertToMultiString_NullData_ReturnsEmptyArray() {
             var answer = new DnsAnswer {
                 Name = "example.com",
@@ -22,6 +22,9 @@ namespace DnsClientX.Tests {
             Assert.Empty(answer.DataStrings);
         }
 
+        /// <summary>
+        /// Ensures that NS record data is parsed consistently regardless of culture.
+        /// </summary>
         [Theory]
         [InlineData("en-US")]
         [InlineData("tr-TR")]

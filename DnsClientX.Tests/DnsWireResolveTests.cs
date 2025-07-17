@@ -5,7 +5,13 @@ using System.Threading;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for core DNS wire resolution helpers.
+    /// </summary>
     public class DnsWireResolveTests {
+        /// <summary>
+        /// Ensures DS record parsing is culture invariant.
+        /// </summary>
         [Theory]
         [InlineData("en-US")]
         [InlineData("tr-TR")]

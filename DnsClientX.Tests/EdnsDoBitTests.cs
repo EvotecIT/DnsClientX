@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for EDNS DO bit handling.
+    /// </summary>
     public class EdnsDoBitTests {
         private static byte[] CreateDnsHeader() {
             byte[] bytes = new byte[12];
@@ -110,6 +113,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(size, actualSize);
         }
 
+        /// <summary>
+        /// Ensures the DO bit is set on UDP queries when DNSSEC is requested.
+        /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldIncludeDoBit_WhenRequested() {
             int port = GetFreePort();
@@ -127,6 +133,9 @@ namespace DnsClientX.Tests {
             AssertDoBit(query, "example.com");
         }
 
+        /// <summary>
+        /// Ensures the DO bit is set on TCP queries when DNSSEC is requested.
+        /// </summary>
         [Fact]
         public async Task TcpRequest_ShouldIncludeDoBit_WhenRequested() {
             int port = GetFreePort();
@@ -144,6 +153,9 @@ namespace DnsClientX.Tests {
             AssertDoBit(query, "example.com");
         }
 
+        /// <summary>
+        /// Verifies that a custom UDP buffer size is honored.
+        /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldUseCustomBufferSize() {
             int port = GetFreePort();
@@ -161,6 +173,9 @@ namespace DnsClientX.Tests {
             AssertBufferSize(query, "example.com", 1234);
         }
 
+        /// <summary>
+        /// Validates buffer size configuration via <see cref="EdnsOptions"/>.
+        /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldUseBufferSize_FromEdnsOptions() {
             int port = GetFreePort();
@@ -181,6 +196,9 @@ namespace DnsClientX.Tests {
             AssertBufferSize(query, "example.com", 1234);
         }
 
+        /// <summary>
+        /// Ensures the DO bit is not set when DNSSEC is not requested.
+        /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldNotSetDoBit_WhenDnssecNotRequested() {
             int port = GetFreePort();

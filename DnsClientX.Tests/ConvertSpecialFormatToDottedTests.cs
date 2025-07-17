@@ -23,6 +23,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(malformed, Invoke(malformed));
         }
 
+        /// <summary>
+        /// Standard representation should convert correctly regardless of culture.
+        /// </summary>
         [Theory]
         [InlineData("en-US")]
         [InlineData("tr-TR")]

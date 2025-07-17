@@ -23,20 +23,14 @@ namespace DnsClientX.Tests {
                 throw new HttpRequestException("network error");
             }
         }
-        [Fact]
         /// <summary>
-        /// Verifies that ClientX properly handles HttpRequestException by:
-        /// 1. Catching the network error gracefully
-        /// 2. Returning DnsResponseCode.ServerFailure status
-        /// 3. Preserving the original error message for debugging
-        ///
-        /// This test uses reflection to inject a custom HttpClient that always throws
-        /// HttpRequestException, simulating real-world network failures like:
-        /// - Network connectivity issues
-        /// - DNS server timeouts
-        /// - Firewall blocking requests
-        /// - SSL/TLS handshake failures
+        /// Verifies that <see cref="ClientX"/> correctly handles <see cref="HttpRequestException"/> scenarios.
         /// </summary>
+        /// <remarks>
+        /// This test injects a custom <see cref="HttpClient"/> that always throws <see cref="HttpRequestException"/>
+        /// to simulate real-world network failures.
+        /// </remarks>
+        [Fact]
         public async Task ShouldHandleHttpRequestExceptionWithoutInner() {
             var handler = new ThrowingHandler();
             using var clientX = new ClientX("1.1.1.1", DnsRequestFormat.DnsOverHttps);
