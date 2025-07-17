@@ -99,6 +99,11 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
         public SwitchParameter TypedRecords;
 
+        /// <summary>
+        /// Gets or sets a value indicating whether TXT records should be
+        /// returned as raw text records even when <see cref="TypedRecords"/> is
+        /// specified.
+        /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]

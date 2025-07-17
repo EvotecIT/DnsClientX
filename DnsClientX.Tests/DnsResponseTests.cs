@@ -3,7 +3,13 @@ using System.Text.Json;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for the <see cref="DnsResponse"/> type.
+    /// </summary>
     public class DnsResponseTests {
+        /// <summary>
+        /// Validates that server details are copied to the response.
+        /// </summary>
         [Fact]
         public void AddServerDetailsPopulatesFields() {
             var response = new DnsResponse {
@@ -23,6 +29,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(config.Port, response.AnswersMinimal[0].Port);
         }
 
+        /// <summary>
+        /// BaseUri should remain null for UDP responses.
+        /// </summary>
         [Fact]
         public void AddServerDetailsLeavesBaseUriNullForUdp() {
             var response = new DnsResponse {
@@ -39,6 +48,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(config.Hostname, response.ServerAddress);
         }
 
+        /// <summary>
+        /// BaseUri should remain null for TCP responses.
+        /// </summary>
         [Fact]
         public void AddServerDetailsLeavesBaseUriNullForTcp() {
             var response = new DnsResponse {
@@ -55,6 +67,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(config.Hostname, response.ServerAddress);
         }
 
+        /// <summary>
+        /// Converter should transform arrays of comment strings.
+        /// </summary>
         [Fact]
         public void CommentConverterReadsArray() {
             var json = "[\"a\",\"b\"]";
@@ -64,6 +79,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("a; b", result);
         }
 
+        /// <summary>
+        /// Extended error information should be accessible via helper property.
+        /// </summary>
         [Fact]
         public void ExtendedDnsErrorInfoReflectsErrors() {
             var response = new DnsResponse {
@@ -80,6 +98,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("two", response.ExtendedDnsErrorInfo[1].Text);
         }
 
+        /// <summary>
+        /// When no answers are present, <see cref="DnsResponse.AnswersMinimal"/> should be empty.
+        /// </summary>
         [Fact]
         public void AnswersMinimalReturnsEmptyWhenAnswersNull() {
             var response = new DnsResponse();

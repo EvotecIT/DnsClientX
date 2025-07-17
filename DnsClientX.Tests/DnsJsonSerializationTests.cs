@@ -2,7 +2,13 @@ using DnsClientX;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for JSON serialization utilities.
+    /// </summary>
     public class DnsJsonSerializationTests {
+        /// <summary>
+        /// Verifies that serialized property names use camelCase.
+        /// </summary>
         [Fact]
         public void Serialize_UsesCamelCasePropertyNames() {
             var minimal = new DnsAnswerMinimal {

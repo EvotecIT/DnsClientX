@@ -8,7 +8,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for the <see cref="DnsResponseCache"/> class.
+    /// </summary>
     public class DnsResponseCacheTests {
+        /// <summary>
+        /// Ensures cache items can be stored and retrieved.
+        /// </summary>
         [Fact]
         public void ShouldStoreAndRetrieve() {
             var cache = new DnsResponseCache();
@@ -18,6 +24,9 @@ namespace DnsClientX.Tests {
             Assert.Same(response, cached);
         }
 
+        /// <summary>
+        /// Items should be removed once their TTL expires.
+        /// </summary>
         [Fact]
         public void ShouldEvictAfterExpiration() {
             var cache = new DnsResponseCache();
@@ -27,6 +36,9 @@ namespace DnsClientX.Tests {
             Assert.False(cache.TryGet("a", out _));
         }
 
+        /// <summary>
+        /// Calling <see cref="DnsResponseCache.Cleanup"/> should remove expired entries.
+        /// </summary>
         [Fact]
         public void ShouldCleanupExpiredEntries() {
             var cache = new DnsResponseCache();
@@ -39,6 +51,9 @@ namespace DnsClientX.Tests {
             Assert.False(cache.TryGet("b", out _));
         }
 
+        /// <summary>
+        /// Verifies that constructing <see cref="ClientX"/> with caching enabled sets the property.
+        /// </summary>
         [Fact]
         public void ClientConstructorEnablesCache() {
             using var client = new ClientX(enableCache: true);

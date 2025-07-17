@@ -37,11 +37,11 @@ namespace DnsClientX.Tests {
         [InlineData("microsoft.com", DnsRecordType.NS, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
 
         [InlineData("google.com", DnsRecordType.MX, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("108.138.7.68", DnsRecordType.PTR, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
+        [InlineData("sip2sip.info", DnsRecordType.NAPTR, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         /// <summary>
         /// Performs a comparison of DNS responses across multiple providers.
         /// </summary>
-        [InlineData("108.138.7.68", DnsRecordType.PTR, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
-        [InlineData("sip2sip.info", DnsRecordType.NAPTR, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         public async Task CompareRecordsImproved(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 
@@ -191,12 +191,6 @@ namespace DnsClientX.Tests {
         // lets try different sites
         [InlineData("reddit.com", DnsRecordType.A)]
         [InlineData("reddit.com", DnsRecordType.CAA)]
-        /// <summary>
-        /// Legacy comparison method checking records across providers without additional diagnostics.
-        /// </summary>
-        /// <param name="name">Domain name to resolve.</param>
-        /// <param name="resourceRecordType">Record type.</param>
-        /// <param name="excludedEndpoints">Providers to skip.</param>
         [InlineData("reddit.com", DnsRecordType.SOA)]
         // github.com has a lot of TXT records, including multiline, however google dns doesn't do multiline TXT records and delivers them as one line
         [InlineData("microsoft.com", DnsRecordType.MX)]
@@ -206,8 +200,11 @@ namespace DnsClientX.Tests {
         [InlineData("108.138.7.68", DnsRecordType.PTR)]
         [InlineData("sip2sip.info", DnsRecordType.NAPTR)]
         /// <summary>
-        /// Legacy implementation used to compare responses between providers.
+        /// Legacy comparison method checking records across providers without additional diagnostics.
         /// </summary>
+        /// <param name="name">Domain name to resolve.</param>
+        /// <param name="resourceRecordType">Record type.</param>
+        /// <param name="excludedEndpoints">Providers to skip.</param>
         public async Task CompareRecords(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 

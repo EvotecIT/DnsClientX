@@ -2,7 +2,13 @@ using System.Text.Json;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests JSON serialization behavior for <see cref="DnsRecordType"/> values.
+    /// </summary>
     public class DnsRecordTypeSerializationTests {
+        /// <summary>
+        /// Ensures values round-trip through serialization.
+        /// </summary>
         [Theory]
         [InlineData(DnsRecordType.SVCB, 64)]
         [InlineData(DnsRecordType.HTTPS, 65)]
@@ -21,6 +27,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(type, deserialized.Type);
         }
 
+        /// <summary>
+        /// Verifies that converting data leaves raw values intact for SVCB/HTTPS.
+        /// </summary>
         [Theory]
         [InlineData(DnsRecordType.SVCB)]
         [InlineData(DnsRecordType.HTTPS)]

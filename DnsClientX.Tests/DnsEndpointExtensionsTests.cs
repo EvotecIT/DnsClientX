@@ -3,7 +3,13 @@ using System.Linq;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for <see cref="DnsEndpointExtensions"/> helper methods.
+    /// </summary>
     public class DnsEndpointExtensionsTests {
+        /// <summary>
+        /// Verifies that all endpoints have descriptions.
+        /// </summary>
         [Fact]
         public void GetAllWithDescriptions_ReturnsAllEndpoints() {
             var all = DnsEndpointExtensions.GetAllWithDescriptions().ToList();

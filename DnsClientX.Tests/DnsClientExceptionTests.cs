@@ -1,7 +1,13 @@
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for the <see cref="DnsClientException"/> type.
+    /// </summary>
     public class DnsClientExceptionTests {
+        /// <summary>
+        /// Ensures the exception message includes details about the endpoint.
+        /// </summary>
         [Fact]
         public void MessageIncludesEndpointDetails() {
             var response = new DnsResponse {
@@ -24,6 +30,9 @@ namespace DnsClientX.Tests {
             Assert.Contains(nameof(DnsRequestFormat.DnsOverHttps), ex.Message);
         }
 
+        /// <summary>
+        /// Ensures the message remains unchanged when no endpoint details are provided.
+        /// </summary>
         [Fact]
         public void MessageWithoutEndpointDetailsUnchanged() {
             var response = new DnsResponse { Status = DnsResponseCode.ServerFailure };
