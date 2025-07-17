@@ -2,7 +2,9 @@ using System.Diagnostics;
 
 namespace DnsClientX.Tests {
     /// <summary>
-    /// Tests for the <see cref="ClientX.ResolveAll"/> API.
+    /// Tests for the
+    /// <see cref="ClientX.ResolveAll(string,DnsRecordType,bool,bool,bool,int,int,System.Threading.CancellationToken)"/>
+    /// API.
     /// </summary>
     /// <summary>
     /// Tests covering the <see cref="ClientX.ResolveAll"/> method using different endpoints.

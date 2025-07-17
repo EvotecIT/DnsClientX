@@ -4,7 +4,9 @@ using Xunit;
 
 namespace DnsClientX.Tests {
     /// <summary>
-    /// Tests cancellation behavior for the <see cref="ClientX.QueryDns"/> method.
+    /// Tests cancellation behavior for the
+    /// <see cref="ClientX.QueryDns(string,DnsRecordType,DnsEndpoint,DnsSelectionStrategy,int,bool,int,int,bool,bool,bool,bool,System.Threading.CancellationToken)"/>
+    /// method.
     /// </summary>
     public class QueryDnsCancellationTests {
         /// <summary>

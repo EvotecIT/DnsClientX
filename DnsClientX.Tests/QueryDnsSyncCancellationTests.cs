@@ -4,7 +4,9 @@ using DnsClientX;
 
 namespace DnsClientX.Tests {
     /// <summary>
-    /// Tests cancellation behavior for the synchronous <see cref="ClientX.QueryDnsSync"/> method.
+    /// Tests cancellation behavior for the synchronous
+    /// <see cref="ClientX.QueryDnsSync(string,DnsRecordType,DnsEndpoint,DnsSelectionStrategy,int,bool,int,int,bool,bool,bool,bool,System.Threading.CancellationToken)"/>
+    /// method.
     /// </summary>
     public class QueryDnsSyncCancellationTests {
         /// <summary>
