@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
-    [Collection("NoParallel")]
+    [Collection("DisposalTests")]
     public class StrategySwitchDisposalTests {
         private class JsonResponseHandler : HttpMessageHandler {
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
@@ -27,7 +27,7 @@ namespace DnsClientX.Tests {
 
         [Fact]
         public async Task MultipleStrategySwitches_ShouldIncreaseDisposalCount() {
-            ClientX.DisposalCount = 0;
+            var initialCount = ClientX.DisposalCount;
             var handler = new JsonResponseHandler();
             using (var client = new ClientX("https://example.com/dns-query", DnsRequestFormat.DnsOverHttpsJSON)) {
                 var httpClient = new HttpClient(handler) { BaseAddress = client.EndpointConfiguration.BaseUri };
@@ -40,7 +40,11 @@ namespace DnsClientX.Tests {
                 await client.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
             }
 
-            Assert.Equal(3, ClientX.DisposalCount);
+            // Wait a moment for any async disposal to complete
+            await Task.Delay(50);
+
+            var finalCount = ClientX.DisposalCount;
+            Assert.Equal(3, finalCount - initialCount);
         }
     }
 }

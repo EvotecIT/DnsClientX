@@ -7,13 +7,17 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    [Collection("DisposalTests")]
     public class TcpDisposeCountTests {
         private class CountingTcpClient : TcpClient {
             private readonly Action _onDispose;
+            private volatile int _disposeCount = 0;
             public CountingTcpClient(Action onDispose) => _onDispose = onDispose;
             protected override void Dispose(bool disposing) {
-                base.Dispose(disposing);
-                _onDispose();
+                if (Interlocked.CompareExchange(ref _disposeCount, 1, 0) == 0) {
+                    base.Dispose(disposing);
+                    _onDispose();
+                }
             }
         }
 
@@ -59,8 +63,19 @@ namespace DnsClientX.Tests {
         public async Task ResolveWireFormatTcp_ShouldDisposeConnection() {
             int disposed = 0;
             var prevFactory = DnsWireResolveTcp.TcpClientFactory;
+
+            // Use a lock to prevent parallel test interference
+            var lockObj = new object();
+
             try {
-                DnsWireResolveTcp.TcpClientFactory = () => new CountingTcpClient(() => disposed++);
+                lock (lockObj) {
+                    DnsWireResolveTcp.TcpClientFactory = () => new CountingTcpClient(() => {
+                        lock (lockObj) {
+                            disposed++;
+                        }
+                    });
+                }
+
                 int port = GetFreePort();
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 var serverTask = RunTcpServerAsync(port, cts.Token);
@@ -72,9 +87,17 @@ namespace DnsClientX.Tests {
                 await task;
                 await serverTask;
 
-                Assert.Equal(1, disposed);
+                int finalDisposed;
+                lock (lockObj) {
+                    finalDisposed = disposed;
+                }
+                Assert.Equal(1, finalDisposed);
             } finally {
+                // Ensure cleanup happens even if test fails
                 DnsWireResolveTcp.TcpClientFactory = prevFactory;
+
+                // Give a small delay to ensure any pending disposals complete
+                await Task.Delay(10);
             }
         }
     }

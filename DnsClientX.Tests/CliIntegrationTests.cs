@@ -7,21 +7,24 @@ namespace DnsClientX.Tests {
     /// <summary>
     /// Integration tests covering the command line application.
     /// </summary>
-    [Collection("NoParallel")]
+    [Collection("DisposalTests")]
     public class CliIntegrationTests {
         /// <summary>
         /// Ensures the CLI can execute without leaving open sockets.
         /// </summary>
         [Fact]
         public async Task CliRunsWithoutLeavingSockets() {
-            ClientX.DisposalCount = 0;
+            var initialCount = ClientX.DisposalCount;
             var assembly = Assembly.Load("DnsClientX.Cli");
             Type programType = assembly.GetType("DnsClientX.Cli.Program")!;
             MethodInfo main = programType.GetMethod("Main", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<int> task = (Task<int>)main.Invoke(null, new object[] { new[] { "localhost" } })!;
             int exitCode = await task;
             Assert.Equal(0, exitCode);
-            Assert.True(ClientX.DisposalCount >= 1, $"Expected at least one disposal but was {ClientX.DisposalCount}");
+
+            await Task.Delay(50); // Wait for async disposal
+            var finalCount = ClientX.DisposalCount;
+            Assert.True(finalCount - initialCount >= 1, $"Expected at least one disposal but was {finalCount - initialCount}");
         }
 
         /// <summary>
@@ -31,16 +34,18 @@ namespace DnsClientX.Tests {
         [InlineData("--type")]
         [InlineData("--TYPE")]
         public async Task TypeOption_IsCaseInsensitive(string option) {
-            ClientX.DisposalCount = 0;
+            var initialCount = ClientX.DisposalCount;
             var assembly = Assembly.Load("DnsClientX.Cli");
             Type programType = assembly.GetType("DnsClientX.Cli.Program")!;
             MethodInfo main = programType.GetMethod("Main", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<int> task = (Task<int>)main.Invoke(null, new object[] { new[] { option, "A", "localhost" } })!;
             int exitCode = await task;
             Assert.Equal(0, exitCode);
-            Assert.True(ClientX.DisposalCount >= 1,
-                $"Expected at least one disposal but was {ClientX.DisposalCount}");
-            ClientX.DisposalCount = 0;
+
+            await Task.Delay(50); // Wait for async disposal
+            var finalCount = ClientX.DisposalCount;
+            Assert.True(finalCount - initialCount >= 1,
+                $"Expected at least one disposal but was {finalCount - initialCount}");
         }
 
         /// <summary>
@@ -48,14 +53,17 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task WirePostOption_Executes() {
-            ClientX.DisposalCount = 0;
+            var initialCount = ClientX.DisposalCount;
             var assembly = Assembly.Load("DnsClientX.Cli");
             Type programType = assembly.GetType("DnsClientX.Cli.Program")!;
             MethodInfo main = programType.GetMethod("Main", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<int> task = (Task<int>)main.Invoke(null, new object[] { new[] { "--wire-post", "localhost" } })!;
             int exitCode = await task;
             Assert.Equal(0, exitCode);
-            Assert.True(ClientX.DisposalCount >= 1);
+
+            await Task.Delay(50); // Wait for async disposal
+            var finalCount = ClientX.DisposalCount;
+            Assert.True(finalCount - initialCount >= 1);
         }
 
         /// <summary>
@@ -63,7 +71,7 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task Cli_DisplaysRetryCount() {
-            ClientX.DisposalCount = 0;
+            var initialCount = ClientX.DisposalCount;
 
             var assembly = Assembly.Load("DnsClientX.Cli");
             Type programType = assembly.GetType("DnsClientX.Cli.Program")!;
@@ -82,7 +90,9 @@ namespace DnsClientX.Tests {
                 Console.SetOut(original);
             }
 
-            Assert.True(ClientX.DisposalCount >= 1);
+            await Task.Delay(50); // Wait for async disposal
+            var finalCount = ClientX.DisposalCount;
+            Assert.True(finalCount - initialCount >= 1);
         }
     }
 }

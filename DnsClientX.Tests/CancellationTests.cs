@@ -10,6 +10,7 @@ namespace DnsClientX.Tests {
     /// <summary>
     /// Tests verifying cancellation behavior during DNS queries.
     /// </summary>
+    [Collection("DisposalTests")]
     public class CancellationTests {
         private class DelayingHandler : HttpMessageHandler {
             protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
@@ -78,13 +79,19 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task QueryDns_ShouldDisposeClient_WhenCancelled() {
-            ClientX.DisposalCount = 0;
+            // Use a local snapshot to avoid interference from other parallel tests
+            var initialCount = ClientX.DisposalCount;
+
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
             await Assert.ThrowsAsync<TaskCanceledException>(() => ClientX.QueryDns("example.com", DnsRecordType.A, cancellationToken: cts.Token));
 
-            Assert.Equal(1, ClientX.DisposalCount);
+            // Wait a moment for any async disposal to complete
+            await Task.Delay(50);
+
+            var finalCount = ClientX.DisposalCount;
+            Assert.Equal(1, finalCount - initialCount);
         }
 
         /// <summary>
