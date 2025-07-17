@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,16 +17,26 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="name">Domain name to resolve.</param>
         /// <param name="type">Record type to resolve.</param>
+        /// <param name="servers">Optional list of root servers to query.</param>
+        /// <param name="maxRetries">Maximum referral retries.</param>
+        /// <param name="port">Port used to query each server.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
-        public async Task<DnsResponse> ResolveFromRoot(string name, DnsRecordType type = DnsRecordType.A, CancellationToken cancellationToken = default) {
-            var servers = RootServers.Servers.ToArray();
+        public async Task<DnsResponse> ResolveFromRoot(
+            string name,
+            DnsRecordType type = DnsRecordType.A,
+            IEnumerable<string>? servers = null,
+            int maxRetries = 10,
+            int port = 53,
+            CancellationToken cancellationToken = default) {
+            var serverList = (servers ?? RootServers.Servers).ToArray();
             DnsResponse lastResponse = new();
-            for (var depth = 0; depth < 10; depth++) {
-                foreach (var server in servers) {
+            for (var depth = 0; depth < maxRetries; depth++) {
+                foreach (var server in serverList) {
                     var host = server.TrimEnd('.');
-                    var cfg = new Configuration(host, DnsRequestFormat.DnsOverUDP) { UseTcpFallback = true };
+                    var cfg = new Configuration(host, DnsRequestFormat.DnsOverUDP) { UseTcpFallback = true, Port = port };
                     lastResponse = await DnsWireResolveUdp.ResolveWireFormatUdp(host, cfg.Port, name, type, false, false, Debug, cfg, 1, cancellationToken).ConfigureAwait(false);
                     if (lastResponse.Answers?.Any(a => a.Type == type) == true) {
+                        lastResponse.RetryCount = depth;
                         return lastResponse;
                     }
                 }
@@ -35,7 +46,7 @@ namespace DnsClientX {
                     .Select(a => a.Data.TrimEnd('.'))
                     .ToArray();
                 if (next != null && next.Length > 0) {
-                    servers = next;
+                    serverList = next;
                     continue;
                 }
                 var ns = lastResponse.Authorities?
@@ -43,11 +54,18 @@ namespace DnsClientX {
                     .Select(a => a.Data.TrimEnd('.'))
                     .FirstOrDefault();
                 if (ns == null) {
+                    lastResponse.RetryCount = depth;
                     return lastResponse;
                 }
-                var nsResponse = await ResolveFromRoot(ns, DnsRecordType.A, cancellationToken).ConfigureAwait(false);
-                servers = nsResponse.Answers?.Select(a => a.Data.TrimEnd('.')).ToArray() ?? RootServers.Servers;
+                int remaining = maxRetries - depth - 1;
+                if (remaining <= 0) {
+                    lastResponse.RetryCount = depth;
+                    return lastResponse;
+                }
+                var nsResponse = await ResolveFromRoot(ns, DnsRecordType.A, servers ?? serverList, remaining, port, cancellationToken).ConfigureAwait(false);
+                serverList = nsResponse.Answers?.Select(a => a.Data.TrimEnd('.')).ToArray() ?? serverList;
             }
+            lastResponse.RetryCount = maxRetries - 1;
             return lastResponse;
         }
     }

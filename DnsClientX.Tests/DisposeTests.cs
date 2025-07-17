@@ -10,6 +10,7 @@ namespace DnsClientX.Tests {
     /// <summary>
     /// Tests ensuring proper disposal of internal resources.
     /// </summary>
+    [Collection("DisposalTests")]
     public class DisposeTests {
         private class TrackingHandler : HttpClientHandler {
             public int DisposeCount { get; private set; }
@@ -177,12 +178,16 @@ namespace DnsClientX.Tests {
         /// Validates that the disposal counter is incremented when <see cref="ClientX.DisposeAsync"/> is called.
         /// </summary>
         public async Task Client_DisposeAsync_ShouldIncrementDisposalCount() {
-            ClientX.DisposalCount = 0;
+            var initialCount = ClientX.DisposalCount;
             await using var clientX = new ClientX("example.com", DnsRequestFormat.DnsOverHttps);
 
             await clientX.DisposeAsync();
 
-            Assert.Equal(1, ClientX.DisposalCount);
+            // Wait a moment for any async disposal to complete
+            await Task.Delay(50);
+
+            var finalCount = ClientX.DisposalCount;
+            Assert.Equal(1, finalCount - initialCount);
         }
 
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER

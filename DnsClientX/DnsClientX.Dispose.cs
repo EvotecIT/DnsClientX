@@ -13,6 +13,7 @@ namespace DnsClientX {
     /// </remarks>
     public partial class ClientX : IDisposable, IAsyncDisposable {
         private bool _disposed;
+        private volatile int _disposalCountIncremented = 0;
         private readonly HashSet<object> _disposedClients = new();
         private static int _disposalCount;
         internal static int DisposalCount {
@@ -79,7 +80,10 @@ namespace DnsClientX {
                     }
                 }
 
-                System.Threading.Interlocked.Increment(ref _disposalCount);
+                // Only increment disposal count once per instance
+                if (System.Threading.Interlocked.CompareExchange(ref _disposalCountIncremented, 1, 0) == 0) {
+                    System.Threading.Interlocked.Increment(ref _disposalCount);
+                }
             }
         }
 
@@ -175,7 +179,10 @@ namespace DnsClientX {
                 }
 
                 _disposed = true;
-                System.Threading.Interlocked.Increment(ref _disposalCount);
+                // Only increment disposal count once per instance
+                if (System.Threading.Interlocked.CompareExchange(ref _disposalCountIncremented, 1, 0) == 0) {
+                    System.Threading.Interlocked.Increment(ref _disposalCount);
+                }
             }
         }
 

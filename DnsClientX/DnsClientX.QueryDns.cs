@@ -33,7 +33,7 @@ namespace DnsClientX {
                 if (cancellationToken.IsCancellationRequested) {
                     return await Task.FromCanceled<DnsResponse>(cancellationToken).ConfigureAwait(false);
                 }
-                return await client.ResolveFromRoot(name, recordType, cancellationToken).ConfigureAwait(false);
+                return await client.ResolveFromRoot(name, recordType, cancellationToken: cancellationToken).ConfigureAwait(false);
             } else {
                 using var client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy);
                 client.EndpointConfiguration.TimeOut = timeOutMilliseconds;
@@ -84,7 +84,7 @@ namespace DnsClientX {
                     if (cancellationToken.IsCancellationRequested) {
                         return Task.FromCanceled<DnsResponse>(cancellationToken);
                     }
-                    return client.ResolveFromRoot(n, recordType, cancellationToken);
+                    return client.ResolveFromRoot(n, recordType, cancellationToken: cancellationToken);
                 });
                 return await Task.WhenAll(tasks).ConfigureAwait(false);
             } else {
