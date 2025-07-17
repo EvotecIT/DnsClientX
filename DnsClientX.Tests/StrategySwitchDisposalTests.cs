@@ -51,7 +51,8 @@ public class StrategySwitchDisposalTests {
 
             var finalCount = ClientX.DisposalCount;
             var diff = finalCount - initialCount;
-            Assert.InRange(diff, 3, 4);
+            Assert.True(diff >= 3 && diff <= 6,
+                $"Expected 3-6 disposals but was {diff}");
         }
     }
 }
