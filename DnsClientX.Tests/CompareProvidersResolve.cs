@@ -6,8 +6,14 @@ namespace DnsClientX.Tests {
     /// </summary>
     public class CompareProvidersResolve(ITestOutputHelper output) {
         /// <summary>
-        /// Compares DNS answers returned by various providers.
+        /// Performs a comparison of DNS responses across multiple providers.
         /// </summary>
+        /// <summary>
+        /// Legacy comparison method checking records across providers without additional diagnostics.
+        /// </summary>
+        /// <param name="name">Domain name to resolve.</param>
+        /// <param name="resourceRecordType">Record type.</param>
+        /// <param name="excludedEndpoints">Providers to skip.</param>
         [Theory(Skip = "External dependency - unreliable for automated testing")]
         //[MemberData(nameof(TestData))]
         [InlineData("evotec.pl", DnsRecordType.A, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
@@ -39,9 +45,6 @@ namespace DnsClientX.Tests {
         [InlineData("google.com", DnsRecordType.MX, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("108.138.7.68", DnsRecordType.PTR, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("sip2sip.info", DnsRecordType.NAPTR, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
-        /// <summary>
-        /// Performs a comparison of DNS responses across multiple providers.
-        /// </summary>
         public async Task CompareRecordsImproved(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 
@@ -169,6 +172,12 @@ namespace DnsClientX.Tests {
             };
             return (failureResponse, "Max retries exceeded");
         }
+        /// <summary>
+        /// Legacy comparison method checking records across providers without additional diagnostics.
+        /// </summary>
+        /// <param name="name">Domain name to resolve.</param>
+        /// <param name="resourceRecordType">Record type.</param>
+        /// <param name="excludedEndpoints">Providers to skip.</param>
 
         [Theory(Skip = "External dependency - unreliable for automated testing")]
         //[MemberData(nameof(TestData))]
@@ -199,12 +208,6 @@ namespace DnsClientX.Tests {
         [InlineData("1.1.1.1", DnsRecordType.PTR)]
         [InlineData("108.138.7.68", DnsRecordType.PTR)]
         [InlineData("sip2sip.info", DnsRecordType.NAPTR)]
-        /// <summary>
-        /// Legacy comparison method checking records across providers without additional diagnostics.
-        /// </summary>
-        /// <param name="name">Domain name to resolve.</param>
-        /// <param name="resourceRecordType">Record type.</param>
-        /// <param name="excludedEndpoints">Providers to skip.</param>
         public async Task CompareRecords(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 
