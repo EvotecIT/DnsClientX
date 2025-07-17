@@ -64,20 +64,20 @@ public class InternalLoggerPowerShell {
     /// </summary>
     /// <param name="sender"></param>
     /// <param name="e"></param>
-    private void Logger_OnVerboseMessage(object sender, LogEventArgs e) {
+    private void Logger_OnVerboseMessage(object? sender, LogEventArgs e) {
         if (e.Args != null && e.Args.Length > 0) {
             WriteVerbose(e.Message, e.Args);
         } else {
             WriteVerbose(e.Message);
         }
     }
-    private void Logger_OnDebugMessage(object sender, LogEventArgs e) {
+    private void Logger_OnDebugMessage(object? sender, LogEventArgs e) {
         WriteDebug(e.Message);
     }
-    private void Logger_OnWarningMessage(object sender, LogEventArgs e) {
+    private void Logger_OnWarningMessage(object? sender, LogEventArgs e) {
         WriteWarning(e.Message);
     }
-    private void Logger_OnErrorMessage(object sender, LogEventArgs e) {
+    private void Logger_OnErrorMessage(object? sender, LogEventArgs e) {
         ErrorRecord errorRecord = new ErrorRecord(new Exception(e.Message), "1", ErrorCategory.NotSpecified, null);
         WriteError(errorRecord);
     }
@@ -89,7 +89,7 @@ public class InternalLoggerPowerShell {
     private int GetNextActivityId() {
         return ++_activityIdCounter;
     }
-    private void Logger_OnProgressMessage(object sender, LogEventArgs e) {
+    private void Logger_OnProgressMessage(object? sender, LogEventArgs e) {
         if (_isCurrentActivityCompleted) {
             _currentActivityId = GetNextActivityId();
             _isCurrentActivityCompleted = false;
@@ -111,7 +111,7 @@ public class InternalLoggerPowerShell {
         }
         WriteProgress(progressRecord);
     }
-    private void Logger_OnInformationMessage(object sender, LogEventArgs e) {
+    private void Logger_OnInformationMessage(object? sender, LogEventArgs e) {
         WriteInformation(e.Message);
     }
 
