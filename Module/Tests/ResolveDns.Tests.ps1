@@ -10,7 +10,7 @@ Describe 'Resolve-Dns cmdlet' {
     }
 
     It 'Removes duplicate servers before processing' {
-        $result = Resolve-Dns -Name 'example.com' -Server @('127.0.0.1','127.0.0.1') -AllServers -FullResponse -TimeOut 10 -ErrorAction SilentlyContinue
+        $result = Resolve-Dns -Name 'example.com' -Server @('127.0.0.1', '127.0.0.1') -AllServers -FullResponse -TimeOut 10 -ErrorAction SilentlyContinue
         $result.Count | Should -Be 1
     }
 
@@ -35,8 +35,10 @@ Describe 'Resolve-Dns cmdlet' {
         $response = [DnsClientX.DnsResponse]@{
             Answers = @($ans1, $ans2)
         }
-        $response.TypedAnswers = $response.Answers | ForEach-Object { [DnsClientX.DnsRecordFactory]::Create($_) }
-        $types = $response.TypedAnswers | ForEach-Object { $_.GetType().Name }
+        $Values = $response.Answers | ForEach-Object {
+            [DnsClientX.DnsRecordFactory]::Create($_, $true)
+        }
+        $types = $Values | ForEach-Object { $_.GetType().Name }
         $types | Should -Contain 'KeyValueTxtRecord'
         $types | Should -Contain 'SpfRecord'
     }

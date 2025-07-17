@@ -10,13 +10,14 @@ $PSDInformation = Import-PowerShellDataFile -Path $PrimaryModule.FullName
 $RequiredModules = @(
     'Pester'
     'PSWriteColor'
-    'DnsClientX.Tests'
+    'DnsClientX'
     if ($PSDInformation.RequiredModules) {
         $PSDInformation.RequiredModules
     }
 )
+
 foreach ($Module in $RequiredModules) {
-    if ($Module -eq 'DnsClientX.Tests') {
+    if ($Module -eq 'DnsClientX') {
         continue
     }
     if ($Module -is [System.Collections.IDictionary]) {
