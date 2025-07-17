@@ -35,9 +35,6 @@ namespace DnsClientX.Tests {
         [InlineData("microsoft.com", DnsRecordType.NS, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("google.com", DnsRecordType.MX, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("_25._tcp.mail.ietf.org", DnsRecordType.TLSA, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
-        /// <summary>
-        /// Compares results returned from multiple providers using <see cref="ClientX.ResolveAll"/>.
-        /// </summary>
         public async Task CompareRecordsImproved(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 
@@ -153,6 +150,12 @@ namespace DnsClientX.Tests {
             return (Array.Empty<DnsAnswer>(), "Max retries exceeded", DnsResponseCode.ServerFailure);
         }
 
+        /// <summary>
+        /// Validates that providers return consistent results for the specified record type.
+        /// </summary>
+        /// <param name="name">Domain name to resolve.</param>
+        /// <param name="resourceRecordType">Record type.</param>
+        /// <param name="excludedEndpoints">Optional providers to skip.</param>
         [Theory(Skip = "External dependency - unreliable for automated testing")]
         [InlineData("evotec.pl", DnsRecordType.A)]
         [InlineData("evotec.pl", DnsRecordType.SOA)]
@@ -182,9 +185,6 @@ namespace DnsClientX.Tests {
 
         [InlineData("google.com", DnsRecordType.MX)]
         [InlineData("_25._tcp.mail.ietf.org", DnsRecordType.TLSA)]
-        /// <summary>
-        /// Validates that providers return consistent results for the specified record type.
-        /// </summary>
         public async Task CompareRecords(string name, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 
@@ -219,7 +219,7 @@ namespace DnsClientX.Tests {
                     Assert.True(Enumerable.SequenceEqual<char>(sortedAAnswers[i].Data, sortedAAnswersCompared[i].Data), $"Provider {endpointCompare}. Records not matching content for " + sortedAAnswers[i].Data);
                     Assert.True((bool)(sortedAAnswers[i].DataStrings.Length == sortedAAnswersCompared[i].DataStrings.Length), $"Provider {endpointCompare}. Records not matching length for " + sortedAAnswers[i].DataStrings + " length expected: " + sortedAAnswers[i].DataStrings.Length + " length provided: " + sortedAAnswersCompared[i].DataStrings.Length);
                 }
-            }
+        }
         }
 
         [Theory(Skip = "External dependency - unreliable for automated testing")]
@@ -234,9 +234,6 @@ namespace DnsClientX.Tests {
         [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.CloudflareWireFormat)]
         [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS)]
         [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNSFamily)]
-        /// <summary>
-        /// Compares multiline text records returned by different providers.
-        /// </summary>
         public async Task CompareRecordTextMultiline(string name, DnsRecordType resourceRecordType, DnsEndpoint primaryEndpoint, DnsEndpoint endpointCompare) {
             using var Client = new ClientX(primaryEndpoint);
             DnsAnswer[] aAnswersPrimary = await Client.ResolveAll(name, resourceRecordType);
