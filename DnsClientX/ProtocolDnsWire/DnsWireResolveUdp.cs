@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using System.Threading;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Performs DNS resolution over UDP using the DNS wire protocol.
+    /// </summary>
     internal class DnsWireResolveUdp {
         /// <summary>
         /// Sends a DNS query in wire format using DNS over UDP (53) and returns the response.

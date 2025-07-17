@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using System.Threading;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Provides DNS resolution over TCP using the DNS wire protocol.
+    /// </summary>
     internal class DnsWireResolveTcp {
         internal static Func<TcpClient> TcpClientFactory { get; set; } = () => new TcpClient();
         /// <summary>

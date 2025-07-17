@@ -6,6 +6,9 @@ using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
+    /// <summary>
+    /// Provides JSON serialization helpers used by DNS over HTTPS implementations.
+    /// </summary>
     internal static class DnsJson {
         internal static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
         /// <summary>
@@ -15,6 +18,12 @@ namespace DnsClientX {
         /// <returns></returns>
         internal static string UrlEncode(this string value) => WebUtility.UrlEncode(value);
 
+        /// <summary>
+        /// Serializes the specified value using pre-configured JSON options.
+        /// </summary>
+        /// <typeparam name="T">Type of the value to serialize.</typeparam>
+        /// <param name="value">Value to serialize.</param>
+        /// <returns>Serialized JSON string.</returns>
         internal static string Serialize<T>(T value) => JsonSerializer.Serialize(value, JsonOptions);
 
         /// <summary>
