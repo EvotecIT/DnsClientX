@@ -27,7 +27,7 @@ namespace DnsClientX.Tests {
                 labels.Add(System.Text.Encoding.ASCII.GetString(data, index, len));
                 index += len;
             }
-            return string.Join('.', labels);
+            return string.Join(".", labels);
         }
 
         private static byte[] CreateReferralResponse(string qname, string ns) {
