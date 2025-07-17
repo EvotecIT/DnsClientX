@@ -9,6 +9,11 @@ public sealed class TxtRecord {
     /// <summary>Gets the text strings.</summary>
     public string[] Text { get; }
 
+    /// <summary>
+    /// Gets the TXT record value as a single concatenated string.
+    /// </summary>
+    public string Value => string.Concat(Text);
+
     /// <summary>Initializes a new instance of the <see cref="TxtRecord"/> class.</summary>
     /// <param name="text">Text strings.</param>
     public TxtRecord(string[] text) => Text = text;

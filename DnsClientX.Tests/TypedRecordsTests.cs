@@ -195,5 +195,14 @@ namespace DnsClientX.Tests {
             Assert.Equal("openai-domain-verification", typed.Provider);
             Assert.Equal("abc", typed.Token);
         }
+
+        /// <summary>
+        /// TxtRecord exposes the concatenated text via the Value property.
+        /// </summary>
+        [Fact]
+        public void TxtRecord_Returns_Concatenated_Value() {
+            var record = new TxtRecord(new[] { "foo", "bar" });
+            Assert.Equal("foobar", record.Value);
+        }
     }
 }

@@ -6,7 +6,14 @@ namespace DnsClientX.Examples {
             using var client = new ClientX(DnsEndpoint.Cloudflare);
             var response = await client.Resolve("example.com", DnsRecordType.A, typedRecords: true);
             foreach (var typed in response.TypedAnswers!) {
-                Settings.Logger.WriteInformation(typed.ToString());
+                switch (typed) {
+                    case TxtRecord txt:
+                        Settings.Logger.WriteInformation($"TXT: {txt.Value}");
+                        break;
+                    default:
+                        Settings.Logger.WriteInformation(typed.ToString());
+                        break;
+                }
             }
         }
     }
