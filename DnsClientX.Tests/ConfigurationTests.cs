@@ -23,7 +23,7 @@ namespace DnsClientX.Tests {
         [InlineData(null)]
         [InlineData("")]
         [InlineData(" ")]
-        public void Constructor_ShouldThrowOnNullOrWhitespaceHostname(string hostname) {
+        public void Constructor_ShouldThrowOnNullOrWhitespaceHostname(string? hostname) {
             Assert.Throws<ArgumentException>(() => new Configuration(hostname!, DnsRequestFormat.DnsOverHttpsJSON));
         }
 
