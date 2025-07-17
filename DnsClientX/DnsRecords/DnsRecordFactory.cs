@@ -11,9 +11,9 @@ public static class DnsRecordFactory {
     /// Parses an answer into a typed record if the type is known.
     /// </summary>
     /// <param name="answer">Answer to parse.</param>
-    /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
+    /// <param name="parseTypedTxtRecords">Whether to parse TXT records into specialized types (DMARC, SPF, etc.). When false, returns simple TXT records.</param>
     /// <returns>Typed record instance or <c>null</c> if the type is not supported.</returns>
-    public static object? Create(DnsAnswer answer, bool typedTxtAsTxt = false) {
+    public static object? Create(DnsAnswer answer, bool parseTypedTxtRecords = false) {
         switch (answer.Type) {
             case DnsRecordType.A:
                 if (IPAddress.TryParse(answer.Data, out var ip4)) {
@@ -39,7 +39,7 @@ public static class DnsRecordFactory {
                 return new PtrRecord(answer.Data.TrimEnd('.'));
             case DnsRecordType.TXT:
             case DnsRecordType.SPF:
-                if (typedTxtAsTxt) {
+                if (!parseTypedTxtRecords) {
                     return new TxtRecord(answer.DataStrings);
                 }
                 if (DmarcRecord.TryParse(answer.Data, out var dmarc)) {

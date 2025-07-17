@@ -8,7 +8,7 @@ namespace DnsClientX.Examples {
             foreach (var typed in response.TypedAnswers!) {
                 switch (typed) {
                     case TxtRecord txt:
-                        Settings.Logger.WriteInformation($"TXT: {txt.Value}");
+                        Settings.Logger.WriteInformation($"TXT: {txt.Text}");
                         break;
                     default:
                         Settings.Logger.WriteInformation(typed.ToString());

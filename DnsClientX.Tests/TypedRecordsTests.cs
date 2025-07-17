@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Net;
 using DnsClientX;
 using Xunit;
@@ -132,7 +133,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public void Factory_Parses_Dmarc_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.TXT, DataRaw = "v=DMARC1; p=none; rua=mailto:example@example.com" };
-            var typed = DnsRecordFactory.Create(ans) as DmarcRecord;
+            var typed = DnsRecordFactory.Create(ans, parseTypedTxtRecords: true) as DmarcRecord;
             Assert.NotNull(typed);
             Assert.Equal("DMARC1", typed.Tags["v"]);
             Assert.Equal("none", typed.Tags["p"]);
@@ -144,7 +145,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public void Factory_Parses_Dkim_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.TXT, DataRaw = "v=DKIM1; k=rsa; p=ABC" };
-            var typed = DnsRecordFactory.Create(ans) as DkimRecord;
+            var typed = DnsRecordFactory.Create(ans, parseTypedTxtRecords: true) as DkimRecord;
             Assert.NotNull(typed);
             Assert.Equal("DKIM1", typed.Tags["v"]);
             Assert.Equal("rsa", typed.Tags["k"]);
@@ -156,7 +157,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public void Factory_Parses_Spf_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.SPF, DataRaw = "v=spf1 include:example.com -all" };
-            var typed = DnsRecordFactory.Create(ans) as SpfRecord;
+            var typed = DnsRecordFactory.Create(ans, parseTypedTxtRecords: true) as SpfRecord;
             Assert.NotNull(typed);
             Assert.Equal("v=spf1", typed.Version);
             Assert.Contains("include:example.com", typed.Mechanisms);
@@ -168,19 +169,22 @@ namespace DnsClientX.Tests {
         [Fact]
         public void Factory_Parses_KeyValue_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.TXT, DataRaw = "foo=bar baz=qux" };
-            var typed = DnsRecordFactory.Create(ans) as KeyValueTxtRecord;
+            var typed = DnsRecordFactory.Create(ans, parseTypedTxtRecords: true) as KeyValueTxtRecord;
             Assert.NotNull(typed);
-            Assert.Equal("bar", typed.Tags["foo"]);
-            Assert.Equal("qux", typed.Tags["baz"]);
+            Assert.Equal(2, typed.Tags.Length);
+            var fooTag = typed.Tags.First(t => t.Tag == "foo");
+            var bazTag = typed.Tags.First(t => t.Tag == "baz");
+            Assert.Equal("bar", fooTag.Value);
+            Assert.Equal("qux", bazTag.Value);
         }
 
         /// <summary>
         /// Ensures TXT parsing can be disabled for typed TXT records.
         /// </summary>
         [Fact]
-        public void Factory_Respects_TypedTxtAsTxt() {
+        public void Factory_Respects_ParseTypedTxtRecords_False() {
             var ans = new DnsAnswer { Type = DnsRecordType.TXT, DataRaw = "v=spf1 -all" };
-            var typed = DnsRecordFactory.Create(ans, typedTxtAsTxt: true);
+            var typed = DnsRecordFactory.Create(ans, parseTypedTxtRecords: false);
             Assert.IsType<TxtRecord>(typed);
         }
 
@@ -190,19 +194,19 @@ namespace DnsClientX.Tests {
         [Fact]
         public void Factory_Parses_DomainVerification_Record() {
             var ans = new DnsAnswer { Type = DnsRecordType.TXT, DataRaw = "openai-domain-verification=abc" };
-            var typed = DnsRecordFactory.Create(ans) as DomainVerificationRecord;
+            var typed = DnsRecordFactory.Create(ans, parseTypedTxtRecords: true) as DomainVerificationRecord;
             Assert.NotNull(typed);
             Assert.Equal("openai-domain-verification", typed.Provider);
             Assert.Equal("abc", typed.Token);
         }
 
         /// <summary>
-        /// TxtRecord exposes the concatenated text via the Value property.
+        /// TxtRecord exposes the concatenated text via the Text property.
         /// </summary>
         [Fact]
-        public void TxtRecord_Returns_Concatenated_Value() {
+        public void TxtRecord_Returns_Concatenated_Text() {
             var record = new TxtRecord(new[] { "foo", "bar" });
-            Assert.Equal("foobar", record.Value);
+            Assert.Equal("foobar", record.Text);
         }
     }
 }

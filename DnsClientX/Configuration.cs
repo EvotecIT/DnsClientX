@@ -62,7 +62,7 @@ namespace DnsClientX {
         /// <summary>
         /// Default timeout for DNS queries in milliseconds.
         /// </summary>
-        public const int DefaultTimeout = 1000;
+        public const int DefaultTimeout = 2000;
 
         /// <summary>
         /// Default connection limit per server for HTTP requests.
