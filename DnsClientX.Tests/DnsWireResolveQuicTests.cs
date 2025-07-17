@@ -9,7 +9,13 @@ using System.Runtime.Serialization;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for the QUIC DNS wire resolver.
+    /// </summary>
     public class DnsWireResolveQuicTests {
+        /// <summary>
+        /// Ensures server failure is returned when the host has no addresses.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatQuic_ReturnsServerFailure_WhenHostHasNoAddresses() {
             var previous = DnsWireResolveQuic.HostEntryResolver;
@@ -23,6 +29,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Confirms QUIC unsupported scenarios return a not implemented status.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatQuic_ReturnsNotImplemented_WhenQuicUnsupported() {
             var previousFactory = DnsWireResolveQuic.QuicConnectionFactory;
@@ -40,6 +49,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Ensures QUIC exceptions result in a server failure response.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatQuic_ReturnsServerFailure_WhenQuicExceptionThrown() {
             var previousFactory = DnsWireResolveQuic.QuicConnectionFactory;
@@ -57,6 +69,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Verifies that connections and streams are disposed when write errors occur.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatQuic_ShouldDisposeResources_OnWriteException() {
             var prevFactory = DnsWireResolveQuic.QuicConnectionFactory;

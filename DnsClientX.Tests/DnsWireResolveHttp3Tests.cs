@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for the HTTP/3 DNS wire resolver.
+    /// </summary>
     public class DnsWireResolveHttp3Tests {
         private class Http3Handler : HttpMessageHandler {
             public HttpRequestMessage? Request { get; private set; }
@@ -44,6 +47,9 @@ namespace DnsClientX.Tests {
         }
 
 
+        /// <summary>
+        /// Ensures HTTP/3 is used when available.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatHttp3_UsesHttp3() {
             var handler = new Http3Handler();
@@ -55,6 +61,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(HttpVersionPolicy.RequestVersionOrHigher, handler.Request?.VersionPolicy);
             Assert.Equal(DnsResponseCode.NoError, response.Status);
         }
+        /// <summary>
+        /// Validates that error responses include the body when using HTTP/3.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatHttp3_IncludesBodyOnError() {
             var handler = new Http3ErrorHandler();
@@ -69,6 +78,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(config.Port, ex.Response.Questions[0].Port);
         }
 
+        /// <summary>
+        /// Ensures an invalid operation results in a server failure response.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatHttp3_ReturnsServerFailureOnInvalidOperation() {
             var handler = new Http3InvalidHandler();
@@ -81,6 +93,9 @@ namespace DnsClientX.Tests {
             Assert.Contains("invalid op", response.Error);
         }
         
+        /// <summary>
+        /// Validates that an empty HTTP/3 response triggers an exception.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatHttp3_ThrowsOnEmptyResponse() {
             var handler = new Http3EmptyHandler();

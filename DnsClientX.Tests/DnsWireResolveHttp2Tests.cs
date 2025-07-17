@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for the HTTP/2 DNS wire resolver.
+    /// </summary>
     public class DnsWireResolveHttp2Tests {
         private class Http2Handler : HttpMessageHandler {
             public HttpRequestMessage? Request { get; private set; }
@@ -35,6 +38,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Ensures HTTP/2 is used when requesting DNS over HTTP/2.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatHttp2_UsesHttp2() {
             var handler = new Http2Handler();
@@ -47,6 +53,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(DnsResponseCode.NoError, response.Status);
         }
 
+        /// <summary>
+        /// Validates that the response body is included in thrown exceptions.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatHttp2_IncludesBodyOnError() {
             var handler = new Http2ErrorHandler();
@@ -61,6 +70,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(config.Port, ex.Response.Questions[0].Port);
         }
 
+        /// <summary>
+        /// Ensures an invalid operation results in a server failure response.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatHttp2_ReturnsServerFailureOnInvalidOperation() {
             var handler = new Http2InvalidHandler();

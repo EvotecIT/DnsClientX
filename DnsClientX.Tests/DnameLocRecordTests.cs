@@ -20,10 +20,10 @@ namespace DnsClientX.Tests {
             return ms.ToArray();
         }
 
-        [Fact]
         /// <summary>
         /// Verifies that DNAME record wire data is decoded correctly.
         /// </summary>
+        [Fact]
         public void ProcessRecordData_DecodesDnameWireFormat() {
             byte[] rdata = EncodeDnsName("target.example.com.");
             Type wireType = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWire")!;
@@ -32,10 +32,10 @@ namespace DnsClientX.Tests {
             Assert.Equal("target.example.com.", result);
         }
 
-        [Fact]
         /// <summary>
         /// Verifies that LOC record wire data is decoded correctly.
         /// </summary>
+        [Fact]
         public void ProcessRecordData_DecodesLocWireFormat() {
             byte[] rdata = new byte[16];
             rdata[0] = 0x00; // version

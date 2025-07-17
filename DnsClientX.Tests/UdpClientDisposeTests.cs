@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests disposal behavior of UDP clients.
+    /// </summary>
     public class UdpClientDisposeTests {
         private static byte[] CreateDnsHeader() {
             byte[] bytes = new byte[12];
@@ -34,6 +37,9 @@ namespace DnsClientX.Tests {
             return result.RemoteEndPoint.Port;
         }
 
+        /// <summary>
+        /// Ensures UDP clients are disposed when processing queries.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldDisposeClient() {
             int port = GetFreePort();

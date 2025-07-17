@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests UDP retry logic and proper resource disposal.
+    /// </summary>
     public class DnsWireUdpRetryLimitTests {
         private static int GetFreePort() {
             TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
@@ -56,6 +59,9 @@ namespace DnsClientX.Tests {
             return ports;
         }
 
+        /// <summary>
+        /// Ensures retry logic respects the configured maximum retry count.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldRespectMaxRetries() {
             int port = GetFreePort();
@@ -80,6 +86,9 @@ namespace DnsClientX.Tests {
             Assert.NotEqual(DnsResponseCode.NoError, response.Status);
         }
 
+        /// <summary>
+        /// Validates that the UDP client is disposed on each retry attempt.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldDisposeClientOnEachRetry() {
             int port = GetFreePort();

@@ -56,6 +56,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(8, optionCode); // ECS option
         }
 
+        /// <summary>
+        /// Ensures that the EDNS Client Subnet option is included when configured.
+        /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldIncludeEcsOption_WhenSubnetConfigured() {
             int port = GetFreePort();

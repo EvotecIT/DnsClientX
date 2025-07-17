@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for resolving DNS queries using multicast.
+    /// </summary>
     public class DnsWireResolveMulticastTests {
         private static byte[] CreateDnsHeader() {
             byte[] bytes = new byte[12];
@@ -30,6 +33,9 @@ namespace DnsClientX.Tests {
             return result.Buffer;
         }
 
+        /// <summary>
+        /// Validates multicast resolution when networking is available.
+        /// </summary>
         [Fact(Skip="Multicast networking not available in test environment")]
         public async Task ResolveWireFormatMulticast_ShouldReturnResponse() {
             var response = CreateDnsHeader();

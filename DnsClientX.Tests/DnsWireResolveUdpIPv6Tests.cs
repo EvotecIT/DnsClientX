@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for UDP DNS resolution over IPv6.
+    /// </summary>
     public class DnsWireResolveUdpIPv6Tests {
         private static byte[] CreateDnsHeader() {
             byte[] bytes = new byte[12];
@@ -35,6 +38,9 @@ namespace DnsClientX.Tests {
             await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
         }
 
+        /// <summary>
+        /// Verifies UDP resolution works with IPv6 servers.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldWorkWithIPv6Server() {
             if (!Socket.OSSupportsIPv6) {
@@ -56,6 +62,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(DnsResponseCode.NoError, dnsResponse.Status);
         }
 
+        /// <summary>
+        /// Ensures an invalid server produces a server failure response.
+        /// </summary>
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldReturnServerFailure_ForInvalidServer() {
             Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
