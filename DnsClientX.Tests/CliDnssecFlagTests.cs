@@ -31,15 +31,6 @@ namespace DnsClientX.Tests {
             return result.Buffer;
         }
 
-        private static bool CanBindPort(int port) {
-            try {
-                using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
-                return true;
-            } catch (SocketException se) when (se.SocketErrorCode == SocketError.AccessDenied) {
-                return false;
-            }
-        }
-
         private static void AssertDoCdBits(byte[] query, string name) {
             int additionalCount = (query[10] << 8) | query[11];
             Assert.Equal(1, additionalCount);
@@ -62,24 +53,24 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task Cli_ShouldSetDoAndCdBits_WhenDnssecValidationEnabled() {
-            if (!CanBindPort(53)) {
-                return; // Skip test on systems without permission for port 53
-            }
+            int port = TestUtilities.GetFreePort();
 
             SystemInformation.SetDnsServerProvider(() => new List<string> { "127.0.0.1" });
 
             var response = CreateDnsHeader();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var udpTask = RunUdpServerAsync(53, response, cts.Token);
+            var udpTask = RunUdpServerAsync(port, response, cts.Token);
 
             try {
                 var assembly = Assembly.Load("DnsClientX.Cli");
                 Type programType = assembly.GetType("DnsClientX.Cli.Program")!;
                 MethodInfo main = programType.GetMethod("Main", BindingFlags.NonPublic | BindingFlags.Static)!;
+                Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", port.ToString());
                 Task<int> task = (Task<int>)main.Invoke(null, new object[] { new[] { "--dnssec", "--validate-dnssec", "example.com" } })!;
                 int exitCode = await task;
                 Assert.Equal(0, exitCode);
             } finally {
+                Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", null);
                 SystemInformation.SetDnsServerProvider(null);
             }
 
