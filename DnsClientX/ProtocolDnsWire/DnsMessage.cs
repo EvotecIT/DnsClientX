@@ -42,6 +42,8 @@ namespace DnsClientX {
         /// <param name="udpBufferSize">UDP buffer size for EDNS.</param>
         /// <param name="subnet">Optional EDNS client subnet.</param>
         /// <param name="checkingDisabled">Whether to set the CD bit in OPT TTL.</param>
+        /// <param name="signingKey">Optional key for DNS message signing.</param>
+        /// <param name="options">Additional EDNS options.</param>
         public DnsMessage(string name, DnsRecordType type, bool requestDnsSec, bool enableEdns, int udpBufferSize, string? subnet, bool checkingDisabled, AsymmetricAlgorithm? signingKey, System.Collections.Generic.IEnumerable<EdnsOption>? options = null)
             : this(name, type, new DnsMessageOptions(requestDnsSec, enableEdns, udpBufferSize,
                 string.IsNullOrEmpty(subnet) ? null : new EdnsClientSubnetOption(subnet), checkingDisabled, signingKey, options)) {

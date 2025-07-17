@@ -11,6 +11,7 @@ public static class DnsRecordFactory {
     /// Parses an answer into a typed record if the type is known.
     /// </summary>
     /// <param name="answer">Answer to parse.</param>
+    /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
     /// <returns>Typed record instance or <c>null</c> if the type is not supported.</returns>
     public static object? Create(DnsAnswer answer, bool typedTxtAsTxt = false) {
         switch (answer.Type) {

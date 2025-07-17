@@ -25,6 +25,10 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedRecords">Return answers as typed records.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
@@ -57,6 +61,10 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedRecords">Return answers as typed records.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>The DNS response.</returns>
         public static DnsResponse QueryDnsSync(string name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
@@ -75,6 +83,10 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedRecords">Return answers as typed records.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
@@ -110,6 +122,10 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedRecords">Return answers as typed records.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>The DNS response.</returns>
         public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
@@ -128,6 +144,10 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedRecords">Return answers as typed records.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
@@ -152,6 +172,10 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedRecords">Return answers as typed records.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>The DNS response.</returns>
         public static DnsResponse QueryDnsSync(string name, DnsRecordType recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
@@ -169,6 +193,10 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedRecords">Return answers as typed records.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns></returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
@@ -192,6 +220,10 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedRecords">Return answers as typed records.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns></returns>
         public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType[] recordType, Uri dnsUri, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
@@ -210,6 +242,9 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse> QueryDns(string name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
@@ -234,6 +269,9 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>The DNS response.</returns>
         public static DnsResponse QueryDnsSync(string name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
@@ -251,6 +289,10 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedRecords">Return answers as typed records.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns></returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
@@ -274,6 +316,9 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns></returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
@@ -297,6 +342,10 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedRecords">Return answers as typed records.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns></returns>
         public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType[] recordType, string hostName, DnsRequestFormat requestFormat, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
@@ -313,6 +362,10 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedRecords">Return answers as typed records.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns></returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType[] recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {
@@ -336,6 +389,10 @@ namespace DnsClientX {
         /// <param name="retryOnTransient">Whether to retry on transient errors</param>
         /// <param name="maxRetries">Maximum number of retries</param>
         /// <param name="retryDelayMs">Retry delay in milliseconds</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedRecords">Return answers as typed records.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns></returns>
         public static DnsResponse[] QueryDnsSync(string[] name, DnsRecordType[] recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, bool typedTxtAsTxt = false, CancellationToken cancellationToken = default) {

@@ -22,6 +22,8 @@ namespace DnsClientX {
         /// <param name="type">The DNS resource type to resolve. By default, this is the <c>A</c> record.</param>
         /// <param name="requestDnsSec">Whether to request DNSSEC data in the response. When requested, it will be accessible under the <see cref="DnsAnswer"/> array.</param>
         /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedRecords">Return answers as typed records.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
@@ -51,6 +53,8 @@ namespace DnsClientX {
         /// <param name="type">The DNS resource type to resolve. By default, this is the <c>A</c> record.</param>
         /// <param name="requestDnsSec">Whether to request DNSSEC data in the response. When requested, it will be accessible under the <see cref="DnsAnswer"/> array.</param>
         /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="typedRecords">Return answers as typed records.</param>
+        /// <param name="typedTxtAsTxt">Return TXT answers as simple TXT records.</param>
         /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
         /// <param name="maxRetries">The maximum number of retries.</param>
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>

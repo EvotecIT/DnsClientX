@@ -144,6 +144,7 @@ namespace DnsClientX {
         /// <param name="enableCache">Enable in-memory caching of responses.</param>
         /// <param name="useTcpFallback">Falls back to TCP when UDP responses are truncated.</param>
         /// <param name="webProxy">Optional HTTP proxy.</param>
+        /// <param name="maxConnectionsPerServer">Maximum number of concurrent connections per server.</param>
         public ClientX(
             DnsEndpoint endpoint = DnsEndpoint.Cloudflare,
             DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First,
@@ -184,6 +185,7 @@ namespace DnsClientX {
         /// <param name="enableCache">Enable in-memory caching of responses.</param>
         /// <param name="useTcpFallback">Falls back to TCP when UDP responses are truncated.</param>
         /// <param name="webProxy">Optional HTTP proxy.</param>
+        /// <param name="maxConnectionsPerServer">Maximum number of concurrent connections per server.</param>
         public ClientX(
             string hostname,
             DnsRequestFormat requestFormat,
@@ -224,6 +226,7 @@ namespace DnsClientX {
         /// <param name="enableCache">Enable in-memory caching of responses.</param>
         /// <param name="useTcpFallback">Falls back to TCP when UDP responses are truncated.</param>
         /// <param name="webProxy">Optional HTTP proxy.</param>
+        /// <param name="maxConnectionsPerServer">Maximum number of concurrent connections per server.</param>
         public ClientX(
             Uri baseUri,
             DnsRequestFormat requestFormat,
