@@ -19,7 +19,7 @@ namespace DnsClientX {
         /// <summary>
         /// The client
         /// </summary>
-        private HttpClient Client;
+        private HttpClient? Client;
 
         /// <summary>
         /// Gets the endpoint configuration.
@@ -60,7 +60,7 @@ namespace DnsClientX {
         /// <summary>
         /// The handler
         /// </summary>
-        private HttpClientHandler handler;
+        private HttpClientHandler? handler;
         private bool _handlerOwnedByClient;
 
         /// <summary>

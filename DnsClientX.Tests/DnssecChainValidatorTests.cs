@@ -171,8 +171,8 @@ namespace DnsClientX.Tests {
         }
 
         private static byte[] BuildPublicKey(RSAParameters p) {
-            byte[] exponent = p.Exponent;
-            byte[] modulus = p.Modulus;
+            byte[] exponent = p.Exponent!;
+            byte[] modulus = p.Modulus!;
             var key = new byte[(exponent.Length > 255 ? 3 : 1) + exponent.Length + modulus.Length];
             int index = 0;
             if (exponent.Length > 255) {

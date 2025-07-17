@@ -60,7 +60,7 @@ namespace DnsClientX {
                 }
                 _cache.TryRemove(key, out _);
             }
-            response = default;
+            response = default!;
             return false;
         }
 

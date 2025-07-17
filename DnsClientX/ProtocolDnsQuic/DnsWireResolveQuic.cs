@@ -80,7 +80,7 @@ namespace DnsClientX {
             // Normalize the DNS server address. If it's not an IP address,
             // resolve it using DNS. IPv6 addresses should be wrapped in
             // brackets when constructing the endpoint string.
-            IPAddress ipAddress;
+            IPAddress? ipAddress;
             if (!IPAddress.TryParse(dnsServer, out ipAddress)) {
                 var hostEntry = HostEntryResolver?.Invoke(dnsServer) ?? Dns.GetHostEntry(dnsServer);
                 if (hostEntry.AddressList.Length == 0) {
@@ -95,13 +95,13 @@ namespace DnsClientX {
                 ipAddress = hostEntry.AddressList[0];
             }
 
-            var ipString = ipAddress.ToString();
+            var ipString = ipAddress!.ToString();
             int zoneIndex = ipString.IndexOf('%');
             if (zoneIndex >= 0) {
                 ipString = ipString[..zoneIndex];
             }
 
-            if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6) {
+            if (ipAddress!.AddressFamily == AddressFamily.InterNetworkV6) {
                 ipString = $"[{ipString}]";
             }
 
