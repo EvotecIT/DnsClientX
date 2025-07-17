@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <AssemblyName>DnsClientX</AssemblyName>
+    <AssemblyName>DnsClientX.Cli</AssemblyName>
     <AssemblyTitle>DnsClientX CLI</AssemblyTitle>
     <Title>DnsClientX Command Line Interface</Title>
     <Description>Command-line interface for DnsClientX DNS library. Provides quick DNS queries and scripting capabilities.</Description>
@@ -28,4 +28,10 @@
   <ItemGroup>
     <ProjectReference Include="..\DnsClientX\DnsClientX.csproj" />
   </ItemGroup>
+
+  <!-- Post-build event to create user-friendly executable name -->
+  <Target Name="CreateUserFriendlyExecutable" AfterTargets="Build">
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).exe" DestinationFiles="$(OutputPath)DnsClientX.exe" Condition="Exists('$(OutputPath)$(AssemblyName).exe')" />
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName)" DestinationFiles="$(OutputPath)DnsClientX" Condition="Exists('$(OutputPath)$(AssemblyName)') And !Exists('$(OutputPath)$(AssemblyName).exe')" />
+  </Target>
 </Project>
