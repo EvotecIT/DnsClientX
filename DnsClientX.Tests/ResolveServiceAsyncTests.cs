@@ -33,10 +33,10 @@ namespace DnsClientX.Tests {
             Assert.Equal("host1.example.com", records[2].Target);
         }
 
-        [Fact]
         /// <summary>
         /// Resolves host addresses from SRV records using the helper method.
         /// </summary>
+        [Fact]
         public async Task ShouldResolveHostAddresses() {
             var srvResponse = new DnsResponse {
                 Answers = new[] {
@@ -66,10 +66,10 @@ namespace DnsClientX.Tests {
             Assert.Contains(IPAddress.Parse("::1"), r.Addresses!);
         }
 
-        [Fact]
         /// <summary>
         /// Returns an empty collection when the DNS server provides no SRV records.
         /// </summary>
+        [Fact]
         public async Task ShouldReturnEmptyArrayWhenNoSrvRecords() {
             using var client = new ClientX(DnsEndpoint.System);
             client.ResolverOverride = (name, type, ct) =>

@@ -79,6 +79,9 @@ namespace DnsClientX.Tests {
             return response;
         }
 
+        /// <summary>
+        /// Performs synchronous TXT resolution for the specified endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -92,10 +95,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
-[InlineData(DnsEndpoint.OpenDNSFamily)]
-        /// <summary>
-        /// Performs synchronous TXT resolution for the specified endpoint.
-        /// </summary>
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForTXTSync(DnsEndpoint endpoint)
         {
             using var client = new ClientX(endpoint);
@@ -110,6 +110,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Performs synchronous TXT resolution returning only the first record.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -123,10 +126,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
-[InlineData(DnsEndpoint.OpenDNSFamily)]
-        /// <summary>
-        /// Performs synchronous TXT resolution returning only the first record.
-        /// </summary>
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForFirstSyncTXT(DnsEndpoint endpoint)
         {
             using var client = new ClientX(endpoint);
@@ -139,6 +139,9 @@ namespace DnsClientX.Tests {
             Assert.True(answer.Data.Length > 0, "Expected answer data to not be empty");
         }
 
+        /// <summary>
+        /// Performs synchronous TXT resolution returning all records.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -152,10 +155,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
-[InlineData(DnsEndpoint.OpenDNSFamily)]
-        /// <summary>
-        /// Performs synchronous TXT resolution returning all records.
-        /// </summary>
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForAllSyncTXT(DnsEndpoint endpoint)
         {
             using var client = new ClientX(endpoint);
@@ -170,6 +170,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Performs asynchronous A record resolution for the specified endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -183,10 +186,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
-[InlineData(DnsEndpoint.OpenDNSFamily)]
-        /// <summary>
-        /// Performs asynchronous A record resolution for the specified endpoint.
-        /// </summary>
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForASync(DnsEndpoint endpoint)
         {
             using var client = new ClientX(endpoint);
@@ -201,6 +201,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Synchronously resolves PTR records for reverse lookups.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -215,9 +218,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        /// <summary>
-        /// Synchronously resolves PTR records for reverse lookups.
-        /// </summary>
         public void ShouldWorkForPTRSync(DnsEndpoint endpoint) {
             using var client = new ClientX(endpoint);
             var response = client.ResolveSync("1.1.1.1", DnsRecordType.PTR);
@@ -229,11 +229,11 @@ namespace DnsClientX.Tests {
             }
         }
 
-        [Theory]
-        [InlineData(DnsEndpoint.Cloudflare)]
         /// <summary>
         /// Resolves multiple domains synchronously for the given endpoint.
         /// </summary>
+        [Theory]
+        [InlineData(DnsEndpoint.Cloudflare)]
         public void ShouldWorkForMultipleDomainsSync(DnsEndpoint endpoint) {
             using var client = new ClientX(endpoint);
             var domains = new[] { "evotec.pl", "google.com" };
@@ -248,11 +248,11 @@ namespace DnsClientX.Tests {
             }
         }
 
-        [Theory]
-        [InlineData(DnsEndpoint.Cloudflare)]
         /// <summary>
         /// Resolves multiple record types synchronously for a single domain.
         /// </summary>
+        [Theory]
+        [InlineData(DnsEndpoint.Cloudflare)]
         public void ShouldWorkForMultipleTypesSync(DnsEndpoint endpoint) {
             using var client = new ClientX(endpoint);
             var types = new[] { DnsRecordType.A, DnsRecordType.TXT };
@@ -267,6 +267,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Resolves the first A record synchronously for the given endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -281,9 +284,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        /// <summary>
-        /// Resolves the first A record synchronously for the given endpoint.
-        /// </summary>
         public void ShouldWorkForFirstSyncA(DnsEndpoint endpoint) {
             using var client = new ClientX(endpoint);
             var answer = client.ResolveFirstSync("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);
@@ -293,6 +293,9 @@ namespace DnsClientX.Tests {
             Assert.True(answer.Value.Data.Length > 0);
         }
 
+        /// <summary>
+        /// Resolves all A records synchronously for the given endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -307,9 +310,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        /// <summary>
-        /// Resolves all A records synchronously for the given endpoint.
-        /// </summary>
         public void ShouldWorkForAllSyncA(DnsEndpoint endpoint) {
             using var client = new ClientX(endpoint);
             var answers = client.ResolveAllSync("evotec.pl", DnsRecordType.A);

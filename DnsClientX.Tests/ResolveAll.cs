@@ -2,12 +2,8 @@ using System.Diagnostics;
 
 namespace DnsClientX.Tests {
     /// <summary>
-    /// Tests for the
-    /// <see cref="ClientX.ResolveAll(string,DnsRecordType,bool,bool,bool,int,int,System.Threading.CancellationToken)"/>
-    /// API.
-    /// </summary>
-    /// <summary>
-    /// Tests covering the <see cref="ClientX.ResolveAll"/> method using different endpoints.
+    /// Tests covering the <see cref="ClientX.ResolveAll(string,DnsRecordType,bool,bool,bool,int,int,System.Threading.CancellationToken)"/>
+    /// API using different endpoints.
     /// </summary>
     public class ResolveAll {
         /// <summary>
@@ -41,6 +37,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Resolves A records from the specified endpoint using asynchronous API.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -62,9 +61,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.CloudflareQuic)]
         [InlineData(DnsEndpoint.GoogleQuic)]
 #endif
-        /// <summary>
-        /// Resolves A records from the specified endpoint using asynchronous API.
-        /// </summary>
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = await Client.ResolveAll("evotec.pl", DnsRecordType.A);
@@ -74,6 +70,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Resolves TXT records synchronously using the specified endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -92,9 +91,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.CloudflareQuic)]
         [InlineData(DnsEndpoint.GoogleQuic)]
 #endif
-        /// <summary>
-        /// Resolves TXT records synchronously using the specified endpoint.
-        /// </summary>
         public void ShouldWorkForTXT_Sync(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = Client.ResolveAllSync("github.com", DnsRecordType.TXT);
@@ -105,6 +101,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Resolves A records synchronously using the specified endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -117,18 +116,12 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-
-
-
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
 #if DNS_OVER_QUIC
         [InlineData(DnsEndpoint.CloudflareQuic)]
         [InlineData(DnsEndpoint.GoogleQuic)]
 #endif
-        /// <summary>
-        /// Resolves A records synchronously using the specified endpoint.
-        /// </summary>
         public void ShouldWorkForA_Sync(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = Client.ResolveAllSync("evotec.pl", DnsRecordType.A);
