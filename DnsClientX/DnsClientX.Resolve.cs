@@ -60,7 +60,7 @@ namespace DnsClientX {
                         true,
                         cancellationToken).ConfigureAwait(false);
                 } catch (DnsClientException ex) {
-                    return ex.Response;
+                    return ex.Response ?? new DnsResponse();
                 }
             } else {
                 return await ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, typedTxtAsTxt, cancellationToken).ConfigureAwait(false);
@@ -120,16 +120,16 @@ namespace DnsClientX {
 #endif
                 } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverGrpc) {
 #if NET8_0_OR_GREATER
-                    response = await DnsWireResolveGrpc.ResolveWireFormatGrpc(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                    response = await DnsWireResolveGrpc.ResolveWireFormatGrpc(EndpointConfiguration.Hostname!, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
 #else
                     throw new DnsClientException("DNS over gRPC is not supported on this platform.");
 #endif
                 } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
-                    response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, IgnoreCertificateErrors, cancellationToken).ConfigureAwait(false);
+                    response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname!, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, IgnoreCertificateErrors, cancellationToken).ConfigureAwait(false);
                 } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverQuic) {
 #if NET8_0_OR_GREATER
                 if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) {
-                    response = await DnsWireResolveQuic.ResolveWireFormatQuic(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                        response = await DnsWireResolveQuic.ResolveWireFormatQuic(EndpointConfiguration.Hostname!, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
                 } else {
                     response = new DnsResponse {
                         Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverQuic, Type = type, OriginalName = name } ],
@@ -142,11 +142,11 @@ namespace DnsClientX {
                     throw new DnsClientException("DNS over QUIC is not supported on this platform.");
 #endif
                 } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
-                    response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                    response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname!, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
                 } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
-                    response = await DnsWireResolveUdp.ResolveWireFormatUdp(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, maxRetries, cancellationToken).ConfigureAwait(false);
+                    response = await DnsWireResolveUdp.ResolveWireFormatUdp(EndpointConfiguration.Hostname!, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, maxRetries, cancellationToken).ConfigureAwait(false);
                 } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.Multicast) {
-                    response = await DnsWireResolveMulticast.ResolveWireFormatMulticast(EndpointConfiguration.Hostname, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                    response = await DnsWireResolveMulticast.ResolveWireFormatMulticast(EndpointConfiguration.Hostname!, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
                 } else {
                     throw new DnsClientException($"Invalid RequestFormat: {EndpointConfiguration.RequestFormat}");
                 }

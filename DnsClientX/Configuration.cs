@@ -325,8 +325,10 @@ namespace DnsClientX {
                     }
                 }
 
-                BaseUri = new Uri(string.Format(baseUriFormat, Hostname));
-                ApplyPortToBaseUri();
+                if (baseUriFormat != null) {
+                    BaseUri = new Uri(string.Format(baseUriFormat, Hostname));
+                    ApplyPortToBaseUri();
+                }
             }
         }
 

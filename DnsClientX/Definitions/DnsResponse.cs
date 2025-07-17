@@ -160,7 +160,7 @@ namespace DnsClientX {
                 Questions = Array.Empty<DnsQuestion>();
             }
             for (int i = 0; i < Questions.Length; i++) {
-                Questions[i].HostName = configuration.Hostname;
+                Questions[i].HostName = configuration.Hostname ?? string.Empty;
                 if (configuration.BaseUri != null) {
                     Questions[i].BaseUri = configuration.BaseUri;
                 }
@@ -210,12 +210,15 @@ namespace DnsClientX {
         public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
             switch (reader.TokenType) {
                 case JsonTokenType.String:
-                    return reader.GetString();
+                    return reader.GetString()!;
                 case JsonTokenType.StartArray:
                     var comments = new List<string>();
                     while (reader.Read() && reader.TokenType != JsonTokenType.EndArray) {
                         if (reader.TokenType == JsonTokenType.String) {
-                            comments.Add(reader.GetString());
+                            string? comment = reader.GetString();
+                            if (comment != null) {
+                                comments.Add(comment);
+                            }
                         }
                     }
                     return string.Join("; ", comments);

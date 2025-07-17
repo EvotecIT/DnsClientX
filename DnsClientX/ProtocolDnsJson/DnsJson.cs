@@ -44,9 +44,9 @@ namespace DnsClientX {
                     // Write the JSON data using logger
                     Settings.Logger.WriteDebug(json);
                     // Deserialize the JSON data
-                    return JsonSerializer.Deserialize<T>(json, JsonOptions);
+                    return JsonSerializer.Deserialize<T>(json, JsonOptions)!;
                 }
-                return JsonSerializer.Deserialize<T>(stream, JsonOptions);
+                return JsonSerializer.Deserialize<T>(stream, JsonOptions)!;
             } catch (JsonException jsonEx) {
                 throw new DnsClientException($"Failed to parse JSON due to a JsonException: {jsonEx.Message}");
             } catch (IOException ioEx) {
