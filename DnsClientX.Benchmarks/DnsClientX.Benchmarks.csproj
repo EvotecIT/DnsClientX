@@ -1,11 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <AssemblyName>DnsClientX.Benchmarks</AssemblyName>
+    <AssemblyTitle>DnsClientX Benchmarks</AssemblyTitle>
+    <Title>DnsClientX Performance Benchmarks</Title>
+    <Description>Performance benchmarks for DnsClientX DNS library using BenchmarkDotNet.</Description>
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <AssemblyVersion>1.0.0</AssemblyVersion>
+    <FileVersion>1.0.0</FileVersion>
+    <Company>Evotec</Company>
+    <Authors>Przemyslaw Klys</Authors>
+    <Copyright>(c) 2011 - 2025 Przemyslaw Klys @ Evotec. All rights reserved.</Copyright>
     <TargetFramework>net8.0</TargetFramework>
     <LangVersion>Latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.2" />

@@ -4,9 +4,16 @@ using Xunit;
 using Xunit.Abstractions;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests synchronous resolution APIs of <see cref="ClientX"/>.
+    /// </summary>
     public class ResolveSync {
         private readonly ITestOutputHelper _output;
 
+        /// <summary>
+        /// Initializes a new instance of the test class.
+        /// </summary>
+        /// <param name="output">XUnit output helper.</param>
         public ResolveSync(ITestOutputHelper output)
         {
             _output = output;
@@ -72,6 +79,9 @@ namespace DnsClientX.Tests {
             return response;
         }
 
+        /// <summary>
+        /// Performs synchronous TXT resolution for the specified endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -100,6 +110,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Performs synchronous TXT resolution returning only the first record.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -126,6 +139,9 @@ namespace DnsClientX.Tests {
             Assert.True(answer.Data.Length > 0, "Expected answer data to not be empty");
         }
 
+        /// <summary>
+        /// Performs synchronous TXT resolution returning all records.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -154,6 +170,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Performs asynchronous A record resolution for the specified endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -182,6 +201,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Synchronously resolves PTR records for reverse lookups.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -207,6 +229,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Resolves multiple domains synchronously for the given endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.Cloudflare)]
         public void ShouldWorkForMultipleDomainsSync(DnsEndpoint endpoint) {
@@ -223,6 +248,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Resolves multiple record types synchronously for a single domain.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.Cloudflare)]
         public void ShouldWorkForMultipleTypesSync(DnsEndpoint endpoint) {
@@ -239,6 +267,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Resolves the first A record synchronously for the given endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -262,6 +293,9 @@ namespace DnsClientX.Tests {
             Assert.True(answer.Value.Data.Length > 0);
         }
 
+        /// <summary>
+        /// Resolves all A records synchronously for the given endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]

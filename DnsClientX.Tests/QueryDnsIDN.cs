@@ -1,5 +1,11 @@
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests resolving internationalized domain names (IDN).
+    /// </summary>
     public class QueryDnsIDN {
+        /// <summary>
+        /// Ensures IDN queries resolve correctly to punycode using the specified endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
@@ -11,9 +17,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-
-
-
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {

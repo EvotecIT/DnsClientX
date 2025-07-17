@@ -3,7 +3,15 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for
+    /// <see cref="ClientX.ResolveAsyncEnumerable(string,DnsRecordType[],bool,bool,bool,bool,int,int,System.Threading.CancellationToken)"/>
+    /// which returns results lazily.
+    /// </summary>
     public class ResolveAsyncEnumerableTests {
+        /// <summary>
+        /// Ensures multiple responses are yielded for multiple names and types.
+        /// </summary>
         [Fact]
         public async Task ResolveAsyncEnumerable_MultipleResponses() {
             using var client = new ClientX(DnsEndpoint.System);
@@ -20,6 +28,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(names.Length * types.Length, count);
         }
 
+        /// <summary>
+        /// Ensures an empty enumeration when no names are provided.
+        /// </summary>
         [Fact]
         public async Task ResolveAsyncEnumerable_EmptyNames_YieldsNothing() {
             using var client = new ClientX(DnsEndpoint.System);

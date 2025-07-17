@@ -3,7 +3,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests concurrent access to <see cref="Configuration.SelectHostNameStrategy"/>.
+    /// </summary>
     public class SelectHostNameStrategyConcurrencyTests {
+        /// <summary>
+        /// Ensures host selection remains thread safe under concurrency.
+        /// </summary>
         [Fact]
         public async Task ShouldHandleConcurrentHostSelection() {
             var config = new Configuration(DnsEndpoint.Cloudflare, DnsSelectionStrategy.Random);

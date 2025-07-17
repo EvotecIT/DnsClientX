@@ -1,7 +1,7 @@
-@{
+﻿@{
     AliasesToExport      = @('Get-DnsZoneTransfer', 'Resolve-DnsQuery')
     Author               = 'Przemyslaw Klys'
-    CmdletsToExport      = @('Get-DnsService', 'Find-DnsService', 'Get-DnsZone', 'Resolve-Dns', 'Invoke-DnsUpdate')
+    CmdletsToExport      = @('Get-DnsService', 'Invoke-DnsUpdate', 'Get-DnsZone', 'Find-DnsService', 'Resolve-Dns')
     CompanyName          = 'Evotec'
     CompatiblePSEditions = @('Desktop', 'Core')
     Copyright            = '(c) 2011 - 2025 Przemyslaw Klys @ Evotec. All rights reserved.'

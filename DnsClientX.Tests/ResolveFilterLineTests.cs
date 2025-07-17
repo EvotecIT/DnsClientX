@@ -3,9 +3,15 @@ using System.Text.RegularExpressions;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests filtering TXT answers line by line.
+    /// </summary>
     public class ResolveFilterLineTests {
         private static DnsAnswer CreateTxt(string data) => new() { Name = "example.com", Type = DnsRecordType.TXT, TTL = 300, DataRaw = data };
 
+        /// <summary>
+        /// Ensures substring filtering returns the line containing the text.
+        /// </summary>
         [Fact]
         public void FilterAnswers_ReturnsMatchingLine() {
             var client = new ClientX();
@@ -16,6 +22,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("line2", result[0].Data);
         }
 
+        /// <summary>
+        /// Ensures regex filtering returns the line matching the pattern.
+        /// </summary>
         [Fact]
         public void FilterAnswersRegex_ReturnsMatchingLine() {
             var client = new ClientX();

@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for AXFR zone transfers under various scenarios.
+    /// </summary>
     public class ZoneTransferTests {
         private static byte[] EncodeName(string name) {
             name = name.TrimEnd('.');
@@ -130,6 +133,9 @@ namespace DnsClientX.Tests {
             return new AxfrServer(port, Serve());
         }
 
+        /// <summary>
+        /// Performs a successful zone transfer and returns records.
+        /// </summary>
         [Fact]
         public async Task ZoneTransferAsync_ReturnsRecords() {
             var soa = BuildSoaRdata();
@@ -152,6 +158,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(DnsRecordType.SOA, recordSets[2].Records[0].Type);
         }
 
+        /// <summary>
+        /// Zone transfer should fail when the server returns an error.
+        /// </summary>
         [Fact]
         public async Task ZoneTransferAsync_FailsWithError() {
             byte[] m1 = BuildErrorMessage("example.com");
@@ -163,6 +172,9 @@ namespace DnsClientX.Tests {
             await server.Task;
         }
 
+        /// <summary>
+        /// Handles responses missing the SOA record.
+        /// </summary>
         [Fact]
         public async Task ZoneTransferAsync_NoSoa_ReturnsEmptyArray() {
             byte[] m1 = BuildMessage("example.com", ("www.example.com", DnsRecordType.A, new byte[] { 1, 2, 3, 4 }));
@@ -176,6 +188,9 @@ namespace DnsClientX.Tests {
             Assert.Empty(recordSets);
         }
 
+        /// <summary>
+        /// Fails when the final SOA record is not present.
+        /// </summary>
         [Fact]
         public async Task ZoneTransferAsync_FailsWithoutClosingSoa() {
             var soa = BuildSoaRdata();
@@ -189,6 +204,9 @@ namespace DnsClientX.Tests {
             await server.Task;
         }
 
+        /// <summary>
+        /// Fails if the closing SOA record is not the last record returned.
+        /// </summary>
         [Fact]
         public async Task ZoneTransferAsync_FailsWhenClosingSoaNotLastRecord() {
             var soa = BuildSoaRdata();
@@ -266,6 +284,9 @@ namespace DnsClientX.Tests {
             return new AxfrServer(port, Serve());
         }
 
+        /// <summary>
+        /// Retries the zone transfer on transient failures.
+        /// </summary>
         [Fact]
         public async Task ZoneTransferAsync_RetriesOnTransientFailure() {
             var soa = BuildSoaRdata();
@@ -282,6 +303,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(3, recordSets.Length);
         }
 
+        /// <summary>
+        /// Ensures the transfer fails after exceeding maximum retries.
+        /// </summary>
         [Fact]
         public async Task ZoneTransferAsync_RetryFailsAfterMaxRetries() {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -335,6 +359,9 @@ namespace DnsClientX.Tests {
             return ms.ToArray();
         }
 
+        /// <summary>
+        /// Fails when the response is truncated.
+        /// </summary>
         [Fact]
         public async Task ZoneTransferAsync_FailsOnTruncatedResponse() {
             var soa = BuildSoaRdata();
@@ -347,6 +374,9 @@ namespace DnsClientX.Tests {
             await server.Task;
         }
 
+        /// <summary>
+        /// Returns an empty array when the server replies with an invalid opcode.
+        /// </summary>
         [Fact]
         public async Task ZoneTransferAsync_InvalidOpcode_ReturnsEmptyArray() {
             byte[] m1 = BuildInvalidOpcodeMessage("example.com");
@@ -360,6 +390,9 @@ namespace DnsClientX.Tests {
             Assert.Empty(recordSets);
         }
 
+        /// <summary>
+        /// Streams zone transfer responses successfully.
+        /// </summary>
         [Fact]
         public async Task ZoneTransferStreamAsync_ReturnsRecords() {
             var soa = BuildSoaRdata();
@@ -384,6 +417,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(DnsRecordType.SOA, results[2].Records[0].Type);
         }
 
+        /// <summary>
+        /// Streaming zone transfer should fail when an error is returned.
+        /// </summary>
         [Fact]
         public async Task ZoneTransferStreamAsync_FailsWithError() {
             byte[] m1 = BuildErrorMessage("example.com");

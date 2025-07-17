@@ -22,4 +22,22 @@ Describe 'Resolve-Dns cmdlet' {
         $typed = [DnsClientX.DnsRecordFactory]::Create($answer)
         $typed | Should -Not -BeNullOrEmpty
     }
+
+    It 'Enumerates typed answers as individual objects' {
+        $ans1 = [DnsClientX.DnsAnswer]@{
+            Type    = [DnsClientX.DnsRecordType]::TXT
+            DataRaw = 'foo=bar'
+        }
+        $ans2 = [DnsClientX.DnsAnswer]@{
+            Type    = [DnsClientX.DnsRecordType]::TXT
+            DataRaw = 'v=spf1 -all'
+        }
+        $response = [DnsClientX.DnsResponse]@{
+            Answers = @($ans1, $ans2)
+        }
+        $response.TypedAnswers = $response.Answers | ForEach-Object { [DnsClientX.DnsRecordFactory]::Create($_) }
+        $types = $response.TypedAnswers | ForEach-Object { $_.GetType().Name }
+        $types | Should -Contain 'KeyValueTxtRecord'
+        $types | Should -Contain 'SpfRecord'
+    }
 }

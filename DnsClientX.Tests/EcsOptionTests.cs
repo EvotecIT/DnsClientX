@@ -31,7 +31,9 @@ namespace DnsClientX.Tests {
         }
 
         private static async Task<byte[]> RunUdpServerAsync(int port, byte[] response, CancellationToken token) {
-            using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
+            using var udp = new UdpClient(AddressFamily.InterNetwork);
+            udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            udp.Client.Bind(new IPEndPoint(IPAddress.Loopback, port));
             UdpReceiveResult result = await udp.ReceiveAsync();
             await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
             return result.Buffer;

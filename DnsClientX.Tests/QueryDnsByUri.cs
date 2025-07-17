@@ -1,7 +1,13 @@
 using System;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests querying DNS endpoints by providing the full request URI.
+    /// </summary>
     public class QueryDnsByUri {
+        /// <summary>
+        /// Ensures TXT queries succeed when the endpoint is specified via URI.
+        /// </summary>
         [Theory]
         [InlineData("https://1.1.1.1/dns-query", DnsRequestFormat.DnsOverHttpsJSON)]
         [InlineData("https://8.8.8.8/resolve", DnsRequestFormat.DnsOverHttpsJSON)]
@@ -17,6 +23,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Ensures A record queries succeed when the endpoint is specified via URI.
+        /// </summary>
         [Theory]
         [InlineData("https://1.1.1.1/dns-query", DnsRequestFormat.DnsOverHttpsJSON)]
         [InlineData("https://8.8.8.8/resolve", DnsRequestFormat.DnsOverHttpsJSON)]

@@ -15,7 +15,7 @@ namespace DnsClientX {
     public class Configuration {
         /// <summary>
         /// Random generator used for hostname selection on frameworks lacking
-        /// <see cref="Random.Shared"/>.
+        /// <c>Random.Shared</c>.
         /// </summary>
 #if NET6_0_OR_GREATER
         // Random.Shared provides a threadsafe instance starting with .NET 6

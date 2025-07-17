@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests that wire format DoH endpoints are invoked using HTTP POST.
+    /// </summary>
     public class QueryDnsWirePost {
         private class WirePostHandler : HttpMessageHandler {
             public HttpRequestMessage? Request { get; private set; }
@@ -27,6 +30,9 @@ namespace DnsClientX.Tests {
             clientField.SetValue(client, httpClient);
         }
 
+        /// <summary>
+        /// Sends a query and verifies that the wire format request uses POST.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]

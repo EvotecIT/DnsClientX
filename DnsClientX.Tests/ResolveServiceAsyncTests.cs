@@ -10,6 +10,9 @@ namespace DnsClientX.Tests {
     /// Tests for <see cref="ClientX.ResolveServiceAsync"/> helper.
     /// </summary>
     public class ResolveServiceAsyncTests {
+        /// <summary>
+        /// Ensures SRV records are ordered by priority and weight as defined in the specification.
+        /// </summary>
         [Fact]
         public async Task ShouldOrderByPriorityAndWeight() {
             var srvResponse = new DnsResponse {
@@ -30,6 +33,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("host1.example.com", records[2].Target);
         }
 
+        /// <summary>
+        /// Resolves host addresses from SRV records using the helper method.
+        /// </summary>
         [Fact]
         public async Task ShouldResolveHostAddresses() {
             var srvResponse = new DnsResponse {
@@ -60,6 +66,9 @@ namespace DnsClientX.Tests {
             Assert.Contains(IPAddress.Parse("::1"), r.Addresses!);
         }
 
+        /// <summary>
+        /// Returns an empty collection when the DNS server provides no SRV records.
+        /// </summary>
         [Fact]
         public async Task ShouldReturnEmptyArrayWhenNoSrvRecords() {
             using var client = new ClientX(DnsEndpoint.System);

@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests handling of invalid referral responses when resolving from the DNS root.
+    /// </summary>
     public class ResolveRootInvalidReferralTests {
         private static byte[] EncodeName(string name) {
             using var ms = new System.IO.MemoryStream();
@@ -80,6 +83,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Ensures that the last response is returned when referrals are invalid.
+        /// </summary>
         [Fact]
         public async Task ResolveFromRoot_ReturnsLastResponse_OnInvalidReferrals() {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));

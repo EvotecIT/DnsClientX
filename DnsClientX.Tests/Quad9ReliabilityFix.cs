@@ -4,13 +4,23 @@ using Xunit;
 using Xunit.Abstractions;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Exploratory tests demonstrating retry logic for unreliable Quad9 DNS endpoints.
+    /// </summary>
     public class Quad9ReliabilityFix {
         private readonly ITestOutputHelper output;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Quad9ReliabilityFix"/> class.
+        /// </summary>
+        /// <param name="output">The output helper used for test diagnostics.</param>
         public Quad9ReliabilityFix(ITestOutputHelper output) {
             this.output = output;
         }
 
+        /// <summary>
+        /// Demonstrates retry logic when querying Quad9 which tends to throttle automated requests.
+        /// </summary>
         [Theory(Skip = "External dependency - unreliable for automated testing")]
         [InlineData(DnsEndpoint.Quad9)]
         [InlineData(DnsEndpoint.Quad9ECS)]
@@ -58,6 +68,9 @@ namespace DnsClientX.Tests {
                                $"Consider using Cloudflare or Google DNS for more reliable automated testing.");
         }
 
+        /// <summary>
+        /// Checks that recommended providers respond reliably for automated tests.
+        /// </summary>
         [Fact(Skip = "External dependency - unreliable for automated testing")]
         public async Task RecommendedReliableProvidersTest() {
             // Test providers that are more reliable for automated testing
@@ -92,6 +105,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Outputs troubleshooting information about Quad9 reliability in automated scenarios.
+        /// </summary>
         [Fact(Skip = "External dependency - unreliable for automated testing")]
         public void ExplainQuad9Issues() {
             output.WriteLine("Quad9 Reliability Issues Explanation:");
