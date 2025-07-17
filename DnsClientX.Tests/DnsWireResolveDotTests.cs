@@ -49,7 +49,8 @@ namespace DnsClientX.Tests {
             var ex = await Assert.ThrowsAsync<DnsClientException>(async () =>
                 await DnsWireResolveDot.ResolveWireFormatDoT("127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, true, cts.Token));
 
-            Assert.Equal(config.Hostname, ex.Response.Questions[0].HostName);
+            Assert.NotNull(ex.Response);
+            Assert.Equal(config.Hostname, ex.Response!.Questions[0].HostName);
             Assert.Equal(config.Port, ex.Response.Questions[0].Port);
 
             await serverTask;

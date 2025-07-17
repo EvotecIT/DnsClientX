@@ -55,7 +55,7 @@ namespace DnsClientX {
         /// HostName or IP address of the DNS server which received the query.
         /// </summary>
         [JsonIgnore]
-        public string HostName { get; set; }
+        public string? HostName { get; set; }
 
         /// <summary>
         /// Base URI of the DNS server which received the query.

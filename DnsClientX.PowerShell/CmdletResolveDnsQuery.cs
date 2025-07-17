@@ -262,7 +262,7 @@ namespace DnsClientX.PowerShell {
                 }
 
                 foreach (var record in results) {
-                    string serverUsed = record.Questions.FirstOrDefault().HostName;
+                    string serverUsed = record.Questions.Length > 0 ? record.Questions[0].HostName ?? string.Empty : string.Empty;
                     if (record.Status == DnsResponseCode.NoError)
                     {
                         _logger?.WriteVerbose("Query successful for {0} with type {1}, {2} (retries {3})", names, types, serverUsed, record.RetryCount);

@@ -160,7 +160,7 @@ namespace DnsClientX {
                 Questions = Array.Empty<DnsQuestion>();
             }
             for (int i = 0; i < Questions.Length; i++) {
-                Questions[i].HostName = configuration.Hostname ?? string.Empty;
+                Questions[i].HostName = configuration.Hostname;
                 if (configuration.BaseUri != null) {
                     Questions[i].BaseUri = configuration.BaseUri;
                 }
