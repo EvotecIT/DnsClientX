@@ -74,7 +74,8 @@ namespace DnsClientX.Tests {
                 DnsWireResolveHttp3.ResolveWireFormatHttp3(client, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None));
 
             Assert.Contains("server error", ex.Message);
-            Assert.Equal(config.Hostname, ex.Response.Questions[0].HostName);
+            Assert.NotNull(ex.Response);
+            Assert.Equal(config.Hostname, ex.Response!.Questions[0].HostName);
             Assert.Equal(config.Port, ex.Response.Questions[0].Port);
         }
 

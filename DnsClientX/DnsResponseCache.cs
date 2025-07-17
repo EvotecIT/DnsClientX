@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
 namespace DnsClientX {
@@ -52,7 +53,7 @@ namespace DnsClientX {
         /// <param name="key">Cache key.</param>
         /// <param name="response">Retrieved response if found and not expired.</param>
         /// <returns><c>true</c> if a valid entry was found; otherwise <c>false</c>.</returns>
-        public bool TryGet(string key, out DnsResponse? response) {
+        public bool TryGet(string key, [NotNullWhen(true)] out DnsResponse? response) {
             if (_cache.TryGetValue(key, out var entry)) {
                 if (DateTimeOffset.UtcNow < entry.Expiration) {
                     response = entry.Response;

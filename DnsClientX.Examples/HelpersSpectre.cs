@@ -195,7 +195,7 @@ namespace DnsClientX.Examples {
                 table.AddRow(
                     new Markup(question.Name),
                     new Markup(question.Type.ToString()),
-                    new Markup(question.HostName),
+                    new Markup(question.HostName ?? string.Empty),
                     new Markup(question.Port.ToString()),
                     new Markup(question.RequestFormat.ToString()),
                     new Markup(question.BaseUri?.ToString() ?? string.Empty));

@@ -196,7 +196,7 @@ namespace DnsClientX {
             if (string.IsNullOrEmpty(host)) return;
 
             lock (unavailable) {
-                unavailable[host] = DateTime.UtcNow.Add(UnavailableCooldown);
+                unavailable[host!] = DateTime.UtcNow.Add(UnavailableCooldown);
             }
         }
 
@@ -325,8 +325,10 @@ namespace DnsClientX {
                     }
                 }
 
-                BaseUri = new Uri(string.Format(baseUriFormat, Hostname));
-                ApplyPortToBaseUri();
+                if (baseUriFormat != null) {
+                    BaseUri = new Uri(string.Format(baseUriFormat, Hostname));
+                    ApplyPortToBaseUri();
+                }
             }
         }
 

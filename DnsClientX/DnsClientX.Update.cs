@@ -26,11 +26,12 @@ namespace DnsClientX {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
             if (ttl <= 0) throw new ArgumentOutOfRangeException(nameof(ttl));
             EndpointConfiguration.SelectHostNameStrategy();
+            Client ??= GetClient(EndpointConfiguration.SelectionStrategy);
             DnsResponse response;
             if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
-                response = await Client.UpdateJsonFormatPost(zone, name, type, data, ttl, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                response = await Client!.UpdateJsonFormatPost(zone, name, type, data, ttl, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
             } else {
-                response = await DnsWireUpdateTcp.UpdateRecordAsync(EndpointConfiguration.Hostname, EndpointConfiguration.Port, zone, name, type, data, ttl, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                response = await DnsWireUpdateTcp.UpdateRecordAsync(EndpointConfiguration.Hostname!, EndpointConfiguration.Port, zone, name, type, data, ttl, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
             }
             if (response.Status != DnsResponseCode.NoError) {
                 throw new DnsClientException($"DNS update failed with {response.Status}", response);
@@ -51,11 +52,12 @@ namespace DnsClientX {
             if (string.IsNullOrEmpty(zone)) throw new ArgumentNullException(nameof(zone));
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
             EndpointConfiguration.SelectHostNameStrategy();
+            Client ??= GetClient(EndpointConfiguration.SelectionStrategy);
             DnsResponse response;
             if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
-                response = await Client.DeleteJsonFormatPost(zone, name, type, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                response = await Client!.DeleteJsonFormatPost(zone, name, type, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
             } else {
-                response = await DnsWireUpdateTcp.DeleteRecordAsync(EndpointConfiguration.Hostname, EndpointConfiguration.Port, zone, name, type, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                response = await DnsWireUpdateTcp.DeleteRecordAsync(EndpointConfiguration.Hostname!, EndpointConfiguration.Port, zone, name, type, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
             }
             if (response.Status != DnsResponseCode.NoError) {
                 throw new DnsClientException($"DNS update failed with {response.Status}", response);

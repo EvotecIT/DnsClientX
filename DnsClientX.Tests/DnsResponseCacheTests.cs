@@ -82,7 +82,7 @@ namespace DnsClientX.Tests {
             var cacheField = typeof(ClientX).GetField("_cache", BindingFlags.NonPublic | BindingFlags.Static)!;
             var cache = cacheField.GetValue(null)!;
             var dictField = cache.GetType().GetField("_cache", BindingFlags.NonPublic | BindingFlags.Instance)!;
-            var dict = dictField.GetValue(cache);
+            var dict = dictField.GetValue(cache)!;
             dict.GetType().GetMethod("Clear")!.Invoke(dict, null);
         }
 
@@ -90,7 +90,7 @@ namespace DnsClientX.Tests {
             var cacheField = typeof(ClientX).GetField("_cache", BindingFlags.NonPublic | BindingFlags.Static)!;
             var cache = cacheField.GetValue(null)!;
             var dictField = cache.GetType().GetField("_cache", BindingFlags.NonPublic | BindingFlags.Instance)!;
-            var dict = dictField.GetValue(cache);
+            var dict = dictField.GetValue(cache)!;
             var values = (System.Collections.IEnumerable)dict.GetType().GetProperty("Values")!.GetValue(dict)!;
             var enumerator = values.GetEnumerator();
             enumerator.MoveNext();
@@ -103,7 +103,7 @@ namespace DnsClientX.Tests {
             var cacheField = typeof(ClientX).GetField("_cache", BindingFlags.NonPublic | BindingFlags.Static)!;
             var cache = cacheField.GetValue(null)!;
             var dictField = cache.GetType().GetField("_cache", BindingFlags.NonPublic | BindingFlags.Instance)!;
-            var dict = dictField.GetValue(cache);
+            var dict = dictField.GetValue(cache)!;
             int count = (int)dict.GetType().GetProperty("Count")!.GetValue(dict)!;
             return count == 0;
         }
