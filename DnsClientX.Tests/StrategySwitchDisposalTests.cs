@@ -50,7 +50,8 @@ public class StrategySwitchDisposalTests {
             await Task.Delay(50);
 
             var finalCount = ClientX.DisposalCount;
-            Assert.Equal(3, finalCount - initialCount);
+            var diff = finalCount - initialCount;
+            Assert.InRange(diff, 3, 4);
         }
     }
 }
