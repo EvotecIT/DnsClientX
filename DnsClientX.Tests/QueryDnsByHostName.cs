@@ -1,5 +1,14 @@
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests resolving records by specifying host name and request format.
+    /// </summary>
     public class QueryDnsByHostName {
+        /// <summary>
+        /// Ensures TXT queries succeed when specifying the DNS host.
+        /// </summary>
+        /// <summary>
+        /// Ensures multiple domains can be resolved for a given host name.
+        /// </summary>
         [Theory]
         [InlineData("1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON)]
         [InlineData("family.cloudflare-dns.com", DnsRequestFormat.DnsOverHttpsJSON)]
@@ -15,6 +24,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Ensures A record queries succeed when specifying the DNS host.
+        /// </summary>
         [Theory]
         [InlineData("1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON)]
         [InlineData("family.cloudflare-dns.com", DnsRequestFormat.DnsOverHttpsJSON)]
@@ -32,6 +44,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Ensures multiple domains can be resolved for a given host name.
+        /// </summary>
         [Theory]
         [InlineData("1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON)]
         [InlineData("family.cloudflare-dns.com", DnsRequestFormat.DnsOverHttpsJSON)]

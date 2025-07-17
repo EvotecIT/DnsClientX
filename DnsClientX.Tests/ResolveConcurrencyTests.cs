@@ -4,7 +4,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests that concurrent resolve operations do not throw errors.
+    /// </summary>
     public class ResolveConcurrencyTests {
+        /// <summary>
+        /// Resolves in parallel and ensures each result contains answers.
+        /// </summary>
         [Fact]
         public async Task ShouldResolveConcurrentlyWithoutErrors() {
             using var client = new ClientX(DnsEndpoint.System);

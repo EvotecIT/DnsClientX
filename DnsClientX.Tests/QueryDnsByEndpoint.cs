@@ -1,5 +1,14 @@
 namespace DnsClientX.Tests {
     public class QueryDnsByEndpoint {
+        /// <summary>
+        /// Ensures TXT queries succeed for the given endpoint.
+        /// </summary>
+        /// <summary>
+        /// Ensures A record queries succeed for the given endpoint.
+        /// </summary>
+        /// <summary>
+        /// Ensures PTR queries succeed for the given endpoint.
+        /// </summary>
         [Theory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]

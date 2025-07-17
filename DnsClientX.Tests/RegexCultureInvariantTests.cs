@@ -5,7 +5,13 @@ using System.Threading;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests that regex-based filtering behaves consistently across cultures.
+    /// </summary>
     public class RegexCultureInvariantTests {
+        /// <summary>
+        /// Verifies <see cref="DnsAnswer.Data"/> conversion is not affected by culture.
+        /// </summary>
         [Theory]
         [InlineData("en-US")]
         [InlineData("tr-TR")]
@@ -26,6 +32,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Ensures regex filtering yields the same results regardless of culture.
+        /// </summary>
         [Theory]
         [InlineData("en-US")]
         [InlineData("tr-TR")]
@@ -52,6 +61,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Ensures substring filtering yields the same results regardless of culture.
+        /// </summary>
         [Theory]
         [InlineData("en-US")]
         [InlineData("tr-TR")]

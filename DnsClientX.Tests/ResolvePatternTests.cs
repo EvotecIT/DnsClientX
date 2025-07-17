@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for wildcard pattern expansion and resolution logic.
+    /// </summary>
     public class ResolvePatternTests {
         private class CountingHandler : HttpMessageHandler {
             public int CallCount;
@@ -28,6 +31,9 @@ namespace DnsClientX.Tests {
             clientField.SetValue(client, httpClient);
         }
 
+        /// <summary>
+        /// Ensures that patterns with wildcards are expanded and each name is queried.
+        /// </summary>
         [Fact]
         public async Task ResolvePattern_ExpandsWildcards() {
             var handler = new CountingHandler();
@@ -41,6 +47,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(3, responses.Length);
         }
 
+        /// <summary>
+        /// Verifies brace expansion of multiple segments.
+        /// </summary>
         [Fact]
         public void ExpandPattern_MultipleBraces() {
             string pattern = "srv{a,b}{1,2}.example.com";
