@@ -12,7 +12,7 @@ namespace DnsClientX {
         /// <summary>
         /// Gets or sets the DNS response that caused this exception.
         /// </summary>
-        public DnsResponse Response { get; set; }
+        public DnsResponse? Response { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DnsClientException"/> class with a specified error message.
