@@ -9,7 +9,9 @@ namespace DnsClientX.Tests {
     /// </summary>
     public class ResolveEdgeCaseTests {
         /// <summary>
-        /// Ensures <see cref="ClientX.ResolveAllSync"/> throws when the name is invalid.
+        /// Ensures
+        /// <see cref="ClientX.ResolveAllSync(string,DnsRecordType,bool,bool,bool,int,int,System.Threading.CancellationToken)"/>
+        /// throws when the name is invalid.
         /// </summary>
         [Fact]
         public void ResolveAllSync_InvalidName_Throws() {

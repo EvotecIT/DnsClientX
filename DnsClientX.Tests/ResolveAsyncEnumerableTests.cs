@@ -4,7 +4,9 @@ using Xunit;
 
 namespace DnsClientX.Tests {
     /// <summary>
-    /// Tests for <see cref="ClientX.ResolveAsyncEnumerable"/> which returns results lazily.
+    /// Tests for
+    /// <see cref="ClientX.ResolveAsyncEnumerable(string,DnsRecordType[],bool,bool,bool,bool,int,int,System.Threading.CancellationToken)"/>
+    /// which returns results lazily.
     /// </summary>
     public class ResolveAsyncEnumerableTests {
         /// <summary>
