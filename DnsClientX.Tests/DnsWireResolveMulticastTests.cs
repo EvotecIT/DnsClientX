@@ -1,7 +1,6 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -43,10 +42,16 @@ namespace DnsClientX.Tests {
             var serverTask = RunMulticastServerAsync(response, cts.Token);
 
             var config = new Configuration("224.0.0.251", DnsRequestFormat.Multicast);
-            Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveMulticast")!;
-            MethodInfo method = type.GetMethod("ResolveWireFormatMulticast", BindingFlags.Static | BindingFlags.NonPublic)!;
-            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "224.0.0.251", 5353, "example.local", DnsRecordType.A, false, false, false, config, cts.Token })!;
-            DnsResponse dnsResponse = await task;
+            DnsResponse dnsResponse = await DnsWireResolveMulticast.ResolveWireFormatMulticast(
+                "224.0.0.251",
+                5353,
+                "example.local",
+                DnsRecordType.A,
+                requestDnsSec: false,
+                validateDnsSec: false,
+                debug: false,
+                config,
+                cts.Token);
             byte[] query = await serverTask;
 
             Assert.NotNull(dnsResponse);

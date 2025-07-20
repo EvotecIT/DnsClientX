@@ -1,7 +1,6 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -70,10 +69,17 @@ namespace DnsClientX.Tests {
             var tcpTask = RunTcpServerAsync(port, tcpResponse, () => tcpCalled = true, cts.Token);
 
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port };
-            Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
-            MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
-            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, 1, cts.Token })!;
-            DnsResponse response = await task;
+            DnsResponse response = await DnsWireResolveUdp.ResolveWireFormatUdp(
+                "127.0.0.1",
+                port,
+                "example.com",
+                DnsRecordType.A,
+                requestDnsSec: false,
+                validateDnsSec: false,
+                debug: false,
+                config,
+                1,
+                cts.Token);
 
             await Task.WhenAll(udpTask, tcpTask);
             Assert.True(tcpCalled, "Expected TCP fallback to be used");
@@ -91,10 +97,17 @@ namespace DnsClientX.Tests {
             var udpTask = RunUdpServerAsync(port, udpResponse, cts.Token);
 
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port, UseTcpFallback = false };
-            Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
-            MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
-            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, 1, cts.Token })!;
-            DnsResponse response = await task;
+            DnsResponse response = await DnsWireResolveUdp.ResolveWireFormatUdp(
+                "127.0.0.1",
+                port,
+                "example.com",
+                DnsRecordType.A,
+                requestDnsSec: false,
+                validateDnsSec: false,
+                debug: false,
+                config,
+                1,
+                cts.Token);
 
             await udpTask;
             Assert.True(response.IsTruncated);

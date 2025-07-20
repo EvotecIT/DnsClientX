@@ -1,7 +1,6 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -44,12 +43,14 @@ namespace DnsClientX.Tests {
             var serverTask = RunStallingServerAsync(port, cts.Token);
 
             var queryBytes = new DnsMessage("example.com", DnsRecordType.A, false).SerializeDnsWireFormat();
-            Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveTcp")!;
-            MethodInfo method = type.GetMethod("SendQueryOverTcp", BindingFlags.Static | BindingFlags.NonPublic)!;
 
             await Assert.ThrowsAsync<TimeoutException>(async () => {
-                var task = (Task<byte[]>)method.Invoke(null, new object[] { queryBytes, "127.0.0.1", port, 200, CancellationToken.None })!;
-                await task;
+                await DnsWireResolveTcp.SendQueryOverTcp(
+                    queryBytes,
+                    "127.0.0.1",
+                    port,
+                    200,
+                    CancellationToken.None);
             });
 
             cts.Cancel();

@@ -3,7 +3,6 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -70,13 +69,19 @@ namespace DnsClientX.Tests {
             var serverTask = RunTcpServerAsync(port, iterations, cts.Token);
 
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTCP) { Port = port };
-            Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveTcp")!;
-            MethodInfo method = type.GetMethod("ResolveWireFormatTcp", BindingFlags.Static | BindingFlags.NonPublic)!;
 
             int before = GetTcpConnectionCount(port);
             for (int i = 0; i < iterations; i++) {
-                var task = (Task<DnsResponse>)method.Invoke(null, new object?[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, cts.Token })!;
-                await task;
+                await DnsWireResolveTcp.ResolveWireFormatTcp(
+                    "127.0.0.1",
+                    port,
+                    "example.com",
+                    DnsRecordType.A,
+                    requestDnsSec: false,
+                    validateDnsSec: false,
+                    debug: false,
+                    config,
+                    cts.Token);
             }
             await serverTask;
 

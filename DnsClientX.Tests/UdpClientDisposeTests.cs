@@ -1,7 +1,6 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -48,10 +47,17 @@ namespace DnsClientX.Tests {
             var udpTask = RunUdpServerCapturePortAsync(port, response, cts.Token);
 
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port };
-            Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
-            MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
-            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, 1, cts.Token })!;
-            await task;
+            await DnsWireResolveUdp.ResolveWireFormatUdp(
+                "127.0.0.1",
+                port,
+                "example.com",
+                DnsRecordType.A,
+                requestDnsSec: false,
+                validateDnsSec: false,
+                debug: false,
+                config,
+                1,
+                cts.Token);
 
             int clientPort = await udpTask;
 

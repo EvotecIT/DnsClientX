@@ -88,7 +88,7 @@ namespace DnsClientX {
         /// <param name="timeoutMilliseconds">Timeout in milliseconds.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>Raw DNS response bytes.</returns>
-        private static async Task<byte[]> SendQueryOverTcp(byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
+        internal static async Task<byte[]> SendQueryOverTcp(byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
             using var tcpClient = TcpClientFactory();
             NetworkStream? stream = null;
             try {

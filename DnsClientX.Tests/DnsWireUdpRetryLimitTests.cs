@@ -1,7 +1,6 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -74,10 +73,17 @@ namespace DnsClientX.Tests {
                 Port = port,
                 TimeOut = 100
             };
-            Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
-            MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
-            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, 2, cts.Token })!;
-            DnsResponse response = await task;
+            DnsResponse response = await DnsWireResolveUdp.ResolveWireFormatUdp(
+                "127.0.0.1",
+                port,
+                "example.com",
+                DnsRecordType.A,
+                requestDnsSec: false,
+                validateDnsSec: false,
+                debug: false,
+                config,
+                2,
+                cts.Token);
 
             int attempts = await serverTask;
             cts.Cancel();
@@ -99,10 +105,17 @@ namespace DnsClientX.Tests {
                 Port = port,
                 TimeOut = 100
             };
-            Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
-            MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
-            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, 2, cts.Token })!;
-            await task;
+            await DnsWireResolveUdp.ResolveWireFormatUdp(
+                "127.0.0.1",
+                port,
+                "example.com",
+                DnsRecordType.A,
+                requestDnsSec: false,
+                validateDnsSec: false,
+                debug: false,
+                config,
+                2,
+                cts.Token);
 
             int[] clientPorts = await serverTask;
             cts.Cancel();
@@ -121,4 +134,5 @@ namespace DnsClientX.Tests {
                 Assert.Null(ex);
             }
         }
-    }}
+    }
+}

@@ -1,7 +1,6 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -84,10 +83,17 @@ namespace DnsClientX.Tests {
             var udpTask = RunUdpServerAsync(port, response, cts.Token);
 
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port, CheckingDisabled = true };
-            Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
-            MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
-            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, 1, cts.Token })!;
-            await task;
+            await DnsWireResolveUdp.ResolveWireFormatUdp(
+                "127.0.0.1",
+                port,
+                "example.com",
+                DnsRecordType.A,
+                requestDnsSec: false,
+                validateDnsSec: false,
+                debug: false,
+                config,
+                1,
+                cts.Token);
             byte[] query = await udpTask;
 
             AssertCdBit(query, "example.com", 0x10u);
@@ -104,10 +110,16 @@ namespace DnsClientX.Tests {
             var tcpTask = RunTcpServerAsync(port, response, cts.Token);
 
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTCP) { Port = port, CheckingDisabled = true };
-            Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveTcp")!;
-            MethodInfo method = type.GetMethod("ResolveWireFormatTcp", BindingFlags.Static | BindingFlags.NonPublic)!;
-            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, cts.Token })!;
-            await task;
+            await DnsWireResolveTcp.ResolveWireFormatTcp(
+                "127.0.0.1",
+                port,
+                "example.com",
+                DnsRecordType.A,
+                requestDnsSec: false,
+                validateDnsSec: false,
+                debug: false,
+                config,
+                cts.Token);
             byte[] query = await tcpTask;
 
             AssertCdBit(query, "example.com", 0x10u);
