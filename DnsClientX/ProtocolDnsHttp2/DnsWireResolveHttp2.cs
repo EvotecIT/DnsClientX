@@ -1,7 +1,6 @@
 using System;
 using System.Net;
 using System.Net.Http;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
@@ -26,8 +25,7 @@ namespace DnsClientX {
         internal static async Task<DnsResponse> ResolveWireFormatHttp2(this HttpClient client, string name,
             DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug,
             Configuration endpointConfiguration, CancellationToken cancellationToken) {
-            System.Collections.Generic.IEnumerable<EdnsOption>? options = endpointConfiguration.EdnsOptions?.Options;
-            var dnsMessage = new DnsMessage(name, type, requestDnsSec, endpointConfiguration.EnableEdns, endpointConfiguration.UdpBufferSize, endpointConfiguration.Subnet, endpointConfiguration.CheckingDisabled, endpointConfiguration.SigningKey, options);
+            var dnsMessage = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration);
             var base64UrlDnsMessage = dnsMessage.ToBase64Url();
             string url = $"?dns={base64UrlDnsMessage}";
 
