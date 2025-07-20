@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -36,18 +35,7 @@ namespace DnsClientX {
         internal static async Task<DnsResponse> ResolveWireFormatDoT(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, bool ignoreCertificateErrors, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
-            var edns = endpointConfiguration.EdnsOptions;
-            bool enableEdns = endpointConfiguration.EnableEdns;
-            int udpSize = endpointConfiguration.UdpBufferSize;
-            string? subnet = endpointConfiguration.Subnet;
-            System.Collections.Generic.IEnumerable<EdnsOption>? options = null;
-            if (edns != null) {
-                enableEdns = edns.EnableEdns;
-                udpSize = edns.UdpBufferSize;
-                subnet = edns.Subnet?.Subnet;
-                options = edns.Options;
-            }
-            var query = new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet, endpointConfiguration.CheckingDisabled, endpointConfiguration.SigningKey, options);
+            var query = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration);
             var queryBytes = query.SerializeDnsWireFormat();
 
             // Calculate the length prefix for the query
