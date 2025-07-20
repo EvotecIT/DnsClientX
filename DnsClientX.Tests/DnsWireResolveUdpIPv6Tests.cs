@@ -1,7 +1,6 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -53,10 +52,17 @@ namespace DnsClientX.Tests {
             var udpTask = RunUdpServerAsync(port, response, cts.Token);
 
             var config = new Configuration("::1", DnsRequestFormat.DnsOverUDP) { Port = port };
-            Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
-            MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
-            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "::1", port, "example.com", DnsRecordType.A, false, false, false, config, 1, cts.Token })!;
-            DnsResponse dnsResponse = await task;
+            DnsResponse dnsResponse = await DnsWireResolveUdp.ResolveWireFormatUdp(
+                "::1",
+                port,
+                "example.com",
+                DnsRecordType.A,
+                requestDnsSec: false,
+                validateDnsSec: false,
+                debug: false,
+                config,
+                1,
+                cts.Token);
 
             await udpTask;
             Assert.Equal(DnsResponseCode.NoError, dnsResponse.Status);
@@ -67,11 +73,18 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldReturnServerFailure_ForInvalidServer() {
-            Type type = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWireResolveUdp")!;
-            MethodInfo method = type.GetMethod("ResolveWireFormatUdp", BindingFlags.Static | BindingFlags.NonPublic)!;
             var config = new Configuration("invalid", DnsRequestFormat.DnsOverUDP);
-            var task = (Task<DnsResponse>)method.Invoke(null, new object[] { "invalid", 53, "example.com", DnsRecordType.A, false, false, false, config, 1, CancellationToken.None })!;
-            DnsResponse response = await task;
+            DnsResponse response = await DnsWireResolveUdp.ResolveWireFormatUdp(
+                "invalid",
+                53,
+                "example.com",
+                DnsRecordType.A,
+                requestDnsSec: false,
+                validateDnsSec: false,
+                debug: false,
+                config,
+                1,
+                CancellationToken.None);
             Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
             Assert.Contains("invalid dns server", response.Error, StringComparison.OrdinalIgnoreCase);
         }
