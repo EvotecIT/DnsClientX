@@ -72,6 +72,11 @@ namespace DnsClientX {
 
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
+            // Allow tests to override the resolver to avoid network calls.
+            if (ResolverOverride != null) {
+                return await ResolverOverride(name, type, cancellationToken).ConfigureAwait(false);
+            }
+
             bool originalCd = EndpointConfiguration.CheckingDisabled;
             if (validateDnsSec) {
                 EndpointConfiguration.CheckingDisabled = !originalCd;
