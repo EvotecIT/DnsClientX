@@ -23,16 +23,18 @@ namespace DnsClientX.Tests {
         }
 
         private static int GetFreePort() {
-            TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
-            listener.Start();
-            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            listener.Stop();
-            return port;
+            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+            return ((IPEndPoint)socket.LocalEndPoint!).Port;
         }
 
         private static async Task RunUdpServerAsync(int port, byte[] response, CancellationToken token) {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
+#if NET5_0_OR_GREATER
+            UdpReceiveResult result = await udp.ReceiveAsync(token).AsTask();
+#else
             UdpReceiveResult result = await udp.ReceiveAsync();
+#endif
             await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
         }
 

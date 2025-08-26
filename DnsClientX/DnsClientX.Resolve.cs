@@ -72,6 +72,11 @@ namespace DnsClientX {
 
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
+            // Allow tests to override the resolver to avoid network calls.
+            if (ResolverOverride != null) {
+                return await ResolverOverride(name, type, cancellationToken).ConfigureAwait(false);
+            }
+
             bool originalCd = EndpointConfiguration.CheckingDisabled;
             if (validateDnsSec) {
                 EndpointConfiguration.CheckingDisabled = !originalCd;
@@ -543,17 +548,39 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains an array of DNS responses.</returns>
         public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType[] types, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool typedRecords = false, bool parseTypedTxtRecords = false, CancellationToken cancellationToken = default) {
-            var tasks = new List<Task<DnsResponse>>();
-
-            foreach (var name in names) {
-                foreach (var type in types) {
-                    tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken));
+            int total = names.Length * types.Length;
+            if (EndpointConfiguration.MaxConcurrency is null || EndpointConfiguration.MaxConcurrency <= 0 || EndpointConfiguration.MaxConcurrency >= total) {
+                var tasksUnbounded = new List<Task<DnsResponse>>();
+                foreach (var name in names) {
+                    foreach (var type in types) {
+                        tasksUnbounded.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken));
+                    }
                 }
+                await Task.WhenAll(tasksUnbounded).ConfigureAwait(false);
+                return tasksUnbounded.Select(task => task.Result).ToArray();
             }
 
+            var responses = new DnsResponse[total];
+            using var semaphore = new System.Threading.SemaphoreSlim(EndpointConfiguration.MaxConcurrency.Value);
+            var tasks = new List<Task>(total);
+            int index = 0;
+            for (int i = 0; i < names.Length; i++) {
+                for (int j = 0; j < types.Length; j++) {
+                    var idx = index++;
+                    var name = names[i];
+                    var type = types[j];
+                    tasks.Add(Task.Run(async () => {
+                        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        try {
+                            responses[idx] = await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken).ConfigureAwait(false);
+                        } finally {
+                            semaphore.Release();
+                        }
+                    }, cancellationToken));
+                }
+            }
             await Task.WhenAll(tasks).ConfigureAwait(false);
-
-            return tasks.Select(task => task.Result).ToArray();
+            return responses;
         }
 
         /// <summary>
@@ -590,15 +617,33 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>The array of DNS responses from all queries.</returns>
         public async Task<DnsResponse[]> Resolve(string[] names, DnsRecordType type, bool requestDnsSec = false, bool validateDnsSec = false, bool returnAllTypes = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool typedRecords = false, bool parseTypedTxtRecords = false, CancellationToken cancellationToken = default) {
-            var tasks = new List<Task<DnsResponse>>();
-
-            foreach (var name in names) {
-                tasks.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken));
+            int total = names.Length;
+            if (EndpointConfiguration.MaxConcurrency is null || EndpointConfiguration.MaxConcurrency <= 0 || EndpointConfiguration.MaxConcurrency >= total) {
+                var tasksUnbounded = new List<Task<DnsResponse>>();
+                foreach (var name in names) {
+                    tasksUnbounded.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken));
+                }
+                await Task.WhenAll(tasksUnbounded).ConfigureAwait(false);
+                return tasksUnbounded.Select(task => task.Result).ToArray();
             }
 
+            var responses = new DnsResponse[total];
+            using var semaphore = new System.Threading.SemaphoreSlim(EndpointConfiguration.MaxConcurrency.Value);
+            var tasks = new List<Task>(total);
+            for (int i = 0; i < names.Length; i++) {
+                var idx = i;
+                var name = names[idx];
+                tasks.Add(Task.Run(async () => {
+                    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    try {
+                        responses[idx] = await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken).ConfigureAwait(false);
+                    } finally {
+                        semaphore.Release();
+                    }
+                }, cancellationToken));
+            }
             await Task.WhenAll(tasks).ConfigureAwait(false);
-
-            return tasks.Select(task => task.Result).ToArray();
+            return responses;
         }
 
         /// <summary>

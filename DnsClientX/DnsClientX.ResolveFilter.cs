@@ -28,13 +28,32 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS responses that match the filter.</returns>
         public async Task<DnsResponse[]> ResolveFilter(string[] names, DnsRecordType type, string filter, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
-            var tasks = names.Select(name => Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken)).ToList();
+            int total = names.Length;
+            DnsResponse[] allResponses;
+            if (EndpointConfiguration.MaxConcurrency is null || EndpointConfiguration.MaxConcurrency <= 0 || EndpointConfiguration.MaxConcurrency >= total) {
+                var tasksUnbounded = names.Select(name => Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken)).ToList();
+                await Task.WhenAll(tasksUnbounded).ConfigureAwait(false);
+                allResponses = tasksUnbounded.Select(t => t.Result).ToArray();
+            } else {
+                allResponses = new DnsResponse[total];
+                using var semaphore = new System.Threading.SemaphoreSlim(EndpointConfiguration.MaxConcurrency.Value);
+                var tasks = new List<Task>(total);
+                for (int i = 0; i < names.Length; i++) {
+                    var idx = i;
+                    var name = names[idx];
+                    tasks.Add(Task.Run(async () => {
+                        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        try {
+                            allResponses[idx] = await Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
+                        } finally {
+                            semaphore.Release();
+                        }
+                    }, cancellationToken));
+                }
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+            }
 
-            await Task.WhenAll(tasks).ConfigureAwait(false);
-
-            var responses = tasks.Select(task => task.Result).ToList();
-
-            var filteredResponses = responses
+            var filteredResponses = allResponses
                 .Where(response => HasMatchingAnswers(response.Answers ?? Array.Empty<DnsAnswer>(), filter, type))
                 .Select(response => {
                     response.Answers = FilterAnswers(response.Answers, filter, type);
@@ -60,13 +79,32 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS responses that match the filter.</returns>
         public async Task<DnsResponse[]> ResolveFilter(string[] names, DnsRecordType type, Regex regexFilter, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
-            var tasks = names.Select(name => Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken)).ToList();
+            int total = names.Length;
+            DnsResponse[] allResponses;
+            if (EndpointConfiguration.MaxConcurrency is null || EndpointConfiguration.MaxConcurrency <= 0 || EndpointConfiguration.MaxConcurrency >= total) {
+                var tasksUnbounded = names.Select(name => Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken)).ToList();
+                await Task.WhenAll(tasksUnbounded).ConfigureAwait(false);
+                allResponses = tasksUnbounded.Select(t => t.Result).ToArray();
+            } else {
+                allResponses = new DnsResponse[total];
+                using var semaphore = new System.Threading.SemaphoreSlim(EndpointConfiguration.MaxConcurrency.Value);
+                var tasks = new List<Task>(total);
+                for (int i = 0; i < names.Length; i++) {
+                    var idx = i;
+                    var name = names[idx];
+                    tasks.Add(Task.Run(async () => {
+                        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        try {
+                            allResponses[idx] = await Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
+                        } finally {
+                            semaphore.Release();
+                        }
+                    }, cancellationToken));
+                }
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+            }
 
-            await Task.WhenAll(tasks).ConfigureAwait(false);
-
-            var responses = tasks.Select(task => task.Result).ToList();
-
-            var filteredResponses = responses
+            var filteredResponses = allResponses
                 .Where(response => HasMatchingAnswersRegex(response.Answers ?? Array.Empty<DnsAnswer>(), regexFilter, type))
                 .Select(response => {
                     response.Answers = FilterAnswersRegex(response.Answers, regexFilter, type);

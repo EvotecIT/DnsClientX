@@ -443,6 +443,18 @@ client.EndpointConfiguration.BaseUri = new Uri("https://1.1.1.1/dns-query");
 client.EndpointConfiguration.Port = 443;
 ```
 
+#### Concurrency Control
+When resolving arrays of names with the helper methods, you can optionally cap in-flight requests:
+
+```csharp
+using var client = new ClientX(DnsEndpoint.Cloudflare);
+client.EndpointConfiguration.MaxConcurrency = Environment.ProcessorCount; // or any positive integer
+
+// Caps parallelism for array-based helpers like Resolve/ResolveFilter
+var responses = await client.Resolve(new[] { "example.com", "google.com" }, DnsRecordType.A);
+```
+By default (`null`), DnsClientX keeps existing behavior and does not impose an explicit concurrency cap.
+
 ### Advanced Query Methods
 
 #### Typed Records
