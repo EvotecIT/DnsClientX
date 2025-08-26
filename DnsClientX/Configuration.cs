@@ -105,6 +105,14 @@ namespace DnsClientX {
         public int MaxConnectionsPerServer { get; set; } = DefaultMaxConnectionsPerServer;
 
         /// <summary>
+        /// Optional cap for client-side query parallelism when resolving multiple names.
+        /// When null, the library uses its current behavior (no explicit cap).
+        /// When set to a positive value, array-based resolve helpers will limit
+        /// the number of in-flight requests to this value.
+        /// </summary>
+        public int? MaxConcurrency { get; set; }
+
+        /// <summary>
         /// Optional key used to sign outgoing DNS messages.
         /// </summary>
         public AsymmetricAlgorithm? SigningKey { get; set; }
