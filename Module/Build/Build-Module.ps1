@@ -79,12 +79,14 @@ Build-Module -ModuleName 'DnsClientX' {
         NETFramework                      = 'net472', 'net8.0'
         DotSourceLibraries                = $true
         NETSearchClass                    = 'DnsClientX.PowerShell.CmdletResolveDnsQuery'
+        NETBinaryModuleDocumentation      = $true
+        RefreshPSD1Only                   = $true
     }
 
     New-ConfigurationBuild @newConfigurationBuildSplat
 
     # Copy formatting file to module output
-   # New-ConfigurationModule -Type RequiredFile -Path "$PSScriptRoot\..\..\DnsClientX.PowerShell\DnsClientX.Format.ps1xml" -Destination 'DnsClientX.Format.ps1xml'
+    # New-ConfigurationModule -Type RequiredFile -Path "$PSScriptRoot\..\..\DnsClientX.PowerShell\DnsClientX.Format.ps1xml" -Destination 'DnsClientX.Format.ps1xml'
 
     New-ConfigurationArtefact -Type Unpacked -Enable -Path "$PSScriptRoot\..\Artefacts\Unpacked" -RequiredModulesPath "$PSScriptRoot\..\Artefacts\Unpacked\Modules"
     New-ConfigurationArtefact -Type Packed -Enable -Path "$PSScriptRoot\..\Artefacts\Packed" -IncludeTagName -ArtefactName "DnsClientX-PowerShellModule.<TagModuleVersionWithPreRelease>.zip" -ID 'ToGitHub'

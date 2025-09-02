@@ -34,6 +34,12 @@ namespace DnsClientX {
         public bool IsTruncated { get; set; }
 
         /// <summary>
+        /// Convenience mirror of <see cref="IsTruncated"/>.
+        /// </summary>
+        [JsonIgnore]
+        public bool Truncated => IsTruncated;
+
+        /// <summary>
         /// Indicates whether recursion was requested in the query. This is typically true for DNS over HTTPS.
         /// </summary>
         [JsonPropertyName("RD")]
@@ -72,6 +78,18 @@ namespace DnsClientX {
         public DnsAnswer[] Answers { get; set; } = Array.Empty<DnsAnswer>();
 
         /// <summary>
+        /// Minimum TTL across <see cref="Answers"/> (seconds).
+        /// </summary>
+        [JsonIgnore]
+        public int? TtlMin { get; internal set; }
+
+        /// <summary>
+        /// Average TTL across <see cref="Answers"/> (seconds).
+        /// </summary>
+        [JsonIgnore]
+        public double? TtlAvg { get; internal set; }
+
+        /// <summary>
         /// When typed parsing is enabled, contains typed representations of <see cref="Answers"/>.
         /// </summary>
         [JsonIgnore]
@@ -88,6 +106,36 @@ namespace DnsClientX {
         /// </summary>
         [JsonIgnore]
         public string? ServerAddress { get; private set; }
+
+        /// <summary>
+        /// Transport used to obtain this response.
+        /// </summary>
+        [JsonIgnore]
+        public Transport UsedTransport { get; internal set; }
+
+        /// <summary>
+        /// Endpoint used to obtain this response.
+        /// </summary>
+        [JsonIgnore]
+        public DnsResolverEndpoint? UsedEndpoint { get; internal set; }
+
+        /// <summary>
+        /// Measured round-trip time for the query.
+        /// </summary>
+        [JsonIgnore]
+        public TimeSpan RoundTripTime { get; internal set; }
+
+        /// <summary>
+        /// Normalized error code for failures.
+        /// </summary>
+        [JsonIgnore]
+        public DnsQueryErrorCode ErrorCode { get; internal set; }
+
+        /// <summary>
+        /// Captured exception for failures (if available).
+        /// </summary>
+        [JsonIgnore]
+        public Exception? Exception { get; internal set; }
 
         /// <summary>
         /// Gets the answers in their minimal form.
@@ -179,6 +227,30 @@ namespace DnsClientX {
                     Port = configuration.Port,
                     RequestFormat = configuration.RequestFormat
                 }).ToArray();
+
+                // Compute TTL metrics when possible
+                ComputeTtlMetrics();
+            }
+        }
+
+        internal void ComputeTtlMetrics() {
+            try {
+                if (Answers == null || Answers.Length == 0) { TtlMin = null; TtlAvg = null; return; }
+                int min = int.MaxValue;
+                long sum = 0;
+                int count = 0;
+                foreach (var a in Answers) {
+                    min = a.TTL < min ? a.TTL : min;
+                    sum += a.TTL;
+                    count++;
+                }
+                if (count > 0) {
+                    TtlMin = min;
+                    TtlAvg = sum / (double)count;
+                } else { TtlMin = null; TtlAvg = null; }
+            } catch {
+                // ignore TTL computation failures; keep metrics null
+                TtlMin = null; TtlAvg = null;
             }
         }
     }

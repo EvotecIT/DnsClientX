@@ -455,6 +455,107 @@ var responses = await client.Resolve(new[] { "example.com", "google.com" }, DnsR
 ```
 By default (`null`), DnsClientX keeps existing behavior and does not impose an explicit concurrency cap.
 
+## Multi-Resolver (Experimental)
+
+DnsClientX includes a flexible multi-resolver that can query multiple endpoints using different strategies.
+
+- Strategies: FirstSuccess, FastestWins, SequentialAll
+- Transports: UDP, TCP, DoT, DoH
+- Behaviors: per-query timeout, cancellation propagation, UDP→TCP fallback on truncation, TTL metrics
+
+Usage example:
+
+```csharp
+var endpoints = EndpointParser.TryParseMany(new []{
+    "1.1.1.1:53",
+    "8.8.8.8:53",
+    "https://dns.google/dns-query"
+}, out var errors);
+
+var options = new MultiResolverOptions {
+    Strategy = MultiResolverStrategy.FirstSuccess,
+    MaxParallelism = 4,
+    RespectEndpointTimeout = true
+};
+
+IDnsMultiResolver mr = new DnsMultiResolver(endpoints, options);
+var response = await mr.QueryAsync("example.com", DnsRecordType.A);
+Console.WriteLine($"RTT: {response.RoundTripTime.TotalMilliseconds} ms via {response.UsedTransport} @ {response.UsedEndpoint}");
+
+// Batch API (preserves input order, isolates failures)
+var results = await mr.QueryBatchAsync(new [] { "a.com", "b.com", "c.com" }, DnsRecordType.A);
+```
+
+Notes:
+- DoH endpoints must be provided as HTTPS URLs (e.g. https://dns.google/dns-query).
+- When a UDP response is truncated and `AllowTcpFallback` is true, TCP is used automatically.
+- `Response.TtlMin` and `Response.TtlAvg` expose TTL metrics derived from the answer set.
+
+### Strategies
+
+- FirstSuccess: Races a bounded set of endpoints and returns the first success. Cancels losers.
+- FastestWins: Warms endpoints and prefers the one that produced the fastest successful response, caching the choice for a duration.
+- SequentialAll: Tries endpoints in order; returns first success or best error.
+- RoundRobin: Distributes queries across endpoints to balance load. On failure, falls back to the first (or second) endpoint. Combine with MaxParallelism (global cap) and PerEndpointMaxInFlight (per-endpoint cap).
+
+### Concurrency Control
+
+- `MaxParallelism`: Caps total in-flight queries issued by the multi-resolver.
+- `PerEndpointMaxInFlight`: Caps concurrent queries per endpoint (e.g., limit to 4 per DNS server).
+
+### Response Caching
+
+- Enable TTL-aware response caching (off by default in multi-resolver) to avoid repeat lookups.
+- C#:
+
+```csharp
+var opts = new MultiResolverOptions {
+  EnableResponseCache = true,
+  CacheExpiration = TimeSpan.FromSeconds(30), // fallback if TTL not present
+  MinCacheTtl = TimeSpan.FromSeconds(1),
+  MaxCacheTtl = TimeSpan.FromMinutes(60)
+};
+```
+
+- PowerShell:
+
+```powershell
+Resolve-Dns -Name 'example.com' -Type A -DnsProvider Cloudflare,Google \
+  -ResolverStrategy FirstSuccess -ResponseCache -CacheExpirationSeconds 30 -MinCacheTtlSeconds 1 -MaxCacheTtlSeconds 3600
+```
+
+### PowerShell Examples
+
+Balance across providers with caps:
+
+```powershell
+Resolve-Dns -Name @('a.com','b.com') -Type A \
+  -DnsProvider System,Cloudflare,Quad9 \
+  -ResolverStrategy RoundRobin -MaxParallelism 32 -PerEndpointMaxInFlight 4
+```
+
+First success across mixed endpoints:
+
+```powershell
+Resolve-Dns -Name 'example.com' -Type A \
+  -ResolverEndpoint '1.1.1.1:53','https://dns.google/dns-query' -ResolverStrategy FirstSuccess
+```
+
+### Managing FastestWins Cache
+
+- Clear for all:
+
+```powershell
+Clear-DnsMultiResolverCache
+```
+
+- Clear for specific providers or endpoints:
+
+```powershell
+Clear-DnsMultiResolverCache -ResolverDnsProvider Cloudflare,Google
+Clear-DnsMultiResolverCache -ResolverEndpoint '1.1.1.1:53','https://dns.google/dns-query'
+```
+
 ### Advanced Query Methods
 
 #### Typed Records

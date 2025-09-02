@@ -3,11 +3,13 @@
         <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`Windows`))' ">
             netstandard2.0;net472;net8.0
         </TargetFrameworks>
-        <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`OSX`))'  Or '$([MSBuild]::IsOsPlatform(`Linux`))' ">
+        <TargetFrameworks
+            Condition=" '$([MSBuild]::IsOsPlatform(`OSX`))'  Or '$([MSBuild]::IsOsPlatform(`Linux`))' ">
             net8.0
         </TargetFrameworks>
         <Title>DnsClientX PowerShell Module</Title>
-        <Description>PowerShell module for DnsClientX DNS library. Provides cmdlets for DNS queries, service discovery, zone transfers, and DNS updates.</Description>
+        <Description>PowerShell module for DnsClientX DNS library. Provides cmdlets for DNS queries,
+            service discovery, zone transfers, and DNS updates.</Description>
         <AssemblyName>DnsClientX.PowerShell</AssemblyName>
         <AssemblyTitle>DnsClientX PowerShell Module</AssemblyTitle>
         <VersionPrefix>1.0.1</VersionPrefix>
@@ -32,6 +34,19 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
     </ItemGroup>
+
+    <!-- We need to remove PowerShell conflicting libraries as it will break output -->
+    <Target Name="RemoveFilesAfterBuild" AfterTargets="Build">
+        <Delete Files="$(OutDir)System.Management.Automation.dll" />
+        <Delete Files="$(OutDir)System.Management.dll" />
+    </Target>
+
+    <!-- Copy help documentation to publish output after publish -->
+    <Target Name="CopyHelpDocumentationToPublishOutput" AfterTargets="Publish">
+        <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll-Help.xml"
+            DestinationFiles="$(PublishDir)$(AssemblyName).dll-Help.xml"
+            Condition="Exists('$(OutputPath)$(AssemblyName).dll-Help.xml')" />
+    </Target>
 
     <ItemGroup>
         <PackageReference Include="PowerShellStandard.Library" Version="5.1.1" PrivateAssets="all" />

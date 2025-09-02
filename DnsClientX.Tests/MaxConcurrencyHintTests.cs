@@ -5,7 +5,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests for optional max concurrency hints on array-based resolution helpers.
+    /// </summary>
     public class MaxConcurrencyHintTests {
+        /// <summary>
+        /// Caps concurrency to 1 and preserves order for Resolve(name[]).
+        /// </summary>
         [Fact]
         public async Task Resolve_Array_CapsConcurrency_And_PreservesOrder() {
             using var client = new ClientX(DnsEndpoint.System);
@@ -46,6 +52,9 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Caps concurrency to 2 and preserves order for ResolveFilter(name[]).
+        /// </summary>
         [Fact]
         public async Task ResolveFilter_Array_CapsConcurrency_And_PreservesOrder() {
             using var client = new ClientX(DnsEndpoint.System);

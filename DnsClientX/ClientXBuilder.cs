@@ -170,7 +170,16 @@ namespace DnsClientX {
             if (field != null) {
                 var names = (IEnumerable<string>)field.GetValue(client.EndpointConfiguration)!;
                 foreach (var name in names) {
-                    if (Uri.CheckHostName(name) == UriHostNameType.Unknown) {
+                    // Accept valid IPs immediately
+                    if (System.Net.IPAddress.TryParse(name, out _)) {
+                        continue;
+                    }
+                    // Basic host validation: must be recognized DNS name and contain only allowed characters
+                    bool allowedChars = true;
+                    foreach (char ch in name) {
+                        if (!(char.IsLetterOrDigit(ch) || ch == '-' || ch == '.')) { allowedChars = false; break; }
+                    }
+                    if (Uri.CheckHostName(name) == UriHostNameType.Unknown || !allowedChars) {
                         throw new ArgumentException($"Invalid hostname: {name}");
                     }
                 }
