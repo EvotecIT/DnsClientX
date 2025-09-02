@@ -182,7 +182,8 @@ namespace DnsClientX {
             if (best != null && bestEp != null) {
                 string ek = EndpointKey(bestEp);
                 if (_options.EnableFastestCache) {
-                    FastestCache[key] = new FastestCacheEntry(ek, DateTime.UtcNow.Add(_options.FastestCacheDuration));
+                    var expires = DateTime.UtcNow.Add(_options.FastestCacheDuration);
+                    FastestCache.AddOrUpdate(key, _ => new FastestCacheEntry(ek, expires), (_, __) => new FastestCacheEntry(ek, expires));
                 }
                 return best;
             }
@@ -286,7 +287,10 @@ namespace DnsClientX {
             m.LastRtt = rtt;
         }
 
-        private static string ComputeSetKey(IEnumerable<DnsResolverEndpoint> endpoints) => string.Join("|", endpoints.Select(EndpointKey));
+        private static string ComputeSetKey(IEnumerable<DnsResolverEndpoint> endpoints) {
+            var keys = endpoints.Select(EndpointKey).OrderBy(k => k, StringComparer.Ordinal);
+            return string.Join("|", keys);
+        }
         private static string EndpointKey(DnsResolverEndpoint ep) => EndpointKeyCache.GetOrAdd(ep, e => e.Transport + ":" + (e.DohUrl?.ToString() ?? (e.Host ?? string.Empty)) + ":" + e.Port.ToString());
 
         private static DnsResponse ChooseBetterError(DnsResponse? current, DnsResponse candidate) {

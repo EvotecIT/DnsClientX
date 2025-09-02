@@ -21,9 +21,14 @@ namespace DnsClientX {
             var list = new List<DnsResolverEndpoint>();
             var errs = new List<string>();
 
-            foreach (var raw in inputs ?? Array.Empty<string>()) {
+            foreach (var rawIn in inputs ?? Array.Empty<string>()) {
+                string raw = rawIn?.Trim() ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(raw)) {
                     errs.Add("Empty endpoint string");
+                    continue;
+                }
+                if (raw.Any(char.IsWhiteSpace)) {
+                    errs.Add($"Endpoint contains whitespace: {rawIn}");
                     continue;
                 }
 

@@ -35,12 +35,20 @@ namespace DnsClientX {
         /// Fallback per-query timeout used when an endpoint doesn't provide one.
         /// When null, uses <see cref="Configuration.DefaultTimeout"/>.
         /// </summary>
-        public TimeSpan? DefaultTimeout { get; set; }
+        private TimeSpan? _defaultTimeout;
+        public TimeSpan? DefaultTimeout {
+            get => _defaultTimeout;
+            set => _defaultTimeout = (value.HasValue && value.Value < TimeSpan.Zero) ? TimeSpan.Zero : value;
+        }
 
         /// <summary>
         /// Cache duration for FastestWins fastest-endpoint selection.
         /// </summary>
-        public TimeSpan FastestCacheDuration { get; set; } = TimeSpan.FromMinutes(5);
+        private TimeSpan _fastestCacheDuration = TimeSpan.FromMinutes(5);
+        public TimeSpan FastestCacheDuration {
+            get => _fastestCacheDuration <= TimeSpan.Zero ? TimeSpan.FromMinutes(5) : _fastestCacheDuration;
+            set => _fastestCacheDuration = value <= TimeSpan.Zero ? TimeSpan.FromMinutes(1) : value;
+        }
 
         /// <summary>
         /// Enables or disables the FastestWins cache.
@@ -72,16 +80,28 @@ namespace DnsClientX {
         /// <summary>
         /// Default cache expiration used when TTL is unavailable. When null, uses the library default.
         /// </summary>
-        public TimeSpan? CacheExpiration { get; set; }
+        private TimeSpan? _cacheExpiration;
+        public TimeSpan? CacheExpiration {
+            get => _cacheExpiration;
+            set => _cacheExpiration = (value.HasValue && value.Value < TimeSpan.Zero) ? TimeSpan.Zero : value;
+        }
 
         /// <summary>
         /// Minimal TTL allowed for cached entries. Entries with smaller TTLs are rounded up to this value.
         /// </summary>
-        public TimeSpan? MinCacheTtl { get; set; }
+        private TimeSpan? _minCacheTtl;
+        public TimeSpan? MinCacheTtl {
+            get => _minCacheTtl;
+            set => _minCacheTtl = (value.HasValue && value.Value < TimeSpan.Zero) ? TimeSpan.Zero : value;
+        }
 
         /// <summary>
         /// Maximal TTL allowed for cached entries. Entries with larger TTLs are clipped to this value.
         /// </summary>
-        public TimeSpan? MaxCacheTtl { get; set; }
+        private TimeSpan? _maxCacheTtl;
+        public TimeSpan? MaxCacheTtl {
+            get => _maxCacheTtl;
+            set => _maxCacheTtl = (value.HasValue && value.Value < TimeSpan.Zero) ? TimeSpan.Zero : value;
+        }
     }
 }
