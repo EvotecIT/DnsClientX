@@ -7,8 +7,12 @@ namespace DnsClientX.PowerShell;
 /// <para type="synopsis">Performs a DNS zone transfer (AXFR) for a given zone.</para>
 /// <para type="description">Retrieves all records for the specified zone using TCP based zone transfer.</para>
 /// <example>
-///   <para>Transfer zone from a DNS server</para>
-///   <code>Get-DnsZoneTransfer -Zone example.com -Server 127.0.0.1 -Port 5353</code>
+///   <para>Transfer a zone (default port 53)</para>
+///   <code>Get-DnsZone -Zone example.com -Server 127.0.0.1</code>
+/// </example>
+/// <example>
+///   <para>Transfer a zone from a custom port</para>
+///   <code>Get-DnsZone -Zone example.com -Server 127.0.0.1 -Port 5353</code>
 /// </example>
 /// </summary>
 [Alias("Get-DnsZoneTransfer")]

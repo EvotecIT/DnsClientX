@@ -6,8 +6,12 @@ namespace DnsClientX.PowerShell {
     /// <para type="synopsis">Discovers services advertised via DNS Service Discovery.</para>
     /// <para type="description">Wraps <see cref="ClientX.DiscoverServices"/> to return services under a domain.</para>
     /// <example>
-    ///   <para>Find HTTP services under example.com</para>
+    ///   <para>Find services under a domain</para>
     ///   <code>Find-DnsService -Domain example.com</code>
+    /// </example>
+    /// <example>
+    ///   <para>Filter for a specific service type</para>
+    ///   <code>Find-DnsService -Domain example.com | Where-Object {$_.ServiceName -like '*http*'}</code>
     /// </example>
     /// </summary>
     [Cmdlet(VerbsCommon.Find, "DnsService")]
