@@ -52,6 +52,23 @@ namespace DnsClientX {
             if (_endpoints.Length == 0) throw new ArgumentException("No endpoints provided", nameof(endpoints));
             _options = options ?? new MultiResolverOptions();
             _endpointSetKey = ComputeSetKey(_endpoints);
+
+            // Validate endpoints early to fail-fast on obvious misconfiguration
+            foreach (var ep in _endpoints) {
+                if (ep == null) throw new ArgumentException("Endpoint cannot be null.", nameof(endpoints));
+                if (ep.Transport == Transport.Doh) {
+                    if (ep.DohUrl == null || !string.Equals(ep.DohUrl.Scheme, "https", StringComparison.OrdinalIgnoreCase)) {
+                        throw new ArgumentException($"Invalid DoH endpoint: {ep}. HTTPS URL is required.", nameof(endpoints));
+                    }
+                } else {
+                    if (string.IsNullOrWhiteSpace(ep.Host)) {
+                        throw new ArgumentException("Endpoint Host is required for non-DoH transports.", nameof(endpoints));
+                    }
+                    if (ep.Port <= 0 || ep.Port > 65535) {
+                        throw new ArgumentOutOfRangeException(nameof(ep.Port), ep.Port, "Port must be between 1 and 65535.");
+                    }
+                }
+            }
         }
 
         /// <summary>
