@@ -5,6 +5,8 @@ namespace DnsClientX {
     /// Options controlling behavior of <see cref="DnsMultiResolver"/>.
     /// </summary>
     public sealed class MultiResolverOptions {
+        private int _maxParallelism = 4;
+        private int? _perEndpointMaxInFlight;
         /// <summary>
         /// Strategy used when multiple endpoints are configured.
         /// </summary>
@@ -14,7 +16,10 @@ namespace DnsClientX {
         /// Upper bound on the number of endpoints queried concurrently.
         /// Applies to FirstSuccess and FastestWins warm-up.
         /// </summary>
-        public int MaxParallelism { get; set; } = 4;
+        public int MaxParallelism {
+            get => _maxParallelism;
+            set => _maxParallelism = value <= 0 ? 1 : value;
+        }
 
         /// <summary>
         /// Prefer IPv6 when resolving hostnames (when applicable).
@@ -47,7 +52,16 @@ namespace DnsClientX {
         /// the resolver limits the number of in-flight queries against any single endpoint
         /// to this value. When null or less than or equal to zero, no per-endpoint cap is applied.
         /// </summary>
-        public int? PerEndpointMaxInFlight { get; set; }
+        public int? PerEndpointMaxInFlight {
+            get => _perEndpointMaxInFlight;
+            set {
+                if (value.HasValue && value.Value <= 0) {
+                    _perEndpointMaxInFlight = null;
+                } else {
+                    _perEndpointMaxInFlight = value;
+                }
+            }
+        }
 
         /// <summary>
         /// Enables response caching based on record TTLs. When enabled, the resolver leverages the

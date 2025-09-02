@@ -11,7 +11,7 @@ namespace DnsClientX {
     /// <summary>
     /// Multi-endpoint resolver supporting FirstSuccess, FastestWins, and SequentialAll strategies.
     /// </summary>
-    public sealed class DnsMultiResolver : IDnsMultiResolver {
+    public sealed class DnsMultiResolver : IDnsMultiResolver, IDisposable {
         internal static Func<DnsResolverEndpoint, string, DnsRecordType, CancellationToken, Task<DnsResponse>>? ResolveOverride;
         private readonly DnsResolverEndpoint[] _endpoints;
         private readonly MultiResolverOptions _options;
@@ -19,12 +19,14 @@ namespace DnsClientX {
         private const int DefaultPerQueryTimeoutMs = Configuration.DefaultTimeout; // fallback when endpoint timeout not specified
         private int _roundRobinIndex = -1;
         private readonly ConcurrentDictionary<string, SemaphoreSlim> _endpointLimiters = new();
+        private readonly string _endpointSetKey;
 
         // Simple metrics
         private static readonly ConcurrentDictionary<string, EndpointMetrics> Metrics = new();
 
         // Cache for FastestWins strategy
         private static readonly ConcurrentDictionary<string, FastestCacheEntry> FastestCache = new();
+        private static readonly ConcurrentDictionary<DnsResolverEndpoint, string> EndpointKeyCache = new();
 
         private readonly struct FastestCacheEntry {
             public FastestCacheEntry(string key, DateTime expiresAt) {
@@ -49,6 +51,7 @@ namespace DnsClientX {
             _endpoints = (endpoints ?? Array.Empty<DnsResolverEndpoint>()).ToArray();
             if (_endpoints.Length == 0) throw new ArgumentException("No endpoints provided", nameof(endpoints));
             _options = options ?? new MultiResolverOptions();
+            _endpointSetKey = ComputeSetKey(_endpoints);
         }
 
         /// <summary>
@@ -131,7 +134,7 @@ namespace DnsClientX {
         }
 
         private async Task<DnsResponse> QueryFastestWinsAsync(string name, DnsRecordType type, CancellationToken ct) {
-            string key = ComputeSetKey(_endpoints);
+            string key = _endpointSetKey;
             if (_options.EnableFastestCache && FastestCache.TryGetValue(key, out var cached) && cached.ExpiresAt > DateTime.UtcNow) {
                 // The cache stores endpoint key - resolve to endpoint
                 var ep = _endpoints.FirstOrDefault(e => EndpointKey(e) == cached.Key);
@@ -284,7 +287,7 @@ namespace DnsClientX {
         }
 
         private static string ComputeSetKey(IEnumerable<DnsResolverEndpoint> endpoints) => string.Join("|", endpoints.Select(EndpointKey));
-        private static string EndpointKey(DnsResolverEndpoint ep) => ep.Transport + ":" + (ep.DohUrl?.ToString() ?? (ep.Host ?? string.Empty)) + ":" + ep.Port.ToString();
+        private static string EndpointKey(DnsResolverEndpoint ep) => EndpointKeyCache.GetOrAdd(ep, e => e.Transport + ":" + (e.DohUrl?.ToString() ?? (e.Host ?? string.Empty)) + ":" + e.Port.ToString());
 
         private static DnsResponse ChooseBetterError(DnsResponse? current, DnsResponse candidate) {
             if (current == null) return candidate;
@@ -387,6 +390,15 @@ namespace DnsClientX {
 
             // A single query; retries disabled, we rely on strategy behavior
             return await client.Resolve(name, type, requestDnsSec: ep.DnsSecOk ?? false, validateDnsSec: false, returnAllTypes: false, retryOnTransient: false, cancellationToken: ct).ConfigureAwait(false);
+        }
+        /// <summary>
+        /// Disposes internal per-endpoint <see cref="SemaphoreSlim"/> limiters and clears references.
+        /// </summary>
+        public void Dispose() {
+            foreach (var kv in _endpointLimiters) {
+                kv.Value.Dispose();
+            }
+            _endpointLimiters.Clear();
         }
     }
 }

@@ -383,6 +383,10 @@ namespace DnsClientX.PowerShell {
                         all.AddRange(DnsResolverEndpointFactory.From(ep));
                     }
                     endpoints = all.ToArray();
+                    if (endpoints.Length == 0) {
+                        _logger?.WriteWarning("No endpoints were produced from the specified DnsProvider values.");
+                        return;
+                    }
                 }
 
                 // Apply DO bit preference uniformly when requested
