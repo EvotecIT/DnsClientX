@@ -12,6 +12,7 @@ namespace DnsClientX {
     /// Multi-endpoint resolver supporting FirstSuccess, FastestWins, and SequentialAll strategies.
     /// </summary>
     public sealed class DnsMultiResolver : IDnsMultiResolver {
+        internal static Func<DnsResolverEndpoint, string, DnsRecordType, CancellationToken, Task<DnsResponse>>? ResolveOverride;
         private readonly DnsResolverEndpoint[] _endpoints;
         private readonly MultiResolverOptions _options;
 
@@ -235,7 +236,12 @@ namespace DnsClientX {
                 SemaphoreSlim? limiter = GetLimiter(ep);
                 if (limiter != null) await limiter.WaitAsync(cts.Token).ConfigureAwait(false);
                 try {
-                    response = await PerformQuery(ep, name, type, cts.Token).ConfigureAwait(false);
+                    var resolver = ResolveOverride;
+                    if (resolver != null) {
+                        response = await resolver(ep, name, type, cts.Token).ConfigureAwait(false);
+                    } else {
+                        response = await PerformQuery(ep, name, type, cts.Token).ConfigureAwait(false);
+                    }
                 } finally {
                     if (limiter != null) limiter.Release();
                 }

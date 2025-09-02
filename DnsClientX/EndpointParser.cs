@@ -63,14 +63,19 @@ namespace DnsClientX {
 
                 // Split host:port (IPv4 or hostname)
                 var parts = raw.Split(':');
-                if (parts.Length == 2 && int.TryParse(parts[1], out int port) && port > 0 && port <= 65535) {
-                    string host = parts[0];
-                    AddressFamily? family = null;
-                    if (IPAddress.TryParse(host, out var ipAddr)) {
-                        family = ipAddr.AddressFamily;
+                if (parts.Length == 2) {
+                    if (int.TryParse(parts[1], out int port) && port > 0 && port <= 65535) {
+                        string host = parts[0];
+                        AddressFamily? family = null;
+                        if (IPAddress.TryParse(host, out var ipAddr)) {
+                            family = ipAddr.AddressFamily;
+                        }
+                        list.Add(new DnsResolverEndpoint { Host = host, Port = port, Transport = Transport.Udp, Family = family });
+                        continue;
+                    } else {
+                        errs.Add($"Invalid port in endpoint: {raw}");
+                        continue;
                     }
-                    list.Add(new DnsResolverEndpoint { Host = host, Port = port, Transport = Transport.Udp, Family = family });
-                    continue;
                 }
 
                 // Plain host with default port
