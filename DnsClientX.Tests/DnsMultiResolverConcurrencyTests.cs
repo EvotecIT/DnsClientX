@@ -9,6 +9,9 @@ namespace DnsClientX.Tests {
     /// Concurrency and in-flight caps for DnsMultiResolver.
     /// </summary>
     public class DnsMultiResolverConcurrencyTests {
+        /// <summary>
+        /// Verifies that QueryBatchAsync honors the MaxParallelism cap across all endpoints.
+        /// </summary>
         [Fact]
         public async Task MaxParallelism_Caps_InFlight() {
             try {
@@ -29,6 +32,9 @@ namespace DnsClientX.Tests {
             } finally { DnsMultiResolver.ResolveOverride = null; }
         }
 
+        /// <summary>
+        /// Verifies that PerEndpointMaxInFlight limits concurrent requests per single endpoint.
+        /// </summary>
         [Fact]
         public async Task PerEndpointMaxInFlight_Caps_Per_Endpoint() {
             try {

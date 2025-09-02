@@ -17,6 +17,9 @@ namespace DnsClientX.Tests {
                 Status = DnsResponseCode.NoError
             };
 
+        /// <summary>
+        /// Ensures FirstSuccess returns as soon as the first successful response is available.
+        /// </summary>
         [Fact]
         public async Task FirstSuccess_Picks_First_Valid_Response() {
             try {
@@ -39,6 +42,9 @@ namespace DnsClientX.Tests {
             } finally { DnsMultiResolver.ResolveOverride = null; }
         }
 
+        /// <summary>
+        /// Ensures FastestWins warms endpoints and reuses the fastest endpoint for subsequent queries.
+        /// </summary>
         [Fact]
         public async Task FastestWins_Warms_And_Uses_Cached_Fastest() {
             try {
@@ -66,6 +72,9 @@ namespace DnsClientX.Tests {
             } finally { DnsMultiResolver.ResolveOverride = null; DnsMultiResolver.ClearFastestCache(); }
         }
 
+        /// <summary>
+        /// Ensures SequentialAll tries endpoints in order and returns the first success.
+        /// </summary>
         [Fact]
         public async Task SequentialAll_Tries_In_Order_And_Returns_Success() {
             try {

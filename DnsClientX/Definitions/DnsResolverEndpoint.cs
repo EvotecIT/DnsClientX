@@ -57,10 +57,11 @@ namespace DnsClientX {
         public override string ToString() {
             if (Transport == Transport.Doh && DohUrl != null) return DohUrl.ToString();
             var h = Host;
-            if (string.IsNullOrWhiteSpace(h)) {
-                h = "(unknown)";
+            string safe = "(unknown)";
+            if (!string.IsNullOrWhiteSpace(h)) {
+                safe = h!; // safe due to IsNullOrWhiteSpace check
             }
-            return Port > 0 ? $"{h}:{Port}" : h;
+            return Port > 0 ? $"{safe}:{Port}" : safe;
         }
     }
 }

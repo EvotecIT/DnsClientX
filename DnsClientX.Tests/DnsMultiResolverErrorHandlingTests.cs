@@ -9,6 +9,9 @@ namespace DnsClientX.Tests {
     /// Error scenarios for DnsMultiResolver.
     /// </summary>
     public class DnsMultiResolverErrorHandlingTests {
+        /// <summary>
+        /// Simulates a SocketException to ensure ErrorCode is set to Network.
+        /// </summary>
         [Fact]
         public async Task Error_Network_Sets_ErrorCode_Network() {
             try {
@@ -21,6 +24,9 @@ namespace DnsClientX.Tests {
             } finally { DnsMultiResolver.ResolveOverride = null; }
         }
 
+        /// <summary>
+        /// Simulates a DnsClientException to ensure ErrorCode is set to InvalidResponse.
+        /// </summary>
         [Fact]
         public async Task Error_InvalidResponse_Sets_ErrorCode_InvalidResponse() {
             try {
