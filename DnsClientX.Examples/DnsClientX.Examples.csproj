@@ -6,7 +6,7 @@
         <AssemblyTitle>DnsClientX Examples</AssemblyTitle>
         <Title>DnsClientX Examples</Title>
         <Description>Example applications demonstrating DnsClientX library features and capabilities.</Description>
-        <VersionPrefix>1.0.1</VersionPrefix>
+        <VersionPrefix>1.0.2</VersionPrefix>
         <AssemblyVersion>1.0.0</AssemblyVersion>
         <FileVersion>1.0.0</FileVersion>
         <Company>Evotec</Company>
