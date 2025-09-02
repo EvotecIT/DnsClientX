@@ -9,7 +9,7 @@
     FunctionsToExport    = @()
     GUID                 = '77fa806c-70b7-48d9-8b88-942ed73f24ed'
     HelpInfoURI          = 'https://github.com/EvotecIT/DnsClientX/blob/master/README.md'
-    ModuleVersion        = '1.0.2'
+    ModuleVersion        = '1.0.3'
     PowerShellVersion    = '5.1'
     PrivateData          = @{
         PSData = @{

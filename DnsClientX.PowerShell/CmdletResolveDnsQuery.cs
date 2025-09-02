@@ -49,6 +49,8 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ServerName")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ResolverDnsProvider")]
         public string[] Name { get; set; } = Array.Empty<string>();
 
         /// <summary>
@@ -56,9 +58,7 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternDnsProvider")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternServerName")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ResolverEndpoint")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternResolverEndpoint")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ResolverDnsProvider")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternResolverDnsProvider")]
         public string? Pattern { get; set; }
         /// <summary>
