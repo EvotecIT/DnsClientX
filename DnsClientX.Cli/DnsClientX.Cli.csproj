@@ -5,7 +5,7 @@
     <AssemblyTitle>DnsClientX CLI</AssemblyTitle>
     <Title>DnsClientX Command Line Interface</Title>
     <Description>Command-line interface for DnsClientX DNS library. Provides quick DNS queries and scripting capabilities.</Description>
-    <VersionPrefix>1.0.3</VersionPrefix>
+    <VersionPrefix>1.0.4</VersionPrefix>
     <AssemblyVersion>1.0.0</AssemblyVersion>
     <FileVersion>1.0.0</FileVersion>
     <Company>Evotec</Company>

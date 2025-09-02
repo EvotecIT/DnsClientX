@@ -5,7 +5,7 @@
     <AssemblyTitle>DnsClientX Benchmarks</AssemblyTitle>
     <Title>DnsClientX Performance Benchmarks</Title>
     <Description>Performance benchmarks for DnsClientX DNS library using BenchmarkDotNet.</Description>
-    <VersionPrefix>1.0.3</VersionPrefix>
+    <VersionPrefix>1.0.4</VersionPrefix>
     <AssemblyVersion>1.0.0</AssemblyVersion>
     <FileVersion>1.0.0</FileVersion>
     <Company>Evotec</Company>
