@@ -60,6 +60,13 @@ namespace DnsClientX {
                     if (ep.DohUrl == null || !string.Equals(ep.DohUrl.Scheme, "https", StringComparison.OrdinalIgnoreCase)) {
                         throw new ArgumentException($"Invalid DoH endpoint: {ep}. HTTPS URL is required.", nameof(endpoints));
                     }
+                    // Validate custom DoH port when specified
+                    if (!ep.DohUrl.IsDefaultPort) {
+                        int p = ep.DohUrl.Port;
+                        if (p <= 0 || p > 65535) {
+                            throw new ArgumentOutOfRangeException(nameof(ep.DohUrl), p, "DoH URL port must be between 1 and 65535.");
+                        }
+                    }
                 } else {
                     if (string.IsNullOrWhiteSpace(ep.Host)) {
                         throw new ArgumentException("Endpoint Host is required for non-DoH transports.", nameof(endpoints));
