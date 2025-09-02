@@ -4,7 +4,7 @@
         <AssemblyTitle>DnsClientX Tests</AssemblyTitle>
         <Title>DnsClientX Unit Tests</Title>
         <Description>Unit tests for DnsClientX DNS library.</Description>
-        <VersionPrefix>1.0.2</VersionPrefix>
+        <VersionPrefix>1.0.3</VersionPrefix>
         <AssemblyVersion>1.0.0</AssemblyVersion>
         <FileVersion>1.0.0</FileVersion>
         <Company>Evotec</Company>
