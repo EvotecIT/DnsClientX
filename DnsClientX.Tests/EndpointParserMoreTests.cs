@@ -7,6 +7,9 @@ namespace DnsClientX.Tests {
     /// Additional tests for EndpointParser covering error cases and validation.
     /// </summary>
     public class EndpointParserMoreTests {
+        /// <summary>
+        /// Invalid (non-HTTPS) scheme in DoH URL should be rejected.
+        /// </summary>
         [Fact]
         public void TryParseMany_InvalidScheme_ShouldReportError() {
             var inputs = new[] { "http://dns.google/dns-query" }; // only https is allowed
@@ -16,6 +19,9 @@ namespace DnsClientX.Tests {
             Assert.Empty(eps);
         }
 
+        /// <summary>
+        /// Malformed IPv6 with brackets should be reported as invalid.
+        /// </summary>
         [Fact]
         public void TryParseMany_InvalidIpv6Format_ShouldReportError() {
             var inputs = new[] { "[2001:4860:4860::8888:53" }; // missing closing bracket
@@ -23,6 +29,9 @@ namespace DnsClientX.Tests {
             Assert.Single(errors);
         }
 
+        /// <summary>
+        /// Invalid port number should be reported as an error.
+        /// </summary>
         [Fact]
         public void TryParseMany_InvalidPort_ShouldReportError() {
             var inputs = new[] { "1.1.1.1:99999" };
@@ -31,4 +40,3 @@ namespace DnsClientX.Tests {
         }
     }
 }
-

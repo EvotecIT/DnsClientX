@@ -6,7 +6,13 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests RoundRobin behavior with a simulated resolver to avoid network access.
+    /// </summary>
     public class DnsMultiResolverRoundRobinTests {
+        /// <summary>
+        /// Ensures distribution across endpoints and fallback on failure without using network.
+        /// </summary>
         [Fact]
         public async Task RoundRobin_Distributes_And_FallsBack() {
             try {
@@ -50,12 +56,11 @@ namespace DnsClientX.Tests {
                 Assert.True(results.Count(r => r.Status == DnsResponseCode.NoError) >= names.Length - 3);
 
                 // Distribution happened (e1 and e3 should have non-zero)
-                Assert.True(counts.GetValueOrDefault("e1") > 0);
-                Assert.True(counts.GetValueOrDefault("e3") > 0);
+                Assert.True(counts.TryGetValue("e1", out var v1) && v1 > 0);
+                Assert.True(counts.TryGetValue("e3", out var v3) && v3 > 0);
             } finally {
                 DnsMultiResolver.ResolveOverride = null;
             }
         }
     }
 }
-

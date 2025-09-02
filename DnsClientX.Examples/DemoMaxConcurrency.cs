@@ -7,6 +7,10 @@ namespace DnsClientX.Examples {
     /// Demonstrates how to cap parallelism when resolving multiple names.
     /// </summary>
     public static class DemoMaxConcurrency {
+        /// <summary>
+        /// Example entry that resolves several names with a configured max concurrency.
+        /// </summary>
+        /// <returns>A task that completes when the example finishes.</returns>
         public static async Task Example() {
             using var client = new ClientX(DnsEndpoint.Cloudflare);
 

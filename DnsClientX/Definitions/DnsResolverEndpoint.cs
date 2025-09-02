@@ -56,7 +56,11 @@ namespace DnsClientX {
         /// </summary>
         public override string ToString() {
             if (Transport == Transport.Doh && DohUrl != null) return DohUrl.ToString();
-            return string.IsNullOrWhiteSpace(Host) ? base.ToString()! : (Port > 0 ? $"{Host}:{Port}" : Host);
+            var h = Host;
+            if (string.IsNullOrWhiteSpace(h)) {
+                h = "(unknown)";
+            }
+            return Port > 0 ? $"{h}:{Port}" : h;
         }
     }
 }
