@@ -442,13 +442,15 @@ namespace DnsClientX {
             if (IPAddress.TryParse(ipAddress, out IPAddress? ip)) {
                 if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) {
                     // IPv4
-                    return string.Join(".", ip.GetAddressBytes().Reverse().Select(b => b.ToString())) + ".in-addr.arpa";
+                    return string.Join(".", ip.GetAddressBytes().Reverse().Select(b => b.ToString(CultureInfo.InvariantCulture))) + ".in-addr.arpa";
                 } else if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6) {
                     // IPv6
-                    return string.Join(".", ip.GetAddressBytes()
-                        .SelectMany(b => b.ToString("x2"))
+                    IEnumerable<string> reversedNibbles = ip.GetAddressBytes()
+                        .SelectMany(b => new[] { (b & 0xF0) >> 4, b & 0x0F })
                         .Reverse()
-                        .Select(c => c.ToString())) + ".ip6.arpa";
+                        .Select(nibble => nibble.ToString("x", CultureInfo.InvariantCulture));
+
+                    return string.Join(".", reversedNibbles) + ".ip6.arpa";
                 }
             }
             // Invalid IP address, we return as is
