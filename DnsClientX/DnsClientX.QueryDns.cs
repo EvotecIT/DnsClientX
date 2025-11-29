@@ -13,6 +13,10 @@ namespace DnsClientX {
     /// Provides synchronous and asynchronous methods for performing DNS lookups.
     /// </remarks>
     public partial class ClientX {
+        internal static Func<ClientX> RootClientFactory { get; set; } = () => new ClientX();
+
+        internal static Func<ClientX, string, DnsRecordType, CancellationToken, Task<DnsResponse>>? RootResolveOverride { get; set; }
+
         /// <summary>
         /// Sends a DNS query for a specific record type to a DNS server.
         /// This method allows you to specify the DNS endpoint from a predefined list of endpoints.
@@ -91,14 +95,27 @@ namespace DnsClientX {
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, bool parseTypedTxtRecords = false, CancellationToken cancellationToken = default) {
             if (dnsEndpoint == DnsEndpoint.RootServer) {
-                var tasks = name.Select(n => {
-                    using var client = new ClientX();
-                    if (cancellationToken.IsCancellationRequested) {
-                        return Task.FromCanceled<DnsResponse>(cancellationToken);
+                var clients = new List<ClientX>(name.Length);
+                try {
+                    var tasks = name.Select(n => {
+                        var client = RootClientFactory();
+                        clients.Add(client);
+                        if (cancellationToken.IsCancellationRequested) {
+                            return Task.FromCanceled<DnsResponse>(cancellationToken);
+                        }
+
+                        var resolver = RootResolveOverride;
+                        return resolver != null
+                            ? resolver(client, n, recordType, cancellationToken)
+                            : client.ResolveFromRoot(n, recordType, cancellationToken: cancellationToken);
+                    }).ToArray();
+
+                    return await Task.WhenAll(tasks).ConfigureAwait(false);
+                } finally {
+                    foreach (var client in clients) {
+                        client.Dispose();
                     }
-                    return client.ResolveFromRoot(n, recordType, cancellationToken: cancellationToken);
-                });
-                return await Task.WhenAll(tasks).ConfigureAwait(false);
+                }
             } else {
                 using var client = new ClientX(endpoint: dnsEndpoint, dnsSelectionStrategy);
                 client.EndpointConfiguration.TimeOut = timeOutMilliseconds;
