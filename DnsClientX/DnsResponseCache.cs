@@ -69,6 +69,9 @@ namespace DnsClientX {
         /// Removes expired entries from the cache.
         /// </summary>
         public void Cleanup() {
+            if (_disposed) {
+                return;
+            }
             var now = DateTimeOffset.UtcNow;
             foreach (var item in _cache) {
                 if (item.Value.Expiration <= now) {

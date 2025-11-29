@@ -52,6 +52,25 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Cleanup should not mutate the cache after disposal.
+        /// </summary>
+        [Fact]
+        public void CleanupShouldNoOpAfterDispose() {
+            var cache = new DnsResponseCache();
+            var response = new DnsResponse { Status = DnsResponseCode.NoError };
+            cache.Set("a", response, TimeSpan.FromMilliseconds(10));
+            Thread.Sleep(20);
+
+            cache.Dispose();
+            var countBeforeCleanup = GetCacheEntryCount(cache);
+
+            cache.Cleanup();
+
+            var countAfterCleanup = GetCacheEntryCount(cache);
+            Assert.Equal(countBeforeCleanup, countAfterCleanup);
+        }
+
+        /// <summary>
         /// Verifies that constructing <see cref="ClientX"/> with caching enabled sets the property.
         /// </summary>
         [Fact]
@@ -106,6 +125,12 @@ namespace DnsClientX.Tests {
             var dict = dictField.GetValue(cache)!;
             int count = (int)dict.GetType().GetProperty("Count")!.GetValue(dict)!;
             return count == 0;
+        }
+
+        private static int GetCacheEntryCount(DnsResponseCache cache) {
+            var cacheField = typeof(DnsResponseCache).GetField("_cache", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var dict = cacheField.GetValue(cache)!;
+            return (int)dict.GetType().GetProperty("Count")!.GetValue(dict)!;
         }
 
         /// <summary>
