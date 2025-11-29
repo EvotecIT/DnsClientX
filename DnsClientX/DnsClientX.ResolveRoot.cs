@@ -31,7 +31,13 @@ namespace DnsClientX {
             var serverList = (servers ?? RootServers.Servers).ToArray();
             DnsResponse lastResponse = new();
             for (var depth = 0; depth < maxRetries; depth++) {
+                if (cancellationToken.IsCancellationRequested) {
+                    return CreateCancelledRootResponse(name, type, depth, lastResponse);
+                }
                 foreach (var server in serverList) {
+                    if (cancellationToken.IsCancellationRequested) {
+                        return CreateCancelledRootResponse(name, type, depth, lastResponse);
+                    }
                     var host = server.TrimEnd('.');
                     var cfg = new Configuration(host, DnsRequestFormat.DnsOverUDP) { UseTcpFallback = true, Port = port };
                     lastResponse = await DnsWireResolveUdp.ResolveWireFormatUdp(host, cfg.Port, name, type, false, false, Debug, cfg, 1, cancellationToken).ConfigureAwait(false);
@@ -62,11 +68,30 @@ namespace DnsClientX {
                     lastResponse.RetryCount = depth;
                     return lastResponse;
                 }
+                if (cancellationToken.IsCancellationRequested) {
+                    return CreateCancelledRootResponse(name, type, depth, lastResponse);
+                }
                 var nsResponse = await ResolveFromRoot(ns, DnsRecordType.A, servers ?? serverList, remaining, port, cancellationToken).ConfigureAwait(false);
                 serverList = nsResponse.Answers?.Select(a => a.Data.TrimEnd('.')).ToArray() ?? serverList;
             }
             lastResponse.RetryCount = maxRetries - 1;
             return lastResponse;
+        }
+
+        private static DnsResponse CreateCancelledRootResponse(string name, DnsRecordType type, int retryCount, DnsResponse? lastResponse = null) {
+            var response = lastResponse ?? new DnsResponse();
+            response.Status = response.Status == DnsResponseCode.NoError ? DnsResponseCode.ServerFailure : response.Status;
+            response.Error ??= "Operation canceled.";
+            response.RetryCount = retryCount;
+            response.Questions ??= [
+                new DnsQuestion {
+                    Name = name,
+                    RequestFormat = DnsRequestFormat.DnsOverUDP,
+                    Type = type,
+                    OriginalName = name
+                }
+            ];
+            return response;
         }
     }
 }
