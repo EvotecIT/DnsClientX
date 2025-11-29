@@ -42,7 +42,12 @@ namespace DnsClientX.Cli {
                             Console.Error.WriteLine("Missing value for --type");
                             return 1;
                         }
-                        recordType = (DnsRecordType)Enum.Parse(typeof(DnsRecordType), args[++i], true);
+                        string recordTypeValue = args[++i];
+                        if (!Enum.TryParse(recordTypeValue, true, out DnsRecordType parsedRecordType)) {
+                            Console.Error.WriteLine($"Invalid record type: {recordTypeValue}");
+                            return 1;
+                        }
+                        recordType = parsedRecordType;
                         break;
                     case var opt when opt.Equals("-e", StringComparison.OrdinalIgnoreCase) ||
                                        opt.Equals("--endpoint", StringComparison.OrdinalIgnoreCase):
@@ -50,7 +55,12 @@ namespace DnsClientX.Cli {
                             Console.Error.WriteLine("Missing value for --endpoint");
                             return 1;
                         }
-                        endpoint = (DnsEndpoint)Enum.Parse(typeof(DnsEndpoint), args[++i], true);
+                        string endpointValue = args[++i];
+                        if (!Enum.TryParse(endpointValue, true, out DnsEndpoint parsedEndpoint)) {
+                            Console.Error.WriteLine($"Invalid endpoint: {endpointValue}");
+                            return 1;
+                        }
+                        endpoint = parsedEndpoint;
                         break;
                     case var opt when opt.Equals("--dnssec", StringComparison.OrdinalIgnoreCase):
                         requestDnsSec = true;
@@ -69,7 +79,12 @@ namespace DnsClientX.Cli {
                         doUpdate = true;
                         zone = args[++i];
                         updateName = args[++i];
-                        recordType = (DnsRecordType)Enum.Parse(typeof(DnsRecordType), args[++i], true);
+                        string updateRecordTypeValue = args[++i];
+                        if (!Enum.TryParse(updateRecordTypeValue, true, out DnsRecordType parsedUpdateRecordType)) {
+                            Console.Error.WriteLine($"Invalid record type for update: {updateRecordTypeValue}");
+                            return 1;
+                        }
+                        recordType = parsedUpdateRecordType;
                         updateData = args[++i];
                         break;
                     case var opt when opt.Equals("--ttl", StringComparison.OrdinalIgnoreCase):
