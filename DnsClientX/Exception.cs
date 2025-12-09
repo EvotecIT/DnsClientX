@@ -30,6 +30,13 @@ namespace DnsClientX {
             Response = response;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DnsClientException"/> class with a specified error message and inner exception.
+        /// </summary>
+        /// <param name="message">Error message.</param>
+        /// <param name="inner">Underlying exception.</param>
+        public DnsClientException(string message, Exception inner) : base(message, inner) { }
+
         private static string FormatMessage(string message, DnsResponse response) {
             if (response?.Questions is { Length: > 0 }) {
                 var q = response.Questions[0];

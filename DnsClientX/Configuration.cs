@@ -30,6 +30,8 @@ namespace DnsClientX {
         private string? baseUriFormat;
         private int hostnameIndex;
 
+        internal IReadOnlyList<string> Hostnames => hostnames;
+
         /// <summary>
         /// Gets or sets the cooldown period for hosts marked as unavailable.
         /// </summary>

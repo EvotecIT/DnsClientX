@@ -25,17 +25,21 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldDeliverResponseOnFailedQueries(DnsEndpoint endpoint) {
-            var response = await ClientX.QueryDns("spf-a.anotherexample.com", DnsRecordType.A, endpoint);
-            Assert.True(response.Answers.Length == 0);
-            Assert.True(response.Status != DnsResponseCode.NoError);
+            using var client = new ClientX(endpoint);
+            client.ResolverOverride = (name, type, ct) => Task.FromResult(new DnsResponse {
+                Answers = Array.Empty<DnsAnswer>(),
+                Status = DnsResponseCode.ServerFailure,
+                Questions = new[] { new DnsQuestion { Name = name, Type = type } }
+            });
+
+            var response = await client.Resolve("spf-a.anotherexample.com", DnsRecordType.A, retryOnTransient: false);
+
+            Assert.Empty(response.Answers);
+            Assert.NotEqual(DnsResponseCode.NoError, response.Status);
             Assert.NotNull(response.Questions);
-            if (response.Questions.Length > 0) {
-                Assert.True(response.Questions.Length == 1);
-                foreach (DnsQuestion question in response.Questions) {
-                    Assert.True(question.Name == "spf-a.anotherexample.com");
-                    Assert.True(question.Type == DnsRecordType.A);
-                }
-            }
+            Assert.Single(response.Questions);
+            Assert.Equal("spf-a.anotherexample.com", response.Questions[0].Name);
+            Assert.Equal(DnsRecordType.A, response.Questions[0].Type);
         }
     }
 }
