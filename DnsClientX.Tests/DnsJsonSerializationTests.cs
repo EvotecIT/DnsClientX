@@ -18,7 +18,7 @@ namespace DnsClientX.Tests {
                 Data = "1.1.1.1"
             };
 
-            string json = DnsJson.Serialize(minimal);
+            string json = DnsJson.Serialize(minimal, DnsJsonContext.Default.DnsAnswerMinimal);
 
             Assert.Contains("\"name\":\"example.com\"", json);
             Assert.Contains("\"type\":1", json);

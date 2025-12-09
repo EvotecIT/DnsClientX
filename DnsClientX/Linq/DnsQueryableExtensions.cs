@@ -18,10 +18,9 @@ namespace DnsClientX.Linq {
 
         /// <summary>
         /// Executes the query asynchronously and returns a list of answers.
+        /// Works with Enumerable-based LINQ chains.
         /// </summary>
-        /// <param name="source">Queryable source.</param>
-        /// <returns>List of answers.</returns>
-        public static Task<List<DnsAnswer>> ToListAsync(this IQueryable<DnsAnswer> source) =>
+        public static Task<List<DnsAnswer>> ToListAsync(this IEnumerable<DnsAnswer> source) =>
             source is DnsQueryable dns ? dns.ToListAsync() : Task.FromResult(source.ToList());
     }
 }

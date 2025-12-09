@@ -136,7 +136,7 @@ namespace DnsClientX.Examples {
             string ipAddress = "89.74.48.96";
 
             // Reverse the IP address and append the DNSBL list
-            string reversedIp = string.Join(".", ipAddress.Split('.').Reverse());
+            string reversedIp = string.Join(".", Enumerable.Reverse(ipAddress.Split('.')));
 
             List<string> queries = new List<string>();
             foreach (var dnsbl in dnsBlacklist) {

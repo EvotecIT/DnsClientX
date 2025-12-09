@@ -49,7 +49,7 @@ namespace DnsClientX.Tests {
             output.WriteLine($"Testing record: {name}, type: {resourceRecordType}");
 
             var primaryEndpoint = DnsEndpoint.Cloudflare;
-            var allEndpoints = Enum.GetValues(typeof(DnsEndpoint)).Cast<DnsEndpoint>()
+            var allEndpoints = Enum.GetValues<DnsEndpoint>()
                 .Where(e => e != primaryEndpoint && (excludedEndpoints == null || !excludedEndpoints.Contains(e)))
                 .ToArray();
 
@@ -216,7 +216,7 @@ namespace DnsClientX.Tests {
             using var Client = new ClientX(primaryEndpoint);
             DnsResponse aAnswersPrimary = await Client.Resolve(name, resourceRecordType);
 
-            foreach (var endpointCompare in Enum.GetValues(typeof(DnsEndpoint)).Cast<DnsEndpoint>()) {
+            foreach (var endpointCompare in Enum.GetValues<DnsEndpoint>()) {
                 if (endpointCompare == primaryEndpoint) {
                     continue;
                 }

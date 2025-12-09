@@ -109,7 +109,7 @@ namespace DnsClientX.Examples {
 
         public static async Task ExampleTLSA() {
             var domains = "_25._tcp.mail.ietf.org";
-            foreach (DnsEndpoint endpoint in Enum.GetValues(typeof(DnsEndpoint))) {
+            foreach (DnsEndpoint endpoint in Enum.GetValues<DnsEndpoint>()) {
                 HelpersSpectre.AddLine("QueryDns", domains, DnsRecordType.TLSA, endpoint);
                 var data = await ClientX.QueryDns(domains, DnsRecordType.TLSA, endpoint);
                 data.DisplayTable();
@@ -118,7 +118,7 @@ namespace DnsClientX.Examples {
 
         public static async Task ExampleDS() {
             const string domain = "evotec.pl";
-            foreach (DnsEndpoint endpoint in Enum.GetValues(typeof(DnsEndpoint))) {
+            foreach (DnsEndpoint endpoint in Enum.GetValues<DnsEndpoint>()) {
                 HelpersSpectre.AddLine("QueryDns", domain, DnsRecordType.DS, endpoint);
                 var data = await ClientX.QueryDns(domain, DnsRecordType.DS, endpoint);
                 data.DisplayTable();
@@ -127,7 +127,7 @@ namespace DnsClientX.Examples {
 
         public static async Task ExampleTXTAll() {
             var domains = new[] { "disneyplus.com" };
-            foreach (DnsEndpoint endpoint in Enum.GetValues(typeof(DnsEndpoint))) {
+            foreach (DnsEndpoint endpoint in Enum.GetValues<DnsEndpoint>()) {
                 HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.TXT, endpoint);
                 var data = await ClientX.QueryDns(domains, DnsRecordType.TXT, endpoint);
                 foreach (var d in data[0].Answers) {
@@ -197,7 +197,7 @@ namespace DnsClientX.Examples {
                 Settings.Logger.WriteInformation(data.Answers[0].Data);
             }
 
-            foreach (DnsEndpoint endpoint in Enum.GetValues(typeof(DnsEndpoint))) {
+            foreach (DnsEndpoint endpoint in Enum.GetValues<DnsEndpoint>()) {
                 HelpersSpectre.AddLine("QueryDns", "disneyplus.com", DnsRecordType.SPF, endpoint);
                 using (var client1 = new ClientX(endpoint, DnsSelectionStrategy.First) {
                        Debug = false

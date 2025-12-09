@@ -184,7 +184,11 @@ namespace DnsClientX {
         /// </summary>
         /// <returns>Sequence of endpoint and description pairs.</returns>
         public static IEnumerable<(DnsEndpoint Endpoint, string Description)> GetAllWithDescriptions() {
+#if NET6_0_OR_GREATER
+            foreach (DnsEndpoint value in Enum.GetValues<DnsEndpoint>()) {
+#else
             foreach (DnsEndpoint value in Enum.GetValues(typeof(DnsEndpoint))) {
+#endif
                 yield return (value, value.GetDescription());
             }
         }
