@@ -13,7 +13,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public void GetAllWithDescriptions_ReturnsAllEndpoints() {
             var all = DnsEndpointExtensions.GetAllWithDescriptions().ToList();
-            int expectedCount = Enum.GetValues<DnsEndpoint>().Length;
+            int expectedCount = EndpointTestHelpers.AllEndpoints().Length;
             Assert.Equal(expectedCount, all.Count);
             Assert.All(all, pair => Assert.False(string.IsNullOrWhiteSpace(pair.Description)));
         }

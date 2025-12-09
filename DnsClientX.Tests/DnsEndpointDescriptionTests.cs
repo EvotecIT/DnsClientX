@@ -12,7 +12,7 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public void AllEndpointsHaveDescriptions() {
-            foreach (DnsEndpoint ep in Enum.GetValues<DnsEndpoint>()) {
+            foreach (DnsEndpoint ep in EndpointTestHelpers.AllEndpoints()) {
                 string desc = ep.GetDescription();
                 Assert.False(string.IsNullOrWhiteSpace(desc));
             }

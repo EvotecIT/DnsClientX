@@ -24,7 +24,7 @@ namespace DnsClientX.Tests {
 
             string filter = "v=spf1";
             var primaryEndpoint = DnsEndpoint.Cloudflare;
-            var allEndpoints = Enum.GetValues<DnsEndpoint>()
+            var allEndpoints = EndpointTestHelpers.AllEndpoints()
                 .Where(e => e != primaryEndpoint && (excludedEndpoints == null || !excludedEndpoints.Contains(e)))
                 .ToArray();
 
@@ -166,7 +166,7 @@ namespace DnsClientX.Tests {
             using var Client = new ClientX(primaryEndpoint);
             DnsResponse aAnswersPrimary = await Client.ResolveFilter(name, resourceRecordType, filter);
 
-            foreach (var endpointCompare in Enum.GetValues<DnsEndpoint>()) {
+            foreach (var endpointCompare in EndpointTestHelpers.AllEndpoints()) {
                 if (endpointCompare == primaryEndpoint) {
                     continue;
                 }
@@ -262,7 +262,7 @@ namespace DnsClientX.Tests {
 
             DnsResponse[] aAnswersPrimary = await Client.ResolveFilter(names, resourceRecordType, filter);
 
-            foreach (var endpointCompare in Enum.GetValues<DnsEndpoint>()) {
+            foreach (var endpointCompare in EndpointTestHelpers.AllEndpoints()) {
                 if (endpointCompare == primaryEndpoint) {
                     continue;
                 }
