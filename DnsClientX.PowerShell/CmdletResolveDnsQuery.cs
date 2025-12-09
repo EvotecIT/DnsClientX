@@ -89,7 +89,8 @@ namespace DnsClientX.PowerShell {
         [Alias("ServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
-        public List<string> Server = new List<string>();
+        [ValidateNotNull]
+        public List<string> Server { get; set; } = new List<string>();
 
         /// <summary>
         /// <para type="description">One or more resolver endpoints in string format. Accepted: "1.1.1.1:53", "[2606:4700:4700::1111]:53", "dns.google:53", or DoH URLs like "https://dns.google/dns-query".</para>
