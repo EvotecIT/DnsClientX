@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using System.Reflection;
 
 namespace DnsClientX {
     /// <summary>
@@ -266,9 +265,7 @@ namespace DnsClientX {
             } else if (Type == DnsRecordType.LOC) {
                 try {
                     byte[] rdata = Convert.FromBase64String(DataRaw);
-                    Type wireType = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWire")!;
-                    MethodInfo method = wireType.GetMethod("ProcessRecordData", BindingFlags.NonPublic | BindingFlags.Static)!;
-                    return (string)method.Invoke(null, new object?[] { Array.Empty<byte>(), 0, DnsRecordType.LOC, rdata, (ushort)rdata.Length, 0L })!;
+                    return DnsWire.ProcessRecordData(Array.Empty<byte>(), 0, DnsRecordType.LOC, rdata, (ushort)rdata.Length, 0L);
                 } catch (FormatException) {
                     return DataRaw;
                 }

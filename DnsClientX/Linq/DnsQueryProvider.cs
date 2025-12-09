@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DnsClientX.Linq {
     internal class DnsQueryProvider : IQueryProvider {
@@ -27,6 +28,7 @@ namespace DnsClientX.Linq {
             return ExecuteAsync<TResult>(expression).GetAwaiter().GetResult();
         }
 
+        [UnconditionalSuppressMessage("TrimAnalysis", "IL2026", Justification = "LINQ IQueryable support is optional; uses Queryable APIs that are not trim-safe.")]
         public async Task<TResult> ExecuteAsync<TResult>(Expression expression) {
             var responses = await Task.WhenAll(_names.Select(n => _client.Resolve(n, _type)));
             var answers = responses.SelectMany(r => r.Answers ?? Array.Empty<DnsAnswer>()).AsQueryable();

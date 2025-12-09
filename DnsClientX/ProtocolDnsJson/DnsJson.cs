@@ -3,6 +3,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
@@ -10,7 +11,6 @@ namespace DnsClientX {
     /// Provides JSON serialization helpers used by DNS over HTTPS implementations.
     /// </summary>
     internal static class DnsJson {
-        internal static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
         /// <summary>
         /// Encode URL
         /// </summary>
@@ -23,8 +23,10 @@ namespace DnsClientX {
         /// </summary>
         /// <typeparam name="T">Type of the value to serialize.</typeparam>
         /// <param name="value">Value to serialize.</param>
+        /// <param name="typeInfo">Source generated metadata for the payload type.</param>
         /// <returns>Serialized JSON string.</returns>
-        internal static string Serialize<T>(T value) => JsonSerializer.Serialize(value, JsonOptions);
+        internal static string Serialize<T>(T value, JsonTypeInfo<T> typeInfo) =>
+            JsonSerializer.Serialize(value, typeInfo);
 
         /// <summary>
         /// Deserialize a JSON HTTP response into a given type.
@@ -32,7 +34,8 @@ namespace DnsClientX {
         /// <typeparam name="T">The type to deserialize into.</typeparam>
         /// <param name="response">The HTTP response message with JSON as a body.</param>
         /// <param name="debug">Whether to print the JSON data to the console.</param>
-        internal static async Task<T> Deserialize<T>(this HttpResponseMessage response, bool debug = false) {
+        /// <param name="typeInfo">Source generated metadata for the target type.</param>
+        internal static async Task<T> Deserialize<T>(this HttpResponseMessage response, JsonTypeInfo<T> typeInfo, bool debug = false) {
             if (response.Content.Headers.ContentLength.GetValueOrDefault() == 0)
                 throw new DnsClientException("Response content is empty, can't parse as JSON.");
             using Stream stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
@@ -44,9 +47,10 @@ namespace DnsClientX {
                     // Write the JSON data using logger
                     Settings.Logger.WriteDebug(json);
                     // Deserialize the JSON data
-                    return JsonSerializer.Deserialize<T>(json, JsonOptions)!;
+                    return JsonSerializer.Deserialize(json, typeInfo)!;
                 }
-                return JsonSerializer.Deserialize<T>(stream, JsonOptions)!;
+                return await JsonSerializer.DeserializeAsync(stream, typeInfo, cancellationToken: default).ConfigureAwait(false)
+                    ?? throw new DnsClientException("Failed to parse JSON response.");
             } catch (JsonException jsonEx) {
                 throw new DnsClientException($"Failed to parse JSON due to a JsonException: {jsonEx.Message}");
             } catch (IOException ioEx) {
@@ -55,5 +59,8 @@ namespace DnsClientX {
                 throw new DnsClientException($"Unexpected exception while parsing JSON: {ex.GetType().Name} => {ex.Message}");
             }
         }
+
+        internal static Task<DnsResponse> DeserializeResponse(this HttpResponseMessage response, bool debug = false) =>
+            response.Deserialize(DnsJsonContext.Default.DnsResponse, debug);
     }
 }

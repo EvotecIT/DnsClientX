@@ -2,9 +2,8 @@ using System.Net.Http;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Text.Json;
-using System.Collections.Generic;
 using System;
+using System.Text.Json;
 
 namespace DnsClientX {
     /// <summary>
@@ -34,7 +33,7 @@ namespace DnsClientX {
             try {
                 using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
 
-                DnsResponse response = await res.Deserialize<DnsResponse>(debug).ConfigureAwait(false);
+                DnsResponse response = await res.DeserializeResponse(debug).ConfigureAwait(false);
                 response.AddServerDetails(configuration);
                 return response;
             } catch (Exception ex) {
@@ -80,17 +79,17 @@ namespace DnsClientX {
         /// </summary>
         internal static async Task<DnsResponse> ResolveJsonFormatPost(this HttpClient client, string name,
             DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration configuration, CancellationToken cancellationToken) {
-            var payload = new Dictionary<string, object?> { { "name", name } };
+            var payload = new ResolveRequest { Name = name };
             if (type != DnsRecordType.A) {
-                payload["type"] = type.ToString();
+                payload.Type = type.ToString();
             }
             if (requestDnsSec) {
-                payload["do"] = 1;
+                payload.Do = 1;
             }
             if (validateDnsSec) {
-                payload["cd"] = 1;
+                payload.Cd = 1;
             }
-            string json = JsonSerializer.Serialize(payload, DnsJson.JsonOptions);
+            string json = DnsJson.Serialize(payload, DnsJsonContext.Default.ResolveRequest);
 
             using HttpRequestMessage req = new(HttpMethod.Post, string.Empty) {
                 Content = new StringContent(json)
@@ -99,7 +98,7 @@ namespace DnsClientX {
 
             try {
                 using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
-                DnsResponse response = await res.Deserialize<DnsResponse>(debug).ConfigureAwait(false);
+                DnsResponse response = await res.DeserializeResponse(debug).ConfigureAwait(false);
                 response.AddServerDetails(configuration);
                 return response;
             } catch (Exception ex) {

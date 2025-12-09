@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Reflection;
 using System.Security.Cryptography;
 
 namespace DnsClientX {
@@ -166,9 +165,8 @@ namespace DnsClientX {
                 client.EndpointConfiguration.SigningKey = _signingKey;
             }
 
-            var field = typeof(Configuration).GetField("hostnames", BindingFlags.NonPublic | BindingFlags.Instance);
-            if (field != null) {
-                var names = (IEnumerable<string>)field.GetValue(client.EndpointConfiguration)!;
+            var names = client.EndpointConfiguration.Hostnames;
+            if (names.Count > 0) {
                 foreach (var name in names) {
                     // Accept valid IPs immediately
                     if (System.Net.IPAddress.TryParse(name, out _)) {
