@@ -11,13 +11,23 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Demonstrates filtering query results via LINQ.
         /// </summary>
-        [Fact(Skip = "External dependency - network unreachable in CI")]
-        public async Task ShouldFilterResults() {
+        [Fact]
+        public async Task ShouldFilterResults_WithResolverOverride() {
             using var client = new ClientX(DnsEndpoint.Cloudflare);
-            var query = client.AsQueryable(new[] { "evotec.pl" }, DnsRecordType.A)
+            // Avoid network: provide deterministic answers
+            client.ResolverOverride = (name, type, ct) => Task.FromResult(new DnsResponse {
+                Answers = new[] {
+                    new DnsAnswer { Name = name, Type = type, DataRaw = "1.1.1.1" },
+                    new DnsAnswer { Name = name, Type = type, DataRaw = "" }
+                }
+            });
+
+            var query = client.AsQueryable(new[] { "example.com" }, DnsRecordType.A)
                 .Where(a => a.Data.Length > 0);
+
             var results = await query.ToListAsync();
-            Assert.NotEmpty(results);
+            Assert.Single(results);
+            Assert.Equal("1.1.1.1", results[0].Data);
         }
     }
 }

@@ -2,52 +2,46 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX.Linq {
     /// <summary>
-    /// Represents a LINQ queryable source of <see cref="DnsAnswer"/>.
+    /// Lightweight LINQ-friendly wrapper that resolves DNS names and exposes the results as <see cref="IEnumerable{DnsAnswer}"/>.
+    /// Uses only Enumerable-based LINQ operators (AOT-safe) and caches results for repeated enumeration.
     /// </summary>
-    public class DnsQueryable : IQueryable<DnsAnswer> {
-        internal DnsQueryProvider ProviderInternal { get; }
+    public class DnsQueryable : IEnumerable<DnsAnswer> {
+        private readonly ClientX _client;
+        private readonly List<string> _names;
+        private readonly DnsRecordType _type;
+        private readonly Lazy<Task<List<DnsAnswer>>> _lazyResults;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="DnsQueryable"/> class.
+        /// Creates a DNS enumerable for the given names and record type.
         /// </summary>
-        /// <param name="client">DNS client.</param>
-        /// <param name="names">Domain names to resolve.</param>
-        /// <param name="type">Record type.</param>
         public DnsQueryable(ClientX client, IEnumerable<string> names, DnsRecordType type) {
-            ProviderInternal = new DnsQueryProvider(client, names, type);
-            Expression = Expression.Constant(this);
+            _client = client ?? throw new ArgumentNullException(nameof(client));
+            _names = names?.ToList() ?? throw new ArgumentNullException(nameof(names));
+            _type = type;
+            _lazyResults = new Lazy<Task<List<DnsAnswer>>>(ResolveAsync, LazyThreadSafetyMode.ExecutionAndPublication);
         }
 
-        internal DnsQueryable(DnsQueryProvider provider, Expression expression) {
-            ProviderInternal = provider;
-            Expression = expression;
+        private async Task<List<DnsAnswer>> ResolveAsync() {
+            var responses = await Task.WhenAll(_names.Select(n => _client.Resolve(n, _type))).ConfigureAwait(false);
+            return responses.SelectMany(r => r.Answers ?? Array.Empty<DnsAnswer>()).ToList();
         }
 
-        /// <inheritdoc />
-        public Type ElementType => typeof(DnsAnswer);
-
-        /// <inheritdoc />
-        public Expression Expression { get; }
-
-        /// <inheritdoc />
-        public IQueryProvider Provider => ProviderInternal;
-
-        /// <inheritdoc />
+        /// <summary>
+        /// Enumerates resolved DNS answers (resolution is performed once and cached).
+        /// </summary>
         public IEnumerator<DnsAnswer> GetEnumerator() =>
-            Provider.Execute<IEnumerable<DnsAnswer>>(Expression).GetEnumerator();
+            _lazyResults.Value.GetAwaiter().GetResult().GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
         /// <summary>
-        /// Executes the query asynchronously.
+        /// Executes the query asynchronously and returns all answers.
         /// </summary>
-        /// <returns>Query result as a list.</returns>
-        public Task<List<DnsAnswer>> ToListAsync() =>
-            ProviderInternal.ExecuteAsync<List<DnsAnswer>>(Expression);
+        public Task<List<DnsAnswer>> ToListAsync() => _lazyResults.Value;
     }
 }

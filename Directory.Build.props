@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <!-- Fail builds on any compiler warning to keep the codebase clean -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Avoid Windows-specific fallback paths that don't exist in WSL/CI -->
+    <RestoreAdditionalProjectFallbackFolders></RestoreAdditionalProjectFallbackFolders>
+    <RestoreFallbackFolders></RestoreFallbackFolders>
+  </PropertyGroup>
+</Project>

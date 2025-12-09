@@ -19,7 +19,7 @@ namespace DnsClientX.Tests {
                 Content = new ByteArrayContent(Array.Empty<byte>())
             };
             var ex = await Assert.ThrowsAsync<DnsClientException>(
-                () => response.Deserialize<object>());
+                () => response.Deserialize(DnsJsonContext.Default.DnsResponse));
             Assert.Contains("Response content is empty", ex.Message);
         }
     }

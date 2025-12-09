@@ -434,7 +434,7 @@ namespace DnsClientX {
         /// or
         /// Error processing record data for " + type + ": " + ex.Message
         /// </exception>
-        private static string ProcessRecordData(byte[] dnsMessage, int recordStart, DnsRecordType type, byte[] rdata, ushort rdLength, long messageStart) {
+        internal static string ProcessRecordData(byte[] dnsMessage, int recordStart, DnsRecordType type, byte[] rdata, ushort rdLength, long messageStart) {
             using (BinaryReader reader = new BinaryReader(new MemoryStream(rdata))) {
                 try {
                     if (type == DnsRecordType.TXT) {
