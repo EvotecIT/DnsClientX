@@ -92,9 +92,8 @@ namespace DnsClientX {
             string json = DnsJson.Serialize(payload, DnsJsonContext.Default.ResolveRequest);
 
             using HttpRequestMessage req = new(HttpMethod.Post, string.Empty) {
-                Content = new StringContent(json)
+                Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
             };
-            req.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
 
             try {
                 using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);

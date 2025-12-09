@@ -114,7 +114,8 @@ namespace DnsClientX {
 
         /// <summary>
         /// Sets filtered data that will override the normal ConvertData() behavior.
-        /// This is used internally for filtering operations.
+        /// This is used internally for filtering operations. Not thread-safe; callers should ensure
+        /// they operate on a local copy of the struct, not shared across threads.
         /// </summary>
         /// <param name="filteredData">The filtered data to return from the Data property.</param>
         internal void SetFilteredData(string? filteredData) {

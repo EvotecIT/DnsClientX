@@ -17,8 +17,7 @@ namespace DnsClientX {
                 Ttl = ttl
             };
             string json = DnsJson.Serialize(payload, DnsJsonContext.Default.UpdateRequest);
-            using HttpRequestMessage req = new(HttpMethod.Post, string.Empty) { Content = new StringContent(json) };
-            req.Content!.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+            using HttpRequestMessage req = new(HttpMethod.Post, string.Empty) { Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json") };
             using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
             DnsResponse response = await res.DeserializeResponse(debug).ConfigureAwait(false);
             response.AddServerDetails(configuration);
@@ -34,8 +33,7 @@ namespace DnsClientX {
                 Delete = true
             };
             string json = DnsJson.Serialize(payload, DnsJsonContext.Default.UpdateRequest);
-            using HttpRequestMessage req = new(HttpMethod.Post, string.Empty) { Content = new StringContent(json) };
-            req.Content!.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+            using HttpRequestMessage req = new(HttpMethod.Post, string.Empty) { Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json") };
             using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
             DnsResponse response = await res.DeserializeResponse(debug).ConfigureAwait(false);
             response.AddServerDetails(configuration);

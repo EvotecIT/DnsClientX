@@ -52,11 +52,11 @@ namespace DnsClientX {
                 return await JsonSerializer.DeserializeAsync(stream, typeInfo, cancellationToken: default).ConfigureAwait(false)
                     ?? throw new DnsClientException("Failed to parse JSON response.");
             } catch (JsonException jsonEx) {
-                throw new DnsClientException($"Failed to parse JSON due to a JsonException: {jsonEx.Message}");
+                throw new DnsClientException($"Failed to parse JSON due to a JsonException: {jsonEx.Message}", jsonEx);
             } catch (IOException ioEx) {
-                throw new DnsClientException($"Failed to read the response stream due to an IOException: {ioEx.Message}");
+                throw new DnsClientException($"Failed to read the response stream due to an IOException: {ioEx.Message}", ioEx);
             } catch (Exception ex) {
-                throw new DnsClientException($"Unexpected exception while parsing JSON: {ex.GetType().Name} => {ex.Message}");
+                throw new DnsClientException($"Unexpected exception while parsing JSON: {ex.GetType().Name} => {ex.Message}", ex);
             }
         }
 
