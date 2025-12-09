@@ -181,255 +181,284 @@ namespace DnsClientX {
                 return string.Empty;
             }
 
-            if (Type == DnsRecordType.TXT) {
-                // This is a TXT record. The data is a string enclosed in quotes.
-                // The string may be split into multiple strings if it is too long.
-                // The strings are enclosed in quotes and separated by a space or without space at all depending on provider
+            return Type switch {
+                DnsRecordType.TXT => ConvertTxtRecord(),
+                DnsRecordType.CAA => ConvertCaaRecord(),
+                DnsRecordType.DNSKEY => ConvertDnsKeyRecord(),
+                DnsRecordType.DS => ConvertDsRecord(),
+                DnsRecordType.LOC => ConvertLocRecord(),
+                DnsRecordType.NSEC => ConvertNsecRecord(),
+                DnsRecordType.TLSA => ConvertTlsaRecord(),
+                DnsRecordType.PTR => ConvertPtrRecord(),
+                DnsRecordType.NAPTR => ConvertNaptrRecord(),
+                DnsRecordType.SVCB or DnsRecordType.HTTPS => DataRaw,
+                _ => DataRaw.ToLowerInvariant()
+            };
+        }
 
-                // First, check if we have properly formatted data with quotes and spaces
-                if (!string.IsNullOrEmpty(DataRaw) && DataRaw.Contains("\" \"")) {
-                    var result = DataRaw.Replace("\" \"", string.Empty).Replace("\"", string.Empty);
-                    return CleanupTxtRecordData(result);
-                }
+        private string ConvertTxtRecord() {
+            // This is a TXT record. The data is a string enclosed in quotes.
+            // The string may be split into multiple strings if it is too long.
+            // The strings are enclosed in quotes and separated by a space or without space at all depending on provider
 
-                // Remove quotes if present for analysis
-                string cleanData = string.IsNullOrEmpty(DataRaw)
-                    ? string.Empty
-                    : DataRaw.Replace("\"", string.Empty);
+            // First, check if we have properly formatted data with quotes and spaces
+            if (!string.IsNullOrEmpty(DataRaw) && DataRaw.Contains("\" \"")) {
+                var result = DataRaw.Replace("\" \"", string.Empty).Replace("\"", string.Empty);
+                return CleanupTxtRecordData(result);
+            }
 
-                // Check if the data appears to be concatenated (no line breaks but contains known patterns)
-                // Improved detection: also check for obvious concatenation patterns
-                bool hasLineBreaks = cleanData.Contains("\n") || cleanData.Contains("\r");
-                bool isConcatenated = IsConcatenatedTxtRecord(cleanData);
-                bool hasObvious = HasObviousConcatenation(cleanData);
+            // Remove quotes if present for analysis
+            string cleanData = string.IsNullOrEmpty(DataRaw)
+                ? string.Empty
+                : DataRaw.Replace("\"", string.Empty);
 
-                if (!hasLineBreaks && (isConcatenated || hasObvious)) {
-                    return CleanupTxtRecordData(SplitConcatenatedTxtRecord(cleanData));
-                }
+            // Check if the data appears to be concatenated (no line breaks but contains known patterns)
+            // Improved detection: also check for obvious concatenation patterns
+            bool hasLineBreaks = cleanData.Contains("\n") || cleanData.Contains("\r");
+            bool isConcatenated = IsConcatenatedTxtRecord(cleanData);
+            bool hasObvious = HasObviousConcatenation(cleanData);
 
-                // Even if there are line breaks, if the data is obviously concatenated, try to split it
-                // This handles cases where Google returns concatenated data with embedded line breaks
-                if (hasObvious) {
-                    return CleanupTxtRecordData(SplitConcatenatedTxtRecord(cleanData));
-                }
+            if (!hasLineBreaks && (isConcatenated || hasObvious)) {
+                return CleanupTxtRecordData(SplitConcatenatedTxtRecord(cleanData));
+            }
 
-                // Default behavior - just remove quotes and clean up empty lines
-                return CleanupTxtRecordData(cleanData);
-            } else if (Type == DnsRecordType.CAA) {
-                // This is a CAA record. Cloudflare returns the data in HEX, so we need to convert it to text.
-                // Other providers don't do this.
-                if (DataRaw.StartsWith("\\#")) {
-                    var parts = DataRaw.Split(' ')
-                        .Where(part => !string.IsNullOrEmpty(part))
-                        .Select(part => part.Trim())
-                        .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]+\b\Z", RegexOptions.CultureInvariant))
-                        .Select(part => Convert.ToByte(part, 16))
-                        .ToArray();
+            // Even if there are line breaks, if the data is obviously concatenated, try to split it
+            // This handles cases where Google returns concatenated data with embedded line breaks
+            if (hasObvious) {
+                return CleanupTxtRecordData(SplitConcatenatedTxtRecord(cleanData));
+            }
 
-                    // Get the tag length from the third byte
-                    int tagLength = parts[2];
-                    // Get the tag
-                    var tag = Encoding.UTF8.GetString(parts.Skip(3).Take(tagLength).ToArray());
-                    // Get the value
-                    var valueBytes = parts.Skip(3 + tagLength).ToArray();
-                    var value = Encoding.UTF8.GetString(valueBytes);
+            // Default behavior - just remove quotes and clean up empty lines
+            return CleanupTxtRecordData(cleanData);
+        }
 
-                    return $"0 {tag} \"{value}\"";
-                } else {
-                    return DataRaw;
-                }
-            } else if (Type == DnsRecordType.DNSKEY) {
-                // For DNSKEY records, decode the flags, protocol, algorithm, and public key from the record data
-                // Depending on the provider, the data may be in HEX or in text
-                // can be: 256 3 ECDSAP256SHA256 oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeqCYKD5ar0IRd8KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==
-                // can be: 257 3 13 mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==
-                var parts = DataRaw.Split(' ');
-                if (parts.Length >= 4 && Enum.TryParse<DnsKeyAlgorithm>(parts[2], out var algorithm)) {
-                    return $"{parts[0]} {parts[1]} {algorithm} {parts[3]}";
-                } else {
-                    return DataRaw;
-                }
-            } else if (Type == DnsRecordType.DS) {
-                // For DS records, decode the key tag, algorithm, digest type and digest
-                var parts = DataRaw.Split(' ');
-                if (parts.Length >= 4 &&
-                    ushort.TryParse(parts[0], out var keyTag) &&
-                    byte.TryParse(parts[1], out var algVal) &&
-                    byte.TryParse(parts[2], out var digestType)) {
-                    string algorithmName = Enum.IsDefined(typeof(DnsKeyAlgorithm), (int)algVal)
-                        ? ((DnsKeyAlgorithm)algVal).ToString()
-                        : parts[1];
-                    return $"{keyTag} {algorithmName} {digestType} {parts[3]}";
-                } else {
-                    return DataRaw;
-                }
-            } else if (Type == DnsRecordType.LOC) {
-                try {
-                    byte[] rdata = Convert.FromBase64String(DataRaw);
-                    return DnsWire.ProcessRecordData(Array.Empty<byte>(), 0, DnsRecordType.LOC, rdata, (ushort)rdata.Length, 0L);
-                } catch (FormatException) {
-                    return DataRaw;
-                }
-            } else if (Type == DnsRecordType.NSEC) {
-                // This is a NSEC record. Some providers may return non-standard (google) types.
-                // Check if the type is a non-standard type
-                var parts = DataRaw.Split(' ');
-                foreach (var part in parts) {
-                    if (part.StartsWith("TYPE")) {
-                        // This is a non-standard type. Try to convert it to a standard type.
-                        if (Enum.TryParse<DnsRecordType>(part.Substring(4), out var standardType)) {
-                            // The conversion was successful. Replace the non-standard type with the standard type.
-                            if (!string.IsNullOrEmpty(DataRaw)) {
-                                DataRaw = DataRaw.Replace(part, standardType.ToString());
-                            }
-                        }
-                    }
-                }
+        private string ConvertCaaRecord() {
+            // This is a CAA record. Cloudflare returns the data in HEX, so we need to convert it to text.
+            // Other providers don't do this.
+            if (DataRaw.StartsWith("\\#")) {
+                var parts = DataRaw.Split(' ')
+                    .Where(part => !string.IsNullOrEmpty(part))
+                    .Select(part => part.Trim())
+                    .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]+\b\Z", RegexOptions.CultureInvariant))
+                    .Select(part => Convert.ToByte(part, 16))
+                    .ToArray();
 
+                // Get the tag length from the third byte
+                int tagLength = parts[2];
+                // Get the tag
+                var tag = Encoding.UTF8.GetString(parts.Skip(3).Take(tagLength).ToArray());
+                // Get the value
+                var valueBytes = parts.Skip(3 + tagLength).ToArray();
+                var value = Encoding.UTF8.GetString(valueBytes);
+
+                return $"0 {tag} \"{value}\"";
+            }
+
+            return DataRaw;
+        }
+
+        private string ConvertDnsKeyRecord() {
+            // For DNSKEY records, decode the flags, protocol, algorithm, and public key from the record data
+            // Depending on the provider, the data may be in HEX or in text
+            // can be: 256 3 ECDSAP256SHA256 oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeqCYKD5ar0IRd8KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==
+            // can be: 257 3 13 mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==
+            var parts = DataRaw.Split(' ');
+            if (parts.Length >= 4 && Enum.TryParse<DnsKeyAlgorithm>(parts[2], out var algorithm)) {
+                return $"{parts[0]} {parts[1]} {algorithm} {parts[3]}";
+            }
+
+            return DataRaw;
+        }
+
+        private string ConvertDsRecord() {
+            // For DS records, decode the key tag, algorithm, digest type and digest
+            var parts = DataRaw.Split(' ');
+            if (parts.Length >= 4 &&
+                ushort.TryParse(parts[0], out var keyTag) &&
+                byte.TryParse(parts[1], out var algVal) &&
+                byte.TryParse(parts[2], out var digestType)) {
+                string algorithmName = Enum.IsDefined(typeof(DnsKeyAlgorithm), (int)algVal)
+                    ? ((DnsKeyAlgorithm)algVal).ToString()
+                    : parts[1];
+                return $"{keyTag} {algorithmName} {digestType} {parts[3]}";
+            }
+
+            return DataRaw;
+        }
+
+        private string ConvertLocRecord() {
+            try {
+                byte[] rdata = Convert.FromBase64String(DataRaw);
+                return DnsWire.ProcessRecordData(Array.Empty<byte>(), 0, DnsRecordType.LOC, rdata, (ushort)rdata.Length, 0L);
+            } catch (FormatException) {
                 return DataRaw;
-            } else if (Type == DnsRecordType.TLSA) {
-                // This is a TLSA record. The data is in HEX.
-                // The data is in the format: 3 1 1 2b6e0f
-                // The first byte is the certificate usage, the second byte is the selector, the third byte is the matching type, and the rest is the certificate association data
-                byte[] parts;
-                if (DataRaw.StartsWith("\\#")) {
-                    // Handle hexadecimal format
-                    parts = DataRaw.Split(' ')
-                        .Skip(2) // Skip the first two parts
-                        .Where(part => !string.IsNullOrEmpty(part))
-                        .Select(part => part.Trim())
-                        .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]+\b\Z", RegexOptions.CultureInvariant))
-                        .Select(part => Convert.ToByte(part, 16)) // Convert from hexadecimal to byte
-                        .ToArray();
-                } else if (Regex.IsMatch(DataRaw, @"^\d+ \d+ \d+ [\da-fA-F]+$", RegexOptions.CultureInvariant)) {
-                    // If the DataRaw string is already in the correct format, return it as it is
-                    return DataRaw;
-                } else {
-                    // Handle Base64 format
-                    if (string.IsNullOrEmpty(DataRaw)) {
-                        return DataRaw;
-                    }
-                    parts = Convert.FromBase64String(DataRaw);
-                }
+            }
+        }
 
-                // Get the certificate usage
-                var certificateUsage = parts[0];
-                // Get the selector
-                var selector = parts[1];
-                // Get the matching type
-                var matchingType = parts[2];
-                // Get the certificate association data
-                var certificateAssociationData = string.Join("", parts.Skip(3).Select(part => part.ToString("x2")));
-                //Console.WriteLine($"{certificateUsage} {selector} {matchingType} {certificateAssociationData}");
-                return $"{certificateUsage} {selector} {matchingType} {certificateAssociationData}";
+        private string ConvertNsecRecord() {
+            // This is a NSEC record. Some providers may return non-standard (google) types.
+            // Check if the type is a non-standard type
+            var parts = DataRaw.Split(' ');
+            string updated = DataRaw;
 
-            } else if (Type == DnsRecordType.PTR) {
-                // For PTR records, decode the domain name from the record data
-                try {
-                    // First try to decode as Base64
-                    if (!string.IsNullOrEmpty(DataRaw)) {
-                        var output = Encoding.UTF8.GetString(Convert.FromBase64String(DataRaw));
-                        return ConvertSpecialFormatToDotted(output);
-                    }
-                } catch (FormatException) {
-                    // Ignore and try special format directly
-                }
-
-                return ConvertSpecialFormatToDotted(DataRaw);
-            } else if (Type == DnsRecordType.NAPTR) {
-                // NAPTR record (RFC 3403)
-                // Handles Base64, Hex, or Plain Text DataRaw
-                try {
-                    if (DataRaw.StartsWith("\\#")) {
-                        // Hex Encoded (e.g., \# XX XX ...)
-                        byte[] rdataHex = DataRaw.Split(' ')
-                            .Skip(2) // Skip the "\#" and the length byte
-                            .Where(part => !string.IsNullOrEmpty(part))
-                            .Select(part => part.Trim())
-                            .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]{1,2}\b\Z", RegexOptions.CultureInvariant)) // Match 1 or 2 hex chars
-                            .Select(part => Convert.ToByte(part, 16))
-                            .ToArray();
-                        if (rdataHex.Length > 4) { // Basic validation for minimum RDATA length
-                             return ParseNaptrRDataAndFormat(rdataHex);
+            foreach (var part in parts) {
+                if (part.StartsWith("TYPE", StringComparison.Ordinal)) {
+                    // This is a non-standard type. Try to convert it to a standard type.
+                    if (Enum.TryParse<DnsRecordType>(part.Substring(4), out var standardType)) {
+                        // The conversion was successful. Replace the non-standard type with the standard type.
+                        if (!string.IsNullOrEmpty(updated)) {
+                            updated = updated.Replace(part, standardType.ToString());
                         }
                     }
-                } catch (Exception ex) {
-                    Settings.Logger.WriteDebug($"Error parsing NAPTR record from Hex: {ex.Message} for DataRaw: {DataRaw}");
-                    // Fall through to try other formats or return DataRaw at the end
                 }
+            }
 
-                try {
-                    // Attempt Base64 Decoding
-                    if (!string.IsNullOrEmpty(DataRaw)) {
-                        byte[] rdataBase64 = Convert.FromBase64String(DataRaw);
-                        return ParseNaptrRDataAndFormat(rdataBase64);
-                    }
-                } catch (FormatException) {
-                    // Not Base64, try parsing as plain text
-                } catch (Exception ex) {
-                    Settings.Logger.WriteDebug($"Error parsing NAPTR record from Base64: {ex.Message} for DataRaw: {DataRaw}");
-                    // Fall through or return DataRaw at the end
-                }
+            if (!ReferenceEquals(updated, DataRaw)) {
+                DataRaw = updated;
+            }
 
-                try {
-                    // Plain Text Parsing (e.g., Google JSON: 10 100 s SIP+D2T  _sip._tcp.sip2sip.info.)
-                    // Or already formatted: 10 100 "s" "SIP+D2T" "" _sip._tcp.sip2sip.info.
-                    var parts = new List<string>();
-                    var currentPart = new StringBuilder();
-                    bool inQuotes = false;
-                    foreach (char c in DataRaw) {
-                        if (c == '\"') {
-                            inQuotes = !inQuotes;
-                            currentPart.Append(c);
-                        } else if (c == ' ' && !inQuotes) {
-                            if (currentPart.Length > 0) {
-                                parts.Add(currentPart.ToString());
-                                currentPart.Clear();
-                            }
-                        } else {
-                            currentPart.Append(c);
-                        }
-                    }
-                    if (currentPart.Length > 0) {
-                        parts.Add(currentPart.ToString());
-                    }
+            return updated;
+        }
 
-                    if (parts.Count >= 5) {
-                        string orderStr = parts[0];
-                        string preferenceStr = parts[1];
-                        string flags = parts[2].Trim('"');
-                        string service = parts[3].Trim('"');
-                        string regexp;
-                        string replacement;
-
-                        if (parts.Count == 5) { // Format like: 10 100 s SIP+D2T _replacement.domain.
-                            regexp = "";
-                            replacement = parts[4];
-                        } else { // Format like: 10 100 s SIP+D2T "regexp" _replacement.domain. or 10 100 "s" "SIP+D2T" "" target.
-                            regexp = parts[4].Trim('"');
-                            replacement = string.Join(" ", parts.Skip(5).ToArray()); // Should be a single domain part
-                        }
-
-                        // Validate Order and Preference are numbers
-                        if (ushort.TryParse(orderStr, out ushort order) && ushort.TryParse(preferenceStr, out ushort preferenceVal)) {
-                            string finalReplacement = (replacement == ".") ? "." : replacement.TrimEnd('.');
-                            return $"{order} {preferenceVal} \"{flags}\" \"{service}\" \"{regexp}\" {finalReplacement}";
-                        }
-                    }
-                } catch (Exception ex) {
-                    Settings.Logger.WriteDebug($"Error parsing NAPTR record from plain text: {ex.Message} for DataRaw: {DataRaw}");
-                }
-
-                // If all parsing attempts fail or if it's an unrecognized format for NAPTR that didn't cleanly parse
-                Settings.Logger.WriteDebug($"NAPTR DataRaw '{DataRaw}' did not match known Hex, Base64, or plain text patterns, or failed parsing.");
-                return DataRaw; // Fallback
-            } else if (Type == DnsRecordType.SVCB || Type == DnsRecordType.HTTPS) {
-                // SVCB and HTTPS records use key=value pairs. Preserve the original formatting.
+        private string ConvertTlsaRecord() {
+            // This is a TLSA record. The data is in HEX.
+            // The data is in the format: 3 1 1 2b6e0f
+            // The first byte is the certificate usage, the second byte is the selector, the third byte is the matching type, and the rest is the certificate association data
+            byte[] parts;
+            if (DataRaw.StartsWith("\\#")) {
+                // Handle hexadecimal format
+                parts = DataRaw.Split(' ')
+                    .Skip(2) // Skip the first two parts
+                    .Where(part => !string.IsNullOrEmpty(part))
+                    .Select(part => part.Trim())
+                    .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]+\b\Z", RegexOptions.CultureInvariant))
+                    .Select(part => Convert.ToByte(part, 16)) // Convert from hexadecimal to byte
+                    .ToArray();
+            } else if (Regex.IsMatch(DataRaw, @"^\d+ \d+ \d+ [\da-fA-F]+$", RegexOptions.CultureInvariant)) {
+                // If the DataRaw string is already in the correct format, return it as it is
                 return DataRaw;
             } else {
-                // Some records return the data in a higher case (microsoft.com/NS/Quad9ECS) which needs to be fixed
-                return DataRaw.ToLowerInvariant();
+                // Handle Base64 format
+                if (string.IsNullOrEmpty(DataRaw)) {
+                    return DataRaw;
+                }
+                parts = Convert.FromBase64String(DataRaw);
             }
+
+            // Get the certificate usage
+            var certificateUsage = parts[0];
+            // Get the selector
+            var selector = parts[1];
+            // Get the matching type
+            var matchingType = parts[2];
+            // Get the certificate association data
+            var certificateAssociationData = string.Join("", parts.Skip(3).Select(part => part.ToString("x2")));
+            //Console.WriteLine($"{certificateUsage} {selector} {matchingType} {certificateAssociationData}");
+            return $"{certificateUsage} {selector} {matchingType} {certificateAssociationData}";
+        }
+
+        private string ConvertPtrRecord() {
+            // For PTR records, decode the domain name from the record data
+            try {
+                // First try to decode as Base64
+                if (!string.IsNullOrEmpty(DataRaw)) {
+                    var output = Encoding.UTF8.GetString(Convert.FromBase64String(DataRaw));
+                    return ConvertSpecialFormatToDotted(output);
+                }
+            } catch (FormatException) {
+                // Ignore and try special format directly
+            }
+
+            return ConvertSpecialFormatToDotted(DataRaw);
+        }
+
+        private string ConvertNaptrRecord() {
+            // NAPTR record (RFC 3403)
+            // Handles Base64, Hex, or Plain Text DataRaw
+            try {
+                if (DataRaw.StartsWith("\\#")) {
+                    // Hex Encoded (e.g., \# XX XX ...)
+                    byte[] rdataHex = DataRaw.Split(' ')
+                        .Skip(2) // Skip the "\\#" and the length byte
+                        .Where(part => !string.IsNullOrEmpty(part))
+                        .Select(part => part.Trim())
+                        .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]{1,2}\b\Z", RegexOptions.CultureInvariant)) // Match 1 or 2 hex chars
+                        .Select(part => Convert.ToByte(part, 16))
+                        .ToArray();
+                    if (rdataHex.Length > 4) { // Basic validation for minimum RDATA length
+                        return ParseNaptrRDataAndFormat(rdataHex);
+                    }
+                }
+            } catch (Exception ex) {
+                Settings.Logger.WriteDebug($"Error parsing NAPTR record from Hex: {ex.Message} for DataRaw: {DataRaw}");
+                // Fall through to try other formats or return DataRaw at the end
+            }
+
+            try {
+                // Attempt Base64 Decoding
+                if (!string.IsNullOrEmpty(DataRaw)) {
+                    byte[] rdataBase64 = Convert.FromBase64String(DataRaw);
+                    return ParseNaptrRDataAndFormat(rdataBase64);
+                }
+            } catch (FormatException) {
+                // Not Base64, try parsing as plain text
+            } catch (Exception ex) {
+                Settings.Logger.WriteDebug($"Error parsing NAPTR record from Base64: {ex.Message} for DataRaw: {DataRaw}");
+                // Fall through or return DataRaw at the end
+            }
+
+            try {
+                // Plain Text Parsing (e.g., Google JSON: 10 100 s SIP+D2T  _sip._tcp.sip2sip.info.)
+                // Or already formatted: 10 100 "s" "SIP+D2T" "" _sip._tcp.sip2sip.info.
+                var parts = new List<string>();
+                var currentPart = new StringBuilder();
+                bool inQuotes = false;
+                foreach (char c in DataRaw) {
+                    if (c == '\"') {
+                        inQuotes = !inQuotes;
+                        currentPart.Append(c);
+                    } else if (c == ' ' && !inQuotes) {
+                        if (currentPart.Length > 0) {
+                            parts.Add(currentPart.ToString());
+                            currentPart.Clear();
+                        }
+                    } else {
+                        currentPart.Append(c);
+                    }
+                }
+                if (currentPart.Length > 0) {
+                    parts.Add(currentPart.ToString());
+                }
+
+                if (parts.Count >= 5) {
+                    string orderStr = parts[0];
+                    string preferenceStr = parts[1];
+                    string flags = parts[2].Trim('"');
+                    string service = parts[3].Trim('"');
+                    string regexp;
+                    string replacement;
+
+                    if (parts.Count == 5) { // Format like: 10 100 s SIP+D2T _replacement.domain.
+                        regexp = string.Empty;
+                        replacement = parts[4];
+                    } else { // Format like: 10 100 s SIP+D2T "regexp" _replacement.domain. or 10 100 "s" "SIP+D2T" "" target.
+                        regexp = parts[4].Trim('"');
+                        replacement = string.Join(" ", parts.Skip(5).ToArray()); // Should be a single domain part
+                    }
+
+                    // Validate Order and Preference are numbers
+                    if (ushort.TryParse(orderStr, out ushort order) && ushort.TryParse(preferenceStr, out ushort preferenceVal)) {
+                        string finalReplacement = (replacement == ".") ? "." : replacement.TrimEnd('.');
+                        return $"{order} {preferenceVal} \"{flags}\" \"{service}\" \"{regexp}\" {finalReplacement}";
+                    }
+                }
+            } catch (Exception ex) {
+                Settings.Logger.WriteDebug($"Error parsing NAPTR record from plain text: {ex.Message} for DataRaw: {DataRaw}");
+            }
+
+            // If all parsing attempts fail or if it's an unrecognized format for NAPTR that didn't cleanly parse
+            Settings.Logger.WriteDebug($"NAPTR DataRaw '{DataRaw}' did not match known Hex, Base64, or plain text patterns, or failed parsing.");
+            return DataRaw; // Fallback
         }
 
         /// <summary>

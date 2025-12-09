@@ -1,3 +1,5 @@
+using System.Net.Http;
+using System.Text;
 using DnsClientX;
 using Xunit;
 
@@ -24,6 +26,22 @@ namespace DnsClientX.Tests {
             Assert.Contains("\"type\":1", json);
             Assert.Contains("\"ttl\":60", json);
             Assert.Contains("\"data\":\"1.1.1.1\"", json);
+        }
+
+        /// <summary>
+        /// Ensure deserialization surfaces JsonException details via DnsClientException wrapping.
+        /// </summary>
+        [Fact]
+        public async Task Deserialize_InvalidJson_WrapsJsonException() {
+            using var msg = new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
+                Content = new StringContent("{ not-json }", Encoding.UTF8, "application/json")
+            };
+
+            var ex = await Assert.ThrowsAsync<DnsClientException>(async () =>
+                await msg.Deserialize(DnsJsonContext.Default.DnsResponse));
+
+            Assert.Contains("JsonException", ex.Message);
+            Assert.IsType<System.Text.Json.JsonException>(ex.InnerException);
         }
     }
 }

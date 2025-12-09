@@ -12,7 +12,7 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public void ResolveRequest_Serializes_WithExpectedNames() {
-            var model = new ResolveRequest { Name = "example.com", Type = "A", Do = 1, Cd = 0 };
+            var model = new ResolveRequest { Name = "example.com", Type = "A", Do = 1 };
             string json = DnsJson.Serialize(model, DnsJsonContext.Default.ResolveRequest);
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
@@ -20,6 +20,21 @@ namespace DnsClientX.Tests {
             Assert.Equal("A", root.GetProperty("type").GetString());
             Assert.Equal(1, root.GetProperty("do").GetInt32());
             Assert.False(root.TryGetProperty("cd", out _)); // cd omitted when zero/null
+        }
+
+        /// <summary>
+        /// ResolveRequest should omit null Name and Type and allow DO/CD toggles.
+        /// </summary>
+        [Fact]
+        public void ResolveRequest_Serializes_OptionalFields() {
+            var model = new ResolveRequest { Name = "example.com", Do = null, Cd = 1 };
+            string json = DnsJson.Serialize(model, DnsJsonContext.Default.ResolveRequest);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            Assert.Equal("example.com", root.GetProperty("name").GetString());
+            Assert.False(root.TryGetProperty("type", out _));
+            Assert.False(root.TryGetProperty("do", out _));
+            Assert.Equal(1, root.GetProperty("cd").GetInt32());
         }
 
         /// <summary>

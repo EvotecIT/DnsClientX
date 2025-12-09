@@ -442,14 +442,12 @@ namespace DnsClientX {
             if (IPAddress.TryParse(ipAddress, out IPAddress? ip)) {
                 if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) {
                     // IPv4
-                    return string.Join(".", ip.GetAddressBytes()
-                        .AsEnumerable()
-                        .Reverse()
-                        .Select(b => b.ToString())) + ".in-addr.arpa";
+                    var bytes = ip.GetAddressBytes();
+                    return string.Join(".", Enumerable.Reverse(bytes).Select(b => b.ToString())) + ".in-addr.arpa";
                 } else if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6) {
                     // IPv6 – reverse each hex nibble (RFC 3596)
-                    return string.Join(".", ip.GetAddressBytes()
-                        .AsEnumerable()
+                    var bytes = ip.GetAddressBytes();
+                    return string.Join(".", bytes
                         .SelectMany(b => b.ToString("x2"))
                         .Reverse()
                         .Select(c => c.ToString())) + ".ip6.arpa";
