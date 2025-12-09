@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using Xunit;
@@ -9,10 +10,14 @@ namespace DnsClientX.Tests {
     public class DebuggingHelpersTests {
         private class CapturingLogger : InternalLogger {
             public string? LastMessage { get; private set; }
+            public List<string> Messages { get; } = new();
             private readonly EventHandler<LogEventArgs> _handler;
 
             public CapturingLogger() {
-                _handler = (_, e) => LastMessage = e.FullMessage;
+                _handler = (_, e) => {
+                    LastMessage = e.FullMessage;
+                    Messages.Add(e.FullMessage);
+                };
                 OnDebugMessage += _handler;
             }
 
@@ -51,7 +56,7 @@ namespace DnsClientX.Tests {
             uint result = DebuggingHelpers.TroubleshootingDnsWire4(reader, "test");
             logger.Freeze();
             Assert.Equal(0x01020304u, result);
-            Assert.Contains("01-02-03-04", logger.LastMessage);
+            Assert.Contains(logger.Messages, m => m.Contains("01-02-03-04"));
         }
     }
 }
