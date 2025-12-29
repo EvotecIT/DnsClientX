@@ -254,6 +254,8 @@ namespace DnsClientX {
         }
 
         private DnsAnswer[] FilterAnswers(DnsAnswer[] answers, string filter, DnsRecordType type, bool includeAliases) {
+            filter ??= string.Empty;
+            var filterLower = filter.ToLowerInvariant();
             var filteredAnswers = new List<DnsAnswer>();
 
             foreach (var answer in answers) {
@@ -272,9 +274,9 @@ namespace DnsClientX {
                 }
 
                 if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
-                    // For TXT records, check if any line contains the filter
+                    // For TXT records, check if any line contains the filter   
                     var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-                    var matchingLines = lines.Where(line => line.ToLowerInvariant().Contains(filter.ToLowerInvariant())).ToArray();
+                    var matchingLines = lines.Where(line => line.ToLowerInvariant().Contains(filterLower)).ToArray();
 
                     if (matchingLines.Length > 0) {
                         // Create a new answer with only the matching lines
@@ -290,7 +292,7 @@ namespace DnsClientX {
                     }
                 } else {
                     // For non-TXT records, use the original logic
-                    if (answer.Data.ToLowerInvariant().Contains(filter.ToLowerInvariant())) {
+                    if (answer.Data.ToLowerInvariant().Contains(filterLower)) {
                         filteredAnswers.Add(answer);
                     }
                 }
@@ -372,6 +374,7 @@ namespace DnsClientX {
                 return false;
             }
 
+            filter ??= string.Empty;
             var filterLower = filter.ToLowerInvariant();
             foreach (var answer in answers) {
                 if (string.IsNullOrEmpty(answer.Data)) {
