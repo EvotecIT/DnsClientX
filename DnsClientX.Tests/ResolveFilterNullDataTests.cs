@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Xunit;
@@ -22,7 +23,8 @@ namespace DnsClientX.Tests {
         [Fact]
         public void FilterAnswers_ShouldIgnoreEmptyData() {
             var client = new ClientX();
-            MethodInfo method = typeof(ClientX).GetMethod("FilterAnswers", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            MethodInfo method = typeof(ClientX).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
+                .Single(m => m.Name == "FilterAnswers" && m.GetParameters().Length == 3);
             var answers = new[] { CreateAnswer(string.Empty, DnsRecordType.A) };
             var result = (DnsAnswer[])method.Invoke(client, new object[] { answers, "test", DnsRecordType.A })!;
             Assert.Empty(result);
@@ -34,7 +36,8 @@ namespace DnsClientX.Tests {
         [Fact]
         public void FilterAnswersRegex_ShouldIgnoreEmptyData() {
             var client = new ClientX();
-            MethodInfo method = typeof(ClientX).GetMethod("FilterAnswersRegex", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            MethodInfo method = typeof(ClientX).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
+                .Single(m => m.Name == "FilterAnswersRegex" && m.GetParameters().Length == 3);
             var answers = new[] { CreateAnswer(string.Empty, DnsRecordType.A) };
             var result = (DnsAnswer[])method.Invoke(client, new object[] { answers, new Regex("test", RegexOptions.CultureInvariant), DnsRecordType.A })!;
             Assert.Empty(result);
@@ -46,7 +49,8 @@ namespace DnsClientX.Tests {
         [Fact]
         public void HasMatchingAnswers_ShouldReturnFalseForEmptyData() {
             var client = new ClientX();
-            MethodInfo method = typeof(ClientX).GetMethod("HasMatchingAnswers", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            MethodInfo method = typeof(ClientX).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
+                .Single(m => m.Name == "HasMatchingAnswers" && m.GetParameters().Length == 3);
             var answers = new[] { CreateAnswer(string.Empty, DnsRecordType.A) };
             var result = (bool)method.Invoke(client, new object[] { answers, "test", DnsRecordType.A })!;
             Assert.False(result);
@@ -58,7 +62,8 @@ namespace DnsClientX.Tests {
         [Fact]
         public void HasMatchingAnswersRegex_ShouldReturnFalseForEmptyData() {
             var client = new ClientX();
-            MethodInfo method = typeof(ClientX).GetMethod("HasMatchingAnswersRegex", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            MethodInfo method = typeof(ClientX).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
+                .Single(m => m.Name == "HasMatchingAnswersRegex" && m.GetParameters().Length == 3);
             var answers = new[] { CreateAnswer(string.Empty, DnsRecordType.A) };
             var result = (bool)method.Invoke(client, new object[] { answers, new Regex("test", RegexOptions.CultureInvariant), DnsRecordType.A })!;
             Assert.False(result);

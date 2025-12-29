@@ -24,6 +24,11 @@ namespace DnsClientX.Tests {
             _output.WriteLine($"[Diagnostic] {message}");
         }
 
+        private bool ShouldSkipEndpoint(DnsEndpoint endpoint)
+        {
+            return TestSkipHelpers.ShouldSkipEndpoint(endpoint, _output);
+        }
+
         private async Task<DnsResponse> TryResolveWithDiagnostics(ClientX client, string domain, DnsRecordType recordType, int maxRetries = 3)
         {
             LogDiagnostics($"Attempting to resolve {domain} for record type {recordType}");
@@ -98,6 +103,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForTXTSync(DnsEndpoint endpoint)
         {
+            if (ShouldSkipEndpoint(endpoint)) return;
             using var client = new ClientX(endpoint);
             var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
 
@@ -127,8 +133,9 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public async Task ShouldWorkForFirstSyncTXT(DnsEndpoint endpoint)
+        public async Task ShouldWorkForFirstSyncTXT(DnsEndpoint endpoint)       
         {
+            if (ShouldSkipEndpoint(endpoint)) return;
             using var client = new ClientX(endpoint);
             var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
 
@@ -158,6 +165,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForAllSyncTXT(DnsEndpoint endpoint)
         {
+            if (ShouldSkipEndpoint(endpoint)) return;
             using var client = new ClientX(endpoint);
             var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
 
@@ -189,6 +197,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForASync(DnsEndpoint endpoint)
         {
+            if (ShouldSkipEndpoint(endpoint)) return;
             using var client = new ClientX(endpoint);
             var response = await TryResolveWithDiagnostics(client, "evotec.pl", DnsRecordType.A);
 
@@ -219,6 +228,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForPTRSync(DnsEndpoint endpoint) {
+            if (ShouldSkipEndpoint(endpoint)) return;
             using var client = new ClientX(endpoint);
             var response = client.ResolveSync("1.1.1.1", DnsRecordType.PTR);
             foreach (DnsAnswer answer in response.Answers) {
@@ -285,6 +295,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForFirstSyncA(DnsEndpoint endpoint) {
+            if (ShouldSkipEndpoint(endpoint)) return;
             using var client = new ClientX(endpoint);
             var answer = client.ResolveFirstSync("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);
             Assert.True(answer != null);
@@ -311,6 +322,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForAllSyncA(DnsEndpoint endpoint) {
+            if (ShouldSkipEndpoint(endpoint)) return;
             using var client = new ClientX(endpoint);
             var answers = client.ResolveAllSync("evotec.pl", DnsRecordType.A);
             foreach (DnsAnswer answer in answers) {

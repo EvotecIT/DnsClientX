@@ -28,10 +28,30 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS responses that match the filter.</returns>
         public async Task<DnsResponse[]> ResolveFilter(string[] names, DnsRecordType type, string filter, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
+            return await ResolveFilter(names, type, filter, new ResolveFilterOptions(), requestDnsSec, validateDnsSec, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Resolves multiple domain names for a single DNS record type in parallel using DNS over HTTPS.
+        /// This method allows you to specify a filter that will be applied to the data of the DNS answers.
+        /// </summary>
+        /// <param name="names">The domain names to resolve.</param>
+        /// <param name="type">The type of DNS record to resolve.</param>
+        /// <param name="filter">The filter to apply to the DNS answers data.</param>
+        /// <param name="options">Options for filtering, including alias inclusion.</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data in the response.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
+        /// <param name="maxRetries">The maximum number of retries.</param>
+        /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains the DNS responses that match the filter.</returns>
+        public async Task<DnsResponse[]> ResolveFilter(string[] names, DnsRecordType type, string filter, ResolveFilterOptions options, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {     
+            filter ??= string.Empty;
             int total = names.Length;
             DnsResponse[] allResponses;
             if (EndpointConfiguration.MaxConcurrency is null || EndpointConfiguration.MaxConcurrency <= 0 || EndpointConfiguration.MaxConcurrency >= total) {
-                var tasksUnbounded = names.Select(name => Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken)).ToList();
+                var tasksUnbounded = names.Select(name => Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken)).ToList();
                 await Task.WhenAll(tasksUnbounded).ConfigureAwait(false);
                 allResponses = tasksUnbounded.Select(t => t.Result).ToArray();
             } else {
@@ -44,7 +64,7 @@ namespace DnsClientX {
                     tasks.Add(Task.Run(async () => {
                         await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                         try {
-                            allResponses[idx] = await Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
+                            allResponses[idx] = await Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
                         } finally {
                             semaphore.Release();
                         }
@@ -54,9 +74,9 @@ namespace DnsClientX {
             }
 
             var filteredResponses = allResponses
-                .Where(response => HasMatchingAnswers(response.Answers ?? Array.Empty<DnsAnswer>(), filter, type))
+                .Where(response => HasMatchingAnswers(response.Answers ?? Array.Empty<DnsAnswer>(), filter, type, options.IncludeAliases))
                 .Select(response => {
-                    response.Answers = FilterAnswers(response.Answers, filter, type);
+                    response.Answers = FilterAnswers(response.Answers, filter, type, options.IncludeAliases);
                     return response;
                 })
                 .ToArray();
@@ -79,10 +99,29 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS responses that match the filter.</returns>
         public async Task<DnsResponse[]> ResolveFilter(string[] names, DnsRecordType type, Regex regexFilter, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
+            return await ResolveFilter(names, type, regexFilter, new ResolveFilterOptions(), requestDnsSec, validateDnsSec, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Resolves multiple domain names for a single DNS record type in parallel using DNS over HTTPS.
+        /// This method allows you to specify a regular expression filter that will be applied to the data of the DNS answers.
+        /// </summary>
+        /// <param name="names">The domain names to resolve.</param>
+        /// <param name="type">The type of DNS record to resolve.</param>
+        /// <param name="regexFilter">The regular expression filter to apply to the DNS answers data.</param>
+        /// <param name="options">Options for filtering, including alias inclusion.</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data in the response.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
+        /// <param name="maxRetries">The maximum number of retries.</param>
+        /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains the DNS responses that match the filter.</returns>
+        public async Task<DnsResponse[]> ResolveFilter(string[] names, DnsRecordType type, Regex regexFilter, ResolveFilterOptions options, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
             int total = names.Length;
             DnsResponse[] allResponses;
             if (EndpointConfiguration.MaxConcurrency is null || EndpointConfiguration.MaxConcurrency <= 0 || EndpointConfiguration.MaxConcurrency >= total) {
-                var tasksUnbounded = names.Select(name => Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken)).ToList();
+                var tasksUnbounded = names.Select(name => Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken)).ToList();
                 await Task.WhenAll(tasksUnbounded).ConfigureAwait(false);
                 allResponses = tasksUnbounded.Select(t => t.Result).ToArray();
             } else {
@@ -95,7 +134,7 @@ namespace DnsClientX {
                     tasks.Add(Task.Run(async () => {
                         await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                         try {
-                            allResponses[idx] = await Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
+                            allResponses[idx] = await Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
                         } finally {
                             semaphore.Release();
                         }
@@ -105,9 +144,9 @@ namespace DnsClientX {
             }
 
             var filteredResponses = allResponses
-                .Where(response => HasMatchingAnswersRegex(response.Answers ?? Array.Empty<DnsAnswer>(), regexFilter, type))
+                .Where(response => HasMatchingAnswersRegex(response.Answers ?? Array.Empty<DnsAnswer>(), regexFilter, type, options.IncludeAliases))
                 .Select(response => {
-                    response.Answers = FilterAnswersRegex(response.Answers, regexFilter, type);
+                    response.Answers = FilterAnswersRegex(response.Answers, regexFilter, type, options.IncludeAliases);
                     return response;
                 })
                 .ToArray();
@@ -131,10 +170,30 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response that matches the filter.</returns>
         public async Task<DnsResponse> ResolveFilter(string name, DnsRecordType type, string filter, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
-            var response = await Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
+            return await ResolveFilter(name, type, filter, new ResolveFilterOptions(), requestDnsSec, validateDnsSec, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+        }
 
-            if (!string.IsNullOrEmpty(filter) && response.Answers != null) {
-                response.Answers = FilterAnswers(response.Answers, filter, type);
+        /// <summary>
+        /// Resolves a single domain name for a single DNS record type using DNS over HTTPS.
+        /// This method allows you to specify a filter that will be applied to the data of the DNS answers.
+        /// </summary>
+        /// <param name="name">The domain name to resolve.</param>
+        /// <param name="type">The type of DNS record to resolve.</param>
+        /// <param name="filter">The filter to apply to the DNS answers data.</param>
+        /// <param name="options">Options for filtering, including alias inclusion.</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data in the response.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
+        /// <param name="maxRetries">The maximum number of retries.</param>
+        /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response that matches the filter.</returns>
+        public async Task<DnsResponse> ResolveFilter(string name, DnsRecordType type, string filter, ResolveFilterOptions options, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
+            filter ??= string.Empty;
+            var response = await Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            if (response.Answers != null && (options.IncludeAliases || !string.IsNullOrEmpty(filter))) {
+                response.Answers = FilterAnswers(response.Answers, filter, type, options.IncludeAliases);
             }
 
             return response;
@@ -155,10 +214,29 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response that matches the filter.</returns>
         public async Task<DnsResponse> ResolveFilter(string name, DnsRecordType type, Regex regexFilter, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
-            var response = await Resolve(name, type, requestDnsSec, validateDnsSec, false, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
+            return await ResolveFilter(name, type, regexFilter, new ResolveFilterOptions(), requestDnsSec, validateDnsSec, retryOnTransient, maxRetries, retryDelayMs, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Resolves a single domain name for a single DNS record type using DNS over HTTPS.
+        /// This method allows you to specify a regular expression filter that will be applied to the data of the DNS answers.
+        /// </summary>
+        /// <param name="name">The domain name to resolve.</param>
+        /// <param name="type">The type of DNS record to resolve.</param>
+        /// <param name="regexFilter">The regular expression filter to apply to the DNS answers data.</param>
+        /// <param name="options">Options for filtering, including alias inclusion.</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data in the response.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC data.</param>
+        /// <param name="retryOnTransient">Whether to retry on transient errors.</param>
+        /// <param name="maxRetries">The maximum number of retries.</param>
+        /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response that matches the filter.</returns>
+        public async Task<DnsResponse> ResolveFilter(string name, DnsRecordType type, Regex regexFilter, ResolveFilterOptions options, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
+            var response = await Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             if (response.Answers != null) {
-                response.Answers = FilterAnswersRegex(response.Answers, regexFilter, type);
+                response.Answers = FilterAnswersRegex(response.Answers, regexFilter, type, options.IncludeAliases);
             }
 
             return response;
@@ -172,6 +250,12 @@ namespace DnsClientX {
         /// <param name="type">The DNS record type being filtered.</param>
         /// <returns>Filtered array of DNS answers.</returns>
         private DnsAnswer[] FilterAnswers(DnsAnswer[] answers, string filter, DnsRecordType type) {
+            return FilterAnswers(answers, filter, type, false);
+        }
+
+        private DnsAnswer[] FilterAnswers(DnsAnswer[] answers, string filter, DnsRecordType type, bool includeAliases) {
+            filter ??= string.Empty;
+            var filterLower = filter.ToLowerInvariant();
             var filteredAnswers = new List<DnsAnswer>();
 
             foreach (var answer in answers) {
@@ -179,10 +263,20 @@ namespace DnsClientX {
                     continue;
                 }
 
+                var isAlias = IsAliasRecordType(answer.Type);
+                if (includeAliases && isAlias && answer.Type != type) {
+                    filteredAnswers.Add(answer);
+                    continue;
+                }
+
+                if (answer.Type != type) {
+                    continue;
+                }
+
                 if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
-                    // For TXT records, check if any line contains the filter
+                    // For TXT records, check if any line contains the filter   
                     var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-                    var matchingLines = lines.Where(line => line.ToLowerInvariant().Contains(filter.ToLowerInvariant())).ToArray();
+                    var matchingLines = lines.Where(line => line.ToLowerInvariant().Contains(filterLower)).ToArray();
 
                     if (matchingLines.Length > 0) {
                         // Create a new answer with only the matching lines
@@ -198,7 +292,7 @@ namespace DnsClientX {
                     }
                 } else {
                     // For non-TXT records, use the original logic
-                    if (answer.Data.ToLowerInvariant().Contains(filter.ToLowerInvariant())) {
+                    if (answer.Data.ToLowerInvariant().Contains(filterLower)) {
                         filteredAnswers.Add(answer);
                     }
                 }
@@ -215,10 +309,24 @@ namespace DnsClientX {
         /// <param name="type">The DNS record type being filtered.</param>
         /// <returns>Filtered array of DNS answers.</returns>
         private DnsAnswer[] FilterAnswersRegex(DnsAnswer[] answers, Regex regexFilter, DnsRecordType type) {
+            return FilterAnswersRegex(answers, regexFilter, type, false);
+        }
+
+        private DnsAnswer[] FilterAnswersRegex(DnsAnswer[] answers, Regex regexFilter, DnsRecordType type, bool includeAliases) {
             var filteredAnswers = new List<DnsAnswer>();
 
             foreach (var answer in answers) {
                 if (string.IsNullOrEmpty(answer.Data)) {
+                    continue;
+                }
+
+                var isAlias = IsAliasRecordType(answer.Type);
+                if (includeAliases && isAlias && answer.Type != type) {
+                    filteredAnswers.Add(answer);
+                    continue;
+                }
+
+                if (answer.Type != type) {
                     continue;
                 }
 
@@ -258,23 +366,38 @@ namespace DnsClientX {
         /// <param name="type">The DNS record type being filtered.</param>
         /// <returns>True if any answer contains a match.</returns>
         private bool HasMatchingAnswers(DnsAnswer[] answers, string filter, DnsRecordType type) {
+            return HasMatchingAnswers(answers, filter, type, false);
+        }
+
+        private bool HasMatchingAnswers(DnsAnswer[] answers, string filter, DnsRecordType type, bool includeAliases) {
             if (answers == null) {
                 return false;
             }
 
+            filter ??= string.Empty;
+            var filterLower = filter.ToLowerInvariant();
             foreach (var answer in answers) {
                 if (string.IsNullOrEmpty(answer.Data)) {
                     continue;
                 }
 
+                var isAlias = IsAliasRecordType(answer.Type);
+                if (includeAliases && isAlias && answer.Type != type) {
+                    return true;
+                }
+
+                if (answer.Type != type) {
+                    continue;
+                }
+
                 if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
                     var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-                    var matchingLines = lines.Where(line => line.ToLowerInvariant().Contains(filter.ToLowerInvariant())).ToArray();
+                    var matchingLines = lines.Where(line => line.ToLowerInvariant().Contains(filterLower)).ToArray();
                     if (matchingLines.Length > 0) {
                         return true;
                     }
                 } else {
-                    if (answer.Data.ToLowerInvariant().Contains(filter.ToLowerInvariant())) {
+                    if (answer.Data.ToLowerInvariant().Contains(filterLower)) {
                         return true;
                     }
                 }
@@ -290,12 +413,25 @@ namespace DnsClientX {
         /// <param name="type">The DNS record type being filtered.</param>
         /// <returns>True if any answer contains a match.</returns>
         private bool HasMatchingAnswersRegex(DnsAnswer[] answers, Regex regexFilter, DnsRecordType type) {
+            return HasMatchingAnswersRegex(answers, regexFilter, type, false);
+        }
+
+        private bool HasMatchingAnswersRegex(DnsAnswer[] answers, Regex regexFilter, DnsRecordType type, bool includeAliases) {
             if (answers == null) {
                 return false;
             }
 
             foreach (var answer in answers) {
                 if (string.IsNullOrEmpty(answer.Data)) {
+                    continue;
+                }
+
+                var isAlias = IsAliasRecordType(answer.Type);
+                if (includeAliases && isAlias && answer.Type != type) {
+                    return true;
+                }
+
+                if (answer.Type != type) {
                     continue;
                 }
 
@@ -312,6 +448,10 @@ namespace DnsClientX {
                 }
             }
             return false;
+        }
+
+        private static bool IsAliasRecordType(DnsRecordType recordType) {
+            return recordType == DnsRecordType.CNAME || recordType == DnsRecordType.DNAME;
         }
     }
 }

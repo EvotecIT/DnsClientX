@@ -24,6 +24,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
+            if (TestSkipHelpers.ShouldSkipEndpoint(endpoint)) return;
             using var Client = new ClientX(endpoint);
             var answer = await Client.ResolveFirst("github.com", DnsRecordType.TXT, cancellationToken: CancellationToken.None);
             Assert.True(answer != null);
@@ -53,6 +54,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
+            if (TestSkipHelpers.ShouldSkipEndpoint(endpoint)) return;
             using var Client = new ClientX(endpoint);
             var answer = await Client.ResolveFirst("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);
             Assert.True(answer != null);
@@ -78,6 +80,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForTXT_Sync(DnsEndpoint endpoint) {
+            if (TestSkipHelpers.ShouldSkipEndpoint(endpoint)) return;
             using var Client = new ClientX(endpoint);
             var answer = Client.ResolveFirstSync("github.com", DnsRecordType.TXT, cancellationToken: CancellationToken.None);
             Assert.True(answer != null);
@@ -104,6 +107,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForA_Sync(DnsEndpoint endpoint) {
+            if (TestSkipHelpers.ShouldSkipEndpoint(endpoint)) return;
             using var Client = new ClientX(endpoint);
             var answer = Client.ResolveFirstSync("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);
             Assert.True(answer != null);
