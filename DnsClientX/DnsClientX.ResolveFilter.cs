@@ -46,7 +46,8 @@ namespace DnsClientX {
         /// <param name="retryDelayMs">The delay between retries in milliseconds.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS responses that match the filter.</returns>
-        public async Task<DnsResponse[]> ResolveFilter(string[] names, DnsRecordType type, string filter, ResolveFilterOptions options, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
+        public async Task<DnsResponse[]> ResolveFilter(string[] names, DnsRecordType type, string filter, ResolveFilterOptions options, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {     
+            filter ??= string.Empty;
             int total = names.Length;
             DnsResponse[] allResponses;
             if (EndpointConfiguration.MaxConcurrency is null || EndpointConfiguration.MaxConcurrency <= 0 || EndpointConfiguration.MaxConcurrency >= total) {
@@ -188,6 +189,7 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response that matches the filter.</returns>
         public async Task<DnsResponse> ResolveFilter(string name, DnsRecordType type, string filter, ResolveFilterOptions options, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
+            filter ??= string.Empty;
             var response = await Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             if (response.Answers != null && (options.IncludeAliases || !string.IsNullOrEmpty(filter))) {
@@ -259,7 +261,8 @@ namespace DnsClientX {
                     continue;
                 }
 
-                if (includeAliases && IsAliasRecordType(answer.Type)) {
+                var isAlias = IsAliasRecordType(answer.Type);
+                if (includeAliases && isAlias && answer.Type != type) {
                     filteredAnswers.Add(answer);
                     continue;
                 }
@@ -315,7 +318,8 @@ namespace DnsClientX {
                     continue;
                 }
 
-                if (includeAliases && IsAliasRecordType(answer.Type)) {
+                var isAlias = IsAliasRecordType(answer.Type);
+                if (includeAliases && isAlias && answer.Type != type) {
                     filteredAnswers.Add(answer);
                     continue;
                 }
@@ -368,12 +372,14 @@ namespace DnsClientX {
                 return false;
             }
 
+            var filterLower = filter.ToLowerInvariant();
             foreach (var answer in answers) {
                 if (string.IsNullOrEmpty(answer.Data)) {
                     continue;
                 }
 
-                if (includeAliases && IsAliasRecordType(answer.Type)) {
+                var isAlias = IsAliasRecordType(answer.Type);
+                if (includeAliases && isAlias && answer.Type != type) {
                     return true;
                 }
 
@@ -383,12 +389,12 @@ namespace DnsClientX {
 
                 if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
                     var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-                    var matchingLines = lines.Where(line => line.ToLowerInvariant().Contains(filter.ToLowerInvariant())).ToArray();
+                    var matchingLines = lines.Where(line => line.ToLowerInvariant().Contains(filterLower)).ToArray();
                     if (matchingLines.Length > 0) {
                         return true;
                     }
                 } else {
-                    if (answer.Data.ToLowerInvariant().Contains(filter.ToLowerInvariant())) {
+                    if (answer.Data.ToLowerInvariant().Contains(filterLower)) {
                         return true;
                     }
                 }
@@ -417,7 +423,8 @@ namespace DnsClientX {
                     continue;
                 }
 
-                if (includeAliases && IsAliasRecordType(answer.Type)) {
+                var isAlias = IsAliasRecordType(answer.Type);
+                if (includeAliases && isAlias && answer.Type != type) {
                     return true;
                 }
 

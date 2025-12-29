@@ -60,7 +60,59 @@ namespace DnsClientX.Tests {
 
             Assert.Single(responses);
             Assert.Single(responses[0].Answers);
-            Assert.Equal(DnsRecordType.CNAME, responses[0].Answers[0].Type);
+            Assert.Equal(DnsRecordType.CNAME, responses[0].Answers[0].Type);    
+        }
+
+        /// <summary>
+        /// Ensures empty filters still keep alias and requested type answers when enabled.
+        /// </summary>
+        [Fact]
+        public async Task ResolveFilter_IncludeAliases_EmptyFilter_ReturnsAliasAndType() {
+            using var client = new ClientX(DnsEndpoint.Cloudflare);
+            client.ResolverOverride = (name, type, ct) => Task.FromResult(CreateResponse(name));
+
+            var options = new ResolveFilterOptions(true);
+            var response = await client.ResolveFilter("example.com", DnsRecordType.TXT, string.Empty, options, retryOnTransient: false);
+
+            Assert.NotNull(response.Answers);
+            Assert.Equal(2, response.Answers.Length);
+            Assert.Contains(response.Answers, answer => answer.Type == DnsRecordType.CNAME);
+            Assert.Contains(response.Answers, answer => answer.Type == DnsRecordType.TXT);
+        }
+
+        /// <summary>
+        /// Ensures null filters are treated as empty when alias inclusion is enabled.
+        /// </summary>
+        [Fact]
+        public async Task ResolveFilter_IncludeAliases_NullFilter_TreatedAsEmpty() {
+            using var client = new ClientX(DnsEndpoint.Cloudflare);
+            client.ResolverOverride = (name, type, ct) => Task.FromResult(CreateResponse(name));
+
+            var options = new ResolveFilterOptions(true);
+            string? filter = null;
+#pragma warning disable CS8604 // Null is allowed for robustness testing.
+            var response = await client.ResolveFilter("example.com", DnsRecordType.TXT, filter, options, retryOnTransient: false);
+#pragma warning restore CS8604
+
+            Assert.NotNull(response.Answers);
+            Assert.Equal(2, response.Answers.Length);
+            Assert.Contains(response.Answers, answer => answer.Type == DnsRecordType.CNAME);
+            Assert.Contains(response.Answers, answer => answer.Type == DnsRecordType.TXT);
+        }
+
+        /// <summary>
+        /// Ensures alias filtering still respects the filter when querying alias types.
+        /// </summary>
+        [Fact]
+        public async Task ResolveFilter_IncludeAliases_AliasType_RespectsFilter() {
+            using var client = new ClientX(DnsEndpoint.Cloudflare);
+            client.ResolverOverride = (name, type, ct) => Task.FromResult(CreateResponse(name));
+
+            var options = new ResolveFilterOptions(true);
+            var response = await client.ResolveFilter("example.com", DnsRecordType.CNAME, "nomatch", options, retryOnTransient: false);
+
+            Assert.NotNull(response.Answers);
+            Assert.Empty(response.Answers);
         }
     }
 }
