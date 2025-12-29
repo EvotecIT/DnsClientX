@@ -1,7 +1,9 @@
 using DnsClientX;
+using System.Net;
 using System.Runtime.InteropServices;
 using Xunit;
 using Xunit.Abstractions;
+using Xunit.Sdk;
 
 namespace DnsClientX.Tests {
     /// <summary>
@@ -22,6 +24,35 @@ namespace DnsClientX.Tests {
         private void LogDiagnostics(string message)
         {
             _output.WriteLine($"[Diagnostic] {message}");
+        }
+
+        private static void SkipIfSystemTcpUnsupported(DnsEndpoint endpoint)
+        {
+            if (endpoint != DnsEndpoint.SystemTcp)
+            {
+                return;
+            }
+
+            var servers = SystemInformation.GetDnsFromActiveNetworkCard();
+            if (servers == null || servers.Count == 0)
+            {
+                throw new SkipException("System TCP DNS skipped: no active DNS servers detected.");
+            }
+
+            var allLoopback = true;
+            foreach (var server in servers)
+            {
+                if (IPAddress.TryParse(server, out var ip) && !IPAddress.IsLoopback(ip))
+                {
+                    allLoopback = false;
+                    break;
+                }
+            }
+
+            if (allLoopback)
+            {
+                throw new SkipException("System TCP DNS skipped: only loopback resolvers detected.");
+            }
         }
 
         private async Task<DnsResponse> TryResolveWithDiagnostics(ClientX client, string domain, DnsRecordType recordType, int maxRetries = 3)
@@ -98,6 +129,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForTXTSync(DnsEndpoint endpoint)
         {
+            SkipIfSystemTcpUnsupported(endpoint);
             using var client = new ClientX(endpoint);
             var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
 
@@ -127,8 +159,9 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public async Task ShouldWorkForFirstSyncTXT(DnsEndpoint endpoint)
+        public async Task ShouldWorkForFirstSyncTXT(DnsEndpoint endpoint)       
         {
+            SkipIfSystemTcpUnsupported(endpoint);
             using var client = new ClientX(endpoint);
             var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
 
@@ -158,6 +191,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForAllSyncTXT(DnsEndpoint endpoint)
         {
+            SkipIfSystemTcpUnsupported(endpoint);
             using var client = new ClientX(endpoint);
             var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
 
@@ -189,6 +223,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForASync(DnsEndpoint endpoint)
         {
+            SkipIfSystemTcpUnsupported(endpoint);
             using var client = new ClientX(endpoint);
             var response = await TryResolveWithDiagnostics(client, "evotec.pl", DnsRecordType.A);
 
@@ -219,6 +254,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForPTRSync(DnsEndpoint endpoint) {
+            SkipIfSystemTcpUnsupported(endpoint);
             using var client = new ClientX(endpoint);
             var response = client.ResolveSync("1.1.1.1", DnsRecordType.PTR);
             foreach (DnsAnswer answer in response.Answers) {
@@ -285,6 +321,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForFirstSyncA(DnsEndpoint endpoint) {
+            SkipIfSystemTcpUnsupported(endpoint);
             using var client = new ClientX(endpoint);
             var answer = client.ResolveFirstSync("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);
             Assert.True(answer != null);
@@ -311,6 +348,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public void ShouldWorkForAllSyncA(DnsEndpoint endpoint) {
+            SkipIfSystemTcpUnsupported(endpoint);
             using var client = new ClientX(endpoint);
             var answers = client.ResolveAllSync("evotec.pl", DnsRecordType.A);
             foreach (DnsAnswer answer in answers) {
