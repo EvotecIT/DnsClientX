@@ -18,6 +18,7 @@ namespace DnsClientX.Tests {
 #endif
         [Theory]
         public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
+            if (TestSkipHelpers.ShouldSkipEndpoint(endpoint)) return;
             var response = await ClientX.QueryDns("github.com", DnsRecordType.TXT, endpoint);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "github.com");
@@ -48,6 +49,7 @@ namespace DnsClientX.Tests {
 [InlineData(DnsEndpoint.GoogleQuic)]
 #endif
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
+            if (TestSkipHelpers.ShouldSkipEndpoint(endpoint)) return;
             var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, endpoint);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "evotec.pl");
@@ -78,6 +80,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleQuic)]
 #endif
         public async Task ShouldWorkForPTR(DnsEndpoint endpoint) {
+            if (TestSkipHelpers.ShouldSkipEndpoint(endpoint)) return;
             var response = await ClientX.QueryDns("1.1.1.1", DnsRecordType.PTR, endpoint);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Data == "one.one.one.one");
