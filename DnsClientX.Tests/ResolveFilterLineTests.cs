@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Xunit;
@@ -15,7 +16,8 @@ namespace DnsClientX.Tests {
         [Fact]
         public void FilterAnswers_ReturnsMatchingLine() {
             var client = new ClientX();
-            var method = typeof(ClientX).GetMethod("FilterAnswers", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var method = typeof(ClientX).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
+                .Single(m => m.Name == "FilterAnswers" && m.GetParameters().Length == 3);
             var answers = new[] { CreateTxt("line1\nline2") };
             var result = (DnsAnswer[])method.Invoke(client, new object[] { answers, "line2", DnsRecordType.TXT })!;
             Assert.Single(result);
@@ -28,7 +30,8 @@ namespace DnsClientX.Tests {
         [Fact]
         public void FilterAnswersRegex_ReturnsMatchingLine() {
             var client = new ClientX();
-            var method = typeof(ClientX).GetMethod("FilterAnswersRegex", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var method = typeof(ClientX).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
+                .Single(m => m.Name == "FilterAnswersRegex" && m.GetParameters().Length == 3);
             var answers = new[] { CreateTxt("line1\nline2") };
             var result = (DnsAnswer[])method.Invoke(client, new object[] { answers, new Regex("line2$"), DnsRecordType.TXT })!;
             Assert.Single(result);

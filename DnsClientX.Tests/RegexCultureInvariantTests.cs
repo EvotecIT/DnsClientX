@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -40,7 +41,8 @@ namespace DnsClientX.Tests {
         [InlineData("tr-TR")]
         public void FilterAnswersRegex_ConsistentAcrossCultures(string culture) {
             var client = new ClientX();
-            MethodInfo method = typeof(ClientX).GetMethod("FilterAnswersRegex", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            MethodInfo method = typeof(ClientX).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
+                .Single(m => m.Name == "FilterAnswersRegex" && m.GetParameters().Length == 3);
             var answers = new[] {
                 new DnsAnswer {
                     Name = "example.com",
@@ -69,7 +71,8 @@ namespace DnsClientX.Tests {
         [InlineData("tr-TR")]
         public void FilterAnswers_ConsistentAcrossCultures(string culture) {
             var client = new ClientX();
-            MethodInfo method = typeof(ClientX).GetMethod("FilterAnswers", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            MethodInfo method = typeof(ClientX).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
+                .Single(m => m.Name == "FilterAnswers" && m.GetParameters().Length == 3);
             var answers = new[] {
                 new DnsAnswer {
                     Name = "example.com",
