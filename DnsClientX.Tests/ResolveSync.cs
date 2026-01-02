@@ -298,10 +298,11 @@ namespace DnsClientX.Tests {
             if (ShouldSkipEndpoint(endpoint)) return;
             using var client = new ClientX(endpoint);
             var answer = client.ResolveFirstSync("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);
-            Assert.True(answer != null);
-            Assert.True(answer.Value.Name == "evotec.pl");
-            Assert.True(answer.Value.Type == DnsRecordType.A);
-            Assert.True(answer.Value.Data.Length > 0);
+            Assert.True(answer != null, "Expected a non-null answer");
+            Assert.True(answer.Value.Type == DnsRecordType.A, $"Expected A record but got {answer.Value.Type}");
+            Assert.True(!string.IsNullOrWhiteSpace(answer.Value.Name), "Expected answer name to not be empty");
+            Assert.True(!string.IsNullOrWhiteSpace(answer.Value.Data), "Expected answer data to not be empty");
+            Assert.True(System.Net.IPAddress.TryParse(answer.Value.Data, out var ipAddress) && ipAddress.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork, $"Expected A record data to be an IPv4 address but got '{answer.Value.Data}' (name '{answer.Value.Name}', original '{answer.Value.OriginalName}')");
         }
 
         /// <summary>
