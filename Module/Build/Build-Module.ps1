@@ -3,7 +3,7 @@
 Build-Module -ModuleName 'DnsClientX' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = '1.0.6'
+        ModuleVersion        = '1.0.7'
         CompatiblePSEditions = @('Desktop', 'Core')
         GUID                 = '77fa806c-70b7-48d9-8b88-942ed73f24ed'
         Author               = 'Przemyslaw Klys'

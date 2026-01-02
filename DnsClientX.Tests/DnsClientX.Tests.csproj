@@ -4,9 +4,9 @@
         <AssemblyTitle>DnsClientX Tests</AssemblyTitle>
         <Title>DnsClientX Unit Tests</Title>
         <Description>Unit tests for DnsClientX DNS library.</Description>
-        <VersionPrefix>1.0.6</VersionPrefix>
-        <AssemblyVersion>1.0.6</AssemblyVersion>
-        <FileVersion>1.0.6</FileVersion>
+        <VersionPrefix>1.0.7</VersionPrefix>
+        <AssemblyVersion>1.0.7</AssemblyVersion>
+        <FileVersion>1.0.7</FileVersion>
         <Company>Evotec</Company>
         <Authors>Przemyslaw Klys</Authors>
         <Copyright>(c) 2011 - 2025 Przemyslaw Klys @ Evotec. All rights reserved.</Copyright>
