@@ -21,12 +21,18 @@ namespace DnsClientX.Tests {
             return bytes;
         }
 
-        private static int GetFreePort() {
+        private static int GetFreeTcpPort() {
             TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             listener.Stop();
             return port;
+        }
+
+        private static int GetFreeUdpPort() {
+            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+            return ((IPEndPoint)socket.LocalEndPoint!).Port;
         }
 
         private static async Task<byte[]> RunUdpServerAsync(int port, byte[] response, CancellationToken token) {
@@ -77,7 +83,7 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldIncludeCdBit_WhenConfigured() {
-            int port = GetFreePort();
+            int port = GetFreeUdpPort();
             var response = CreateDnsHeader();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var udpTask = RunUdpServerAsync(port, response, cts.Token);
@@ -104,7 +110,7 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task TcpRequest_ShouldIncludeCdBit_WhenConfigured() {
-            int port = GetFreePort();
+            int port = GetFreeTcpPort();
             var response = CreateDnsHeader();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var tcpTask = RunTcpServerAsync(port, response, cts.Token);
@@ -130,7 +136,7 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldIncludeCdBit_WhenValidateDnsSecTrue() {
-            int port = GetFreePort();
+            int port = GetFreeUdpPort();
             var response = CreateDnsHeader();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var udpTask = RunUdpServerAsync(port, response, cts.Token);
