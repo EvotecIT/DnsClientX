@@ -1,3 +1,4 @@
+using System;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -5,6 +6,8 @@ namespace DnsClientX.Tests {
     /// Tests for <see cref="DnsMessageOptions.RecursionDesired"/> handling in DNS wire serialization.
     /// </summary>
     public class DnsMessageRecursionDesiredTests {
+        private const ushort RdFlag = 0x0100;
+
         /// <summary>
         /// Ensures the RD bit is cleared when recursion is not desired.
         /// </summary>
@@ -15,8 +18,8 @@ namespace DnsClientX.Tests {
 
             byte[] query = message.SerializeDnsWireFormat();
 
-            Assert.Equal(0x00, query[2]);
-            Assert.Equal(0x00, query[3]);
+            ushort flags = ReadFlags(query);
+            Assert.True((flags & RdFlag) == 0);
         }
 
         /// <summary>
@@ -29,8 +32,19 @@ namespace DnsClientX.Tests {
 
             byte[] query = message.SerializeDnsWireFormat();
 
-            Assert.Equal(0x01, query[2]);
-            Assert.Equal(0x00, query[3]);
+            ushort flags = ReadFlags(query);
+            Assert.True((flags & RdFlag) != 0);
+        }
+
+        private static ushort ReadFlags(byte[] query) {
+            if (query == null) {
+                throw new ArgumentNullException(nameof(query));
+            }
+            if (query.Length < 4) {
+                throw new ArgumentException("DNS message is too short to contain a header.", nameof(query));
+            }
+
+            return (ushort)((query[2] << 8) | query[3]);
         }
     }
 }
