@@ -8,7 +8,40 @@ internal static class TestSkipHelpers
 {
     internal static bool ShouldSkipEndpoint(DnsEndpoint endpoint, ITestOutputHelper? output = null)
     {
-        return ShouldSkipSystemTcp(endpoint, output) || ShouldSkipOdoh(endpoint, output);
+        return ShouldSkipSystemUdp(endpoint, output) || ShouldSkipSystemTcp(endpoint, output) || ShouldSkipOdoh(endpoint, output);
+    }
+
+    private static bool ShouldSkipSystemUdp(DnsEndpoint endpoint, ITestOutputHelper? output)
+    {
+        if (endpoint != DnsEndpoint.System)
+        {
+            return false;
+        }
+
+        var servers = SystemInformation.GetDnsFromActiveNetworkCard();
+        if (servers == null || servers.Count == 0)
+        {
+            output?.WriteLine("[Diagnostic] System UDP DNS skipped: no active DNS servers detected.");
+            return true;
+        }
+
+        var allLoopback = true;
+        foreach (var server in servers)
+        {
+            if (IPAddress.TryParse(server, out var ip) && !IPAddress.IsLoopback(ip))
+            {
+                allLoopback = false;
+                break;
+            }
+        }
+
+        if (allLoopback)
+        {
+            output?.WriteLine("[Diagnostic] System UDP DNS skipped: only loopback resolvers detected.");
+            return true;
+        }
+
+        return false;
     }
 
     private static bool ShouldSkipSystemTcp(DnsEndpoint endpoint, ITestOutputHelper? output)
