@@ -13,4 +13,5 @@ public readonly record struct DnsMessageOptions(
     EdnsClientSubnetOption? Subnet = null,
     bool CheckingDisabled = false,
     AsymmetricAlgorithm? SigningKey = null,
-    IEnumerable<EdnsOption>? Options = null);
+    IEnumerable<EdnsOption>? Options = null,
+    bool RecursionDesired = true);
