@@ -6,9 +6,9 @@
         <AssemblyTitle>DnsClientX Examples</AssemblyTitle>
         <Title>DnsClientX Examples</Title>
         <Description>Example applications demonstrating DnsClientX library features and capabilities.</Description>
-        <VersionPrefix>1.0.5</VersionPrefix>
-        <AssemblyVersion>1.0.5</AssemblyVersion>
-        <FileVersion>1.0.5</FileVersion>
+        <VersionPrefix>1.0.6</VersionPrefix>
+        <AssemblyVersion>1.0.6</AssemblyVersion>
+        <FileVersion>1.0.6</FileVersion>
         <Company>Evotec</Company>
         <Authors>Przemyslaw Klys</Authors>
         <Copyright>(c) 2011 - 2025 Przemyslaw Klys @ Evotec. All rights reserved.</Copyright>
