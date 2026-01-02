@@ -14,6 +14,7 @@ namespace DnsClientX {
     public class DnsMessage {
         private readonly string _name;
         private readonly DnsRecordType _type;
+        private readonly bool _recursionDesired;
         private readonly bool _requestDnsSec;
         private readonly bool _enableEdns;
         private readonly int _udpBufferSize;
@@ -58,6 +59,7 @@ namespace DnsClientX {
         public DnsMessage(string name, DnsRecordType type, DnsMessageOptions options) {
             _name = name;
             _type = type;
+            _recursionDesired = options.RecursionDesired;
             _requestDnsSec = options.RequestDnsSec;
             _ednsOptions = options.Options?.ToArray() ?? Array.Empty<EdnsOption>();
             _enableEdns = options.EnableEdns || options.RequestDnsSec || options.Subnet != null || options.CheckingDisabled || _ednsOptions.Length > 0;
@@ -88,7 +90,8 @@ namespace DnsClientX {
             //stream.Write(buffer.ToArray(), 0, buffer.Length);
 
             // Write the flags
-            BinaryPrimitives.WriteUInt16BigEndian(buffer, 0x0100);
+            ushort headerFlags = _recursionDesired ? (ushort)0x0100 : (ushort)0x0000;
+            BinaryPrimitives.WriteUInt16BigEndian(buffer, headerFlags);
             stream.Write(buffer.ToArray(), 0, buffer.Length);
 
             // Write the flags
@@ -216,7 +219,8 @@ namespace DnsClientX {
                 ms.Write(bytes, 0, bytes.Length);
 
                 // Flags
-                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)0x0100)); // Standard query
+                short headerFlags = _recursionDesired ? (short)0x0100 : (short)0x0000; // Standard query (RD optional)
+                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder(headerFlags));
                 ms.Write(bytes, 0, bytes.Length);
 
                 // Questions
