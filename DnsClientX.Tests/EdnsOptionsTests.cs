@@ -22,11 +22,9 @@ namespace DnsClientX.Tests {
         }
 
         private static int GetFreePort() {
-            TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
-            listener.Start();
-            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            listener.Stop();
-            return port;
+            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+            return ((IPEndPoint)socket.LocalEndPoint!).Port;
         }
 
         private static async Task<byte[]> RunUdpServerAsync(int port, byte[] response, CancellationToken token) {

@@ -10,9 +10,9 @@
         </Description>
         <AssemblyName>DnsClientX</AssemblyName>
         <AssemblyTitle>DnsClientX</AssemblyTitle>
-        <VersionPrefix>1.0.6</VersionPrefix>
-        <AssemblyVersion>1.0.6</AssemblyVersion>
-        <FileVersion>1.0.6</FileVersion>
+        <VersionPrefix>1.0.7</VersionPrefix>
+        <AssemblyVersion>1.0.7</AssemblyVersion>
+        <FileVersion>1.0.7</FileVersion>
         <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`Windows`))' ">
             netstandard2.0;net472;net8.0;net9.0
         </TargetFrameworks>

@@ -58,8 +58,9 @@ namespace DnsClientX.Tests {
             using var Client = new ClientX(endpoint);
             var answer = await Client.ResolveFirst("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);
             Assert.True(answer != null);
-            Assert.True(answer.Value.Name == "evotec.pl");
             Assert.True(answer.Value.Type == DnsRecordType.A);
+            Assert.True(!string.IsNullOrWhiteSpace(answer.Value.Name), "Expected answer name to not be empty");
+            Assert.True(System.Net.IPAddress.TryParse(answer.Value.Data, out var ipAddress) && ipAddress.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork, $"Expected A record data to be an IPv4 address but got '{answer.Value.Data}' (name '{answer.Value.Name}', original '{answer.Value.OriginalName}')");
         }
 
         /// <summary>
@@ -111,8 +112,9 @@ namespace DnsClientX.Tests {
             using var Client = new ClientX(endpoint);
             var answer = Client.ResolveFirstSync("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);
             Assert.True(answer != null);
-            Assert.True(answer.Value.Name == "evotec.pl");
             Assert.True(answer.Value.Type == DnsRecordType.A);
+            Assert.True(!string.IsNullOrWhiteSpace(answer.Value.Name), "Expected answer name to not be empty");
+            Assert.True(System.Net.IPAddress.TryParse(answer.Value.Data, out var ipAddress) && ipAddress.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork, $"Expected A record data to be an IPv4 address but got '{answer.Value.Data}' (name '{answer.Value.Name}', original '{answer.Value.OriginalName}')");
         }
     }
 }

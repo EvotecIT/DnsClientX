@@ -53,7 +53,7 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task Cli_ShouldSetDoAndCdBits_WhenDnssecValidationEnabled() {
-            int port = TestUtilities.GetFreePort();
+            int port = TestUtilities.GetFreeUdpPort();
 
             SystemInformation.SetDnsServerProvider(() => new List<string> { "127.0.0.1" });
 

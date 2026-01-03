@@ -43,7 +43,17 @@ namespace DnsClientX {
                 retryDelayMs: retryDelayMs,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            return res.Answers?.FirstOrDefault(x => x.Type == type);
+            if (res.Answers == null || res.Answers.Length == 0) {
+                return null;
+            }
+
+            foreach (DnsAnswer answer in res.Answers) {
+                if (answer.Type == type) {
+                    return answer;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
