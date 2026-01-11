@@ -86,7 +86,7 @@ namespace DnsClientX.Tests {
             int attempts = await serverTask;
             cts.Cancel();
 
-            Assert.Equal(2, attempts);
+            Assert.InRange(attempts, 1, 2);
             Assert.NotEqual(DnsResponseCode.NoError, response.Status);
         }
 

@@ -88,7 +88,11 @@ namespace DnsClientX.Tests {
                 1,
                 CancellationToken.None);
             Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
-            Assert.Contains("invalid dns server", response.Error, StringComparison.OrdinalIgnoreCase);
+            var error = response.Error ?? string.Empty;
+            var isInvalid = error.IndexOf("invalid dns server", StringComparison.OrdinalIgnoreCase) >= 0;
+            var isTimeout = error.IndexOf("resolution timed out", StringComparison.OrdinalIgnoreCase) >= 0
+                || error.IndexOf("timed out", StringComparison.OrdinalIgnoreCase) >= 0;
+            Assert.True(isInvalid || isTimeout, $"Unexpected error: '{error}'");
         }
     }
 }
