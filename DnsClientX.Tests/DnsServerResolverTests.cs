@@ -108,5 +108,36 @@ namespace DnsClientX.Tests {
             Assert.NotNull(second.Address);
             Assert.Equal(IPAddress.Loopback, second.Address);
         }
+
+        /// <summary>
+        /// Ensures concurrent resolutions for the same hostname are deduplicated.
+        /// </summary>
+        [Fact]
+        public async Task ResolveAsync_DeduplicatesConcurrentResolution() {
+            var callCount = 0;
+            var tcs = new TaskCompletionSource<IPAddress[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+            DnsServerResolver.ResolveHostAddressesAsync = _ => {
+                Interlocked.Increment(ref callCount);
+                return tcs.Task;
+            };
+
+            Task<(IPAddress? Address, string? Error)> firstTask = DnsServerResolver.ResolveAsync(
+                "concurrent.local",
+                1000,
+                CancellationToken.None);
+
+            Task<(IPAddress? Address, string? Error)> secondTask = DnsServerResolver.ResolveAsync(
+                "concurrent.local",
+                1000,
+                CancellationToken.None);
+
+            SpinWait.SpinUntil(() => Volatile.Read(ref callCount) > 0, 1000);
+            Assert.Equal(1, Volatile.Read(ref callCount));
+
+            tcs.SetResult([IPAddress.Loopback]);
+            var results = await Task.WhenAll(firstTask, secondTask);
+
+            Assert.All(results, result => Assert.Equal(IPAddress.Loopback, result.Address));
+        }
     }
 }

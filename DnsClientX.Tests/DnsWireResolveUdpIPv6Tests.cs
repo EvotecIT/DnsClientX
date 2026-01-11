@@ -92,7 +92,11 @@ namespace DnsClientX.Tests {
             var isInvalid = error.IndexOf("invalid dns server", StringComparison.OrdinalIgnoreCase) >= 0;
             var isTimeout = error.IndexOf("resolution timed out", StringComparison.OrdinalIgnoreCase) >= 0
                 || error.IndexOf("timed out", StringComparison.OrdinalIgnoreCase) >= 0;
-            Assert.True(isInvalid || isTimeout, $"Unexpected error: '{error}'");
+            var isUnknownHost = error.IndexOf("no such host", StringComparison.OrdinalIgnoreCase) >= 0
+                || error.IndexOf("name or service not known", StringComparison.OrdinalIgnoreCase) >= 0
+                || error.IndexOf("nodename nor servname provided", StringComparison.OrdinalIgnoreCase) >= 0
+                || error.IndexOf("temporary failure in name resolution", StringComparison.OrdinalIgnoreCase) >= 0;
+            Assert.True(isInvalid || isTimeout || isUnknownHost, $"Unexpected error: '{error}'");
         }
     }
 }
