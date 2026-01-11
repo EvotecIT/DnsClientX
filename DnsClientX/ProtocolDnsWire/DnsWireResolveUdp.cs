@@ -53,7 +53,10 @@ namespace DnsClientX {
                     endpointConfiguration.DnsServerResolutionSuccessTtl,
                     endpointConfiguration.DnsServerResolutionFailureTtl,
                     endpointConfiguration.DnsServerResolutionAllowStale,
-                    endpointConfiguration.DnsServerResolutionStaleTtl)
+                    endpointConfiguration.DnsServerResolutionStaleTtl,
+                    endpointConfiguration.DnsServerResolutionFailureBackoffEnabled,
+                    endpointConfiguration.DnsServerResolutionFailureBackoffFactor,
+                    endpointConfiguration.DnsServerResolutionFailureBackoffMaxTtl)
                 .ConfigureAwait(false);
             if (address == null) {
                 DnsResponse invalidAddress = new DnsResponse {

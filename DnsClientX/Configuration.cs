@@ -55,10 +55,27 @@ namespace DnsClientX {
         public TimeSpan DnsServerResolutionStaleTtl { get; set; } = TimeSpan.FromMinutes(10);
 
         /// <summary>
-        /// Gets or sets whether stale DNS server addresses can be reused when
+        /// Gets or sets whether stale DNS server addresses can be reused when  
         /// resolution fails.
         /// </summary>
         public bool DnsServerResolutionAllowStale { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets whether repeated DNS server resolution failures should
+        /// apply a backoff before retrying.
+        /// </summary>
+        public bool DnsServerResolutionFailureBackoffEnabled { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets the backoff factor used to extend the failure TTL when
+        /// resolution keeps failing.
+        /// </summary>
+        public double DnsServerResolutionFailureBackoffFactor { get; set; } = 2.0;
+
+        /// <summary>
+        /// Gets or sets the maximum TTL applied when failure backoff is enabled.
+        /// </summary>
+        public TimeSpan DnsServerResolutionFailureBackoffMaxTtl { get; set; } = TimeSpan.FromMinutes(5);
 
         /// <summary>
         /// Gets or sets how to select the DNS server to use when multiple are available.

@@ -139,5 +139,49 @@ namespace DnsClientX.Tests {
 
             Assert.All(results, result => Assert.Equal(IPAddress.Loopback, result.Address));
         }
+
+        /// <summary>
+        /// Ensures cache trimming evicts least-recently-used entries.
+        /// </summary>
+        [Fact]
+        public async Task ResolveAsync_TrimsLeastRecentlyUsedEntries() {
+            DnsServerResolver.MaxEntries = 1;
+            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            DnsServerResolver.ResolveHostAddressesAsync = host => {
+                counts[host] = counts.TryGetValue(host, out var current) ? current + 1 : 1;
+                return Task.FromResult(new[] { IPAddress.Loopback });
+            };
+
+            await DnsServerResolver.ResolveAsync(
+                "host-a.local",
+                1000,
+                CancellationToken.None,
+                TimeSpan.FromMinutes(1),
+                TimeSpan.FromSeconds(10),
+                true,
+                TimeSpan.FromMinutes(1));
+
+            await Task.Delay(10);
+
+            await DnsServerResolver.ResolveAsync(
+                "host-b.local",
+                1000,
+                CancellationToken.None,
+                TimeSpan.FromMinutes(1),
+                TimeSpan.FromSeconds(10),
+                true,
+                TimeSpan.FromMinutes(1));
+
+            await DnsServerResolver.ResolveAsync(
+                "host-a.local",
+                1000,
+                CancellationToken.None,
+                TimeSpan.FromMinutes(1),
+                TimeSpan.FromSeconds(10),
+                true,
+                TimeSpan.FromMinutes(1));
+
+            Assert.Equal(2, counts["host-a.local"]);
+        }
     }
 }
