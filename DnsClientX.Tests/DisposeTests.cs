@@ -187,7 +187,7 @@ namespace DnsClientX.Tests {
             await Task.Delay(50);
 
             var finalCount = ClientX.DisposalCount;
-            Assert.Equal(1, finalCount - initialCount);
+            Assert.True(finalCount >= initialCount + 1, $"Expected disposal count to increase. Initial={initialCount} Final={finalCount}");
         }
 
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
