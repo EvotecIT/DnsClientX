@@ -46,12 +46,21 @@ namespace DnsClientX {
                 Settings.Logger.WriteDebug($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
 
-            if (!IPAddress.TryParse(dnsServer, out IPAddress? address)) {
+            var (address, resolveError) = await DnsServerResolver.ResolveAsync(
+                    dnsServer,
+                    endpointConfiguration.TimeOut,
+                    cancellationToken,
+                    endpointConfiguration.DnsServerResolutionSuccessTtl,
+                    endpointConfiguration.DnsServerResolutionFailureTtl,
+                    endpointConfiguration.DnsServerResolutionAllowStale,
+                    endpointConfiguration.DnsServerResolutionStaleTtl)
+                .ConfigureAwait(false);
+            if (address == null) {
                 DnsResponse invalidAddress = new DnsResponse {
                     Questions = [
                         new DnsQuestion {
                             Name = name,
-                            RequestFormat = DnsRequestFormat.DnsOverUDP,
+                            RequestFormat = DnsRequestFormat.DnsOverUDP,        
                             Type = type,
                             OriginalName = name
                         }
@@ -59,7 +68,7 @@ namespace DnsClientX {
                     Status = DnsResponseCode.ServerFailure
                 };
                 invalidAddress.AddServerDetails(endpointConfiguration);
-                invalidAddress.Error = $"Invalid DNS server '{dnsServer}'.";
+                invalidAddress.Error = resolveError ?? $"Invalid DNS server '{dnsServer}'.";
                 return invalidAddress;
             }
 
@@ -71,7 +80,7 @@ namespace DnsClientX {
 
                     var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
                     if (response.IsTruncated && endpointConfiguration.UseTcpFallback) {
-                        response = await DnsWireResolveTcp.ResolveWireFormatTcp(dnsServer, port, name, type, requestDnsSec,
+                        response = await DnsWireResolveTcp.ResolveWireFormatTcp(address.ToString(), port, name, type, requestDnsSec,
                             validateDnsSec, debug, endpointConfiguration, cancellationToken).ConfigureAwait(false);
                     }
                     response.AddServerDetails(endpointConfiguration);

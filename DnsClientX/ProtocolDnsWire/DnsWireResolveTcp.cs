@@ -45,9 +45,35 @@ namespace DnsClientX {
                 Settings.Logger.WriteDebug($"Question type: {BitConverter.ToString(queryBytes, queryBytes.Length - 4, 2)}");
                 Settings.Logger.WriteDebug($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
+            var (address, resolveError) = await DnsServerResolver.ResolveAsync(
+                    dnsServer,
+                    endpointConfiguration.TimeOut,
+                    cancellationToken,
+                    endpointConfiguration.DnsServerResolutionSuccessTtl,
+                    endpointConfiguration.DnsServerResolutionFailureTtl,
+                    endpointConfiguration.DnsServerResolutionAllowStale,
+                    endpointConfiguration.DnsServerResolutionStaleTtl)
+                .ConfigureAwait(false);
+            if (address == null) {
+                DnsResponse invalidAddress = new DnsResponse {
+                    Questions = [
+                        new DnsQuestion {
+                            Name = name,
+                            RequestFormat = DnsRequestFormat.DnsOverTCP,
+                            Type = type,
+                            OriginalName = name
+                        }
+                    ],
+                    Status = DnsResponseCode.ServerFailure
+                };
+                invalidAddress.AddServerDetails(endpointConfiguration);
+                invalidAddress.Error = resolveError ?? $"Invalid DNS server '{dnsServer}'.";
+                return invalidAddress;
+            }
+
             try {
                 // Send the DNS query over TCP and receive the response
-                var responseBuffer = await SendQueryOverTcp(queryBytes, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
+                var responseBuffer = await SendQueryOverTcp(queryBytes, address.ToString(), port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
                 // Deserialize the response from DNS wire format
                 var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);

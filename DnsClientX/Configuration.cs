@@ -37,6 +37,28 @@ namespace DnsClientX {
         /// </summary>
         public TimeSpan UnavailableCooldown { get; set; } = TimeSpan.FromMinutes(1);
 
+        /// <summary>
+        /// Gets or sets how long resolved DNS server addresses stay fresh in the
+        /// local cache.
+        /// </summary>
+        public TimeSpan DnsServerResolutionSuccessTtl { get; set; } = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        /// Gets or sets how long failed DNS server resolution results are cached.
+        /// </summary>
+        public TimeSpan DnsServerResolutionFailureTtl { get; set; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Gets or sets how long a stale DNS server address may be reused after
+        /// resolution failures.
+        /// </summary>
+        public TimeSpan DnsServerResolutionStaleTtl { get; set; } = TimeSpan.FromMinutes(10);
+
+        /// <summary>
+        /// Gets or sets whether stale DNS server addresses can be reused when
+        /// resolution fails.
+        /// </summary>
+        public bool DnsServerResolutionAllowStale { get; set; } = true;
 
         /// <summary>
         /// Gets or sets how to select the DNS server to use when multiple are available.

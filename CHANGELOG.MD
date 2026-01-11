@@ -49,3 +49,6 @@
 
 ## 0.1.0 - 2024.04.05
 - Initial release
+## Unreleased
+### What's Changed
+* Add cached DNS server hostname resolution with stale fallback, configurable TTLs, and tests.
