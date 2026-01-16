@@ -256,6 +256,28 @@ namespace DnsClientX {
         }
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="ClientX"/> class using a preconfigured endpoint configuration.
+        /// The configuration instance is used directly and the hostname selection strategy is applied during construction.
+        /// </summary>
+        /// <param name="configuration">The endpoint configuration to use.</param>
+        /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>
+        /// <param name="enableCache">Enable in-memory caching of responses.</param>
+        /// <param name="webProxy">Optional HTTP proxy.</param>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="configuration"/> is null.</exception>
+        public ClientX(
+            Configuration configuration,
+            bool ignoreCertificateErrors = false,
+            bool enableCache = false,
+            IWebProxy? webProxy = null) {
+            EndpointConfiguration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            EndpointConfiguration.SelectHostNameStrategy();
+            IgnoreCertificateErrors = ignoreCertificateErrors;
+            _cacheEnabled = enableCache;
+            _webProxy = webProxy;
+            ConfigureClient();
+        }
+
+        /// <summary>
         /// Creates an optimized HttpClient with proper connection management and realistic timeouts
         /// </summary>
         private HttpClient CreateOptimizedHttpClient() {

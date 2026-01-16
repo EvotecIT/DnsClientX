@@ -151,24 +151,34 @@ namespace DnsClientX {
                     try {
                         // Receive the response with a timeout
 #if NET5_0_OR_GREATER
-                        var responseTask = udpClient.ReceiveAsync(cancellationToken).AsTask();
+                        UdpReceiveResult response = await udpClient.ReceiveAsync(cts.Token).ConfigureAwait(false);
+                        return response.Buffer;
 #else
                         var responseTask = udpClient.ReceiveAsync();
-#endif
-                        var completedTask = await Task.WhenAny(responseTask, Task.Delay(timeoutMilliseconds, cts.Token)).ConfigureAwait(false);
+                        var completedTask = await Task.WhenAny(responseTask, Task.Delay(Timeout.Infinite, cts.Token)).ConfigureAwait(false);
 
                         if (completedTask == responseTask) {
-                            // If the response task completed, return the response buffer
                             return responseTask.Result.Buffer;
-                        } else {
-                            // If the timeout task completed, throw a timeout exception
-                            throw new TimeoutException("The UDP query timed out.");
                         }
+
+                        ObserveFault(responseTask);
+                        throw new TimeoutException("The UDP query timed out.");
+#endif
                     } catch (OperationCanceledException) {
                         throw new TimeoutException("The UDP query timed out.");
                     }
                 }
             }
+        }
+
+        private static void ObserveFault(Task task) {
+            if (task == null) {
+                return;
+            }
+
+            _ = task.ContinueWith(
+                t => _ = t.Exception,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
         }
     }
 }
