@@ -436,11 +436,15 @@ using var client = new ClientX(DnsEndpoint.Cloudflare,
 
 #### Custom Endpoint Configuration
 ```csharp
-using var client = new ClientX(DnsEndpoint.Custom);
-client.EndpointConfiguration.Hostname = "1.1.1.1";
-client.EndpointConfiguration.RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
-client.EndpointConfiguration.BaseUri = new Uri("https://1.1.1.1/dns-query");
-client.EndpointConfiguration.Port = 443;
+using var client = new ClientXBuilder()
+    .WithBaseUri(new Uri("https://1.1.1.1/dns-query"), DnsRequestFormat.DnsOverHttpsJSON)
+    .Build();
+```
+Custom endpoints should be provided at construction time (builder/overloads) so the underlying HTTP client is configured correctly.
+You can also preconfigure a `Configuration` and pass it into `ClientX`:
+```csharp
+var config = new Configuration(new Uri("https://1.1.1.1/dns-query"), DnsRequestFormat.DnsOverHttpsJSON);
+using var client = new ClientX(config);
 ```
 
 #### Concurrency Control

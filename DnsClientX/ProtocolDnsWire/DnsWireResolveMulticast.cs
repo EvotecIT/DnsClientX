@@ -40,18 +40,27 @@ namespace DnsClientX {
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 cts.CancelAfter(endpointConfiguration.TimeOut);
 #if NET5_0_OR_GREATER
-                var responseTask = udpClient.ReceiveAsync(cancellationToken).AsTask();
+                try {
+                    UdpReceiveResult response = await udpClient.ReceiveAsync(cts.Token).ConfigureAwait(false);
+                    var responseBuffer = response.Buffer;
+                    var responseParsed = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
+                    responseParsed.AddServerDetails(endpointConfiguration);
+                    return responseParsed;
+                } catch (OperationCanceledException) {
+                    throw new TimeoutException("The UDP multicast query timed out.");
+                }
 #else
                 var responseTask = udpClient.ReceiveAsync();
-#endif
-                var completedTask = await Task.WhenAny(responseTask, Task.Delay(endpointConfiguration.TimeOut, cts.Token)).ConfigureAwait(false);
+                var completedTask = await Task.WhenAny(responseTask, Task.Delay(Timeout.Infinite, cts.Token)).ConfigureAwait(false);
                 if (completedTask == responseTask) {
                     var responseBuffer = responseTask.Result.Buffer;
-                    var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
-                    response.AddServerDetails(endpointConfiguration);
-                    return response;
+                    var responseParsed = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
+                    responseParsed.AddServerDetails(endpointConfiguration);
+                    return responseParsed;
                 }
+                ObserveFault(responseTask);
                 throw new TimeoutException("The UDP multicast query timed out.");
+#endif
             } catch (Exception ex) {
                 DnsResponseCode responseCode = ex is TimeoutException ? DnsResponseCode.ServerFailure : DnsResponseCode.Refused;
                 DnsResponse response = new DnsResponse {
@@ -68,6 +77,16 @@ namespace DnsClientX {
                     // ignore cleanup errors
                 }
             }
+        }
+
+        private static void ObserveFault(Task task) {
+            if (task == null) {
+                return;
+            }
+
+            _ = task.ContinueWith(
+                t => _ = t.Exception,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
         }
     }
 }
