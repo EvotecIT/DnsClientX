@@ -20,5 +20,13 @@ namespace DnsClientX.Tests {
             Assert.Equal("1.1.1.1", client.EndpointConfiguration.Hostname);
             Assert.Equal(new Uri("https://1.1.1.1/dns-query"), client.EndpointConfiguration.BaseUri);
         }
+
+        /// <summary>
+        /// Ensures the configuration constructor throws when configuration is null.
+        /// </summary>
+        [Fact]
+        public void ConfigurationConstructor_ThrowsWhenConfigurationIsNull() {
+            Assert.Throws<ArgumentNullException>(() => new ClientX((Configuration)null!));
+        }
     }
 }

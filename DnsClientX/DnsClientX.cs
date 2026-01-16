@@ -257,6 +257,7 @@ namespace DnsClientX {
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ClientX"/> class using a preconfigured endpoint configuration.
+        /// The configuration instance is used directly and the hostname selection strategy is applied during construction.
         /// </summary>
         /// <param name="configuration">The endpoint configuration to use.</param>
         /// <param name="ignoreCertificateErrors">Ignore certificate validation errors.</param>

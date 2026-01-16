@@ -1,4 +1,10 @@
-﻿## 0.3.4 - 2024.11.15
+﻿## Unreleased - 2026.01.16
+### What's Changed
+* Fix custom endpoint docs and add `ClientX(Configuration ...)` constructor
+* Improve UDP/Multicast timeout handling to rely on cancellation tokens
+* Add tests for TXT record filtering and configuration constructor
+
+## 0.3.4 - 2024.11.15
 ### What's Changed
 * Further changes to PTR (I'm pretty bad at this), changes default provider from Cloudflare to System by @PrzemyslawKlys in https://github.com/EvotecIT/DnsClientX/pull/14
 
