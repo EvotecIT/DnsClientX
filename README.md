@@ -10,7 +10,7 @@ DnsClientX is available as NuGet from the Nuget Gallery and as PowerShell module
 💻 PowerShell Module
 
 [![powershell gallery version](https://img.shields.io/powershellgallery/v/DnsClientX.svg)](https://www.powershellgallery.com/packages/DnsClientX)
-[![powershell gallery preview](https://img.shields.io/powershellgallery/vpre/DnsClientX.svg?label=powershell%20gallery%20preview&colorB=yellow)](https://www.powershellgallery.com/packages/DnsClientX)
+[![powershell gallery preview](https://img.shields.io/powershellgallery/v/DnsClientX.svg?label=powershell%20gallery%20preview&colorB=yellow&include_prereleases)](https://www.powershellgallery.com/packages/DnsClientX)
 [![powershell gallery platforms](https://img.shields.io/powershellgallery/p/DnsClientX.svg)](https://www.powershellgallery.com/packages/DnsClientX)
 [![powershell gallery downloads](https://img.shields.io/powershellgallery/dt/DnsClientX.svg)](https://www.powershellgallery.com/packages/DnsClientX)
 
