@@ -14,6 +14,38 @@ namespace DnsClientX {
     /// </remarks>
     public partial class ClientX {
         /// <summary>
+        /// Sends a DNS query for a specific record type using a shared options object.
+        /// </summary>
+        /// <param name="name">The domain name to query.</param>
+        /// <param name="recordType">The type of DNS record to query.</param>
+        /// <param name="options">Shared query options.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
+        public static Task<DnsResponse> QueryDns(
+            string name,
+            DnsRecordType recordType,
+            DnsQueryOptions? options,
+            CancellationToken cancellationToken = default) {
+            options ??= new DnsQueryOptions();
+            options.Validate();
+
+            return QueryDns(
+                name,
+                recordType,
+                options.DnsEndpoint,
+                options.DnsSelectionStrategy,
+                options.TimeOutMilliseconds,
+                options.RetryOnTransient,
+                options.MaxRetries,
+                options.RetryDelayMs,
+                options.RequestDnsSec,
+                options.ValidateDnsSec,
+                options.TypedRecords,
+                options.ParseTypedTxtRecords,
+                cancellationToken);
+        }
+
+        /// <summary>
         /// Sends a DNS query for a specific record type to a DNS server.
         /// This method allows you to specify the DNS endpoint from a predefined list of endpoints.
         /// </summary>

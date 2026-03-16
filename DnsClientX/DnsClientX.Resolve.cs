@@ -346,116 +346,15 @@ namespace DnsClientX {
             return lastResult!;
         }
 
-        /// <summary>
-        /// Checks if an error message indicates an SSL/TLS connection issue
-        /// </summary>
-        private static bool IsSSLConnectionError(string errorMessage) {
-            if (string.IsNullOrEmpty(errorMessage)) return false;
-
-            return errorMessage.IndexOf("ssl connection could not be established", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   errorMessage.IndexOf("unable to read data from the transport connection", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   errorMessage.IndexOf("connection was forcibly closed", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   errorMessage.IndexOf("certificate validation", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   errorMessage.IndexOf("handshake", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   errorMessage.IndexOf("underlying connection was closed", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   errorMessage.IndexOf("unexpected error occurred on a send", StringComparison.OrdinalIgnoreCase) >= 0;
-        }
-
         private static bool IsTransient(Exception ex) {
-            // Handle DnsClientException with specific response codes
-            if (ex is DnsClientException dnsEx) {
-                DnsResponse? response = null;
-
-                if (dnsEx.Response is not null) {
-                    response = dnsEx.Response;
-                } else if (dnsEx.Data.Contains("DnsResponse") && dnsEx.Data["DnsResponse"] is DnsResponse resp) {
-                    response = resp;
-                }
-
-                if (response is not null) {
-                    // Consider these DNS response codes as transient (should retry)
-                    return response.Status == DnsResponseCode.ServerFailure ||
-                           response.Status == DnsResponseCode.Refused ||
-                           response.Status == DnsResponseCode.NotImplemented;
-                }
-            }
-
-            // Check for SSL/TLS and connection-related errors (these often are transient)
-            if (ex is HttpRequestException httpEx) {
-                var message = httpEx.Message ?? string.Empty;
-                var innerMessage = httpEx.InnerException?.Message ?? string.Empty;
-
-                // SSL/TLS certificate and connection errors - these are often transient
-                if (message.IndexOf("ssl connection could not be established", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    message.IndexOf("unable to read data from the transport connection", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    message.IndexOf("connection was forcibly closed", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    message.IndexOf("certificate validation", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    message.IndexOf("handshake", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    innerMessage.IndexOf("ssl connection could not be established", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    innerMessage.IndexOf("unable to read data from the transport connection", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    innerMessage.IndexOf("connection was forcibly closed", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    innerMessage.IndexOf("certificate validation", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    innerMessage.IndexOf("handshake", StringComparison.OrdinalIgnoreCase) >= 0) {
-                    return true;
-                }
-            }
-
-            if (ex is SocketException socketEx) {
-                if (socketEx.SocketErrorCode == SocketError.ConnectionReset ||
-                    socketEx.SocketErrorCode == SocketError.NetworkUnreachable) {
-                    return true;
-                }
-            }
-
-            // Network and timeout-related exceptions
-            return ex is DnsClientException ||
-                   ex is TaskCanceledException ||
-                   ex is TimeoutException ||
-                   ex is HttpRequestException ||
-                   ex is SocketException ||
-                   ex is System.IO.IOException ||
-                   (ex.InnerException != null && IsTransient(ex.InnerException));
+            return DnsQueryDiagnostics.IsTransient(ex);
         }
 
         /// <summary>
         /// Checks if a DnsResponse indicates a transient error that should be retried
         /// </summary>
         private static bool IsTransientResponse(DnsResponse response) {
-            // Only consider ServerFailure as transient if it has no answers and contains network/SSL errors
-            if (response.Status == DnsResponseCode.ServerFailure) {
-                // If there are answers despite ServerFailure, don't retry (it's likely a real DNS issue)
-                if (response.Answers != null && response.Answers.Length > 0) {
-                    return false;
-                }
-
-                // Check if the error indicates a network/SSL connection issue
-                if (!string.IsNullOrEmpty(response.Error)) {
-                    var errorMessage = response.Error;
-                    if (errorMessage.IndexOf("ssl connection could not be established", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        errorMessage.IndexOf("unable to read data from the transport connection", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        errorMessage.IndexOf("connection was forcibly closed", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        errorMessage.IndexOf("certificate validation", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        errorMessage.IndexOf("handshake", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        errorMessage.IndexOf("network error", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        errorMessage.IndexOf("timeout", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        errorMessage.IndexOf("an error occurred while sending the request", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        errorMessage.IndexOf("unexpected error occurred on a send", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        errorMessage.IndexOf("underlying connection was closed", StringComparison.OrdinalIgnoreCase) >= 0) {
-                        return true;
-                    }
-                }
-
-                // ServerFailure with no answers and no clear error message might also be transient
-                return true;
-            }
-
-            // Other potentially transient DNS response codes
-            if (response.Status == DnsResponseCode.Refused ||
-                response.Status == DnsResponseCode.NotImplemented) {
-                return true;
-            }
-
-            return false;
+            return DnsQueryDiagnostics.IsTransient(response);
         }
 
         /// <summary>
