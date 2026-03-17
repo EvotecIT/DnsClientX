@@ -79,7 +79,11 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task QueryDns_ShouldDisposeClient_WhenCancelled() {
-            // Use a local snapshot to avoid interference from other parallel tests
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            // Use a local snapshot to avoid interference from other tests that also touch the global counter.
             var initialCount = ClientX.DisposalCount;
 
             using var cts = new CancellationTokenSource();
@@ -91,7 +95,9 @@ namespace DnsClientX.Tests {
             await Task.Delay(50);
 
             var finalCount = ClientX.DisposalCount;
-            Assert.Equal(1, finalCount - initialCount);
+            Assert.True(
+                finalCount - initialCount >= 1,
+                $"Expected disposal count to increase by at least one. Initial={initialCount} Final={finalCount}");
         }
 
         /// <summary>

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Management.Automation;
-using System.Reflection;
 using System.Net;
 using System.Threading.Tasks;
 using DnsClientX;
@@ -304,22 +303,16 @@ namespace DnsClientX.PowerShell {
 
         private InternalLogger? _logger;
 
-        private static readonly MethodInfo _isTransientResponse = typeof(ClientX).GetMethod("IsTransientResponse", BindingFlags.NonPublic | BindingFlags.Static)!;
-        private static readonly MethodInfo _isTransientException = typeof(ClientX).GetMethod("IsTransient", BindingFlags.NonPublic | BindingFlags.Static)!;
-
-        private static bool IsTransientResponse(DnsResponse response) => (bool)_isTransientResponse.Invoke(null, new object[] { response })!;
-        private static bool IsTransient(Exception ex) => (bool)_isTransientException.Invoke(null, new object[] { ex })!;
-
         private async Task<DnsResponse[]> ExecuteWithRetry(Func<Task<DnsResponse[]>> query) {
             DnsResponse[] lastResults = Array.Empty<DnsResponse>();
             Exception? lastException = null;
             for (int attempt = 1; attempt <= RetryCount; attempt++) {
                 try {
                     lastResults = await query();
-                    if (!lastResults.Any(IsTransientResponse)) {
+                    if (!lastResults.Any(DnsQueryDiagnostics.IsTransient)) {
                         return lastResults;
                     }
-                } catch (Exception ex) when (IsTransient(ex)) {
+                } catch (Exception ex) when (DnsQueryDiagnostics.IsTransient(ex)) {
                     lastException = ex;
                 }
 
