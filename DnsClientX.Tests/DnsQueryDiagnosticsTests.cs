@@ -42,6 +42,22 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Ensures negative resolver statuses are not treated as suspicious empty successes.
+        /// </summary>
+        [Fact]
+        public void IsSuspiciousEmptySuccess_ReturnsFalseForNegativeStatusWithoutEnvelopeData() {
+            var response = new DnsResponse {
+                Status = DnsResponseCode.NXDomain,
+                Questions = System.Array.Empty<DnsQuestion>(),
+                Answers = System.Array.Empty<DnsAnswer>(),
+                Authorities = System.Array.Empty<DnsAnswer>(),
+                Additional = System.Array.Empty<DnsAnswer>()
+            };
+
+            Assert.False(DnsQueryDiagnostics.IsSuspiciousEmptySuccess(response));
+        }
+
+        /// <summary>
         /// Ensures server failures without answers are treated as transient.
         /// </summary>
         [Fact]

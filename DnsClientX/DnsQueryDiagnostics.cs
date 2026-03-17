@@ -111,7 +111,7 @@ namespace DnsClientX {
                 throw new ArgumentNullException(nameof(response));
             }
 
-            if (response.IsTruncated) {
+            if (response.IsTruncated || response.Status != DnsResponseCode.NoError) {
                 return false;
             }
 
