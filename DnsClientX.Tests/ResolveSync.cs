@@ -78,7 +78,7 @@ namespace DnsClientX.Tests {
 
             if (lastException != null)
             {
-                throw new Exception($"DNS resolution failed after {maxRetries} attempts", lastException);
+                throw new InvalidOperationException($"DNS resolution failed after {maxRetries} attempts", lastException);
             }
 
             return response;
