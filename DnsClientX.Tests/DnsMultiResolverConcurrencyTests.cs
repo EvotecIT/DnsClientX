@@ -37,7 +37,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Verifies that PerEndpointMaxInFlight limits concurrent requests per single endpoint.
         /// </summary>
-        [Fact(Skip = "Timing-sensitive in parallel runners; verified in functional scenarios.")]
+        [Fact]
         public async Task PerEndpointMaxInFlight_Caps_Per_Endpoint() {
             try {
                 var eps = new[] { new DnsResolverEndpoint { Host="only", Port=53, Transport=Transport.Udp } };
@@ -53,7 +53,7 @@ namespace DnsClientX.Tests {
                 var mr = new DnsMultiResolver(eps, opts);
                 var names = new[] { "a","b","c","d","e","f" };
                 await mr.QueryBatchAsync(names, DnsRecordType.A);
-                Assert.True(maxInFlight <= opts.PerEndpointMaxInFlight + 1, $"maxInFlight={maxInFlight}");
+                Assert.True(maxInFlight <= opts.PerEndpointMaxInFlight, $"maxInFlight={maxInFlight}");
             } finally { DnsMultiResolver.ResolveOverride = null; }
         }
     }

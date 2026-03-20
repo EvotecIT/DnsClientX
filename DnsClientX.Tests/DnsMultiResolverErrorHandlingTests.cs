@@ -21,14 +21,14 @@ namespace DnsClientX.Tests {
                 DnsMultiResolver.ResolveOverride = (ep, name, type, ct) => throw new SocketException((int)SocketError.NetworkUnreachable);
                 var mr = new DnsMultiResolver(eps, opts);
                 var res = await mr.QueryAsync("x.com", DnsRecordType.A);
-                Assert.True(res.ErrorCode == DnsQueryErrorCode.Network || res.ErrorCode == DnsQueryErrorCode.ServFail, $"ErrorCode was {res.ErrorCode}");
+                Assert.Equal(DnsQueryErrorCode.Network, res.ErrorCode);
             } finally { DnsMultiResolver.ResolveOverride = null; }
         }
 
         /// <summary>
         /// Simulates a DnsClientException to ensure ErrorCode is set to InvalidResponse.
         /// </summary>
-        [Fact(Skip = "Flaky in constrained/AOT test environments; exercise via integration paths.")]
+        [Fact]
         public async Task Error_InvalidResponse_Sets_ErrorCode_InvalidResponse() {
             try {
                 var eps = new[] { new DnsResolverEndpoint { Host="n1", Port=53, Transport=Transport.Udp } };
@@ -36,7 +36,7 @@ namespace DnsClientX.Tests {
                 DnsMultiResolver.ResolveOverride = (ep, name, type, ct) => throw new DnsClientException("bad response");
                 var mr = new DnsMultiResolver(eps, opts);
                 var res = await mr.QueryAsync("x.com", DnsRecordType.A);
-                Assert.True(res.ErrorCode == DnsQueryErrorCode.InvalidResponse || res.ErrorCode == DnsQueryErrorCode.ServFail, $"ErrorCode was {res.ErrorCode}");
+                Assert.Equal(DnsQueryErrorCode.InvalidResponse, res.ErrorCode);
             } finally { DnsMultiResolver.ResolveOverride = null; }
         }
     }

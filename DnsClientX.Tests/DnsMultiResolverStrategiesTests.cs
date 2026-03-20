@@ -99,7 +99,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures FastestWins warms endpoints and reuses the fastest endpoint for subsequent queries.
         /// </summary>
-        [Fact(Skip = "Cache timing is flaky under parallel test runners; covered by functional usage.")]
+        [Fact]
         public async Task FastestWins_Warms_And_Uses_Cached_Fastest() {
             try {
                 DnsMultiResolver.ClearFastestCache();

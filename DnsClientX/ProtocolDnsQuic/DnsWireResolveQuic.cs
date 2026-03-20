@@ -117,9 +117,10 @@ namespace DnsClientX {
             };
 
             try {
+                using var timeoutCts = CreateTimeoutTokenSource(endpointConfiguration.TimeOut, cancellationToken);
                 QuicConnection quicConnection;
                 try {
-                    quicConnection = await QuicConnectionFactory(options, cancellationToken).ConfigureAwait(false);
+                    quicConnection = await QuicConnectionFactory(options, timeoutCts.Token).ConfigureAwait(false);
                 } catch (QuicException ex) {
                     var failureResponse = new DnsResponse {
                         Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverQuic, Type = type, OriginalName = name } ],
@@ -132,19 +133,19 @@ namespace DnsClientX {
 
                 QuicStream? stream = null;
                 try {
-                    stream = await StreamFactory(quicConnection, cancellationToken).ConfigureAwait(false);
+                    stream = await StreamFactory(quicConnection, timeoutCts.Token).ConfigureAwait(false);
 
-                    await stream.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
+                    await stream.WriteAsync(payload, timeoutCts.Token).ConfigureAwait(false);
                     stream.CompleteWrites();
 
                     var lengthBuffer = new byte[2];
-                    await DnsWire.ReadExactAsync(stream, lengthBuffer, 0, 2, cancellationToken).ConfigureAwait(false);
+                    await DnsWire.ReadExactAsync(stream, lengthBuffer, 0, 2, timeoutCts.Token).ConfigureAwait(false);
                     if (BitConverter.IsLittleEndian) {
                         Array.Reverse(lengthBuffer);
                     }
                     int responseLength = BitConverter.ToUInt16(lengthBuffer, 0);
                     var responseBuffer = new byte[responseLength];
-                    await DnsWire.ReadExactAsync(stream, responseBuffer, 0, responseLength, cancellationToken).ConfigureAwait(false);
+                    await DnsWire.ReadExactAsync(stream, responseBuffer, 0, responseLength, timeoutCts.Token).ConfigureAwait(false);
 
                     var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
                     response.AddServerDetails(endpointConfiguration);
@@ -163,16 +164,37 @@ namespace DnsClientX {
                 response.AddServerDetails(endpointConfiguration);
                 response.Error = $"DNS over QUIC is not supported on this platform: {ex.Message}";
                 return response;
+            } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
+                var response = new DnsResponse {
+                    Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverQuic, Type = type, OriginalName = name } ],
+                    Status = DnsResponseCode.ServerFailure,
+                    ErrorCode = DnsQueryErrorCode.Timeout
+                };
+                response.AddServerDetails(endpointConfiguration);
+                response.Error = $"Failed to query type {type} of \"{name}\" => The QUIC request timed out after {endpointConfiguration.TimeOut} milliseconds.";
+                return response;
             } catch (Exception ex) {
                 DnsResponseCode responseCode = ex is TimeoutException ? DnsResponseCode.ServerFailure : DnsResponseCode.Refused;
                 var response = new DnsResponse {
                     Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverQuic, Type = type, OriginalName = name } ],
-                    Status = responseCode
+                    Status = responseCode,
+                    ErrorCode = ex is TimeoutException ? DnsQueryErrorCode.Timeout : DnsQueryErrorCode.ServFail,
+                    Exception = ex
                 };
                 response.AddServerDetails(endpointConfiguration);
                 response.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message}";
                 return response;
             }
+        }
+
+        private static CancellationTokenSource CreateTimeoutTokenSource(int timeoutMilliseconds, CancellationToken cancellationToken) {
+            var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            if (timeoutMilliseconds <= 0) {
+                linkedCts.Cancel();
+            } else {
+                linkedCts.CancelAfter(timeoutMilliseconds);
+            }
+            return linkedCts;
         }
     }
     #pragma warning restore CA2252
