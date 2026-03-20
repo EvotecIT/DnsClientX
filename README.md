@@ -30,7 +30,7 @@ DnsClientX is available as NuGet from the Nuget Gallery and as PowerShell module
 
 ## What it's all about
 
-**DnsClientX** is an async C# library for DNS over UDP, TCP, HTTPS (DoH), and TLS (DoT). It also has a PowerShell module that can be used to query DNS records. It provides a simple way to query DNS records using multiple DNS providers. It supports multiple DNS record types and parallel queries. It's available for .NET 8, .NET Standard 2.0, and .NET 4.7.2.
+**DnsClientX** is an async C# library for DNS over UDP, TCP, HTTPS (DoH), and TLS (DoT). It also has a PowerShell module that can be used to query DNS records. It provides a simple way to query DNS records using multiple DNS providers. It supports multiple DNS record types and parallel queries. It's available for .NET 8, .NET 10, .NET Standard 2.0, and .NET 4.7.2.
 
 ## Response Format Options: Typed vs Non-Typed Records
 
@@ -103,19 +103,18 @@ If you want to learn about DNS:
 ## Supported .NET Versions and Dependencies
 
 ### Core Library (DnsClientX)
-- **.NET 8.0 / .NET 9.0** (Windows, Linux, macOS)
+- **.NET 8.0 / .NET 10.0** (Windows, Linux, macOS)
   - No external dependencies
 - **.NET Standard 2.0** (Cross-platform compatibility)
-  - System.Net.Http (4.3.4)
-  - System.Text.Json (8.0.5)
-  - Microsoft.Bcl.AsyncInterfaces (8.0.0)
+  - System.Text.Json (10.0.5)
+  - Microsoft.Bcl.AsyncInterfaces (10.0.5)
 - **.NET Framework 4.7.2** (Windows only)
   - System.Net.Http (built-in)
-  - System.Text.Json (8.0.5)
-  - Microsoft.Bcl.AsyncInterfaces (8.0.0)
+  - System.Text.Json (10.0.5)
+  - Microsoft.Bcl.AsyncInterfaces (10.0.5)
 
 ### Command Line Interface (DnsClientX.exe)
-- **.NET 8.0 / .NET 9.0** (Windows, Linux, macOS)
+- **.NET 8.0 / .NET 10.0** (Windows, Linux, macOS)
 - **.NET Framework 4.7.2** (Windows only)
 - Single-file deployment supported
 
@@ -127,7 +126,7 @@ If you want to learn about DNS:
 
 ### Examples Project
 - **.NET 8.0** only
-- Spectre.Console (0.50.0) for enhanced console output
+- Spectre.Console (0.54.0) for enhanced console output
 
 ## Build Status
 
@@ -148,7 +147,7 @@ If you want to learn about DNS:
 - [x] Supports DNSSEC
 - [x] Supports multiple DNS record types
 - [x] Supports parallel queries
-- [x] No external dependencies on .NET 8
+- [x] No external dependencies on .NET 8 and .NET 10
 - [x] Minimal dependencies on .NET Standard 2.0 and .NET 4.7.2
 - [x] Implements IDisposable to release cached HttpClient resources
 - [x] Multi-line record data normalized to use `\n` line endings

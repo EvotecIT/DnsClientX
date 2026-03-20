@@ -48,11 +48,11 @@ namespace DnsClientX.Tests {
             using TcpClient client = await listener.AcceptTcpClientAsync();
             NetworkStream stream = client.GetStream();
             byte[] lengthBuffer = new byte[2];
-            await stream.ReadAsync(lengthBuffer, 0, 2, token);
+            await TestUtilities.ReadExactlyAsync(stream, lengthBuffer, 2, token);
             if (BitConverter.IsLittleEndian) Array.Reverse(lengthBuffer);
             int length = BitConverter.ToUInt16(lengthBuffer, 0);
             byte[] queryBuffer = new byte[length];
-            await stream.ReadAsync(queryBuffer, 0, length, token);
+            await TestUtilities.ReadExactlyAsync(stream, queryBuffer, length, token);
             byte[] prefix = BitConverter.GetBytes((ushort)response.Length);
             if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
             await stream.WriteAsync(prefix, 0, prefix.Length, token);

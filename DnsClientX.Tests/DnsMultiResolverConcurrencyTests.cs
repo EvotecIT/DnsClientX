@@ -8,6 +8,7 @@ namespace DnsClientX.Tests {
     /// <summary>
     /// Concurrency and in-flight caps for DnsMultiResolver.
     /// </summary>
+    [Collection("NoParallel")]
     public class DnsMultiResolverConcurrencyTests {
         /// <summary>
         /// Verifies that QueryBatchAsync honors the MaxParallelism cap across all endpoints.

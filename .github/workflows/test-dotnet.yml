@@ -15,7 +15,7 @@ on:
     workflow_dispatch:
 
 env:
-    DOTNET_VERSION: '8.x'
+    DOTNET_VERSION: '10.x'
     BUILD_CONFIGURATION: 'Release'
     TEST_VERBOSITY: minimal # set to 'detailed' to restore full test output
     SUMMARIZE_FAILURES: true # set to 'false' to disable summarizing failing tests
@@ -40,8 +40,13 @@ jobs:
             - name: Build solution
               run: dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
 
-            - name: Run tests
-              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --collect:"XPlat Code Coverage"
+            - name: Run tests (.NET Framework 4.7.2)
+              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net472 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx
+              env:
+                  DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
+
+            - name: Run tests (.NET 10.0)
+              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net10.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --collect:"XPlat Code Coverage"
               env:
                   DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
 
@@ -119,7 +124,7 @@ jobs:
               run: dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
 
             - name: Run tests
-              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --collect:"XPlat Code Coverage"
+              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net10.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --collect:"XPlat Code Coverage"
               env:
                   DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
 
@@ -197,7 +202,7 @@ jobs:
               run: dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
 
             - name: Run tests
-              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --collect:"XPlat Code Coverage"
+              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net10.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --collect:"XPlat Code Coverage"
               env:
                   DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
 

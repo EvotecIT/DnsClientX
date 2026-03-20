@@ -5,7 +5,7 @@
             DnsClientX is an async C# library for DNS over UDP, TCP, HTTPS (DoH), and TLS
             (DoT). It also has a PowerShell module that can be used to query DNS records. It
             provides a simple way to query DNS records using multiple DNS providers. It supports
-            multiple DNS record types and parallel queries. It's available for .NET 8, .NET 9,
+            multiple DNS record types and parallel queries. It's available for .NET 8, .NET 10,
             .NET Standard 2.0, and .NET Framework 4.7.2.
         </Description>
         <AssemblyName>DnsClientX</AssemblyName>
@@ -14,11 +14,11 @@
         <AssemblyVersion>1.0.7</AssemblyVersion>
         <FileVersion>1.0.7</FileVersion>
         <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`Windows`))' ">
-            netstandard2.0;net472;net8.0;net9.0
+            netstandard2.0;net472;net8.0;net10.0
         </TargetFrameworks>
         <TargetFrameworks
             Condition=" '$([MSBuild]::IsOsPlatform(`OSX`))'  Or '$([MSBuild]::IsOsPlatform(`Linux`))' ">
-            net8.0
+            netstandard2.0;net8.0;net10.0
         </TargetFrameworks>
         <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
         <Company>Evotec</Company>
@@ -30,7 +30,7 @@
         <PackageId>DnsClientX</PackageId>
         <PackageIcon>DnsClientX.png</PackageIcon>
         <PackageTags>
-            dns;https;dns-over-https;net472;net48;netstandard;netstandard2.0,netstandard2.1;net80;net90
+            dns;https;dns-over-https;net472;netstandard;netstandard2.0;net80;net100
         </PackageTags>
         <PackageProjectUrl>https://github.com/EvotecIT/DnsClientX</PackageProjectUrl>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -55,16 +55,15 @@
     </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)'=='netstandard2.0'">
-        <PackageReference Include="System.Net.Http" Version="4.3.4" />
-        <PackageReference Include="System.Text.Json" Version="8.0.5" />
-        <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
+        <PackageReference Include="System.Text.Json" Version="10.0.5" />
+        <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.5" />
   </ItemGroup>
 
 
     <ItemGroup Condition="'$(TargetFramework)'=='net472' OR '$(TargetFramework)'=='net48'">
         <Reference Include="System.Net.Http" />
-        <PackageReference Include="System.Text.Json" Version="8.0.5" />
-        <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
+        <PackageReference Include="System.Text.Json" Version="10.0.5" />
+        <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.5" />
     </ItemGroup>
 
     <ItemGroup>

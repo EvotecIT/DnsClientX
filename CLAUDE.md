@@ -43,7 +43,7 @@ dotnet test DnsClientX.sln --configuration Release
 dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration Release --collect:"XPlat Code Coverage" --logger trx
 
 # Run tests for specific framework
-dotnet test --framework net8.0
+dotnet test --framework net10.0
 
 # Debug system DNS issues
 DNSCLIENTX_DEBUG_SYSTEMDNS=1 dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj
@@ -94,7 +94,7 @@ dotnet test --filter "ClassName=DnsClientX.Tests.SpecificTestClass"
 ### Multi-targeting Strategy
 
 The project targets multiple .NET versions:
-- .NET 8.0 and 9.0 (latest features)
+- .NET 8.0 and 10.0 (latest features)
 - .NET Standard 2.0 (broad compatibility)
 - .NET Framework 4.7.2 (legacy support)
 
