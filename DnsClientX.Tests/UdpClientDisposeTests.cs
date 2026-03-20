@@ -59,14 +59,19 @@ namespace DnsClientX.Tests {
 
             int clientPort = await udpTask;
 
-            UdpClient? testClient = null;
             Exception? ex = null;
-            try {
-                testClient = new UdpClient(new IPEndPoint(IPAddress.Loopback, clientPort));
-            } catch (Exception e) {
-                ex = e;
-            } finally {
-                testClient?.Dispose();
+            for (int attempt = 0; attempt < 10; attempt++) {
+                UdpClient? testClient = null;
+                try {
+                    testClient = new UdpClient(new IPEndPoint(IPAddress.Loopback, clientPort));
+                    ex = null;
+                    break;
+                } catch (SocketException e) {
+                    ex = e;
+                    await Task.Delay(50, cts.Token);
+                } finally {
+                    testClient?.Dispose();
+                }
             }
 
             Assert.Null(ex);
