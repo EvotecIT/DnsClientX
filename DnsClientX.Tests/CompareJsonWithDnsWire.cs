@@ -11,7 +11,7 @@ namespace DnsClientX.Tests {
         /// <param name="endpoint">Primary endpoint.</param>
         /// <param name="endpointCompare">Endpoint to compare against.</param>
         /// <param name="resourceRecordType">The record type to query.</param>
-        [Theory(Skip = "External dependency - unreliable for automated testing")]
+        [RealDnsTheory]
         [InlineData("evotec.pl", DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS, DnsRecordType.A)]
         [InlineData("reddit.com", DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS, DnsRecordType.A)]
         [InlineData("evotec.pl", DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNS, DnsRecordType.AAAA)]

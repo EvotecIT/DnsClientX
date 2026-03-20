@@ -107,16 +107,11 @@ namespace DnsClientX.Tests {
 
             Assert.Equal(2, delays.Count);
 
-            var ratio = delays[1] / (double)delays[0];
-
-            // Delay should increase exponentially. Allow broad tolerance for slow
-            // environments and timer inaccuracies. On heavily loaded systems the
-            // ratio can be slightly below 1, so check for a minimal increase.
-            Assert.InRange(delays[0], 40, 1000);
-            // Allow very wide tolerance for slow environments and coarse timers
-            // which can result in a ratio far from the expected value. We only
-            // check that the delay increased by a noticeable amount.
-            Assert.True(ratio >= 0.5 && ratio <= 5.0, $"Unexpected ratio: {ratio}");
+            // With jitter disabled the retry helper uses delayMs << attempt,
+            // so the two waits should clear progressively higher minimums even
+            // if the host oversleeps under load.
+            Assert.InRange(delays[0], 80, 5000);
+            Assert.InRange(delays[1], 160, 10000);
         }
 
         /// <summary>

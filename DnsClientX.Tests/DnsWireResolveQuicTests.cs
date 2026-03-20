@@ -107,6 +107,34 @@ namespace DnsClientX.Tests {
                 DnsWireResolveQuic.StreamDisposer = prevStreamDisposer;
             }
         }
+
+        /// <summary>
+        /// Ensures the configured endpoint timeout is honored when QUIC connection establishment stalls.
+        /// </summary>
+        [Fact]
+        public async Task ResolveWireFormatQuic_ReturnsTimeout_WhenConnectStalls() {
+            var previousFactory = DnsWireResolveQuic.QuicConnectionFactory;
+            var previousResolver = DnsWireResolveQuic.HostEntryResolver;
+            try {
+                DnsWireResolveQuic.HostEntryResolver = _ => new IPHostEntry { AddressList = [IPAddress.Loopback] };
+                DnsWireResolveQuic.QuicConnectionFactory = async (_, token) => {
+                    await Task.Delay(Timeout.Infinite, token);
+                    return (QuicConnection)RuntimeHelpers.GetUninitializedObject(typeof(QuicConnection));
+                };
+
+                var config = new Configuration("dummy", DnsRequestFormat.DnsOverQuic) {
+                    TimeOut = 100
+                };
+
+                var response = await DnsWireResolveQuic.ResolveWireFormatQuic("dummy", 853, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None);
+                Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
+                Assert.Equal(DnsQueryErrorCode.Timeout, response.ErrorCode);
+                Assert.Contains("timed out", response.Error, StringComparison.OrdinalIgnoreCase);
+            } finally {
+                DnsWireResolveQuic.QuicConnectionFactory = previousFactory;
+                DnsWireResolveQuic.HostEntryResolver = previousResolver;
+            }
+        }
     }
 }
 #pragma warning restore CA2252

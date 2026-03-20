@@ -14,7 +14,7 @@ namespace DnsClientX.Tests {
         /// <param name="name">Domain name to query.</param>
         /// <param name="resourceRecordType">Record type.</param>
         /// <param name="excludedEndpoints">Optional providers to exclude.</param>
-        [Theory(Skip = "External dependency - unreliable for automated testing")]
+        [RealDnsTheory]
         [InlineData("evotec.pl", DnsRecordType.TXT, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("microsoft.com", DnsRecordType.TXT, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("disneyplus.com", DnsRecordType.TXT, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
@@ -151,7 +151,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Compares provider answers after filtering responses for a specific pattern.
         /// </summary>
-        [Theory(Skip = "External dependency - unreliable for automated testing")]
+        [RealDnsTheory]
         [InlineData("evotec.pl", DnsRecordType.TXT)]
         [InlineData("microsoft.com", DnsRecordType.TXT)]
         [InlineData("disneyplus.com", DnsRecordType.TXT)]
@@ -253,7 +253,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Executes filtered resolve tests for multiple domains simultaneously.
         /// </summary>
-        [Theory(Skip = "External dependency - unreliable for automated testing")]
+        [RealDnsTheory]
         [InlineData(new[] { "evotec.pl", "microsoft.com", "disneyplus.com" }, DnsRecordType.TXT)]
         public async Task CompareRecordsMulti(string[] names, DnsRecordType resourceRecordType, DnsEndpoint[]? excludedEndpoints = null) {
             string filter = "v=spf1";

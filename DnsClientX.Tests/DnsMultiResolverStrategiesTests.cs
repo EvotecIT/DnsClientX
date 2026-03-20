@@ -44,9 +44,62 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Ensures FirstSuccess backfills its parallel window immediately after a failed endpoint completes.
+        /// </summary>
+        [Fact]
+        public async Task FirstSuccess_StartsNextQueuedEndpoint_AsSoonAsFailureCompletes() {
+            try {
+                var eps = new[] {
+                    new DnsResolverEndpoint { Host="slow-fail", Port=53, Transport=Transport.Udp },
+                    new DnsResolverEndpoint { Host="fast-fail", Port=53, Transport=Transport.Udp },
+                    new DnsResolverEndpoint { Host="late-success", Port=53, Transport=Transport.Udp }
+                };
+                var opts = new MultiResolverOptions { Strategy = MultiResolverStrategy.FirstSuccess, MaxParallelism = 2 };
+                var slowGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var successStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+                DnsMultiResolver.ResolveOverride = async (ep, name, type, ct) => {
+                    if (ep.Host == "slow-fail") {
+                        var released = await Task.WhenAny(slowGate.Task, Task.Delay(Timeout.Infinite, ct));
+                        await released.ConfigureAwait(false);
+                        return new DnsResponse {
+                            Questions = new[] { new DnsQuestion { Name = name, Type = type, OriginalName = name } },
+                            Status = DnsResponseCode.ServerFailure,
+                            Error = "slow failure",
+                            ErrorCode = DnsQueryErrorCode.ServFail
+                        };
+                    }
+
+                    if (ep.Host == "fast-fail") {
+                        await Task.Delay(30, ct);
+                        return new DnsResponse {
+                            Questions = new[] { new DnsQuestion { Name = name, Type = type, OriginalName = name } },
+                            Status = DnsResponseCode.ServerFailure,
+                            Error = "fast failure",
+                            ErrorCode = DnsQueryErrorCode.ServFail
+                        };
+                    }
+
+                    successStarted.TrySetResult(true);
+                    return Ok(name, type);
+                };
+
+                var mr = new DnsMultiResolver(eps, opts);
+                var queryTask = mr.QueryAsync("example.com", DnsRecordType.A);
+
+                var startedTask = await Task.WhenAny(successStarted.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+                Assert.Same(successStarted.Task, startedTask);
+
+                slowGate.TrySetResult(true);
+                var res = await queryTask;
+                Assert.Equal(DnsResponseCode.NoError, res.Status);
+            } finally { DnsMultiResolver.ResolveOverride = null; }
+        }
+
+        /// <summary>
         /// Ensures FastestWins warms endpoints and reuses the fastest endpoint for subsequent queries.
         /// </summary>
-        [Fact(Skip = "Cache timing is flaky under parallel test runners; covered by functional usage.")]
+        [Fact]
         public async Task FastestWins_Warms_And_Uses_Cached_Fastest() {
             try {
                 DnsMultiResolver.ClearFastestCache();

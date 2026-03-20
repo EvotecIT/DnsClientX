@@ -11,7 +11,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Batch queries preserve input order and isolate per-item failures.
         /// </summary>
-        [Fact(Skip = "Integration test - network dependent; run locally if needed")]
+        [RealDnsFact]
         public async Task Batch_PreservesOrder_And_IsolatesFailures() {
             var eps = EndpointParser.TryParseMany(new []{ "1.1.1.1:53", "8.8.8.8:53" }, out var errors);
             Assert.Empty(errors);

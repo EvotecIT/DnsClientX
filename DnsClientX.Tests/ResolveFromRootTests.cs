@@ -9,7 +9,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Queries the root servers directly to resolve an A record.
         /// </summary>
-        [Fact(Skip = "External dependency - requires root servers")] // network unreachable in CI
+        [RealDnsFact]
         public async Task ShouldResolveARecordFromRoot() {
             var response = await ClientX.QueryDns("github.com", DnsRecordType.A, DnsEndpoint.RootServer);
             Assert.NotEmpty(response.Answers);

@@ -37,6 +37,7 @@ namespace DnsClientX {
 
             Uri uri = new($"https://{dnsServer}:{port}");
             try {
+                using var timeoutCts = CreateTimeoutTokenSource(endpointConfiguration.TimeOut, cancellationToken);
                 using var client = ClientFactory(uri);
                 using var request = new HttpRequestMessage(HttpMethod.Post, "/DnsResolver/QueryDns") {
                     Version = HttpVersion.Version20,
@@ -45,21 +46,42 @@ namespace DnsClientX {
                 };
                 request.Headers.Add("TE", "trailers");
                 request.Content!.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/grpc");
-                using var responseMsg = await SendAsync(client, request, cancellationToken).ConfigureAwait(false);
-                byte[] responseBytes = await responseMsg.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+                using var responseMsg = await SendAsync(client, request, timeoutCts.Token).ConfigureAwait(false);
+                byte[] responseBytes = await responseMsg.Content.ReadAsByteArrayAsync(timeoutCts.Token).ConfigureAwait(false);
                 var payload = ParseGrpcPayload(responseBytes);
                 var response = await DnsWire.DeserializeDnsWireFormat(null, debug, payload).ConfigureAwait(false);
                 response.AddServerDetails(endpointConfiguration);
                 return response;
+            } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
+                var timeoutResponse = new DnsResponse {
+                    Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverGrpc, Type = type, OriginalName = name } ],
+                    Status = DnsResponseCode.ServerFailure,
+                    ErrorCode = DnsQueryErrorCode.Timeout
+                };
+                timeoutResponse.AddServerDetails(endpointConfiguration);
+                timeoutResponse.Error = $"Failed to query type {type} of \"{name}\" => The gRPC request timed out after {endpointConfiguration.TimeOut} milliseconds.";
+                return timeoutResponse;
             } catch (Exception ex) {
                 var response = new DnsResponse {
                     Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverGrpc, Type = type, OriginalName = name } ],
-                    Status = DnsResponseCode.ServerFailure
+                    Status = DnsResponseCode.ServerFailure,
+                    ErrorCode = DnsQueryErrorCode.ServFail,
+                    Exception = ex
                 };
                 response.AddServerDetails(endpointConfiguration);
                 response.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message}";
                 return response;
             }
+        }
+
+        private static CancellationTokenSource CreateTimeoutTokenSource(int timeoutMilliseconds, CancellationToken cancellationToken) {
+            var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            if (timeoutMilliseconds <= 0) {
+                linkedCts.Cancel();
+            } else {
+                linkedCts.CancelAfter(timeoutMilliseconds);
+            }
+            return linkedCts;
         }
 
         private static byte[] CreateGrpcPayload(byte[] data) {

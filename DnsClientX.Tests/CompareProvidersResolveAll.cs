@@ -11,7 +11,7 @@ namespace DnsClientX.Tests {
         /// <param name="name">Domain name to resolve.</param>
         /// <param name="resourceRecordType">Type of record.</param>
         /// <param name="excludedEndpoints">Optional providers to skip.</param>
-        [Theory(Skip = "External dependency - unreliable for automated testing")]
+        [RealDnsTheory]
         [InlineData("evotec.pl", DnsRecordType.A, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("evotec.pl", DnsRecordType.SOA, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("evotec.pl", DnsRecordType.DNSKEY, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
@@ -156,7 +156,7 @@ namespace DnsClientX.Tests {
         /// <param name="name">Domain name to resolve.</param>
         /// <param name="resourceRecordType">Record type.</param>
         /// <param name="excludedEndpoints">Optional providers to skip.</param>
-        [Theory(Skip = "External dependency - unreliable for automated testing")]
+        [RealDnsTheory]
         [InlineData("evotec.pl", DnsRecordType.A)]
         [InlineData("evotec.pl", DnsRecordType.SOA)]
         [InlineData("evotec.pl", DnsRecordType.DNSKEY)]
@@ -230,7 +230,7 @@ namespace DnsClientX.Tests {
         /// <param name="endpointCompare">Provider to compare against.</param>
 
 
-        [Theory(Skip = "External dependency - unreliable for automated testing")]
+        [RealDnsTheory]
         [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.CloudflareFamily)]
         // Google seems to have a different set of TXT records for github.com, as it doesn't follow specficiation directly
         // It seems to merge multiline TXT records into one line

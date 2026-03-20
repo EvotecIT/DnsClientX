@@ -131,42 +131,40 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>Raw DNS response bytes.</returns>
         private static async Task<byte[]> SendQueryOverUdp(UdpClient udpClient, byte[] query, IPAddress ipAddress, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
-            using (udpClient) {
-                // Set the server IP address and port number
-                if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6) {
-                    udpClient.Client.DualMode = true;
-                }
-                var serverEndpoint = new IPEndPoint(ipAddress, port);
+            // The caller owns udpClient disposal; keep lifetime management in one place.
+            if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6) {
+                udpClient.Client.DualMode = true;
+            }
+            var serverEndpoint = new IPEndPoint(ipAddress, port);
 
-                // Send the query
+            // Send the query
 #if NET5_0_OR_GREATER
-                await udpClient.SendAsync(query, serverEndpoint, cancellationToken).ConfigureAwait(false);
+            await udpClient.SendAsync(query, serverEndpoint, cancellationToken).ConfigureAwait(false);
 #else
-                await udpClient.SendAsync(query, query.Length, serverEndpoint).ConfigureAwait(false);
+            await udpClient.SendAsync(query, query.Length, serverEndpoint).ConfigureAwait(false);
 #endif
 
-                // Set up the cancellation token for the timeout
-                using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)) {
-                    cts.CancelAfter(timeoutMilliseconds);
-                    try {
-                        // Receive the response with a timeout
+            // Set up the cancellation token for the timeout
+            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)) {
+                cts.CancelAfter(timeoutMilliseconds);
+                try {
+                    // Receive the response with a timeout
 #if NET5_0_OR_GREATER
-                        UdpReceiveResult response = await udpClient.ReceiveAsync(cts.Token).ConfigureAwait(false);
-                        return response.Buffer;
+                    UdpReceiveResult response = await udpClient.ReceiveAsync(cts.Token).ConfigureAwait(false);
+                    return response.Buffer;
 #else
-                        var responseTask = udpClient.ReceiveAsync();
-                        var completedTask = await Task.WhenAny(responseTask, Task.Delay(Timeout.Infinite, cts.Token)).ConfigureAwait(false);
+                    var responseTask = udpClient.ReceiveAsync();
+                    var completedTask = await Task.WhenAny(responseTask, Task.Delay(Timeout.Infinite, cts.Token)).ConfigureAwait(false);
 
-                        if (completedTask == responseTask) {
-                            return responseTask.Result.Buffer;
-                        }
-
-                        ObserveFault(responseTask);
-                        throw new TimeoutException("The UDP query timed out.");
-#endif
-                    } catch (OperationCanceledException) {
-                        throw new TimeoutException("The UDP query timed out.");
+                    if (completedTask == responseTask) {
+                        return responseTask.Result.Buffer;
                     }
+
+                    ObserveFault(responseTask);
+                    throw new TimeoutException("The UDP query timed out.");
+#endif
+                } catch (OperationCanceledException) {
+                    throw new TimeoutException("The UDP query timed out.");
                 }
             }
         }

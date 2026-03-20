@@ -66,55 +66,51 @@ namespace DnsClientX {
                 Settings.Logger.WriteDebug($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
 
+            DotFailurePhase failurePhase = DotFailurePhase.Connect;
             try {
                 // Create a new TCP client and connect to the DNS server
                 using var client = new TcpClient();
                 await ConnectAsync(client, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
                 // Create a new SSL stream for the secure connection
+                failurePhase = DotFailurePhase.Authenticate;
                 using var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) =>
                     sslPolicyErrors == SslPolicyErrors.None || ignoreCertificateErrors);
 
 #if NET6_0_OR_GREATER
-                await sslStream.AuthenticateAsClientAsync(dnsServer, null, SslProtocols.Tls12 | SslProtocols.Tls13, false).ConfigureAwait(false);
+                await AuthenticateWithTimeoutAsync(sslStream, dnsServer, SslProtocols.Tls12 | SslProtocols.Tls13, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 #else
-                await sslStream.AuthenticateAsClientAsync(dnsServer, null, SslProtocols.Tls12, false).ConfigureAwait(false);
+                await AuthenticateWithTimeoutAsync(sslStream, dnsServer, SslProtocols.Tls12, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 #endif
 
                 // Write the combined query bytes to the SSL stream and flush it
-                await sslStream.WriteAsync(combinedQueryBytes, 0, combinedQueryBytes.Length, cancellationToken).ConfigureAwait(false);
-                await sslStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                failurePhase = DotFailurePhase.Exchange;
+                await WriteWithTimeoutAsync(sslStream, combinedQueryBytes, 0, combinedQueryBytes.Length, endpointConfiguration.TimeOut, cancellationToken, $"Writing DoT query to {dnsServer}:{port}").ConfigureAwait(false);
+                await FlushWithTimeoutAsync(sslStream, endpointConfiguration.TimeOut, cancellationToken, $"Flushing DoT query to {dnsServer}:{port}").ConfigureAwait(false);
 
                 // Prepare to read the response with handling for length prefix
                 var lengthPrefixBuffer = new byte[2];
-                int prefixBytesRead = await sslStream.ReadAsync(lengthPrefixBuffer, 0, 2, cancellationToken).ConfigureAwait(false);
-                if (prefixBytesRead != 2) {
-                    throw new Exception("Failed to read the length prefix of the response.");
-                }
+                await ReadExactWithTimeoutAsync(sslStream, lengthPrefixBuffer, 0, lengthPrefixBuffer.Length, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
                 int responseLength = (lengthPrefixBuffer[0] << 8) + lengthPrefixBuffer[1]; // Calculate total response length
 
                 var responseBuffer = new byte[responseLength];
-                int totalBytesRead = 0;
-                while (totalBytesRead < responseLength) {
-                    int bytesRead = await sslStream.ReadAsync(responseBuffer, totalBytesRead, responseLength - totalBytesRead, cancellationToken).ConfigureAwait(false);
-                    if (bytesRead == 0) {
-                        throw new Exception("The stream was closed before the entire response could be read.");
-                    }
-                    totalBytesRead += bytesRead;
-                }
+                await ReadExactWithTimeoutAsync(sslStream, responseBuffer, 0, responseBuffer.Length, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
                 // Deserialize the response from DNS wire format
                 var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
                 response.AddServerDetails(endpointConfiguration);
                 return response;
             } catch (Exception ex) {
+                var (status, errorCode) = MapFailure(ex, failurePhase);
                 var failureResponse = new DnsResponse {
                     Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverTLS, Type = type, OriginalName = name } ],
-                    Status = ex is TimeoutException ? DnsResponseCode.ServerFailure : DnsResponseCode.Refused
+                    Status = status,
+                    ErrorCode = errorCode,
+                    Exception = ex
                 };
                 failureResponse.AddServerDetails(endpointConfiguration);
                 failureResponse.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message}";
-                throw new DnsClientException(failureResponse.Error!, failureResponse);
+                throw new DnsClientException(failureResponse.Error!, ex) { Response = failureResponse };
             }
         }
 
@@ -154,6 +150,86 @@ namespace DnsClientX {
 
             await connectTask.ConfigureAwait(false); // propagate possible exceptions
 #endif
+        }
+
+        private static async Task AuthenticateWithTimeoutAsync(SslStream sslStream, string host, SslProtocols protocols, int timeoutMilliseconds, CancellationToken cancellationToken) {
+            await WaitWithTimeoutAsync(
+                sslStream.AuthenticateAsClientAsync(host, null, protocols, false),
+                timeoutMilliseconds,
+                cancellationToken,
+                $"TLS authentication with {host}").ConfigureAwait(false);
+        }
+
+        private static async Task WriteWithTimeoutAsync(Stream stream, byte[] buffer, int offset, int count, int timeoutMilliseconds, CancellationToken cancellationToken, string operationName) {
+            await WaitWithTimeoutAsync(
+                stream.WriteAsync(buffer, offset, count, cancellationToken),
+                timeoutMilliseconds,
+                cancellationToken,
+                operationName).ConfigureAwait(false);
+        }
+
+        private static async Task FlushWithTimeoutAsync(Stream stream, int timeoutMilliseconds, CancellationToken cancellationToken, string operationName) {
+            await WaitWithTimeoutAsync(
+                stream.FlushAsync(cancellationToken),
+                timeoutMilliseconds,
+                cancellationToken,
+                operationName).ConfigureAwait(false);
+        }
+
+        private static async Task ReadExactWithTimeoutAsync(Stream stream, byte[] buffer, int offset, int count, int timeoutMilliseconds, CancellationToken cancellationToken) {
+#if NET5_0_OR_GREATER || NET472 || NETSTANDARD2_0
+            if (stream.CanTimeout) {
+                stream.ReadTimeout = timeoutMilliseconds;
+            }
+#endif
+            await WaitWithTimeoutAsync(
+                DnsWire.ReadExactAsync(stream, buffer, offset, count, cancellationToken),
+                timeoutMilliseconds,
+                cancellationToken,
+                "Reading from the TLS stream").ConfigureAwait(false);
+        }
+
+        private static async Task WaitWithTimeoutAsync(Task task, int timeoutMilliseconds, CancellationToken cancellationToken, string operationName) {
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            if (timeoutMilliseconds <= 0) {
+                linkedCts.Cancel();
+            } else {
+                linkedCts.CancelAfter(timeoutMilliseconds);
+            }
+
+            try {
+                var timeoutTask = Task.Delay(Timeout.Infinite, linkedCts.Token);
+                var completed = await Task.WhenAny(task, timeoutTask).ConfigureAwait(false);
+                if (completed != task) {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    throw new TimeoutException($"{operationName} timed out after {timeoutMilliseconds} milliseconds.");
+                }
+
+                await task.ConfigureAwait(false);
+            } catch (OperationCanceledException) {
+                cancellationToken.ThrowIfCancellationRequested();
+                throw new TimeoutException($"{operationName} timed out after {timeoutMilliseconds} milliseconds.");
+            }
+        }
+
+        private static (DnsResponseCode Status, DnsQueryErrorCode ErrorCode) MapFailure(Exception ex, DotFailurePhase phase) {
+            return ex switch {
+                TimeoutException => (DnsResponseCode.ServerFailure, DnsQueryErrorCode.Timeout),
+                SocketException => phase == DotFailurePhase.Connect
+                    ? (DnsResponseCode.Refused, DnsQueryErrorCode.Network)
+                    : (DnsResponseCode.ServerFailure, DnsQueryErrorCode.InvalidResponse),
+                AuthenticationException => (DnsResponseCode.ServerFailure, DnsQueryErrorCode.ServFail),
+                EndOfStreamException => (DnsResponseCode.ServerFailure, DnsQueryErrorCode.InvalidResponse),
+                IOException ioEx when ioEx.InnerException is SocketException => (DnsResponseCode.ServerFailure, DnsQueryErrorCode.InvalidResponse),
+                IOException => (DnsResponseCode.ServerFailure, DnsQueryErrorCode.InvalidResponse),
+                _ => (DnsResponseCode.ServerFailure, DnsQueryErrorCode.ServFail)
+            };
+        }
+
+        private enum DotFailurePhase {
+            Connect,
+            Authenticate,
+            Exchange
         }
     }
 }

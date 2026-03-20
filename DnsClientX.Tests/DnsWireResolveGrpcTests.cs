@@ -52,6 +52,34 @@ namespace DnsClientX.Tests {
                 DnsWireResolveGrpc.SendAsync = prevSend;
             }
         }
+
+        /// <summary>
+        /// Ensures the configured endpoint timeout is honored when the gRPC call stalls.
+        /// </summary>
+        [Fact]
+        public async Task ResolveWireFormatGrpc_ReturnsTimeout_WhenSendStalls() {
+            var prevClient = DnsWireResolveGrpc.ClientFactory;
+            var prevSend = DnsWireResolveGrpc.SendAsync;
+            try {
+                DnsWireResolveGrpc.ClientFactory = _ => new HttpClient();
+                DnsWireResolveGrpc.SendAsync = async (_, _, token) => {
+                    await Task.Delay(Timeout.Infinite, token);
+                    throw new InvalidOperationException("unreachable");
+                };
+
+                var config = new Configuration("dummy", DnsRequestFormat.DnsOverGrpc) {
+                    TimeOut = 100
+                };
+
+                var response = await DnsWireResolveGrpc.ResolveWireFormatGrpc("dummy", 443, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None);
+                Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
+                Assert.Equal(DnsQueryErrorCode.Timeout, response.ErrorCode);
+                Assert.Contains("timed out", response.Error, StringComparison.OrdinalIgnoreCase);
+            } finally {
+                DnsWireResolveGrpc.ClientFactory = prevClient;
+                DnsWireResolveGrpc.SendAsync = prevSend;
+            }
+        }
     }
 }
 #endif

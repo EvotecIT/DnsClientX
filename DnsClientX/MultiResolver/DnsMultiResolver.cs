@@ -116,30 +116,34 @@ namespace DnsClientX {
         }
 
         private async Task<DnsResponse> QueryFirstSuccessAsync(string name, DnsRecordType type, CancellationToken ct) {
-            // Chunk endpoints to respect MaxParallelism and cancel losers
+            // Keep a rolling window of in-flight queries up to MaxParallelism and
+            // immediately backfill slots after failures so queued endpoints are not blocked
+            // by a slow failing endpoint from the first batch.
             int batch = Math.Max(1, _options.MaxParallelism);
             var queue = new Queue<DnsResolverEndpoint>(_endpoints);
             using var globalCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-
-            List<Exception> exceptions = new();
             DnsResponse? bestError = null;
 
-            while (queue.Count > 0) {
-                var current = new List<Task<(DnsResponse resp, DnsResolverEndpoint ep)>>();
-                for (int i = 0; i < batch && queue.Count > 0; i++) {
-                    var ep = queue.Dequeue();
-                    current.Add(InvokeEndpoint(ep, name, type, globalCts.Token));
+            var current = new List<Task<(DnsResponse resp, DnsResolverEndpoint ep)>>();
+            for (int i = 0; i < batch && queue.Count > 0; i++) {
+                var ep = queue.Dequeue();
+                current.Add(InvokeEndpoint(ep, name, type, globalCts.Token));
+            }
+
+            while (current.Count > 0) {
+                var finished = await Task.WhenAny(current).ConfigureAwait(false);
+                current.Remove(finished);
+                (DnsResponse resp, DnsResolverEndpoint ep) = await finished.ConfigureAwait(false);
+                if (IsSuccess(resp)) {
+                    globalCts.Cancel(); // cancel remaining tasks
+                    return resp;
                 }
 
-                while (current.Count > 0) {
-                    var finished = await Task.WhenAny(current).ConfigureAwait(false);
-                    current.Remove(finished);
-                    (DnsResponse resp, DnsResolverEndpoint ep) = await finished.ConfigureAwait(false);
-                    if (IsSuccess(resp)) {
-                        globalCts.Cancel(); // cancel remaining tasks
-                        return resp;
-                    }
-                    bestError = ChooseBetterError(bestError, resp);
+                bestError = ChooseBetterError(bestError, resp);
+
+                if (queue.Count > 0) {
+                    var next = queue.Dequeue();
+                    current.Add(InvokeEndpoint(next, name, type, globalCts.Token));
                 }
             }
 

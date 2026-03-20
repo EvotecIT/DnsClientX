@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -14,10 +13,9 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures distribution across endpoints and fallback on failure without using network.
         /// </summary>
-        [Fact(Skip = "Round-robin distribution under simulated failures is timing-sensitive; skipping in unit suite.")]
+        [Fact]
         public async Task RoundRobin_Distributes_And_FallsBack() {
             try {
-                // Arrange endpoints
                 var eps = new [] {
                     new DnsResolverEndpoint { Host = "e1", Port = 53, Transport = Transport.Udp },
                     new DnsResolverEndpoint { Host = "e2", Port = 53, Transport = Transport.Udp },
@@ -25,12 +23,10 @@ namespace DnsClientX.Tests {
                 };
                 var opts = new MultiResolverOptions {
                     Strategy = MultiResolverStrategy.RoundRobin,
-                    MaxParallelism = 8,
-                    PerEndpointMaxInFlight = 4,
+                    MaxParallelism = 1,
                     EnableResponseCache = false
                 };
 
-                // Count assignments and simulate fallback: make e2 fail to force fallback
                 var counts = new ConcurrentDictionary<string, int>();
                 DnsMultiResolver.ResolveOverride = (ep, name, type, ct) => {
                     counts.AddOrUpdate(ep.Host ?? string.Empty, 1, (_, v) => v + 1);
@@ -49,16 +45,19 @@ namespace DnsClientX.Tests {
                 };
 
                 var mr = new DnsMultiResolver(eps, opts);
-                string[] names = Enumerable.Range(0, 9).Select(i => $"n{i}.example").ToArray();
-                var results = await mr.QueryBatchAsync(names, DnsRecordType.A, CancellationToken.None);
+                var r1 = await mr.QueryAsync("n1.example", DnsRecordType.A, CancellationToken.None);
+                var r2 = await mr.QueryAsync("n2.example", DnsRecordType.A, CancellationToken.None);
+                var r3 = await mr.QueryAsync("n3.example", DnsRecordType.A, CancellationToken.None);
 
-                // Assert successful responses
-                Assert.Equal(names.Length, results.Length);
-                Assert.True(results.Count(r => r.Status == DnsResponseCode.NoError) >= names.Length - 3);
-
-                // Distribution happened: at least two distinct endpoints were used successfully (excluding the failing one).
-                var used = counts.Where(kv => kv.Key != "e2" && kv.Value > 0).Select(kv => kv.Key).Distinct().Count();
-                Assert.True(used >= 2);
+                Assert.Equal(DnsResponseCode.NoError, r1.Status);
+                Assert.Equal(DnsResponseCode.NoError, r2.Status);
+                Assert.Equal(DnsResponseCode.NoError, r3.Status);
+                Assert.Equal("e1", r1.UsedEndpoint?.Host);
+                Assert.Equal("e1", r2.UsedEndpoint?.Host); // e2 fails and falls back to first
+                Assert.Equal("e3", r3.UsedEndpoint?.Host);
+                Assert.Equal(2, counts["e1"]);
+                Assert.Equal(1, counts["e2"]);
+                Assert.Equal(1, counts["e3"]);
             } finally {
                 DnsMultiResolver.ResolveOverride = null;
             }
