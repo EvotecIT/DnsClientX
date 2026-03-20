@@ -21,7 +21,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Demonstrates retry logic when querying Quad9 which tends to throttle automated requests.
         /// </summary>
-        [Theory(Skip = "External dependency - unreliable for automated testing")]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.Quad9)]
         [InlineData(DnsEndpoint.Quad9ECS)]
         [InlineData(DnsEndpoint.Quad9Unsecure)]
@@ -71,7 +71,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Checks that recommended providers respond reliably for automated tests.
         /// </summary>
-        [Fact(Skip = "External dependency - unreliable for automated testing")]
+        [RealDnsFact]
         public async Task RecommendedReliableProvidersTest() {
             // Test providers that are more reliable for automated testing
             var reliableProviders = new[] {
@@ -108,7 +108,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Outputs troubleshooting information about Quad9 reliability in automated scenarios.
         /// </summary>
-        [Fact(Skip = "External dependency - unreliable for automated testing")]
+        [RealDnsFact]
         public void ExplainQuad9Issues() {
             output.WriteLine("Quad9 Reliability Issues Explanation:");
             output.WriteLine(new string('=', 40));

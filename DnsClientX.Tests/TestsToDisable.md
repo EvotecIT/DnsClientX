@@ -1,17 +1,23 @@
-# Tests to Disable Due to External Dependencies
+# Real DNS Integration Tests
 
-## Problem: Comparison Tests Are Unreliable
+## Why They Are Opt-In
 
-The following test classes test external DNS providers rather than DnsClientX logic, causing 10-15% test failure rates:
+The classes below intentionally query live DNS providers or rely on real network conditions.
+They are useful for validation against real hosts, but they are not stable enough for default CI runs.
 
-### ❌ Disable These Test Classes:
-- `CompareProviders.cs` - Compares external DNS providers
-- `CompareProvidersResolve.cs` - Compares external DNS providers
-- `CompareProvidersResolveAll.cs` - Compares external DNS providers
-- `CompareProvidersResolveFilter.cs` - Compares external DNS providers
-- `CompareJsonWithDnsWire.cs` - Compares external DNS providers
+### Live-Host Test Groups
+- `CompareProviders.cs`
+- `CompareProvidersResolve.cs`
+- `CompareProvidersResolveAll.cs`
+- `CompareProvidersResolveFilter.cs`
+- `CompareJsonWithDnsWire.cs`
+- `Quad9ReliabilityFix.cs`
+- `QueryDnsOverHttp3.cs`
+- `ResolveFromRootTests.cs`
+- `DnsMultiResolverBasicTests.cs`
+- `SystemTcpIntegrationTests.cs`
 
-### ✅ Keep These Test Classes:
+### Default CI Coverage
 - `QueryDnsByEndpoint.cs` - Tests basic functionality
 - `QueryDnsByHostName.cs` - Tests core logic
 - `QueryDnsByUri.cs` - Tests core logic
@@ -19,14 +25,19 @@ The following test classes test external DNS providers rather than DnsClientX lo
 - `ResolveAll.cs` - Tests core logic
 - `ResolveSync.cs` - Tests core logic
 
-## Reason for Disabling:
+## Why They Are Not In Default CI
 
 1. **External Dependencies**: Tests depend on external DNS services (Google, OpenDNS, Cloudflare)
 2. **Rate Limiting**: Providers block rapid automated requests
 3. **Network Flakiness**: Internet connectivity issues cause false failures
 4. **CDN Behavior**: Providers correctly return different IPs for CDN domains
-5. **Test Logic Issues**: Array index exceptions in comparison logic
+5. **Environment Requirements**: Some tests require root-server access, HTTP/3 reachability, or system resolver behavior
 
-## Recommendation:
+## How To Run Them
 
-Focus tests on DnsClientX client behavior, not external provider comparisons.
+- Local/manual: set `DNSCLIENTX_RUN_REAL_DNS_TESTS=1` before running `dotnet test`
+- GitHub Actions: use `workflow_dispatch` on `Test .NET` and enable `run_real_dns_tests`
+
+## Recommendation
+
+Keep real-host tests as an opt-in integration suite and keep default CI focused on deterministic client behavior.

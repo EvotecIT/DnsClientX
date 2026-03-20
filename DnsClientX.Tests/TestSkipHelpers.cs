@@ -6,6 +6,19 @@ namespace DnsClientX.Tests;
 
 internal static class TestSkipHelpers
 {
+    internal static string? GetRealDnsSkipReason(string? scenario = null)
+    {
+        var allow = Environment.GetEnvironmentVariable("DNSCLIENTX_RUN_REAL_DNS_TESTS");
+        if (string.Equals(allow, "1", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(allow, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var details = string.IsNullOrWhiteSpace(scenario) ? "real DNS integration test" : scenario;
+        return $"Skipped {details}. Set DNSCLIENTX_RUN_REAL_DNS_TESTS=1 to run live-host DNS tests.";
+    }
+
     internal static bool ShouldSkipEndpoint(DnsEndpoint endpoint, ITestOutputHelper? output = null)
     {
         return ShouldSkipSystemUdp(endpoint, output) || ShouldSkipSystemTcp(endpoint, output) || ShouldSkipOdoh(endpoint, output);

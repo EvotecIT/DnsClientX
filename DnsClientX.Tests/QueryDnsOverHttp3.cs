@@ -10,7 +10,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures A record resolution works over HTTP/3.
         /// </summary>
-        [Theory(Skip = "External dependency - network unreachable in CI")]
+        [RealDnsTheory]
         [InlineData("1.1.1.1")]
         [InlineData("8.8.8.8")]
         public async Task ShouldResolveA(string hostName) {

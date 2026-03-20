@@ -14,7 +14,7 @@ namespace DnsClientX.Tests {
         /// <param name="name">Domain name to resolve.</param>
         /// <param name="resourceRecordType">Record type.</param>
         /// <param name="excludedEndpoints">Providers to skip.</param>
-        [Theory(Skip = "External dependency - unreliable for automated testing")]
+        [RealDnsTheory]
         //[MemberData(nameof(TestData))]
         [InlineData("evotec.pl", DnsRecordType.A, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
         [InlineData("www.bücher.de", DnsRecordType.A, new[] { DnsEndpoint.Google, DnsEndpoint.OpenDNS, DnsEndpoint.OpenDNSFamily })]
@@ -179,7 +179,7 @@ namespace DnsClientX.Tests {
         /// <param name="resourceRecordType">Record type.</param>
         /// <param name="excludedEndpoints">Providers to skip.</param>
 
-        [Theory(Skip = "External dependency - unreliable for automated testing")]
+        [RealDnsTheory]
         //[MemberData(nameof(TestData))]
         [InlineData("evotec.pl", DnsRecordType.A)]
         [InlineData("www.bücher.de", DnsRecordType.A)]

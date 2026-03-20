@@ -13,6 +13,12 @@ on:
         branches:
             - main
     workflow_dispatch:
+        inputs:
+            run_real_dns_tests:
+                description: 'Run live-host DNS integration tests'
+                required: false
+                default: false
+                type: boolean
 
 env:
     DOTNET_VERSION: '10.x'
@@ -259,4 +265,43 @@ jobs:
               with:
                   files: '**/coverage.cobertura.xml'
                   fail_ci_if_error: false
+
+    test-real-dns:
+        name: 'Windows Real DNS'
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_real_dns_tests }}
+        runs-on: windows-latest
+        timeout-minutes: 20
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup .NET
+              uses: actions/setup-dotnet@v4
+              with:
+                  dotnet-version: ${{ env.DOTNET_VERSION }}
+
+            - name: Restore dependencies
+              run: dotnet restore DnsClientX.sln
+
+            - name: Build solution
+              run: dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
+
+            - name: Run live-host tests (.NET Framework 4.7.2)
+              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net472 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx
+              env:
+                  DNSCLIENTX_RUN_REAL_DNS_TESTS: '1'
+                  DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
+
+            - name: Run live-host tests (.NET 10.0)
+              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net10.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx
+              env:
+                  DNSCLIENTX_RUN_REAL_DNS_TESTS: '1'
+                  DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
+
+            - name: Upload live-host test results
+              uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: test-results-real-dns
+                  path: '**/*.trx'
 
