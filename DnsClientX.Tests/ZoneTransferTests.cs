@@ -116,11 +116,11 @@ namespace DnsClientX.Tests {
 #endif
                 NetworkStream stream = client.GetStream();
                 byte[] len = new byte[2];
-                await stream.ReadAsync(len, 0, 2, token);
+                await TestUtilities.ReadExactlyAsync(stream, len, 2, token);
                 if (BitConverter.IsLittleEndian) Array.Reverse(len);
                 int qLen = BitConverter.ToUInt16(len, 0);
                 byte[] q = new byte[qLen];
-                await stream.ReadAsync(q, 0, qLen, token);
+                await TestUtilities.ReadExactlyAsync(stream, q, qLen, token);
                 foreach (var r in responses) {
                     byte[] prefix = BitConverter.GetBytes((ushort)r.Length);
                     if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
@@ -244,11 +244,11 @@ namespace DnsClientX.Tests {
 #endif
                     NetworkStream stream = client.GetStream();
                     byte[] len = new byte[2];
-                    await stream.ReadAsync(len, 0, 2, token);
+                    await TestUtilities.ReadExactlyAsync(stream, len, 2, token);
                     if (BitConverter.IsLittleEndian) Array.Reverse(len);
                     int qLen = BitConverter.ToUInt16(len, 0);
                     byte[] q = new byte[qLen];
-                    await stream.ReadAsync(q, 0, qLen, token);
+                    await TestUtilities.ReadExactlyAsync(stream, q, qLen, token);
                     foreach (var r in responses) {
                         byte[] prefix = BitConverter.GetBytes((ushort)r.Length);
                         if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
@@ -329,11 +329,11 @@ namespace DnsClientX.Tests {
 #endif
                 NetworkStream stream = client.GetStream();
                 byte[] len = new byte[2];
-                await stream.ReadAsync(len, 0, 2, token);
+                await TestUtilities.ReadExactlyAsync(stream, len, 2, token);
                 if (BitConverter.IsLittleEndian) Array.Reverse(len);
                 int qLen = BitConverter.ToUInt16(len, 0);
                 byte[] q = new byte[qLen];
-                await stream.ReadAsync(q, 0, qLen, token);
+                await TestUtilities.ReadExactlyAsync(stream, q, qLen, token);
                 byte[] prefix = BitConverter.GetBytes((ushort)response.Length);
                 if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
                 await stream.WriteAsync(prefix, 0, prefix.Length, token);

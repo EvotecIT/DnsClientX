@@ -8,6 +8,7 @@ namespace DnsClientX.Tests {
     /// <summary>
     /// Error scenarios for DnsMultiResolver.
     /// </summary>
+    [Collection("NoParallel")]
     public class DnsMultiResolverErrorHandlingTests {
         /// <summary>
         /// Simulates a SocketException to ensure ErrorCode is set to Network.

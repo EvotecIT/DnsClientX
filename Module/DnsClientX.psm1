@@ -10,8 +10,21 @@ $AssemblyFolders = Get-ChildItem -Path $PSScriptRoot\bin\Debug\net472 -File -Err
 # to speed up development adding direct path to binaries, instead of the the Lib folder
 $Development = $true
 $DevelopmentPath = "$PSScriptRoot\..\DnsClientX.PowerShell\bin\Debug"
-$DevelopmentFolderCore = "net8.0"
 $DevelopmentFolderDefault = "net472"
+$PreferredDevelopmentCoreFolders = @(
+    # Prefer the PowerShell-compatible build before newer TFMs.
+    "net8.0"
+    "net10.0"
+)
+$DevelopmentFolderCore = foreach ($Folder in $PreferredDevelopmentCoreFolders) {
+    if (Test-Path -Path "$DevelopmentPath\$Folder\DnsClientX.PowerShell.dll") {
+        $Folder
+        break
+    }
+}
+if (-not $DevelopmentFolderCore) {
+    $DevelopmentFolderCore = $PreferredDevelopmentCoreFolders[0]
+}
 $BinaryModules = @(
     "DnsClientX.PowerShell.dll"
 )

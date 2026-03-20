@@ -9,6 +9,7 @@ namespace DnsClientX.Tests {
     /// <summary>
     /// Tests multi-resolver strategies: FirstSuccess, FastestWins, SequentialAll.
     /// </summary>
+    [Collection("NoParallel")]
     public class DnsMultiResolverStrategiesTests {
         private static DnsResponse Ok(string name, DnsRecordType type)
             => new DnsResponse {

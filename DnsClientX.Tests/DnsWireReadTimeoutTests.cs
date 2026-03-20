@@ -24,11 +24,11 @@ namespace DnsClientX.Tests {
             using TcpClient client = await listener.AcceptTcpClientAsync();
             NetworkStream stream = client.GetStream();
             byte[] len = new byte[2];
-            await stream.ReadAsync(len, 0, 2, token);
+            await TestUtilities.ReadExactlyAsync(stream, len, 2, token);
             if (BitConverter.IsLittleEndian) Array.Reverse(len);
             int length = BitConverter.ToUInt16(len, 0);
             byte[] buffer = new byte[length];
-            await stream.ReadAsync(buffer, 0, length, token);
+            await TestUtilities.ReadExactlyAsync(stream, buffer, length, token);
             await Task.Delay(Timeout.Infinite, token);
             listener.Stop();
         }

@@ -9,6 +9,7 @@ namespace DnsClientX.Tests {
     /// <summary>
     /// Tests RoundRobin behavior with a simulated resolver to avoid network access.
     /// </summary>
+    [Collection("NoParallel")]
     public class DnsMultiResolverRoundRobinTests {
         /// <summary>
         /// Ensures distribution across endpoints and fallback on failure without using network.
