@@ -326,6 +326,347 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Ensures benchmark mode compares multiple built-in endpoints across domains, record types, and repeated attempts.
+        /// </summary>
+        [Fact]
+        public async Task BenchmarkOption_PrintsRankedSummaryAcrossEndpoints() {
+            SetProbeOverride((endpoint, domain, ct) => Task.FromResult((
+                new DnsResponse {
+                    Status = DnsResponseCode.NoError,
+                    UsedTransport = endpoint == DnsEndpoint.Quad9 ? Transport.Tcp : Transport.Doh,
+                    Answers = new[] {
+                        new DnsAnswer {
+                            Name = domain,
+                            Type = DnsRecordType.A,
+                            TTL = 60,
+                            DataRaw = endpoint == DnsEndpoint.Quad9 ? "9.9.9.9" : "1.1.1.1"
+                        }
+                    }
+                },
+                endpoint == DnsEndpoint.Quad9 ? TimeSpan.FromMilliseconds(20) : TimeSpan.FromMilliseconds(10),
+                $"{endpoint}.test:443",
+                endpoint == DnsEndpoint.Quad9 ? DnsRequestFormat.DnsOverTCP : GetRequestFormat(endpoint)
+            )));
+
+            using var output = new StringWriter();
+            TextWriter originalOut = Console.Out;
+            try {
+                Console.SetOut(output);
+                int exitCode = await InvokeCliAsync(
+                    "--benchmark",
+                    "--endpoint", "Cloudflare,Quad9",
+                    "--domain", "example.com,microsoft.com",
+                    "--type", "A,AAAA",
+                    "--benchmark-attempts", "2");
+
+                Assert.Equal(0, exitCode);
+                string text = output.ToString();
+                Assert.Contains("Benchmark:", text);
+                Assert.Contains("Domains: example.com, microsoft.com", text);
+                Assert.Contains("Types: A, AAAA", text);
+                Assert.Contains("Attempts per combination: 2", text);
+                Assert.Contains("Timeout (ms): 2000", text);
+                Assert.Contains("Concurrency: 4", text);
+                Assert.Contains("Candidates: 2", text);
+                Assert.Contains("Queries per candidate: 8", text);
+                Assert.Contains("[OK] Cloudflare", text);
+                Assert.Contains("[OK] Quad9", text);
+                Assert.Contains("Ranked 1: Cloudflare avg 10 ms, success 100% (8/8), resolver Cloudflare.test:443", text);
+                Assert.Contains("Ranked 2: Quad9 avg 20 ms, success 100% (8/8), resolver Quad9.test:443", text);
+                Assert.Contains("Best endpoint: Cloudflare in 10 ms average (100% success)", text);
+            } finally {
+                Console.SetOut(originalOut);
+                SetProbeOverride(null);
+            }
+        }
+
+        /// <summary>
+        /// Ensures benchmark mode emits a stable machine-readable summary line.
+        /// </summary>
+        [Fact]
+        public async Task BenchmarkOption_SummaryLine_PrintsStableKeyValueOutput() {
+            SetProbeEndpointOverride((endpoint, domain, ct) => Task.FromResult((
+                new DnsResponse {
+                    Status = DnsResponseCode.NoError,
+                    UsedTransport = endpoint.Transport,
+                    Answers = new[] {
+                        new DnsAnswer {
+                            Name = domain,
+                            Type = DnsRecordType.A,
+                            TTL = 60,
+                            DataRaw = endpoint.Host == "1.1.1.1" ? "1.1.1.1" : "9.9.9.9"
+                        }
+                    }
+                },
+                endpoint.Host == "1.1.1.1" ? TimeSpan.FromMilliseconds(5) : TimeSpan.FromMilliseconds(7),
+                $"{endpoint.Host}:{endpoint.Port}",
+                endpoint.Transport == Transport.Tcp ? DnsRequestFormat.DnsOverTCP : DnsRequestFormat.DnsOverUDP
+            )));
+
+            using var output = new StringWriter();
+            TextWriter originalOut = Console.Out;
+            try {
+                Console.SetOut(output);
+                int exitCode = await InvokeCliAsync(
+                    "--benchmark",
+                    "--benchmark-summary-line",
+                    "--probe-endpoint", "udp@1.1.1.1:53,tcp@9.9.9.9:53",
+                    "--domain", "example.com",
+                    "--type", "A",
+                    "--benchmark-attempts", "2");
+
+                Assert.Equal(0, exitCode);
+                string text = output.ToString();
+                Assert.Contains("BENCHMARK_SUMMARY", text);
+                Assert.Contains("summary_version=1", text);
+                Assert.Contains("result=pass", text);
+                Assert.Contains("exit_code=0", text);
+                Assert.Contains("candidates=2", text);
+                Assert.Contains("successful_candidates=2", text);
+                Assert.Contains("total_queries=4", text);
+                Assert.Contains("successful_queries=4", text);
+                Assert.Contains("timeout_ms=2000", text);
+                Assert.Contains("concurrency=4", text);
+                Assert.Contains("best_target=udp_1_1_1_1_53", text);
+                Assert.Contains("best_resolver=1_1_1_1_53", text);
+                Assert.Contains("best_transport=udp", text);
+                Assert.Contains("best_avg_ms=5", text);
+            } finally {
+                Console.SetOut(originalOut);
+                SetProbeEndpointOverride(null);
+            }
+        }
+
+        /// <summary>
+        /// Ensures benchmark mode supports summary-only output for automation-friendly logs.
+        /// </summary>
+        [Fact]
+        public async Task BenchmarkOption_SummaryOnly_SuppressesPerCandidateRows() {
+            SetProbeOverride((endpoint, domain, ct) => Task.FromResult((
+                new DnsResponse {
+                    Status = DnsResponseCode.NoError,
+                    UsedTransport = endpoint == DnsEndpoint.Quad9 ? Transport.Tcp : Transport.Doh,
+                    Answers = new[] {
+                        new DnsAnswer {
+                            Name = domain,
+                            Type = DnsRecordType.A,
+                            TTL = 60,
+                            DataRaw = endpoint == DnsEndpoint.Quad9 ? "9.9.9.9" : "1.1.1.1"
+                        }
+                    }
+                },
+                endpoint == DnsEndpoint.Quad9 ? TimeSpan.FromMilliseconds(20) : TimeSpan.FromMilliseconds(10),
+                $"{endpoint}.test:443",
+                endpoint == DnsEndpoint.Quad9 ? DnsRequestFormat.DnsOverTCP : GetRequestFormat(endpoint)
+            )));
+
+            using var output = new StringWriter();
+            TextWriter originalOut = Console.Out;
+            try {
+                Console.SetOut(output);
+                int exitCode = await InvokeCliAsync(
+                    "--benchmark",
+                    "--benchmark-summary-only",
+                    "--endpoint", "Cloudflare,Quad9",
+                    "--domain", "example.com",
+                    "--type", "A",
+                    "--benchmark-attempts", "1");
+
+                Assert.Equal(0, exitCode);
+                string text = output.ToString();
+                Assert.Contains("Benchmark:", text);
+                Assert.Contains("Detail mode: summary-only", text);
+                Assert.Contains("Benchmark Summary:", text);
+                Assert.DoesNotContain("[OK] Cloudflare", text);
+                Assert.DoesNotContain("[OK] Quad9", text);
+                Assert.Contains("Ranked 1: Cloudflare avg 10 ms, success 100% (1/1), resolver Cloudflare.test:443", text);
+            } finally {
+                Console.SetOut(originalOut);
+                SetProbeOverride(null);
+            }
+        }
+
+        /// <summary>
+        /// Ensures benchmark mode respects the configured concurrency limit.
+        /// </summary>
+        [Fact]
+        public async Task BenchmarkOption_RespectsConcurrencyLimit() {
+            int active = 0;
+            int maxActive = 0;
+
+            SetProbeOverride(async (endpoint, domain, ct) => {
+                int current = Interlocked.Increment(ref active);
+                int observed;
+                while ((observed = maxActive) < current && Interlocked.CompareExchange(ref maxActive, current, observed) != observed) {
+                }
+
+                try {
+                    await Task.Delay(25, ct);
+                    return (
+                        new DnsResponse {
+                            Status = DnsResponseCode.NoError,
+                            UsedTransport = Transport.Doh,
+                            Answers = new[] {
+                                new DnsAnswer {
+                                    Name = domain,
+                                    Type = DnsRecordType.A,
+                                    TTL = 60,
+                                    DataRaw = "1.1.1.1"
+                                }
+                            }
+                        },
+                        TimeSpan.FromMilliseconds(25),
+                        $"{endpoint}.test:443",
+                        GetRequestFormat(endpoint)
+                    );
+                } finally {
+                    Interlocked.Decrement(ref active);
+                }
+            });
+
+            using var output = new StringWriter();
+            TextWriter originalOut = Console.Out;
+            try {
+                Console.SetOut(output);
+                int exitCode = await InvokeCliAsync(
+                    "--benchmark",
+                    "--endpoint", "Cloudflare",
+                    "--domain", "example.com",
+                    "--type", "A",
+                    "--benchmark-attempts", "4",
+                    "--benchmark-concurrency", "2",
+                    "--benchmark-timeout", "1500");
+
+                Assert.Equal(0, exitCode);
+                string text = output.ToString();
+                Assert.Contains("Timeout (ms): 1500", text);
+                Assert.Contains("Concurrency: 2", text);
+                Assert.True(maxActive <= 2, $"Expected benchmark concurrency to stay at or below 2, but observed {maxActive}.");
+            } finally {
+                Console.SetOut(originalOut);
+                SetProbeOverride(null);
+            }
+        }
+
+        /// <summary>
+        /// Ensures benchmark mode can fail on overall query success rate for automation scenarios.
+        /// </summary>
+        [Fact]
+        public async Task BenchmarkOption_FailsWhenSuccessRateBelowPolicy() {
+            int calls = 0;
+
+            SetProbeEndpointOverride((endpoint, domain, ct) => {
+                int call = Interlocked.Increment(ref calls);
+                bool succeeded = call <= 2;
+
+                return Task.FromResult((
+                    new DnsResponse {
+                        Status = succeeded ? DnsResponseCode.NoError : DnsResponseCode.ServerFailure,
+                        Error = succeeded ? string.Empty : "timeout",
+                        UsedTransport = endpoint.Transport,
+                        Answers = succeeded
+                            ? new[] {
+                                new DnsAnswer {
+                                    Name = domain,
+                                    Type = DnsRecordType.A,
+                                    TTL = 60,
+                                    DataRaw = "1.1.1.1"
+                                }
+                            }
+                            : Array.Empty<DnsAnswer>()
+                    },
+                    TimeSpan.FromMilliseconds(succeeded ? 5 : 50),
+                    $"{endpoint.Host}:{endpoint.Port}",
+                    endpoint.Transport == Transport.Tcp ? DnsRequestFormat.DnsOverTCP : DnsRequestFormat.DnsOverUDP
+                ));
+            });
+
+            using var output = new StringWriter();
+            TextWriter originalOut = Console.Out;
+            try {
+                Console.SetOut(output);
+                int exitCode = await InvokeCliAsync(
+                    "--benchmark",
+                    "--benchmark-summary-line",
+                    "--probe-endpoint", "udp@1.1.1.1:53",
+                    "--domain", "example.com",
+                    "--type", "A",
+                    "--benchmark-attempts", "4",
+                    "--benchmark-min-success-percent", "75");
+
+                Assert.Equal(3, exitCode);
+                string text = output.ToString();
+                Assert.Contains("Successful queries: 2/4", text);
+                Assert.Contains("Successful query rate: 50%", text);
+                Assert.Contains("Policy result: fail (success rate 50% below required 75%)", text);
+                Assert.Contains("BENCHMARK_SUMMARY", text);
+                Assert.Contains("result=fail", text);
+                Assert.Contains("exit_code=3", text);
+                Assert.Contains("success_percent=50", text);
+                Assert.Contains("policy_result=fail", text);
+                Assert.Contains("policy_reason=success_rate_50_below_required_75", text);
+            } finally {
+                Console.SetOut(originalOut);
+                SetProbeEndpointOverride(null);
+            }
+        }
+
+        /// <summary>
+        /// Ensures benchmark mode can require multiple healthy candidates.
+        /// </summary>
+        [Fact]
+        public async Task BenchmarkOption_FailsWhenSuccessfulCandidateCountBelowPolicy() {
+            SetProbeOverride((endpoint, domain, ct) => Task.FromResult((
+                new DnsResponse {
+                    Status = endpoint == DnsEndpoint.Quad9 ? DnsResponseCode.ServerFailure : DnsResponseCode.NoError,
+                    Error = endpoint == DnsEndpoint.Quad9 ? "unreachable" : string.Empty,
+                    UsedTransport = endpoint == DnsEndpoint.Quad9 ? Transport.Tcp : Transport.Doh,
+                    Answers = endpoint == DnsEndpoint.Quad9
+                        ? Array.Empty<DnsAnswer>()
+                        : new[] {
+                            new DnsAnswer {
+                                Name = domain,
+                                Type = DnsRecordType.A,
+                                TTL = 60,
+                                DataRaw = "1.1.1.1"
+                            }
+                        }
+                },
+                endpoint == DnsEndpoint.Quad9 ? TimeSpan.FromMilliseconds(90) : TimeSpan.FromMilliseconds(10),
+                $"{endpoint}.test:443",
+                endpoint == DnsEndpoint.Quad9 ? DnsRequestFormat.DnsOverTCP : GetRequestFormat(endpoint)
+            )));
+
+            using var output = new StringWriter();
+            TextWriter originalOut = Console.Out;
+            try {
+                Console.SetOut(output);
+                int exitCode = await InvokeCliAsync(
+                    "--benchmark",
+                    "--benchmark-summary-line",
+                    "--endpoint", "Cloudflare,Quad9",
+                    "--domain", "example.com",
+                    "--type", "A",
+                    "--benchmark-attempts", "1",
+                    "--benchmark-min-successful-candidates", "2");
+
+                Assert.Equal(3, exitCode);
+                string text = output.ToString();
+                Assert.Contains("Successful candidates: 1/2", text);
+                Assert.Contains("Policy result: fail (successful candidates 1/2 below required count 2)", text);
+                Assert.Contains("BENCHMARK_SUMMARY", text);
+                Assert.Contains("result=fail", text);
+                Assert.Contains("exit_code=3", text);
+                Assert.Contains("successful_candidates=1", text);
+                Assert.Contains("policy_result=fail", text);
+                Assert.Contains("policy_reason=successful_candidates_1_2_below_required_count_2", text);
+            } finally {
+                Console.SetOut(originalOut);
+                SetProbeOverride(null);
+            }
+        }
+
+        /// <summary>
         /// Ensures probe mode accepts explicit custom endpoint transports.
         /// </summary>
         [Fact]
@@ -450,6 +791,7 @@ namespace DnsClientX.Tests {
                 Assert.Equal(0, exitCode);
                 string text = output.ToString();
                 Assert.Contains("PROBE_SUMMARY", text);
+                Assert.Contains("summary_version=1", text);
                 Assert.Contains("result=pass", text);
                 Assert.Contains("exit_code=0", text);
                 Assert.Contains("successful=6", text);

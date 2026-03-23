@@ -12,6 +12,20 @@ namespace DnsClientX.Cli {
             public string? Domain { get; set; }
             public DnsRecordType RecordType { get; set; } = DnsRecordType.A;
             public DnsEndpoint Endpoint { get; set; } = DnsEndpoint.System;
+            public bool Benchmark { get; set; }
+            public int BenchmarkAttempts { get; set; } = 3;
+            public int BenchmarkTimeoutMs { get; set; } = 2000;
+            public int BenchmarkConcurrency { get; set; } = 4;
+            public int? BenchmarkMinSuccessPercent { get; set; }
+            public int? BenchmarkMinSuccessfulCandidates { get; set; }
+            public bool BenchmarkSummaryOnly { get; set; }
+            public bool BenchmarkSummaryLine { get; set; }
+            public List<DnsEndpoint> BenchmarkEndpoints { get; } = new List<DnsEndpoint>();
+            public List<string> BenchmarkDomains { get; } = new List<string>();
+            public List<DnsRecordType> BenchmarkRecordTypes { get; } = new List<DnsRecordType>();
+            public List<string> EndpointInputs { get; } = new List<string>();
+            public List<string> DomainInputs { get; } = new List<string>();
+            public List<string> RecordTypeInputs { get; } = new List<string>();
             public bool RequestDnsSec { get; set; }
             public bool ValidateDnsSec { get; set; }
             public bool WirePost { get; set; }
@@ -53,6 +67,26 @@ namespace DnsClientX.Cli {
             public int ExitCode { get; set; }
         }
 
+        private sealed class BenchmarkPolicyOutcome {
+            public bool Passed { get; set; }
+            public string Reason { get; set; } = "none";
+            public int ExitCode { get; set; }
+        }
+
+        private sealed class BenchmarkResult {
+            public string DisplayName { get; set; } = string.Empty;
+            public string Resolver { get; set; } = "none";
+            public string Transport { get; set; } = "none";
+            public int TotalQueries { get; set; }
+            public int SuccessCount { get; set; }
+            public int FailureCount { get; set; }
+            public int SuccessPercent { get; set; }
+            public TimeSpan AverageElapsed { get; set; }
+            public TimeSpan MinElapsed { get; set; }
+            public TimeSpan MaxElapsed { get; set; }
+            public int DistinctAnswerSets { get; set; }
+        }
+
         private static Func<DnsEndpoint, string, CancellationToken, Task<(DnsResponse Response, TimeSpan Elapsed, string Resolver, DnsRequestFormat RequestFormat)>>? ProbeOverride = null;
         private static Func<DnsResolverEndpoint, string, CancellationToken, Task<(DnsResponse Response, TimeSpan Elapsed, string Resolver, DnsRequestFormat RequestFormat)>>? ProbeEndpointOverride = null;
 
@@ -86,7 +120,11 @@ namespace DnsClientX.Cli {
             };
 
             try {
-                if (options!.Probe) {
+                if (options!.Benchmark) {
+                    return await RunBenchmarkAsync(options, cts.Token).ConfigureAwait(false);
+                }
+
+                if (options.Probe) {
                     return await RunProbeAsync(options, cts.Token).ConfigureAwait(false);
                 }
 
@@ -157,25 +195,29 @@ namespace DnsClientX.Cli {
                 switch (arg) {
                     case var opt when opt.Equals("-t", StringComparison.OrdinalIgnoreCase) ||
                                        opt.Equals("--type", StringComparison.OrdinalIgnoreCase):
-                        if (!TryReadNext(args, ref i, "--type", out string? recordTypeValue, out errorMessage) ||
-                            !Enum.TryParse(recordTypeValue, true, out DnsRecordType recordType)) {
-                            errorMessage ??= $"Invalid value for --type: {recordTypeValue}";
+                        if (!TryReadNext(args, ref i, "--type", out string? recordTypeValue, out errorMessage)) {
                             invalidSwitches = null;
                             options = null;
                             return false;
                         }
-                        options.RecordType = recordType;
+                        AddOptionValues(options.RecordTypeInputs, recordTypeValue);
                         break;
                     case var opt when opt.Equals("-e", StringComparison.OrdinalIgnoreCase) ||
                                        opt.Equals("--endpoint", StringComparison.OrdinalIgnoreCase):
-                        if (!TryReadNext(args, ref i, "--endpoint", out string? endpointValue, out errorMessage) ||
-                            !Enum.TryParse(endpointValue, true, out DnsEndpoint endpoint)) {
-                            errorMessage ??= $"Invalid value for --endpoint: {endpointValue}";
+                        if (!TryReadNext(args, ref i, "--endpoint", out string? endpointValue, out errorMessage)) {
                             invalidSwitches = null;
                             options = null;
                             return false;
                         }
-                        options.Endpoint = endpoint;
+                        AddOptionValues(options.EndpointInputs, endpointValue);
+                        break;
+                    case var opt when opt.Equals("--domain", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--domain", out string? domainValue, out errorMessage)) {
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        AddOptionValues(options.DomainInputs, domainValue);
                         break;
                     case var opt when opt.Equals("--dnssec", StringComparison.OrdinalIgnoreCase):
                         options.RequestDnsSec = true;
@@ -186,6 +228,102 @@ namespace DnsClientX.Cli {
                     case var opt when opt.Equals("--wire-post", StringComparison.OrdinalIgnoreCase):
                         options.WirePost = true;
                         break;
+                    case var opt when opt.Equals("--benchmark", StringComparison.OrdinalIgnoreCase):
+                        options.Benchmark = true;
+                        break;
+                    case var opt when opt.Equals("--benchmark-attempts", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--benchmark-attempts", out string? benchmarkAttemptsValue, out errorMessage) ||
+                            !int.TryParse(benchmarkAttemptsValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out int benchmarkAttempts)) {
+                            errorMessage ??= $"Invalid value for --benchmark-attempts: {benchmarkAttemptsValue}";
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        if (benchmarkAttempts < 1) {
+                            errorMessage = $"--benchmark-attempts must be at least 1: {benchmarkAttempts}";
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        options.Benchmark = true;
+                        options.BenchmarkAttempts = benchmarkAttempts;
+                        break;
+                    case var opt when opt.Equals("--benchmark-timeout", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--benchmark-timeout", out string? benchmarkTimeoutValue, out errorMessage) ||
+                            !int.TryParse(benchmarkTimeoutValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out int benchmarkTimeoutMs)) {
+                            errorMessage ??= $"Invalid value for --benchmark-timeout: {benchmarkTimeoutValue}";
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        if (benchmarkTimeoutMs < 1) {
+                            errorMessage = $"--benchmark-timeout must be at least 1: {benchmarkTimeoutMs}";
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        options.Benchmark = true;
+                        options.BenchmarkTimeoutMs = benchmarkTimeoutMs;
+                        break;
+                    case var opt when opt.Equals("--benchmark-concurrency", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--benchmark-concurrency", out string? benchmarkConcurrencyValue, out errorMessage) ||
+                            !int.TryParse(benchmarkConcurrencyValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out int benchmarkConcurrency)) {
+                            errorMessage ??= $"Invalid value for --benchmark-concurrency: {benchmarkConcurrencyValue}";
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        if (benchmarkConcurrency < 1) {
+                            errorMessage = $"--benchmark-concurrency must be at least 1: {benchmarkConcurrency}";
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        options.Benchmark = true;
+                        options.BenchmarkConcurrency = benchmarkConcurrency;
+                        break;
+                    case var opt when opt.Equals("--benchmark-min-success-percent", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--benchmark-min-success-percent", out string? benchmarkMinSuccessPercentValue, out errorMessage) ||
+                            !int.TryParse(benchmarkMinSuccessPercentValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out int benchmarkMinSuccessPercent)) {
+                            errorMessage ??= $"Invalid value for --benchmark-min-success-percent: {benchmarkMinSuccessPercentValue}";
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        if (benchmarkMinSuccessPercent < 1 || benchmarkMinSuccessPercent > 100) {
+                            errorMessage = $"--benchmark-min-success-percent must be between 1 and 100: {benchmarkMinSuccessPercent}";
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        options.Benchmark = true;
+                        options.BenchmarkMinSuccessPercent = benchmarkMinSuccessPercent;
+                        break;
+                    case var opt when opt.Equals("--benchmark-min-successful-candidates", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--benchmark-min-successful-candidates", out string? benchmarkMinSuccessfulCandidatesValue, out errorMessage) ||
+                            !int.TryParse(benchmarkMinSuccessfulCandidatesValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out int benchmarkMinSuccessfulCandidates)) {
+                            errorMessage ??= $"Invalid value for --benchmark-min-successful-candidates: {benchmarkMinSuccessfulCandidatesValue}";
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        if (benchmarkMinSuccessfulCandidates < 1) {
+                            errorMessage = $"--benchmark-min-successful-candidates must be at least 1: {benchmarkMinSuccessfulCandidates}";
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        options.Benchmark = true;
+                        options.BenchmarkMinSuccessfulCandidates = benchmarkMinSuccessfulCandidates;
+                        break;
+                    case var opt when opt.Equals("--benchmark-summary-line", StringComparison.OrdinalIgnoreCase):
+                        options.Benchmark = true;
+                        options.BenchmarkSummaryLine = true;
+                        break;
+                    case var opt when opt.Equals("--benchmark-summary-only", StringComparison.OrdinalIgnoreCase):
+                        options.Benchmark = true;
+                        options.BenchmarkSummaryOnly = true;
+                        break;
                     case var opt when opt.Equals("--probe", StringComparison.OrdinalIgnoreCase):
                         options.Probe = true;
                         break;
@@ -195,8 +333,7 @@ namespace DnsClientX.Cli {
                             options = null;
                             return false;
                         }
-                        options.Probe = true;
-                        options.ProbeEndpoints.Add(probeEndpoint!);
+                        AddOptionValues(options.ProbeEndpoints, probeEndpoint);
                         break;
                     case var opt when opt.Equals("--probe-summary-only", StringComparison.OrdinalIgnoreCase):
                         options.Probe = true;
@@ -315,8 +452,27 @@ namespace DnsClientX.Cli {
                 return false;
             }
 
-            if (options.DoUpdate && options.Probe) {
-                errorMessage = "--probe cannot be combined with --update.";
+            if (!FinalizeParsedLists(options, out errorMessage)) {
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (options.ProbeEndpoints.Count > 0 && !options.Benchmark) {
+                options.Probe = true;
+            }
+
+            if (options.DoUpdate && (options.Probe || options.Benchmark)) {
+                errorMessage = options.Benchmark
+                    ? "--benchmark cannot be combined with --update."
+                    : "--probe cannot be combined with --update.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (options.Probe && options.Benchmark) {
+                errorMessage = "--probe cannot be combined with --benchmark.";
                 invalidSwitches = null;
                 options = null;
                 return false;
@@ -329,13 +485,23 @@ namespace DnsClientX.Cli {
                     options = null;
                     return false;
                 }
-            } else if (!options.Probe && string.IsNullOrWhiteSpace(options.Domain)) {
+            } else if (!options.Probe && !options.Benchmark && string.IsNullOrWhiteSpace(options.Domain)) {
                 errorMessage = "Domain name is required.";
                 invalidSwitches = null;
                 options = null;
                 return false;
             } else if (options.Probe && string.IsNullOrWhiteSpace(options.Domain)) {
                 options.Domain = "example.com";
+            } else if (options.Benchmark) {
+                if (options.BenchmarkDomains.Count == 0) {
+                    options.BenchmarkDomains.Add(!string.IsNullOrWhiteSpace(options.Domain) ? options.Domain! : "example.com");
+                }
+                if (options.BenchmarkEndpoints.Count == 0 && options.ProbeEndpoints.Count == 0) {
+                    options.BenchmarkEndpoints.Add(options.Endpoint);
+                }
+                if (options.BenchmarkRecordTypes.Count == 0) {
+                    options.BenchmarkRecordTypes.Add(options.RecordType);
+                }
             }
 
             invalidSwitches = Array.Empty<string>();
@@ -354,8 +520,83 @@ namespace DnsClientX.Cli {
             return true;
         }
 
+        private static void AddOptionValues(ICollection<string> target, string? rawValue) {
+            foreach (string value in SplitOptionValues(rawValue)) {
+                target.Add(value);
+            }
+        }
+
+        private static IEnumerable<string> SplitOptionValues(string? rawValue) {
+            if (string.IsNullOrWhiteSpace(rawValue)) {
+                yield break;
+            }
+
+            string valueText = rawValue!;
+            string[] parts = valueText.Split(',');
+            foreach (string part in parts) {
+                string value = part.Trim();
+                if (!string.IsNullOrWhiteSpace(value)) {
+                    yield return value;
+                }
+            }
+        }
+
+        private static bool FinalizeParsedLists(CliOptions options, out string? errorMessage) {
+            errorMessage = null;
+
+            if (options.EndpointInputs.Count > 0) {
+                foreach (string endpointValue in options.EndpointInputs) {
+                    if (!Enum.TryParse(endpointValue, true, out DnsEndpoint endpoint)) {
+                        errorMessage = $"Invalid value for --endpoint: {endpointValue}";
+                        return false;
+                    }
+                    options.BenchmarkEndpoints.Add(endpoint);
+                }
+
+                options.Endpoint = options.BenchmarkEndpoints[0];
+                if (!options.Benchmark && options.BenchmarkEndpoints.Count > 1) {
+                    errorMessage = "--endpoint accepts multiple values only with --benchmark.";
+                    return false;
+                }
+            }
+
+            if (options.RecordTypeInputs.Count > 0) {
+                foreach (string recordTypeValue in options.RecordTypeInputs) {
+                    if (!Enum.TryParse(recordTypeValue, true, out DnsRecordType recordType)) {
+                        errorMessage = $"Invalid value for --type: {recordTypeValue}";
+                        return false;
+                    }
+                    options.BenchmarkRecordTypes.Add(recordType);
+                }
+
+                options.RecordType = options.BenchmarkRecordTypes[0];
+                if (!options.Benchmark && options.BenchmarkRecordTypes.Count > 1) {
+                    errorMessage = "--type accepts multiple values only with --benchmark.";
+                    return false;
+                }
+            }
+
+            if (options.DomainInputs.Count > 0) {
+                foreach (string domainValue in options.DomainInputs) {
+                    options.BenchmarkDomains.Add(domainValue);
+                }
+
+                options.Domain = options.BenchmarkDomains[0];
+                if (!options.Benchmark && options.BenchmarkDomains.Count > 1) {
+                    errorMessage = "--domain accepts multiple values only with --benchmark.";
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         private static void ConfigureClient(ClientX client, CliOptions options) {
             client.EnableAudit = options.Explain || options.Trace;
+
+            if (options.Benchmark) {
+                client.EndpointConfiguration.TimeOut = options.BenchmarkTimeoutMs;
+            }
 
             string? envPort = Environment.GetEnvironmentVariable("DNSCLIENTX_CLI_PORT");
             if (int.TryParse(envPort, NumberStyles.Integer, CultureInfo.InvariantCulture, out int customPort) && customPort > 0) {
@@ -369,6 +610,268 @@ namespace DnsClientX.Cli {
                  client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST)) {
                 client.EndpointConfiguration.RequestFormat = DnsRequestFormat.DnsOverHttpsWirePost;
             }
+        }
+
+        private static async Task<int> RunBenchmarkAsync(CliOptions options, CancellationToken cancellationToken) {
+            string[] domains = options.BenchmarkDomains
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            DnsRecordType[] recordTypes = options.BenchmarkRecordTypes
+                .Distinct()
+                .ToArray();
+
+            if (options.ProbeEndpoints.Count > 0) {
+                return await RunCustomBenchmarkAsync(options, domains, recordTypes, cancellationToken).ConfigureAwait(false);
+            }
+
+            DnsEndpoint[] endpoints = options.BenchmarkEndpoints
+                .Distinct()
+                .ToArray();
+
+            Console.WriteLine("Benchmark:");
+            Console.WriteLine($"  Domains: {string.Join(", ", domains)}");
+            Console.WriteLine($"  Types: {string.Join(", ", recordTypes)}");
+            Console.WriteLine($"  Attempts per combination: {options.BenchmarkAttempts}");
+            Console.WriteLine($"  Timeout (ms): {options.BenchmarkTimeoutMs}");
+            Console.WriteLine($"  Concurrency: {options.BenchmarkConcurrency}");
+            Console.WriteLine($"  Detail mode: {(options.BenchmarkSummaryOnly ? "summary-only" : "full")}");
+            Console.WriteLine($"  Candidates: {endpoints.Length}");
+            Console.WriteLine($"  Queries per candidate: {domains.Length * recordTypes.Length * options.BenchmarkAttempts}");
+
+            var results = new List<BenchmarkResult>(endpoints.Length);
+            foreach (DnsEndpoint endpoint in endpoints) {
+                cancellationToken.ThrowIfCancellationRequested();
+                ProbeResult[] attempts = await BenchmarkEndpointAsync(endpoint, domains, recordTypes, options, cancellationToken).ConfigureAwait(false);
+                BenchmarkResult result = BuildBenchmarkResult(attempts);
+                results.Add(result);
+                if (!options.BenchmarkSummaryOnly) {
+                    WriteBenchmarkResult(result);
+                }
+            }
+
+            return WriteBenchmarkSummary(results, options);
+        }
+
+        private static async Task<int> RunCustomBenchmarkAsync(CliOptions options, string[] domains, DnsRecordType[] recordTypes, CancellationToken cancellationToken) {
+            DnsResolverEndpoint[] endpoints = EndpointParser.TryParseMany(options.ProbeEndpoints, out IReadOnlyList<string> errors);
+            if (errors.Count > 0) {
+                foreach (string error in errors) {
+                    Console.Error.WriteLine(error);
+                }
+                return 1;
+            }
+
+            Console.WriteLine("Benchmark:");
+            Console.WriteLine($"  Domains: {string.Join(", ", domains)}");
+            Console.WriteLine($"  Types: {string.Join(", ", recordTypes)}");
+            Console.WriteLine($"  Attempts per combination: {options.BenchmarkAttempts}");
+            Console.WriteLine($"  Timeout (ms): {options.BenchmarkTimeoutMs}");
+            Console.WriteLine($"  Concurrency: {options.BenchmarkConcurrency}");
+            Console.WriteLine($"  Detail mode: {(options.BenchmarkSummaryOnly ? "summary-only" : "full")}");
+            Console.WriteLine("  Endpoint profile: custom");
+            Console.WriteLine($"  Candidates: {endpoints.Length}");
+            Console.WriteLine($"  Queries per candidate: {domains.Length * recordTypes.Length * options.BenchmarkAttempts}");
+
+            var results = new List<BenchmarkResult>(endpoints.Length);
+            foreach (DnsResolverEndpoint endpoint in endpoints) {
+                cancellationToken.ThrowIfCancellationRequested();
+                ProbeResult[] attempts = await BenchmarkEndpointAsync(endpoint, domains, recordTypes, options, cancellationToken).ConfigureAwait(false);
+                BenchmarkResult result = BuildBenchmarkResult(attempts);
+                results.Add(result);
+                if (!options.BenchmarkSummaryOnly) {
+                    WriteBenchmarkResult(result);
+                }
+            }
+
+            return WriteBenchmarkSummary(results, options);
+        }
+
+        private static BenchmarkResult BuildBenchmarkResult(IReadOnlyList<ProbeResult> attempts) {
+            ProbeResult first = attempts[0];
+            ProbeResult[] successful = attempts.Where(result => result.Succeeded).ToArray();
+            ProbeResult? fastest = successful
+                .OrderBy(result => result.Elapsed)
+                .FirstOrDefault();
+
+            int totalQueries = attempts.Count;
+            int successCount = successful.Length;
+            int failureCount = totalQueries - successCount;
+            int successPercent = totalQueries == 0
+                ? 0
+                : (int)Math.Round((double)successCount * 100 / totalQueries, MidpointRounding.AwayFromZero);
+
+            return new BenchmarkResult {
+                DisplayName = first.DisplayName ?? first.Endpoint.ToString(),
+                Resolver = fastest?.Resolver ?? first.Resolver ?? "none",
+                Transport = fastest != null ? DescribeProbeTransport(fastest) : "none",
+                TotalQueries = totalQueries,
+                SuccessCount = successCount,
+                FailureCount = failureCount,
+                SuccessPercent = successPercent,
+                AverageElapsed = successCount == 0 ? TimeSpan.Zero : TimeSpan.FromMilliseconds(successful.Average(result => result.Elapsed.TotalMilliseconds)),
+                MinElapsed = successCount == 0 ? TimeSpan.Zero : TimeSpan.FromMilliseconds(successful.Min(result => result.Elapsed.TotalMilliseconds)),
+                MaxElapsed = successCount == 0 ? TimeSpan.Zero : TimeSpan.FromMilliseconds(successful.Max(result => result.Elapsed.TotalMilliseconds)),
+                DistinctAnswerSets = successCount == 0 ? 0 : successful.GroupBy(BuildAnswerSignature, StringComparer.Ordinal).Count()
+            };
+        }
+
+        private static Task<ProbeResult[]> BenchmarkEndpointAsync(DnsEndpoint endpoint, IReadOnlyList<string> domains, IReadOnlyList<DnsRecordType> recordTypes, CliOptions options, CancellationToken cancellationToken) {
+            return BenchmarkEndpointAsync(
+                (domain, recordType, token) => ProbeEndpointAsync(endpoint, domain, recordType, options, token),
+                domains,
+                recordTypes,
+                options,
+                cancellationToken);
+        }
+
+        private static Task<ProbeResult[]> BenchmarkEndpointAsync(DnsResolverEndpoint endpoint, IReadOnlyList<string> domains, IReadOnlyList<DnsRecordType> recordTypes, CliOptions options, CancellationToken cancellationToken) {
+            return BenchmarkEndpointAsync(
+                (domain, recordType, token) => ProbeEndpointAsync(endpoint, domain, recordType, options, token),
+                domains,
+                recordTypes,
+                options,
+                cancellationToken);
+        }
+
+        private static async Task<ProbeResult[]> BenchmarkEndpointAsync(Func<string, DnsRecordType, CancellationToken, Task<ProbeResult>> runner, IReadOnlyList<string> domains, IReadOnlyList<DnsRecordType> recordTypes, CliOptions options, CancellationToken cancellationToken) {
+            int totalQueries = domains.Count * recordTypes.Count * options.BenchmarkAttempts;
+            var tasks = new List<Task<ProbeResult>>(totalQueries);
+            using var semaphore = new SemaphoreSlim(options.BenchmarkConcurrency);
+
+            foreach (string domain in domains) {
+                foreach (DnsRecordType recordType in recordTypes) {
+                    for (int attempt = 0; attempt < options.BenchmarkAttempts; attempt++) {
+                        tasks.Add(RunBenchmarkAttemptAsync(runner, domain, recordType, semaphore, cancellationToken));
+                    }
+                }
+            }
+
+            return await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
+
+        private static async Task<ProbeResult> RunBenchmarkAttemptAsync(Func<string, DnsRecordType, CancellationToken, Task<ProbeResult>> runner, string domain, DnsRecordType recordType, SemaphoreSlim semaphore, CancellationToken cancellationToken) {
+            await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try {
+                return await runner(domain, recordType, cancellationToken).ConfigureAwait(false);
+            } finally {
+                semaphore.Release();
+            }
+        }
+
+        private static void WriteBenchmarkResult(BenchmarkResult result) {
+            string status = result.SuccessCount > 0 ? "OK" : "FAIL";
+            Console.WriteLine($"  [{status}] {result.DisplayName}");
+            Console.WriteLine($"      Resolver: {result.Resolver}");
+            Console.WriteLine($"      Transport: {result.Transport}");
+            Console.WriteLine($"      Success rate: {result.SuccessPercent}% ({result.SuccessCount}/{result.TotalQueries})");
+            Console.WriteLine($"      Average: {FormatDuration(result.AverageElapsed)}");
+            Console.WriteLine($"      Min: {FormatDuration(result.MinElapsed)}");
+            Console.WriteLine($"      Max: {FormatDuration(result.MaxElapsed)}");
+            Console.WriteLine($"      Distinct answer sets: {result.DistinctAnswerSets}");
+        }
+
+        private static int WriteBenchmarkSummary(IReadOnlyList<BenchmarkResult> results, CliOptions options) {
+            BenchmarkResult[] ranked = results
+                .OrderByDescending(result => result.SuccessPercent)
+                .ThenBy(result => result.SuccessCount == 0 ? double.MaxValue : result.AverageElapsed.TotalMilliseconds)
+                .ThenBy(result => result.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            BenchmarkResult? best = ranked.FirstOrDefault(result => result.SuccessCount > 0);
+            int successfulCandidates = results.Count(result => result.SuccessCount > 0);
+            int totalQueries = results.Sum(result => result.TotalQueries);
+            int successfulQueries = results.Sum(result => result.SuccessCount);
+            int successPercent = totalQueries == 0
+                ? 0
+                : (int)Math.Round((double)successfulQueries * 100 / totalQueries, MidpointRounding.AwayFromZero);
+            BenchmarkPolicyOutcome policy = EvaluateBenchmarkPolicy(results, options);
+
+            Console.WriteLine("Benchmark Summary:");
+            Console.WriteLine($"  Successful candidates: {successfulCandidates}/{results.Count}");
+            Console.WriteLine($"  Successful queries: {successfulQueries}/{totalQueries}");
+            Console.WriteLine($"  Successful query rate: {successPercent}%");
+            for (int i = 0; i < ranked.Length; i++) {
+                BenchmarkResult result = ranked[i];
+                string average = result.SuccessCount == 0 ? "n/a" : FormatDuration(result.AverageElapsed);
+                Console.WriteLine($"  Ranked {i + 1}: {result.DisplayName} avg {average}, success {result.SuccessPercent}% ({result.SuccessCount}/{result.TotalQueries}), resolver {result.Resolver}");
+            }
+            Console.WriteLine($"  Best endpoint: {(best == null ? "none" : $"{best.DisplayName} in {FormatDuration(best.AverageElapsed)} average ({best.SuccessPercent}% success)")}");
+            Console.WriteLine($"  Policy result: {(policy.Passed ? "pass" : $"fail ({policy.Reason})")}");
+
+            int exitCode = policy.ExitCode;
+            if (options.BenchmarkSummaryLine) {
+                Console.WriteLine(BuildBenchmarkSummaryLine(results, best, policy, options, exitCode));
+            }
+
+            return exitCode;
+        }
+
+        private static BenchmarkPolicyOutcome EvaluateBenchmarkPolicy(IReadOnlyList<BenchmarkResult> results, CliOptions options) {
+            int successfulCandidates = results.Count(result => result.SuccessCount > 0);
+            int totalQueries = results.Sum(result => result.TotalQueries);
+            int successfulQueries = results.Sum(result => result.SuccessCount);
+            int successPercent = totalQueries == 0
+                ? 0
+                : (int)Math.Round((double)successfulQueries * 100 / totalQueries, MidpointRounding.AwayFromZero);
+
+            if (successfulCandidates == 0) {
+                return new BenchmarkPolicyOutcome {
+                    Passed = false,
+                    Reason = "no successful candidates",
+                    ExitCode = 1
+                };
+            }
+
+            if (options.BenchmarkMinSuccessfulCandidates.HasValue &&
+                successfulCandidates < options.BenchmarkMinSuccessfulCandidates.Value) {
+                return new BenchmarkPolicyOutcome {
+                    Passed = false,
+                    Reason = $"successful candidates {successfulCandidates}/{results.Count} below required count {options.BenchmarkMinSuccessfulCandidates.Value}",
+                    ExitCode = 3
+                };
+            }
+
+            if (options.BenchmarkMinSuccessPercent.HasValue &&
+                successPercent < options.BenchmarkMinSuccessPercent.Value) {
+                return new BenchmarkPolicyOutcome {
+                    Passed = false,
+                    Reason = $"success rate {successPercent}% below required {options.BenchmarkMinSuccessPercent.Value}%",
+                    ExitCode = 3
+                };
+            }
+
+            return new BenchmarkPolicyOutcome {
+                Passed = true,
+                ExitCode = 0
+            };
+        }
+
+        private static string BuildBenchmarkSummaryLine(IReadOnlyList<BenchmarkResult> results, BenchmarkResult? best, BenchmarkPolicyOutcome policy, CliOptions options, int exitCode) {
+            int successfulCandidates = results.Count(result => result.SuccessCount > 0);
+            int totalQueries = results.Sum(result => result.TotalQueries);
+            int successfulQueries = results.Sum(result => result.SuccessCount);
+            int successPercent = totalQueries == 0
+                ? 0
+                : (int)Math.Round((double)successfulQueries * 100 / totalQueries, MidpointRounding.AwayFromZero);
+
+            return string.Join(" ", new[] {
+                "BENCHMARK_SUMMARY",
+                "summary_version=1",
+                $"result={(policy.Passed ? "pass" : "fail")}",
+                $"exit_code={exitCode}",
+                $"candidates={results.Count}",
+                $"successful_candidates={successfulCandidates}",
+                $"total_queries={totalQueries}",
+                $"successful_queries={successfulQueries}",
+                $"success_percent={successPercent}",
+                $"timeout_ms={options.BenchmarkTimeoutMs}",
+                $"concurrency={options.BenchmarkConcurrency}",
+                $"policy_result={(policy.Passed ? "pass" : "fail")}",
+                $"policy_reason={NormalizeSummaryToken(policy.Passed ? "none" : policy.Reason)}",
+                $"best_target={NormalizeSummaryToken(best?.DisplayName ?? "none")}",
+                $"best_resolver={NormalizeSummaryToken(best?.Resolver ?? "none")}",
+                $"best_transport={NormalizeSummaryToken(best?.Transport ?? "none")}",
+                $"best_avg_ms={(best == null ? 0 : (int)Math.Round(best.AverageElapsed.TotalMilliseconds, MidpointRounding.AwayFromZero))}"
+            });
         }
 
         private static async Task<int> RunProbeAsync(CliOptions options, CancellationToken cancellationToken) {
@@ -388,7 +891,7 @@ namespace DnsClientX.Cli {
             var results = new List<ProbeResult>(plan.Length);
             foreach (DnsEndpoint endpoint in plan) {
                 cancellationToken.ThrowIfCancellationRequested();
-                ProbeResult result = await ProbeEndpointAsync(endpoint, domain, options, cancellationToken).ConfigureAwait(false);
+                ProbeResult result = await ProbeEndpointAsync(endpoint, domain, options.RecordType, options, cancellationToken).ConfigureAwait(false);
                 results.Add(result);
                 if (!options.ProbeSummaryOnly) {
                     WriteProbeResult(result);
@@ -435,7 +938,7 @@ namespace DnsClientX.Cli {
             var results = new List<ProbeResult>(plan.Length);
             foreach (DnsResolverEndpoint endpoint in plan) {
                 cancellationToken.ThrowIfCancellationRequested();
-                ProbeResult result = await ProbeEndpointAsync(endpoint, domain, options, cancellationToken).ConfigureAwait(false);
+                ProbeResult result = await ProbeEndpointAsync(endpoint, domain, options.RecordType, options, cancellationToken).ConfigureAwait(false);
                 results.Add(result);
                 if (!options.ProbeSummaryOnly) {
                     WriteProbeResult(result);
@@ -524,7 +1027,11 @@ namespace DnsClientX.Cli {
             };
         }
 
-        private static async Task<ProbeResult> ProbeEndpointAsync(DnsEndpoint endpoint, string domain, CliOptions options, CancellationToken cancellationToken) {
+        private static Task<ProbeResult> ProbeEndpointAsync(DnsEndpoint endpoint, string domain, CliOptions options, CancellationToken cancellationToken) {
+            return ProbeEndpointAsync(endpoint, domain, options.RecordType, options, cancellationToken);
+        }
+
+        private static async Task<ProbeResult> ProbeEndpointAsync(DnsEndpoint endpoint, string domain, DnsRecordType recordType, CliOptions options, CancellationToken cancellationToken) {
             if (ProbeOverride != null) {
                 var overrideResult = await ProbeOverride(endpoint, domain, cancellationToken).ConfigureAwait(false);
                 return new ProbeResult {
@@ -544,7 +1051,7 @@ namespace DnsClientX.Cli {
             try {
                 DnsResponse response = await client.Resolve(
                     domain,
-                    DnsRecordType.A,
+                    recordType,
                     options.RequestDnsSec,
                     options.ValidateDnsSec,
                     retryOnTransient: false,
@@ -572,7 +1079,11 @@ namespace DnsClientX.Cli {
             }
         }
 
-        private static async Task<ProbeResult> ProbeEndpointAsync(DnsResolverEndpoint endpoint, string domain, CliOptions options, CancellationToken cancellationToken) {
+        private static Task<ProbeResult> ProbeEndpointAsync(DnsResolverEndpoint endpoint, string domain, CliOptions options, CancellationToken cancellationToken) {
+            return ProbeEndpointAsync(endpoint, domain, options.RecordType, options, cancellationToken);
+        }
+
+        private static async Task<ProbeResult> ProbeEndpointAsync(DnsResolverEndpoint endpoint, string domain, DnsRecordType recordType, CliOptions options, CancellationToken cancellationToken) {
             if (ProbeEndpointOverride != null) {
                 var overrideResult = await ProbeEndpointOverride(endpoint, domain, cancellationToken).ConfigureAwait(false);
                 return new ProbeResult {
@@ -604,7 +1115,7 @@ namespace DnsClientX.Cli {
 
                 DnsResponse response = await client.Resolve(
                     domain,
-                    options.RecordType,
+                    recordType,
                     options.RequestDnsSec || endpoint.DnsSecOk == true,
                     options.ValidateDnsSec,
                     retryOnTransient: false,
@@ -862,6 +1373,7 @@ namespace DnsClientX.Cli {
 
             return string.Join(" ", new[] {
                 "PROBE_SUMMARY",
+                "summary_version=1",
                 $"result={(policy.Passed ? "pass" : "fail")}",
                 $"exit_code={exitCode}",
                 $"successful={successful.Length}",
@@ -1313,11 +1825,20 @@ namespace DnsClientX.Cli {
             Console.WriteLine("Usage: DnsClientX.Cli [options] <domain>");
             Console.WriteLine();
             Console.WriteLine("Options:");
-            Console.WriteLine("  -t, --type <record>      DNS record type (default A)");
-            Console.WriteLine("  -e, --endpoint <name>    DNS endpoint name (default System)");
+            Console.WriteLine("  -t, --type <record>      DNS record type (default A, comma-separated with --benchmark)");
+            Console.WriteLine("  -e, --endpoint <name>    DNS endpoint name (default System, comma-separated with --benchmark)");
+            Console.WriteLine("      --domain <name>      Domain name (comma-separated with --benchmark)");
             Console.WriteLine("      --dnssec             Request DNSSEC records");
             Console.WriteLine("      --validate-dnssec    Validate DNSSEC records");
             Console.WriteLine("      --wire-post          Use DNS over HTTPS wire POST (when supported)");
+            Console.WriteLine("      --benchmark          Benchmark one or more endpoints across repeated queries");
+            Console.WriteLine("      --benchmark-attempts <count>  Repeat each domain/type combination this many times");
+            Console.WriteLine("      --benchmark-timeout <ms>  Per-query timeout to apply during benchmark runs");
+            Console.WriteLine("      --benchmark-concurrency <count>  Max concurrent benchmark queries per candidate");
+            Console.WriteLine("      --benchmark-min-success-percent <percent>  Require a minimum overall benchmark success rate");
+            Console.WriteLine("      --benchmark-min-successful-candidates <count>  Require this many candidates to return at least one success");
+            Console.WriteLine("      --benchmark-summary-only  Suppress per-candidate benchmark rows and print only the header and summary");
+            Console.WriteLine("      --benchmark-summary-line  Append one stable BENCHMARK_SUMMARY key=value line for automation");
             Console.WriteLine("      --probe              Probe the selected endpoint profile and related variants");
             Console.WriteLine("      --probe-endpoint <endpoint>  Probe a custom endpoint such as tcp@1.1.1.1:53 or doh@https://dns.google/dns-query");
             Console.WriteLine("      --probe-summary-only  Suppress per-endpoint probe lines and print only the header and summary");

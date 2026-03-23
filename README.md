@@ -972,6 +972,7 @@ Import-Module DnsClientX
 | Cmdlet             | Alias                 | Description                              |
 | ------------------ | --------------------- | ---------------------------------------- |
 | `Resolve-Dns`      | `Resolve-DnsQuery`    | Query DNS records with various providers |
+| `Test-DnsBenchmark`|                       | Benchmark multiple providers or endpoints |
 | `Get-DnsService`   |                       | Discover DNS services (DNS-SD)           |
 | `Find-DnsService`  |                       | Find specific DNS services               |
 | `Get-DnsZone`      | `Get-DnsZoneTransfer` | Perform DNS zone transfers               |
@@ -992,6 +993,31 @@ Resolve-Dns -Name 'google.com', 'github.com', 'microsoft.com' -Type A | Format-T
 
 # Multiple record types
 Resolve-Dns -Name 'google.com' -Type A, AAAA, MX | Format-Table
+```
+
+#### Benchmarking and Resolver Comparison
+```powershell
+# Benchmark built-in providers and return ranked candidate rows
+Test-DnsBenchmark -Name 'example.com' -DnsProvider Cloudflare,Google,Quad9 -Attempts 3 |
+    Sort-Object Rank | Format-Table Target, SuccessPercent, AverageMs, Rank, IsRecommended
+
+# Benchmark explicit resolver endpoints across domains and record types
+Test-DnsBenchmark -Name 'example.com', 'microsoft.com' -Type A, AAAA `
+    -ResolverEndpoint 'udp@1.1.1.1:53', 'tcp@9.9.9.9:53' `
+    -Attempts 2 -MaxConcurrency 4 | Format-Table
+
+# Add one run-level summary object after the candidate rows
+Test-DnsBenchmark -Name 'example.com' -DnsProvider Cloudflare,Google `
+    -Attempts 3 -IncludeSummary
+
+# Return only the run-level summary object for automation
+Test-DnsBenchmark -Name 'example.com' -DnsProvider Cloudflare,Google `
+    -Attempts 3 -MinSuccessPercent 90 -SummaryOnly | Format-List
+
+# Return only summary metadata that scripts can inspect directly
+Test-DnsBenchmark -Name 'example.com' -DnsProvider Cloudflare,Google `
+    -Attempts 3 -MinSuccessPercent 90 -SummaryOnly |
+    Select-Object RecommendedTarget, RecommendationAvailable, OverallSuccessPercent, PolicyPassed
 ```
 
 #### System DNS Queries
@@ -1254,61 +1280,76 @@ dotnet build DnsClientX.sln -c Release
 ### Basic Usage
 
 ```bash
-# Simple A record query
-DnsClientX.exe google.com A
+# Simple A record query using the default System endpoint
+DnsClientX.exe google.com
 
-# Query with specific provider
-DnsClientX.exe google.com A --provider Cloudflare
+# Query with a specific built-in endpoint
+DnsClientX.exe --endpoint Cloudflare google.com
 
-# Multiple record types
-DnsClientX.exe google.com A,AAAA,MX
+# Query a specific record type
+DnsClientX.exe --type MX google.com
 
-# Custom DNS server
-DnsClientX.exe google.com A --server 8.8.8.8
+# Explain which resolver/transport path was used
+DnsClientX.exe --endpoint Cloudflare --type A --explain google.com
 
-# JSON output format
-DnsClientX.exe google.com A --format json
-
-# Verbose output
-DnsClientX.exe google.com A --verbose
+# Include per-attempt diagnostics
+DnsClientX.exe --endpoint Cloudflare --type A --trace google.com
 ```
 
-### Advanced CLI Options
+### Probe and Benchmark
 
 ```bash
-# DNSSEC validation
-DnsClientX.exe google.com A --dnssec --validate
+# Probe a built-in endpoint family
+DnsClientX.exe --probe --endpoint Cloudflare example.com
 
-# Custom timeout (milliseconds)
-DnsClientX.exe google.com A --timeout 5000
+# Probe custom endpoints
+DnsClientX.exe --probe --probe-endpoint udp@1.1.1.1:53,tcp@9.9.9.9:53 example.com
 
-# Multiple domains
-DnsClientX.exe google.com,github.com A
+# Fail when responders disagree
+DnsClientX.exe --probe --probe-endpoint udp@1.1.1.1:53,tcp@9.9.9.9:53 \
+  --probe-require-consensus example.com
 
-# Pattern-based queries
-DnsClientX.exe "server[1-3].example.com" A
+# Benchmark built-in endpoints across repeated queries
+DnsClientX.exe --benchmark --endpoint Cloudflare,Google,Quad9 \
+  --domain example.com --type A --benchmark-attempts 5
 
-# Zone transfer
-DnsClientX.exe example.com AXFR --server 127.0.0.1 --port 5353
+# Benchmark a custom endpoint matrix across domains and record types
+DnsClientX.exe --benchmark \
+  --probe-endpoint udp@1.1.1.1:53,tcp@9.9.9.9:53 \
+  --domain example.com,microsoft.com \
+  --type A,AAAA \
+  --benchmark-attempts 3 \
+  --benchmark-concurrency 4
 
-# Service discovery
-DnsClientX.exe example.com SRV --service http --protocol tcp
+# Add benchmark policy gates for automation
+DnsClientX.exe --benchmark --endpoint Cloudflare,Google,Quad9 \
+  --domain example.com \
+  --type A \
+  --benchmark-attempts 3 \
+  --benchmark-min-success-percent 90 \
+  --benchmark-min-successful-candidates 2 \
+  --benchmark-summary-line
+
+# Keep CI logs compact while still emitting a machine-readable summary line
+DnsClientX.exe --benchmark --endpoint Cloudflare,Google,Quad9 \
+  --domain example.com \
+  --type A \
+  --benchmark-attempts 3 \
+  --benchmark-summary-only \
+  --benchmark-summary-line
 ```
 
-### Output Formats
+### Other Useful Options
 
 ```bash
-# Table format (default)
-DnsClientX.exe google.com A
+# Request and validate DNSSEC data
+DnsClientX.exe --endpoint Cloudflare --dnssec --validate-dnssec google.com
 
-# JSON format
-DnsClientX.exe google.com A --format json
+# Use DoH wire POST when supported
+DnsClientX.exe --endpoint CloudflareWireFormatPost --wire-post google.com
 
-# CSV format
-DnsClientX.exe google.com A --format csv
-
-# Raw format (minimal)
-DnsClientX.exe google.com A --format raw
+# Send a dynamic DNS update
+DnsClientX.exe --update example.com www A 192.0.2.10 --ttl 300
 ```
 
 ### Scripting Examples
@@ -1316,25 +1357,20 @@ DnsClientX.exe google.com A --format raw
 #### Bash/PowerShell Scripts
 ```bash
 #!/bin/bash
-# Check multiple domains for A records
-domains=("google.com" "github.com" "microsoft.com")
-for domain in "${domains[@]}"; do
-    echo "Checking $domain..."
-    DnsClientX.exe "$domain" A --provider Cloudflare
-done
+# Benchmark several providers and capture the one-line machine-readable summary
+DnsClientX.exe --benchmark --endpoint Cloudflare,Google,Quad9 \
+  --domain example.com \
+  --type A \
+  --benchmark-attempts 3 \
+  --benchmark-summary-line
 ```
 
 ```powershell
-# PowerShell script for DNS monitoring
-$Domains = @('google.com', 'github.com', 'microsoft.com')
-$Providers = @('Cloudflare', 'Google', 'Quad9')
-
-foreach ($Domain in $Domains) {
-    foreach ($Provider in $Providers) {
-        Write-Host "Testing $Domain with $Provider" -ForegroundColor Cyan
-        & DnsClientX.exe $Domain A --provider $Provider --format json | ConvertFrom-Json
-    }
-}
+# PowerShell script for quick probe comparison
+& DnsClientX.exe --probe `
+    --probe-endpoint 'udp@1.1.1.1:53,tcp@9.9.9.9:53' `
+    --probe-summary-line `
+    example.com
 ```
 
 
