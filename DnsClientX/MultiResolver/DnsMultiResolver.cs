@@ -100,16 +100,19 @@ namespace DnsClientX {
             int maxPar = Math.Max(1, _options.MaxParallelism);
             using var sem = new SemaphoreSlim(maxPar, maxPar);
             var tasks = new List<Task>();
+
+            async Task RunOneAsync(int idx) {
+                await sem.WaitAsync(ct).ConfigureAwait(false);
+                try {
+                    results[idx] = await QueryAsync(names[idx], type, ct).ConfigureAwait(false);
+                } finally {
+                    sem.Release();
+                }
+            }
+
             for (int i = 0; i < names.Length; i++) {
                 int idx = i;
-                await sem.WaitAsync(ct).ConfigureAwait(false);
-                tasks.Add(Task.Run(async () => {
-                    try {
-                        results[idx] = await QueryAsync(names[idx], type, ct).ConfigureAwait(false);
-                    } finally {
-                        sem.Release();
-                    }
-                }, ct));
+                tasks.Add(RunOneAsync(idx));
             }
             await Task.WhenAll(tasks).ConfigureAwait(false);
             return results;
@@ -367,6 +370,9 @@ namespace DnsClientX {
             Transport.Tcp => DnsRequestFormat.DnsOverTCP,
             Transport.Dot => DnsRequestFormat.DnsOverTLS,
             Transport.Doh => DnsRequestFormat.DnsOverHttps,
+            Transport.Quic => DnsRequestFormat.DnsOverQuic,
+            Transport.Grpc => DnsRequestFormat.DnsOverGrpc,
+            Transport.Multicast => DnsRequestFormat.Multicast,
             _ => DnsRequestFormat.DnsOverUDP
         };
 
@@ -401,27 +407,29 @@ namespace DnsClientX {
                     maxConnectionsPerServer: Configuration.DefaultMaxConnectionsPerServer);
             }
 
-            // Fine-tune endpoint configuration
-            if (ep.Transport != Transport.Doh) {
-                client.EndpointConfiguration.Port = ep.Port > 0 ? ep.Port : (ep.Transport == Transport.Dot ? 853 : 53);
-            } else {
-                // DoH: keep 443 or URL port
-                client.EndpointConfiguration.Port = (ep.DohUrl?.IsDefaultPort ?? true) ? 443 : ep.DohUrl!.Port;
-            }
-            client.EndpointConfiguration.UseTcpFallback = ep.AllowTcpFallback;
-            if (ep.EdnsBufferSize.HasValue) client.EndpointConfiguration.UdpBufferSize = ep.EdnsBufferSize.Value;
-            if (ep.DnsSecOk.HasValue) client.EndpointConfiguration.CheckingDisabled = !ep.DnsSecOk.Value;
-            if (ep.Timeout.HasValue) client.EndpointConfiguration.TimeOut = (int)Math.Max(1, ep.Timeout.Value.TotalMilliseconds);
+            using (client) {
 
-            // Configure caching bounds when enabled
-            if (_options.EnableResponseCache) {
-                if (_options.CacheExpiration.HasValue) client.CacheExpiration = _options.CacheExpiration.Value;
-                if (_options.MinCacheTtl.HasValue) client.MinCacheTtl = _options.MinCacheTtl.Value;
-                if (_options.MaxCacheTtl.HasValue) client.MaxCacheTtl = _options.MaxCacheTtl.Value;
-            }
+                // Fine-tune endpoint configuration
+                if (ep.Transport != Transport.Doh) {
+                    client.EndpointConfiguration.Port = ep.Port > 0 ? ep.Port : (ep.Transport == Transport.Dot ? 853 : 53);
+                } else {
+                    // DoH: keep 443 or URL port
+                    client.EndpointConfiguration.Port = (ep.DohUrl?.IsDefaultPort ?? true) ? 443 : ep.DohUrl!.Port;
+                }
+                client.EndpointConfiguration.UseTcpFallback = ep.AllowTcpFallback;
+                if (ep.EdnsBufferSize.HasValue) client.EndpointConfiguration.UdpBufferSize = ep.EdnsBufferSize.Value;
+                if (ep.Timeout.HasValue) client.EndpointConfiguration.TimeOut = (int)Math.Max(1, ep.Timeout.Value.TotalMilliseconds);
 
-            // A single query; retries disabled, we rely on strategy behavior
-            return await client.Resolve(name, type, requestDnsSec: ep.DnsSecOk ?? false, validateDnsSec: false, returnAllTypes: false, retryOnTransient: false, cancellationToken: ct).ConfigureAwait(false);
+                // Configure caching bounds when enabled
+                if (_options.EnableResponseCache) {
+                    if (_options.CacheExpiration.HasValue) client.CacheExpiration = _options.CacheExpiration.Value;
+                    if (_options.MinCacheTtl.HasValue) client.MinCacheTtl = _options.MinCacheTtl.Value;
+                    if (_options.MaxCacheTtl.HasValue) client.MaxCacheTtl = _options.MaxCacheTtl.Value;
+                }
+
+                // A single query; retries disabled, we rely on strategy behavior
+                return await client.Resolve(name, type, requestDnsSec: ep.DnsSecOk ?? false, validateDnsSec: false, returnAllTypes: false, retryOnTransient: false, cancellationToken: ct).ConfigureAwait(false);
+            }
         }
         /// <summary>
         /// Disposes internal per-endpoint <see cref="SemaphoreSlim"/> limiters and clears references.

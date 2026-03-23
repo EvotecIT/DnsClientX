@@ -54,5 +54,30 @@ public class StrategySwitchDisposalTests {
             Assert.True(diff >= 3 && diff <= 6,
                 $"Expected 3-6 disposals but was {diff}");
         }
+
+        /// <summary>
+        /// Ensures the cached HTTP client is recreated when failover selects a different host under the same strategy.
+        /// </summary>
+        [Fact]
+        public void GetClient_ShouldRefreshBaseAddressAfterFailoverHostChange() {
+            using var client = new ClientX(DnsEndpoint.Cloudflare, DnsSelectionStrategy.Failover);
+            var getClient = typeof(ClientX).GetMethod("GetClient", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var advance = typeof(Configuration).GetMethod("AdvanceToNextHostname", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+            var firstClient = (HttpClient)getClient.Invoke(client, new object[] { client.EndpointConfiguration.SelectionStrategy })!;
+            Uri? firstBaseAddress = firstClient.BaseAddress;
+            string? firstHostname = client.EndpointConfiguration.Hostname;
+
+            advance.Invoke(client.EndpointConfiguration, null);
+            client.EndpointConfiguration.SelectHostNameStrategy();
+
+            Assert.NotEqual(firstHostname, client.EndpointConfiguration.Hostname);
+
+            var secondClient = (HttpClient)getClient.Invoke(client, new object[] { client.EndpointConfiguration.SelectionStrategy })!;
+
+            Assert.NotSame(firstClient, secondClient);
+            Assert.NotEqual(firstBaseAddress, secondClient.BaseAddress);
+            Assert.Equal(client.EndpointConfiguration.BaseUri, secondClient.BaseAddress);
+        }
     }
 }

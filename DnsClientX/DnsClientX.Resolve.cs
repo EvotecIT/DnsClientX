@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Net;
@@ -46,24 +47,32 @@ namespace DnsClientX {
             bool typedRecords = false,
             bool parseTypedTxtRecords = false,
             CancellationToken cancellationToken = default) {
+            _lastAuditEntryContext.Value = null;
             if (retryOnTransient) {
                 try {
-                    Action? beforeRetry = EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover
-                        ? EndpointConfiguration.AdvanceToNextHostname
+                    Action<string>? onRetry = EnableAudit || EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover
+                        ? reason => HandleRetry(reason)
                         : null;
 
                     return await RetryAsync(
                         () => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken),
                         maxRetries,
                         retryDelayMs,
-                        beforeRetry,
+                        null,
+                        onRetry,
                         true,
                         cancellationToken).ConfigureAwait(false);
                 } catch (DnsClientException ex) {
                     return ex.Response ?? new DnsResponse();
+                } finally {
+                    _lastAuditEntryContext.Value = null;
                 }
             } else {
-                return await ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken).ConfigureAwait(false);
+                try {
+                    return await ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken).ConfigureAwait(false);
+                } finally {
+                    _lastAuditEntryContext.Value = null;
+                }
             }
         }
 
@@ -72,38 +81,49 @@ namespace DnsClientX {
 
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
+            var auditEntry = EnableAudit ? new AuditEntry(name, type) { StartedAtUtc = DateTimeOffset.UtcNow } : null;
+            var stopwatch = Stopwatch.StartNew();
+
             // Allow tests to override the resolver to avoid network calls.
             if (ResolverOverride != null) {
-                return await ResolverOverride(name, type, cancellationToken).ConfigureAwait(false);
+                try {
+                    CaptureAuditConfiguration(auditEntry);
+                    var overrideResponse = await ResolverOverride(name, type, cancellationToken).ConfigureAwait(false);
+                    FinalizeAuditEntry(auditEntry, overrideResponse, stopwatch);
+                    return overrideResponse;
+                } catch (Exception ex) {
+                    FinalizeAuditException(auditEntry, ex, stopwatch);
+                    throw;
+                }
             }
 
             bool originalCd = EndpointConfiguration.CheckingDisabled;
             if (validateDnsSec) {
-                EndpointConfiguration.CheckingDisabled = !originalCd;
+                EndpointConfiguration.CheckingDisabled = true;
             }
 
-            // lets we execute valid dns host name strategy
-            EndpointConfiguration.SelectHostNameStrategy();
-
-            // Get the HttpClient for the current strategy
-            Client = GetClient(EndpointConfiguration.SelectionStrategy);
-
-            string cacheKey = $"{EndpointConfiguration.BaseUri}|{type}|{name}";
-            if (_cacheEnabled && _cache.TryGet(cacheKey, out var cached)) {
-                return cached;
-            }
-
-            if (type == DnsRecordType.PTR) {
-                // if we have PTR we need to convert it to proper format, just in case user didn't provide as with one
-                name = ConvertToPtrFormat(name);
-            }
-            // Convert the domain name to punycode if it contains non-ASCII characters
-            name = ConvertToPunycode(name);
-
-            var auditEntry = EnableAudit ? new AuditEntry(name, type) : null;
-
-            DnsResponse response;
             try {
+                // lets we execute valid dns host name strategy
+                EndpointConfiguration.SelectHostNameStrategy();
+                CaptureAuditConfiguration(auditEntry);
+
+                // Get the HttpClient for the current strategy
+                Client = GetClient(EndpointConfiguration.SelectionStrategy);
+
+                string cacheKey = $"{EndpointConfiguration.BaseUri}|{type}|{name}";
+                if (_cacheEnabled && _cache.TryGet(cacheKey, out var cached)) {
+                    FinalizeAuditEntry(auditEntry, cached, stopwatch, servedFromCache: true);
+                    return cached;
+                }
+
+                if (type == DnsRecordType.PTR) {
+                    // if we have PTR we need to convert it to proper format, just in case user didn't provide as with one
+                    name = ConvertToPtrFormat(name);
+                }
+                // Convert the domain name to punycode if it contains non-ASCII characters
+                name = ConvertToPunycode(name);
+
+                DnsResponse response;
                 if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
                     response = await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
                 } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps) {
@@ -155,76 +175,159 @@ namespace DnsClientX {
                 } else {
                     throw new DnsClientException($"Invalid RequestFormat: {EndpointConfiguration.RequestFormat}");
                 }
-            } catch (Exception ex) {
-                if (auditEntry != null) {
-                    auditEntry.Exception = ex;
-                    _auditTrail.Enqueue(auditEntry);
+                // Some DNS Providers return requested type, but also additional types
+                // https://dns.quad9.net:5053/dns-query?name=autodiscover.evotec.pl&type=CNAME
+                // We want to make sure the output is consistent
+                if (!returnAllTypes && response.Answers != null) {
+                    response.Answers = response.Answers.Where(x => x.Type == type).ToArray();
+                } else if (response.Answers == null) {
+                    response.Answers = Array.Empty<DnsAnswer>();
                 }
-                throw;
-            }
 
-            // Some DNS Providers return requested type, but also additional types
-            // https://dns.quad9.net:5053/dns-query?name=autodiscover.evotec.pl&type=CNAME
-            // We want to make sure the output is consistent
-            if (!returnAllTypes && response.Answers != null) {
-                response.Answers = response.Answers.Where(x => x.Type == type).ToArray();
-            } else if (response.Answers == null) {
-                response.Answers = Array.Empty<DnsAnswer>();
-            }
-
-            if (typedRecords && response.Answers != null) {
-                response.TypedAnswers = response.Answers
-                    .Select(a => DnsRecordFactory.Create(a, parseTypedTxtRecords))
-                    .Where(o => o != null)
-                    .ToArray()!;
-            }
-
-            if (validateDnsSec) {
-                bool hasRrsig = response.Answers != null && response.Answers.Any(a => a.Type == DnsRecordType.RRSIG);
-                if (!response.AuthenticData && !hasRrsig) {
-                    string validationError = "DNSSEC validation failed.";
-                    response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
+                if (typedRecords && response.Answers != null) {
+                    response.TypedAnswers = response.Answers
+                        .Select(a => DnsRecordFactory.Create(a, parseTypedTxtRecords))
+                        .Where(o => o != null)
+                        .ToArray()!;
                 }
-                if (EndpointConfiguration.ValidateRootDnsSec && (type == DnsRecordType.DS || type == DnsRecordType.DNSKEY)) {
-                    if (!DnsSecValidator.ValidateAgainstRoot(response, out string rootMessage)) {
-                        string validationError = $"Root DNSSEC validation failed: {rootMessage}";
+
+                if (validateDnsSec) {
+                    bool hasRrsig = response.Answers != null && response.Answers.Any(a => a.Type == DnsRecordType.RRSIG);
+                    if (!response.AuthenticData && !hasRrsig) {
+                        string validationError = "DNSSEC validation failed.";
+                        response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
+                    }
+                    if (EndpointConfiguration.ValidateRootDnsSec && (type == DnsRecordType.DS || type == DnsRecordType.DNSKEY)) {
+                        if (!DnsSecValidator.ValidateAgainstRoot(response, out string rootMessage)) {
+                            string validationError = $"Root DNSSEC validation failed: {rootMessage}";
+                            response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
+                        }
+                    }
+                    if (hasRrsig && !DnsSecValidator.ValidateChain(response, out string chainMessage)) {
+                        string validationError = $"DNSSEC signature verification failed: {chainMessage}";
                         response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
                     }
                 }
-                if (hasRrsig && !DnsSecValidator.ValidateChain(response, out string chainMessage)) {
-                    string validationError = $"DNSSEC signature verification failed: {chainMessage}";
-                    response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
+
+                if (_cacheEnabled) {
+                    TimeSpan ttl = CacheExpiration;
+                    if (response.Answers != null && response.Answers.Length > 0) {
+                        int minTtl = response.Answers.Min(a => a.TTL);
+                        ttl = minTtl == 0 ? TimeSpan.Zero : TimeSpan.FromSeconds(minTtl);
+                    }
+
+                    if (ttl != TimeSpan.Zero && ttl < MinCacheTtl) ttl = MinCacheTtl;
+                    if (ttl > MaxCacheTtl) ttl = MaxCacheTtl;
+
+                    if (ttl > TimeSpan.Zero) {
+                        _cache.Set(cacheKey, response, ttl);
+                    }
                 }
+
+                FinalizeAuditEntry(
+                    auditEntry,
+                    response,
+                    stopwatch,
+                    response.Status != DnsResponseCode.NoError || !string.IsNullOrEmpty(response.Error)
+                        ? new DnsClientException(response.Error ?? "DNS query failed", response)
+                        : null);
+
+                if (response.RoundTripTime <= TimeSpan.Zero) {
+                    response.RoundTripTime = stopwatch.Elapsed;
+                }
+
+                return response;
+            } catch (Exception ex) {
+                FinalizeAuditException(auditEntry, ex, stopwatch);
+                throw;
+            } finally {
+                EndpointConfiguration.CheckingDisabled = originalCd;
+            }
+        }
+
+        private void CaptureAuditConfiguration(AuditEntry? auditEntry) {
+            if (auditEntry == null) {
+                return;
             }
 
-            if (_cacheEnabled) {
-                TimeSpan ttl = CacheExpiration;
-                if (response.Answers != null && response.Answers.Length > 0) {
-                    int minTtl = response.Answers.Min(a => a.TTL);
-                    ttl = minTtl == 0 ? TimeSpan.Zero : TimeSpan.FromSeconds(minTtl);
-                }
+            auditEntry.SelectionStrategy = EndpointConfiguration.SelectionStrategy;
+            auditEntry.RequestFormat = EndpointConfiguration.RequestFormat;
+            auditEntry.ResolverHost = EndpointConfiguration.BaseUri?.Host ?? EndpointConfiguration.Hostname;
+            auditEntry.ResolverPort = EndpointConfiguration.BaseUri?.Port ?? EndpointConfiguration.Port;
+        }
 
-                if (ttl != TimeSpan.Zero && ttl < MinCacheTtl) ttl = MinCacheTtl;
-                if (ttl > MaxCacheTtl) ttl = MaxCacheTtl;
-
-                if (ttl > TimeSpan.Zero) {
-                    _cache.Set(cacheKey, response, ttl);
-                }
+        private void FinalizeAuditEntry(AuditEntry? auditEntry, DnsResponse response, Stopwatch stopwatch, Exception? exception = null, bool servedFromCache = false) {
+            if (auditEntry == null) {
+                return;
             }
 
+            if (exception == null && (response.Status != DnsResponseCode.NoError || !string.IsNullOrEmpty(response.Error))) {
+                exception = new DnsClientException(response.Error ?? "DNS query failed", response);
+            }
 
+            auditEntry.Response = response;
+            auditEntry.Exception = exception;
+            auditEntry.Duration = stopwatch.Elapsed;
+            auditEntry.ServedFromCache = servedFromCache;
+            auditEntry.AttemptNumber = Interlocked.Increment(ref _auditAttemptCounter);
+            auditEntry.UsedTransport = response.UsedTransport;
+            _lastAuditEntryContext.Value = auditEntry;
+            _auditTrail.Enqueue(auditEntry);
+        }
+
+        private void FinalizeAuditException(AuditEntry? auditEntry, Exception ex, Stopwatch stopwatch) {
+            if (auditEntry == null) {
+                return;
+            }
+
+            auditEntry.Duration = stopwatch.Elapsed;
+            auditEntry.Exception = ex;
+            auditEntry.AttemptNumber = Interlocked.Increment(ref _auditAttemptCounter);
+            if (ex is DnsClientException dnsEx && dnsEx.Response != null) {
+                auditEntry.Response = dnsEx.Response;
+                auditEntry.UsedTransport = dnsEx.Response.UsedTransport;
+            }
+            _lastAuditEntryContext.Value = auditEntry;
+            _auditTrail.Enqueue(auditEntry);
+        }
+
+        private void HandleRetry(string reason) {
+            AuditEntry? auditEntry = GetCurrentAuditEntry();
             if (auditEntry != null) {
-                if (response.Status == DnsResponseCode.NoError && string.IsNullOrEmpty(response.Error)) {
-                    auditEntry.Response = response;
-                } else {
-                    auditEntry.Exception = new DnsClientException(response.Error ?? "DNS query failed", response);
-                }
-                _auditTrail.Enqueue(auditEntry);
+                AppendRetryReason(auditEntry, reason);
             }
 
-            EndpointConfiguration.CheckingDisabled = originalCd;
+            if (EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover) {
+                string? previousHost = EndpointConfiguration.Hostname;
+                EndpointConfiguration.AdvanceToNextHostname();
+                EndpointConfiguration.SelectHostNameStrategy();
+                if (auditEntry != null) {
+                    AppendRetryReason(auditEntry, $"failover {previousHost ?? "(unknown)"} -> {EndpointConfiguration.Hostname ?? "(unknown)"}");
+                }
+            }
+        }
 
-            return response;
+        private AuditEntry? GetCurrentAuditEntry() {
+            if (_lastAuditEntryContext.Value != null) {
+                return _lastAuditEntryContext.Value;
+            }
+
+            AuditEntry? last = null;
+            foreach (AuditEntry entry in _auditTrail) {
+                last = entry;
+            }
+
+            return last;
+        }
+
+        private static void AppendRetryReason(AuditEntry auditEntry, string detail) {
+            if (string.IsNullOrWhiteSpace(detail)) {
+                return;
+            }
+
+            auditEntry.RetryReason = string.IsNullOrWhiteSpace(auditEntry.RetryReason)
+                ? detail
+                : $"{auditEntry.RetryReason}; {detail}";
         }
 
         // Generate jitter in a thread-safe manner across all supported
@@ -251,6 +354,7 @@ namespace DnsClientX {
         /// <param name="maxRetries">Maximum number of attempts before giving up.</param>
         /// <param name="delayMs">Base delay between retries in milliseconds. The actual wait time grows exponentially with a random jitter.</param>
         /// <param name="beforeRetry">Optional callback invoked before each retry attempt.</param>
+        /// <param name="onRetry">Optional callback invoked with a short reason describing why the retry was triggered.</param>
         /// <param name="useJitter">Whether to randomize delays with jitter for exponential backoff.</param>
         /// <param name="cancellationToken">Token used to cancel waits between retries.</param>
         /// <remarks>
@@ -259,7 +363,7 @@ namespace DnsClientX {
         /// jitter is used between attempts. If the final result still signals a transient error, a
         /// <see cref="DnsClientException"/> is thrown with the last response.
         /// </remarks>
-        private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 100, Action? beforeRetry = null, bool useJitter = true, CancellationToken cancellationToken = default) {
+        private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 100, Action? beforeRetry = null, Action<string>? onRetry = null, bool useJitter = true, CancellationToken cancellationToken = default) {
             if (maxRetries == 0)
             {
                 var result = await action().ConfigureAwait(false);
@@ -286,6 +390,7 @@ namespace DnsClientX {
                             break;
                         }
 
+                        onRetry?.Invoke(DescribeRetryReason(response));
                         beforeRetry?.Invoke();
                         int exponentialDelay = delayMs <= 0
                             ? 0
@@ -312,6 +417,7 @@ namespace DnsClientX {
                         break;
                     }
 
+                    onRetry?.Invoke($"transient exception: {ex.GetType().Name}");
                     beforeRetry?.Invoke();
                     int exponentialDelay = delayMs <= 0
                         ? 0
@@ -355,6 +461,18 @@ namespace DnsClientX {
         /// </summary>
         private static bool IsTransientResponse(DnsResponse response) {
             return DnsQueryDiagnostics.IsTransient(response);
+        }
+
+        private static string DescribeRetryReason(DnsResponse response) {
+            if (response.IsTruncated) {
+                return "transient response: truncated";
+            }
+
+            if (response.ErrorCode != DnsQueryErrorCode.None) {
+                return $"transient response: {response.ErrorCode}";
+            }
+
+            return $"transient response: {response.Status}";
         }
 
         /// <summary>
@@ -462,20 +580,23 @@ namespace DnsClientX {
             var responses = new DnsResponse[total];
             using var semaphore = new System.Threading.SemaphoreSlim(EndpointConfiguration.MaxConcurrency.Value);
             var tasks = new List<Task>(total);
+
+            async Task RunOneAsync(int idx, string queryName, DnsRecordType queryType) {
+                await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try {
+                    responses[idx] = await Resolve(queryName, queryType, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken).ConfigureAwait(false);
+                } finally {
+                    semaphore.Release();
+                }
+            }
+
             int index = 0;
             for (int i = 0; i < names.Length; i++) {
                 for (int j = 0; j < types.Length; j++) {
                     var idx = index++;
                     var name = names[i];
                     var type = types[j];
-                    tasks.Add(Task.Run(async () => {
-                        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                        try {
-                            responses[idx] = await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken).ConfigureAwait(false);
-                        } finally {
-                            semaphore.Release();
-                        }
-                    }, cancellationToken));
+                    tasks.Add(RunOneAsync(idx, name, type));
                 }
             }
             await Task.WhenAll(tasks).ConfigureAwait(false);
@@ -529,17 +650,20 @@ namespace DnsClientX {
             var responses = new DnsResponse[total];
             using var semaphore = new System.Threading.SemaphoreSlim(EndpointConfiguration.MaxConcurrency.Value);
             var tasks = new List<Task>(total);
+
+            async Task RunOneAsync(int idx, string queryName) {
+                await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try {
+                    responses[idx] = await Resolve(queryName, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken).ConfigureAwait(false);
+                } finally {
+                    semaphore.Release();
+                }
+            }
+
             for (int i = 0; i < names.Length; i++) {
                 var idx = i;
                 var name = names[idx];
-                tasks.Add(Task.Run(async () => {
-                    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    try {
-                        responses[idx] = await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken).ConfigureAwait(false);
-                    } finally {
-                        semaphore.Release();
-                    }
-                }, cancellationToken));
+                tasks.Add(RunOneAsync(idx, name));
             }
             await Task.WhenAll(tasks).ConfigureAwait(false);
             return responses;

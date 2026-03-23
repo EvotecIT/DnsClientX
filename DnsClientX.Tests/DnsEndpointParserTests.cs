@@ -38,5 +38,31 @@ namespace DnsClientX.Tests {
             Assert.NotNull(endpoints[3].DohUrl);
             Assert.Equal(Transport.Doh, endpoints[3].Transport);
         }
+
+        /// <summary>
+        /// Ensures explicit transport prefixes map to the expected endpoint transport and default ports.
+        /// </summary>
+        [Fact]
+        public void TryParseMany_ParsesExplicitTransportPrefixes() {
+            string[] inputs = new[] {
+                "tcp@1.1.1.1:53",
+                "dot@dns.google",
+                "grpc@resolver.example.com",
+                "doh@https://dns.google/dns-query"
+            };
+
+            var endpoints = EndpointParser.TryParseMany(inputs, out var errors);
+
+            Assert.Empty(errors);
+            Assert.Equal(4, endpoints.Length);
+            Assert.Equal(Transport.Tcp, endpoints[0].Transport);
+            Assert.Equal(53, endpoints[0].Port);
+            Assert.Equal(Transport.Dot, endpoints[1].Transport);
+            Assert.Equal(853, endpoints[1].Port);
+            Assert.Equal(Transport.Grpc, endpoints[2].Transport);
+            Assert.Equal(443, endpoints[2].Port);
+            Assert.Equal(Transport.Doh, endpoints[3].Transport);
+            Assert.NotNull(endpoints[3].DohUrl);
+        }
     }
 }

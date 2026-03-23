@@ -69,7 +69,7 @@ namespace DnsClientX {
                     ],
                     Status = DnsResponseCode.ServerFailure
                 };
-                invalidAddress.AddServerDetails(endpointConfiguration);
+                invalidAddress.AddServerDetails(endpointConfiguration, Transport.Tcp);
                 invalidAddress.Error = resolveError ?? $"Invalid DNS server '{dnsServer}'.";
                 return invalidAddress;
             }
@@ -80,7 +80,7 @@ namespace DnsClientX {
 
                 // Deserialize the response from DNS wire format
                 var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
-                response.AddServerDetails(endpointConfiguration);
+                response.AddServerDetails(endpointConfiguration, Transport.Tcp);
                 return response;
             } catch (Exception ex) {
                 DnsResponseCode responseCode;
@@ -103,7 +103,7 @@ namespace DnsClientX {
                     ],
                     Status = responseCode
                 };
-                response.AddServerDetails(endpointConfiguration);
+                response.AddServerDetails(endpointConfiguration, Transport.Tcp);
                 response.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message + " " + ex.InnerException?.Message}";
                 return response;
             }

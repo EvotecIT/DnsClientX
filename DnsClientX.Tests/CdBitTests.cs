@@ -152,6 +152,43 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Explicit CD-bit configuration should not be cleared when validation is requested.
+        /// </summary>
+        [Fact]
+        public async Task UdpRequest_ShouldKeepCdBit_WhenValidateDnsSecTrue_AndCheckingDisabledAlreadyTrue() {
+            int port = GetFreeUdpPort();
+            var response = CreateDnsHeader();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var udpTask = RunUdpServerAsync(port, response, cts.Token);
+
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP, useTcpFallback: false);
+            client.EndpointConfiguration.Port = port;
+            client.EndpointConfiguration.CheckingDisabled = true;
+
+            await client.Resolve("example.com", DnsRecordType.A, requestDnsSec: false, validateDnsSec: true, retryOnTransient: false, cancellationToken: cts.Token);
+
+            byte[] query = await udpTask;
+
+            AssertCdBit(query, "example.com", 0x10u);
+            Assert.True(client.EndpointConfiguration.CheckingDisabled);
+        }
+
+        /// <summary>
+        /// Validation should restore the original CD-bit setting even when resolution throws.
+        /// </summary>
+        [Fact]
+        public async Task Resolve_ShouldRestoreCheckingDisabled_AfterFailure() {
+            using var client = new ClientX("1.1.1.1", DnsRequestFormat.DnsOverHttps);
+            client.EndpointConfiguration.CheckingDisabled = false;
+            client.EndpointConfiguration.RequestFormat = (DnsRequestFormat)999;
+
+            await Assert.ThrowsAsync<DnsClientException>(
+                () => client.Resolve("example.com", DnsRecordType.A, requestDnsSec: false, validateDnsSec: true, retryOnTransient: false));
+
+            Assert.False(client.EndpointConfiguration.CheckingDisabled);
+        }
+
+        /// <summary>
         /// Ensures DOT requests include the CD bit when configured.
         /// </summary>
         [Fact]
