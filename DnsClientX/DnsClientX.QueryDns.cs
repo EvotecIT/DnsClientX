@@ -123,12 +123,12 @@ namespace DnsClientX {
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response.</returns>
         public static async Task<DnsResponse[]> QueryDns(string[] name, DnsRecordType recordType, DnsEndpoint dnsEndpoint = DnsEndpoint.System, DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First, int timeOutMilliseconds = Configuration.DefaultTimeout, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 200, bool requestDnsSec = false, bool validateDnsSec = false, bool typedRecords = false, bool parseTypedTxtRecords = false, CancellationToken cancellationToken = default) {
             if (dnsEndpoint == DnsEndpoint.RootServer) {
-                var tasks = name.Select(n => {
+                var tasks = name.Select(async n => {
                     using var client = new ClientX();
                     if (cancellationToken.IsCancellationRequested) {
-                        return Task.FromCanceled<DnsResponse>(cancellationToken);
+                        return await Task.FromCanceled<DnsResponse>(cancellationToken).ConfigureAwait(false);
                     }
-                    return client.ResolveFromRoot(n, recordType, cancellationToken: cancellationToken);
+                    return await client.ResolveFromRoot(n, recordType, cancellationToken: cancellationToken).ConfigureAwait(false);
                 });
                 return await Task.WhenAll(tasks).ConfigureAwait(false);
             } else {

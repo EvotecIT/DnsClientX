@@ -1,5 +1,9 @@
 using System;
 using System.Text.Json;
+using System.Net;
+using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -25,6 +29,7 @@ namespace DnsClientX.Tests {
             Assert.Equal(config.RequestFormat, response.Questions[0].RequestFormat);
             Assert.Equal(config.Port, response.Questions[0].Port);
             Assert.Equal(config.Hostname, response.ServerAddress);
+            Assert.Equal(Transport.Doh, response.UsedTransport);
             Assert.Single(response.AnswersMinimal);
             Assert.Equal(config.Port, response.AnswersMinimal[0].Port);
         }
@@ -46,6 +51,7 @@ namespace DnsClientX.Tests {
             Assert.Equal(config.RequestFormat, response.Questions[0].RequestFormat);
             Assert.Equal(config.Port, response.Questions[0].Port);
             Assert.Equal(config.Hostname, response.ServerAddress);
+            Assert.Equal(Transport.Udp, response.UsedTransport);
         }
 
         /// <summary>
@@ -65,6 +71,7 @@ namespace DnsClientX.Tests {
             Assert.Equal(config.RequestFormat, response.Questions[0].RequestFormat);
             Assert.Equal(config.Port, response.Questions[0].Port);
             Assert.Equal(config.Hostname, response.ServerAddress);
+            Assert.Equal(Transport.Tcp, response.UsedTransport);
         }
 
         /// <summary>
@@ -106,6 +113,53 @@ namespace DnsClientX.Tests {
             var response = new DnsResponse();
 
             Assert.Empty(response.AnswersMinimal);
+        }
+
+        private static byte[] CreateDnsHeader() {
+            byte[] bytes = new byte[12];
+            ushort id = 0x1234;
+            bytes[0] = (byte)(id >> 8);
+            bytes[1] = (byte)(id & 0xFF);
+            ushort flags = 0x8180;
+            bytes[2] = (byte)(flags >> 8);
+            bytes[3] = (byte)(flags & 0xFF);
+            return bytes;
+        }
+
+        private static async Task RunUdpServerAsync(int port, byte[] response, CancellationToken token) {
+            using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
+#if NET5_0_OR_GREATER
+            UdpReceiveResult result = await udp.ReceiveAsync(token);
+            await udp.SendAsync(response, result.RemoteEndPoint, token);
+#else
+            var receiveTask = udp.ReceiveAsync();
+            var completed = await Task.WhenAny(receiveTask, Task.Delay(Timeout.Infinite, token));
+            if (completed != receiveTask) {
+                throw new OperationCanceledException(token);
+            }
+            UdpReceiveResult result = receiveTask.Result;
+            await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
+#endif
+        }
+
+        /// <summary>
+        /// Successful wire queries should record a non-zero round trip time.
+        /// </summary>
+        [Fact]
+        public async Task Resolve_SetsRoundTripTime() {
+            int port = TestUtilities.GetFreeUdpPort();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            Task serverTask = RunUdpServerAsync(port, CreateDnsHeader(), cts.Token);
+
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: 2000);
+            client.EndpointConfiguration.Port = port;
+
+            DnsResponse response = await client.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
+
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.True(response.RoundTripTime > TimeSpan.Zero, $"Expected positive round trip time, got {response.RoundTripTime}.");
+
+            await serverTask;
         }
     }
 }

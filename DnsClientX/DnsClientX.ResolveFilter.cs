@@ -61,16 +61,18 @@ namespace DnsClientX {
                 for (int i = 0; i < names.Length; i++) {
                     var idx = i;
                     var name = names[idx];
-                    tasks.Add(Task.Run(async () => {
-                        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                        try {
-                            allResponses[idx] = await Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
-                        } finally {
-                            semaphore.Release();
-                        }
-                    }, cancellationToken));
+                    tasks.Add(RunOneAsync(idx, name));
                 }
                 await Task.WhenAll(tasks).ConfigureAwait(false);
+
+                async Task RunOneAsync(int idx, string name) {
+                    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    try {
+                        allResponses[idx] = await Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    } finally {
+                        semaphore.Release();
+                    }
+                }
             }
 
             var filteredResponses = allResponses
@@ -131,16 +133,18 @@ namespace DnsClientX {
                 for (int i = 0; i < names.Length; i++) {
                     var idx = i;
                     var name = names[idx];
-                    tasks.Add(Task.Run(async () => {
-                        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                        try {
-                            allResponses[idx] = await Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
-                        } finally {
-                            semaphore.Release();
-                        }
-                    }, cancellationToken));
+                    tasks.Add(RunOneAsync(idx, name));
                 }
                 await Task.WhenAll(tasks).ConfigureAwait(false);
+
+                async Task RunOneAsync(int idx, string name) {
+                    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    try {
+                        allResponses[idx] = await Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    } finally {
+                        semaphore.Release();
+                    }
+                }
             }
 
             var filteredResponses = allResponses

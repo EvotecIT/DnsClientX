@@ -38,5 +38,29 @@ namespace DnsClientX.Tests {
             _ = EndpointParser.TryParseMany(inputs, out var errors);
             Assert.Single(errors);
         }
+
+        /// <summary>
+        /// Unsupported explicit transport prefixes should be reported as errors.
+        /// </summary>
+        [Fact]
+        public void TryParseMany_InvalidTransportPrefix_ShouldReportError() {
+            var inputs = new[] { "smtp@dns.google:53" };
+            _ = EndpointParser.TryParseMany(inputs, out var errors);
+            Assert.Single(errors);
+            Assert.Contains("Unsupported transport prefix", errors[0], StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Custom DoH endpoints should preserve an explicit non-default port when constructing the query URI.
+        /// </summary>
+        [Fact]
+        public void BuildDohUri_PreservesCustomPort() {
+            var endpoints = EndpointParser.TryParseMany(new[] { "doh@resolver.example:8443" }, out var errors);
+
+            Assert.Empty(errors);
+            Uri uri = EndpointParser.BuildDohUri(endpoints.Single());
+
+            Assert.Equal("https://resolver.example:8443/dns-query", uri.AbsoluteUri);
+        }
     }
 }

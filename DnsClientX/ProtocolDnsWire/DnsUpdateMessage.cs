@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace DnsClientX {
@@ -8,6 +9,14 @@ namespace DnsClientX {
     /// Helper methods for constructing DNS UPDATE messages.
     /// </summary>
     internal static class DnsUpdateMessage {
+        private static ushort CreateTransactionId() {
+            byte[] bytes = new byte[2];
+            using (var rng = RandomNumberGenerator.Create()) {
+                rng.GetBytes(bytes);
+            }
+            return (ushort)((bytes[0] << 8) | bytes[1]);
+        }
+
         private static void WriteUInt16(Stream stream, ushort value) {
             var bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)value));
             stream.Write(bytes, 0, bytes.Length);
@@ -45,18 +54,20 @@ namespace DnsClientX {
 
         private static byte[] BuildTxtRdata(string text) {
             using var ms = new MemoryStream();
-            if (text.Length > 255) {
-                var parts = text.Split(' ');
-                foreach (var part in parts) {
-                    var bytes = Encoding.ASCII.GetBytes(part);
-                    ms.WriteByte((byte)bytes.Length);
-                    ms.Write(bytes, 0, bytes.Length);
-                }
-            } else {
-                var bytes = Encoding.ASCII.GetBytes(text);
-                ms.WriteByte((byte)bytes.Length);
-                ms.Write(bytes, 0, bytes.Length);
+            var bytes = Encoding.ASCII.GetBytes(text);
+            if (bytes.Length == 0) {
+                ms.WriteByte(0);
+                return ms.ToArray();
             }
+
+            var offset = 0;
+            while (offset < bytes.Length) {
+                int chunkLength = Math.Min(255, bytes.Length - offset);
+                ms.WriteByte((byte)chunkLength);
+                ms.Write(bytes, offset, chunkLength);
+                offset += chunkLength;
+            }
+
             return ms.ToArray();
         }
 
@@ -71,8 +82,7 @@ namespace DnsClientX {
         /// <returns>Serialized DNS UPDATE packet.</returns>
         internal static byte[] CreateAddMessage(string zone, string name, DnsRecordType type, string data, int ttl) {
             using var ms = new MemoryStream();
-            var rand = new Random();
-            WriteUInt16(ms, (ushort)rand.Next(ushort.MinValue, ushort.MaxValue));
+            WriteUInt16(ms, CreateTransactionId());
             WriteUInt16(ms, 0x2800); // opcode UPDATE
             WriteUInt16(ms, 1); // zone count
             WriteUInt16(ms, 0); // prereq count
@@ -100,8 +110,7 @@ namespace DnsClientX {
         /// <returns>Serialized DNS UPDATE packet.</returns>
         internal static byte[] CreateDeleteMessage(string zone, string name, DnsRecordType type) {
             using var ms = new MemoryStream();
-            var rand = new Random();
-            WriteUInt16(ms, (ushort)rand.Next(ushort.MinValue, ushort.MaxValue));
+            WriteUInt16(ms, CreateTransactionId());
             WriteUInt16(ms, 0x2800); // opcode UPDATE
             WriteUInt16(ms, 1); // zone count
             WriteUInt16(ms, 0); // prereq

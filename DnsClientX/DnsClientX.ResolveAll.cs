@@ -35,6 +35,7 @@ namespace DnsClientX {
                         maxRetries,
                         retryDelayMs,
                         EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover ? EndpointConfiguration.AdvanceToNextHostname : null,
+                        null,
                         true,
                         cancellationToken).ConfigureAwait(false)
                     : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -71,6 +72,7 @@ namespace DnsClientX {
                         maxRetries,
                         retryDelayMs,
                         EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover ? EndpointConfiguration.AdvanceToNextHostname : null,
+                        null,
                         true,
                         cancellationToken).ConfigureAwait(false)
                     : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -109,6 +111,7 @@ namespace DnsClientX {
                         maxRetries,
                         retryDelayMs,
                         EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover ? EndpointConfiguration.AdvanceToNextHostname : null,
+                        null,
                         true,
                         cancellationToken).ConfigureAwait(false)
                     : await Resolve(name, type, requestDnsSec, validateDnsSec, false, false, 1, 0, cancellationToken: cancellationToken).ConfigureAwait(false);

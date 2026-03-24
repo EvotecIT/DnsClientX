@@ -24,7 +24,7 @@ namespace DnsClientX.Tests {
             MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<int> Invoke() {
                 var generic = method.MakeGenericMethod(typeof(int));
-                return (Task<int>)generic.Invoke(null!, new object?[] { action, 3, 1, null!, false, CancellationToken.None })!;
+                return (Task<int>)generic.Invoke(null!, new object?[] { action, 3, 1, null!, null, false, CancellationToken.None })!;
             }
 
             await Assert.ThrowsAsync<TimeoutException>(Invoke);
@@ -56,7 +56,7 @@ namespace DnsClientX.Tests {
             MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<int> Invoke() {
                 var generic = method.MakeGenericMethod(typeof(int));
-                return (Task<int>)generic.Invoke(null!, new object?[] { action, 3, 50, beforeRetry, false, CancellationToken.None })!;
+                return (Task<int>)generic.Invoke(null!, new object?[] { action, 3, 50, beforeRetry, null, false, CancellationToken.None })!;
             }
 
             await Assert.ThrowsAsync<TimeoutException>(Invoke);
@@ -96,7 +96,7 @@ namespace DnsClientX.Tests {
             MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<int> Invoke() {
                 var generic = method.MakeGenericMethod(typeof(int));
-                return (Task<int>)generic.Invoke(null!, new object?[] { action, 3, 50, beforeRetry, false, CancellationToken.None })!;
+                return (Task<int>)generic.Invoke(null!, new object?[] { action, 3, 50, beforeRetry, null, false, CancellationToken.None })!;
             }
 
             await Assert.ThrowsAsync<TimeoutException>(Invoke);
@@ -125,7 +125,7 @@ namespace DnsClientX.Tests {
             MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<DnsResponse> Invoke() {
                 var generic = method.MakeGenericMethod(typeof(DnsResponse));
-                return (Task<DnsResponse>)generic.Invoke(null!, new object?[] { action, 2, 1, null!, false, CancellationToken.None })!;
+                return (Task<DnsResponse>)generic.Invoke(null!, new object?[] { action, 2, 1, null!, null, false, CancellationToken.None })!;
             }
 
             var ex = await Assert.ThrowsAsync<DnsClientException>(Invoke);
@@ -149,7 +149,7 @@ namespace DnsClientX.Tests {
             var generic = method.MakeGenericMethod(typeof(int));
             using var cts = new CancellationTokenSource();
 
-            Task<int> task = (Task<int>)generic.Invoke(null!, new object?[] { action, 3, 5000, null!, false, cts.Token })!;
+            Task<int> task = (Task<int>)generic.Invoke(null!, new object?[] { action, 3, 5000, null!, null, false, cts.Token })!;
             cts.CancelAfter(200);
 
             await Assert.ThrowsAsync<TaskCanceledException>(() => task);

@@ -10,6 +10,22 @@ namespace DnsClientX.Tests {
     /// Unit tests covering DNS UPDATE operations.
     /// </summary>
     public class DnsUpdateTests {
+        private static ushort ReadUInt16(byte[] data, int offset) {
+            return (ushort)((data[offset] << 8) | data[offset + 1]);
+        }
+
+        private static uint ReadUInt32(byte[] data, int offset) {
+            return (uint)((data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3]);
+        }
+
+        private static int SkipName(byte[] data, int offset) {
+            while (data[offset] != 0) {
+                offset += data[offset] + 1;
+            }
+
+            return offset + 1;
+        }
+
         private static byte[] EncodeName(string name) {
             name = name.TrimEnd('.');
             using var ms = new System.IO.MemoryStream();
@@ -116,6 +132,35 @@ namespace DnsClientX.Tests {
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP);
             await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 () => client.UpdateRecordAsync("example.com", "www.example.com", DnsRecordType.A, "1.2.3.4", ttl));
+        }
+
+        /// <summary>
+        /// Long TXT payloads should be split into multiple DNS character-strings instead of truncating.
+        /// </summary>
+        [Fact]
+        public void CreateAddMessage_LongTxt_IsSplitIntoValidChunks() {
+            string text = new string('a', 300);
+
+            byte[] message = DnsUpdateMessage.CreateAddMessage("example.com", "txt.example.com", DnsRecordType.TXT, text, 60);
+
+            int offset = 12;
+            offset = SkipName(message, offset);
+            offset += 4;
+            offset = SkipName(message, offset);
+
+            Assert.Equal((ushort)DnsRecordType.TXT, ReadUInt16(message, offset));
+            offset += 2;
+            Assert.Equal((ushort)1, ReadUInt16(message, offset));
+            offset += 2;
+            Assert.Equal(60u, ReadUInt32(message, offset));
+            offset += 4;
+
+            int rdLength = ReadUInt16(message, offset);
+            offset += 2;
+
+            Assert.Equal(302, rdLength);
+            Assert.Equal(255, message[offset]);
+            Assert.Equal(45, message[offset + 256]);
         }
     }
 }

@@ -18,6 +18,18 @@ namespace DnsClientX {
         /// <summary>
         /// DNS over HTTPS (RFC 8484, HTTPS endpoints).
         /// </summary>
-        Doh
+        Doh,
+        /// <summary>
+        /// DNS over QUIC (RFC 9250).
+        /// </summary>
+        Quic,
+        /// <summary>
+        /// DNS over gRPC.
+        /// </summary>
+        Grpc,
+        /// <summary>
+        /// DNS over UDP multicast (mDNS).
+        /// </summary>
+        Multicast
     }
 }

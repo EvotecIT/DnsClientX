@@ -82,11 +82,13 @@ namespace DnsClientX {
                     var responseBuffer = await SendQueryOverUdp(udpClient, queryBytes, address!, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
                     var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
+                    bool usedTcpFallback = false;
                     if (response.IsTruncated && endpointConfiguration.UseTcpFallback) {
+                        usedTcpFallback = true;
                         response = await DnsWireResolveTcp.ResolveWireFormatTcp(address.ToString(), port, name, type, requestDnsSec,
                             validateDnsSec, debug, endpointConfiguration, cancellationToken).ConfigureAwait(false);
                     }
-                    response.AddServerDetails(endpointConfiguration);
+                    response.AddServerDetails(endpointConfiguration, usedTcpFallback ? Transport.Tcp : Transport.Udp);
                     return response;
                 } catch (Exception ex) {
                     lastException = ex;

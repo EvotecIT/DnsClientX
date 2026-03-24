@@ -16,6 +16,7 @@ namespace DnsClientX {
         ///  - IPv6: "[2606:4700:4700::1111]:53"
         ///  - Hostname: "dns.google:53"
         ///  - DoH URL: "https://dns.google/dns-query"
+        ///  - Explicit transport: "tcp@1.1.1.1:53", "dot@dns.google:853", "doh@https://dns.google/dns-query"
         /// </summary>
         public static DnsResolverEndpoint[] TryParseMany(IEnumerable<string> inputs, out IReadOnlyList<string> errors) {
             var list = new List<DnsResolverEndpoint>();
@@ -32,11 +33,32 @@ namespace DnsClientX {
                     continue;
                 }
 
+                Transport? explicitTransport = null;
+                int transportSeparator = raw.IndexOf('@');
+                if (transportSeparator > 0) {
+                    string transportName = raw.Substring(0, transportSeparator);
+                    if (!TryParseTransportPrefix(transportName, out Transport parsedTransport)) {
+                        errs.Add($"Unsupported transport prefix: {transportName}");
+                        continue;
+                    }
+
+                    explicitTransport = parsedTransport;
+                    raw = raw.Substring(transportSeparator + 1);
+                    if (string.IsNullOrWhiteSpace(raw)) {
+                        errs.Add($"Missing endpoint after transport prefix: {rawIn}");
+                        continue;
+                    }
+                }
+
                 // DoH URL
                 if (raw.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || raw.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
                     if (Uri.TryCreate(raw, UriKind.Absolute, out var uri)) {
                         if (!string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase)) {
                             errs.Add($"Unsupported scheme for DoH: {raw}");
+                            continue;
+                        }
+                        if (explicitTransport.HasValue && explicitTransport.Value != Transport.Doh) {
+                            errs.Add($"Transport {explicitTransport.Value} does not support HTTPS URL endpoints: {rawIn}");
                             continue;
                         }
                         list.Add(new DnsResolverEndpoint {
@@ -56,9 +78,9 @@ namespace DnsClientX {
                     int end = raw.IndexOf(']');
                     if (end > 1) {
                         string ip = raw.Substring(1, end - 1);
-                        string portPart = raw.Length > end + 1 && raw[end + 1] == ':' ? raw.Substring(end + 2) : "53";
+                        string portPart = raw.Length > end + 1 && raw[end + 1] == ':' ? raw.Substring(end + 2) : GetDefaultPort(explicitTransport).ToString();
                         if (IPAddress.TryParse(ip, out var addr) && addr.AddressFamily == AddressFamily.InterNetworkV6 && int.TryParse(portPart, out int p) && p > 0 && p <= 65535) {
-                            list.Add(new DnsResolverEndpoint { Host = ip, Port = p, Transport = Transport.Udp, Family = AddressFamily.InterNetworkV6 });
+                            list.Add(new DnsResolverEndpoint { Host = ip, Port = p, Transport = explicitTransport ?? Transport.Udp, Family = AddressFamily.InterNetworkV6 });
                             continue;
                         }
                     }
@@ -75,7 +97,7 @@ namespace DnsClientX {
                         if (IPAddress.TryParse(host, out var ipAddr)) {
                             family = ipAddr.AddressFamily;
                         }
-                        list.Add(new DnsResolverEndpoint { Host = host, Port = port, Transport = Transport.Udp, Family = family });
+                        list.Add(new DnsResolverEndpoint { Host = host, Port = port, Transport = explicitTransport ?? Transport.Udp, Family = family });
                         continue;
                     } else {
                         errs.Add($"Invalid port in endpoint: {raw}");
@@ -89,7 +111,12 @@ namespace DnsClientX {
                     if (IPAddress.TryParse(raw, out var ipAddr)) {
                         family = ipAddr.AddressFamily;
                     }
-                    list.Add(new DnsResolverEndpoint { Host = raw, Port = 53, Transport = Transport.Udp, Family = family });
+                    list.Add(new DnsResolverEndpoint {
+                        Host = raw,
+                        Port = GetDefaultPort(explicitTransport),
+                        Transport = explicitTransport ?? Transport.Udp,
+                        Family = family
+                    });
                     continue;
                 }
 
@@ -98,6 +125,77 @@ namespace DnsClientX {
 
             errors = errs;
             return list.ToArray();
+        }
+
+        /// <summary>
+        /// Builds the effective DoH URI for a parsed endpoint, preserving custom ports.
+        /// </summary>
+        public static Uri BuildDohUri(DnsResolverEndpoint endpoint) {
+            if (endpoint == null) {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
+
+            if (endpoint.DohUrl != null) {
+                return endpoint.DohUrl;
+            }
+
+            if (string.IsNullOrWhiteSpace(endpoint.Host)) {
+                throw new ArgumentException("DoH endpoint requires Host.", nameof(endpoint));
+            }
+
+            var builder = new UriBuilder(Uri.UriSchemeHttps, endpoint.Host!) {
+                Path = "/dns-query"
+            };
+
+            if (endpoint.Port > 0 && endpoint.Port != 443) {
+                builder.Port = endpoint.Port;
+            }
+
+            return builder.Uri;
+        }
+
+        private static bool TryParseTransportPrefix(string value, out Transport transport) {
+            switch (value.Trim().ToLowerInvariant()) {
+                case "udp":
+                    transport = Transport.Udp;
+                    return true;
+                case "tcp":
+                    transport = Transport.Tcp;
+                    return true;
+                case "dot":
+                case "tls":
+                    transport = Transport.Dot;
+                    return true;
+                case "doh":
+                case "https":
+                    transport = Transport.Doh;
+                    return true;
+                case "quic":
+                case "doq":
+                    transport = Transport.Quic;
+                    return true;
+                case "grpc":
+                    transport = Transport.Grpc;
+                    return true;
+                case "multicast":
+                case "mdns":
+                    transport = Transport.Multicast;
+                    return true;
+                default:
+                    transport = default;
+                    return false;
+            }
+        }
+
+        private static int GetDefaultPort(Transport? transport) {
+            return transport switch {
+                Transport.Dot => 853,
+                Transport.Quic => 853,
+                Transport.Grpc => 443,
+                Transport.Doh => 443,
+                Transport.Multicast => 5353,
+                _ => 53
+            };
         }
     }
 }

@@ -98,6 +98,53 @@ namespace DnsClientX.Tests {
                 Assert.Contains("match", responses[i].Answers[0].Data, StringComparison.OrdinalIgnoreCase);
             }
         }
+
+        /// <summary>
+        /// Cancellation should stop throttled array resolution without hanging queued work.
+        /// </summary>
+        [Fact]
+        public async Task Resolve_Array_Cancellation_DoesNotHang_WhenConcurrencyIsLimited() {
+            using var client = new ClientX(DnsEndpoint.System);
+            client.EndpointConfiguration.MaxConcurrency = 1;
+
+            client.ResolverOverride = async (name, type, ct) => {
+                await Task.Delay(5000, ct);
+                return new DnsResponse {
+                    Questions = new[] { new DnsQuestion { Name = name, Type = type, OriginalName = name } },
+                    Status = DnsResponseCode.NoError
+                };
+            };
+
+            using var cts = new CancellationTokenSource(100);
+            var names = Enumerable.Range(0, 5).Select(i => $"c{i}.example").ToArray();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => client.Resolve(names, DnsRecordType.A, cancellationToken: cts.Token));
+        }
+
+        /// <summary>
+        /// Cancellation should stop throttled filtered array resolution without hanging queued work.
+        /// </summary>
+        [Fact]
+        public async Task ResolveFilter_Array_Cancellation_DoesNotHang_WhenConcurrencyIsLimited() {
+            using var client = new ClientX(DnsEndpoint.System);
+            client.EndpointConfiguration.MaxConcurrency = 1;
+
+            client.ResolverOverride = async (name, type, ct) => {
+                await Task.Delay(5000, ct);
+                return new DnsResponse {
+                    Questions = new[] { new DnsQuestion { Name = name, Type = type, OriginalName = name } },
+                    Answers = new[] { new DnsAnswer { Name = name, Type = DnsRecordType.TXT, DataRaw = "\"match\"" } },
+                    Status = DnsResponseCode.NoError
+                };
+            };
+
+            using var cts = new CancellationTokenSource(100);
+            var names = Enumerable.Range(0, 5).Select(i => $"f{i}.example").ToArray();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => client.ResolveFilter(names, DnsRecordType.TXT, "match", cancellationToken: cts.Token));
+        }
     }
 }
 

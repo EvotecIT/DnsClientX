@@ -203,7 +203,8 @@ namespace DnsClientX {
         /// Adds the server details to the DNS questions for output purposes.
         /// </summary>
         /// <param name="configuration">Client configuration used when querying.</param>
-        internal void AddServerDetails(Configuration configuration) {
+        /// <param name="usedTransport">Optional explicit transport override for cases such as UDP-to-TCP fallback.</param>
+        internal void AddServerDetails(Configuration configuration, Transport? usedTransport = null) {
             if (Questions == null) {
                 Questions = Array.Empty<DnsQuestion>();
             }
@@ -217,6 +218,7 @@ namespace DnsClientX {
             }
 
             ServerAddress = configuration.Hostname;
+            UsedTransport = usedTransport ?? MapTransport(configuration.RequestFormat);
 
             if (Answers != null) {
                 _answersMinimal = Answers.Select(answer => new DnsAnswerMinimal {
@@ -231,6 +233,26 @@ namespace DnsClientX {
                 // Compute TTL metrics when possible
                 ComputeTtlMetrics();
             }
+        }
+
+        private static Transport MapTransport(DnsRequestFormat requestFormat) {
+            return requestFormat switch {
+                DnsRequestFormat.DnsOverUDP => Transport.Udp,
+                DnsRequestFormat.DnsOverTCP => Transport.Tcp,
+                DnsRequestFormat.DnsOverTLS => Transport.Dot,
+                DnsRequestFormat.DnsOverQuic => Transport.Quic,
+                DnsRequestFormat.DnsOverGrpc => Transport.Grpc,
+                DnsRequestFormat.Multicast => Transport.Multicast,
+                DnsRequestFormat.DnsOverHttps => Transport.Doh,
+                DnsRequestFormat.DnsOverHttpsJSON => Transport.Doh,
+                DnsRequestFormat.DnsOverHttpsPOST => Transport.Doh,
+                DnsRequestFormat.DnsOverHttpsWirePost => Transport.Doh,
+                DnsRequestFormat.DnsOverHttpsJSONPOST => Transport.Doh,
+                DnsRequestFormat.DnsOverHttp2 => Transport.Doh,
+                DnsRequestFormat.DnsOverHttp3 => Transport.Doh,
+                DnsRequestFormat.ObliviousDnsOverHttps => Transport.Doh,
+                _ => Transport.Udp
+            };
         }
 
         internal void ComputeTtlMetrics() {

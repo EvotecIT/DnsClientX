@@ -23,6 +23,14 @@ namespace DnsClientX {
         private readonly AsymmetricAlgorithm? _signingKey;
         private readonly EdnsOption[] _ednsOptions;
 
+        private static ushort CreateTransactionId() {
+            byte[] bytes = new byte[2];
+            using (var rng = RandomNumberGenerator.Create()) {
+                rng.GetBytes(bytes);
+            }
+            return BinaryPrimitives.ReadUInt16BigEndian(bytes);
+        }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="DnsMessage"/> class.
         /// </summary>
@@ -80,8 +88,7 @@ namespace DnsClientX {
             Span<byte> buffer = stackalloc byte[2];
 
             // Write the ID
-            Random random = new Random();
-            ushort randomId = (ushort)random.Next(ushort.MinValue, ushort.MaxValue);
+            ushort randomId = CreateTransactionId();
             BinaryPrimitives.WriteUInt16BigEndian(buffer, randomId);
             //BinaryPrimitives.WriteUInt16BigEndian(buffer, 0xABCD);
             stream.Write(buffer.ToArray(), 0, buffer.Length);
@@ -213,8 +220,7 @@ namespace DnsClientX {
         public byte[] SerializeDnsWireFormat() {
             using (var ms = new MemoryStream()) {
                 // Transaction ID
-                Random random = new Random();
-                ushort randomId = (ushort)random.Next(ushort.MinValue, ushort.MaxValue);
+                ushort randomId = CreateTransactionId();
                 var bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)randomId));
                 ms.Write(bytes, 0, bytes.Length);
 

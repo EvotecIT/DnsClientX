@@ -10,6 +10,12 @@ namespace DnsClientX.Tests {
     /// Tests fallback behavior from UDP to TCP queries.
     /// </summary>
     public class DnsWireFallbackTests {
+        private static int GetFreeUdpPort() {
+            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+            return ((IPEndPoint)socket.LocalEndPoint!).Port;
+        }
+
         private static byte[] CreateDnsHeader(bool truncated) {
             byte[] bytes = new byte[12];
             ushort id = 0x1234;
@@ -22,12 +28,6 @@ namespace DnsClientX.Tests {
             return bytes;
         }
 
-        private static int GetFreePort() {
-            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
-            return ((IPEndPoint)socket.LocalEndPoint!).Port;
-        }
-
         private static async Task RunUdpServerAsync(int port, byte[] response, CancellationToken token) {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
 #if NET5_0_OR_GREATER
@@ -38,23 +38,24 @@ namespace DnsClientX.Tests {
             await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
         }
 
-        private static async Task RunTcpServerAsync(int port, byte[] response, Action onReceived, CancellationToken token) {
-            TcpListener listener = new TcpListener(IPAddress.Loopback, port);
-            listener.Start();
-            using TcpClient client = await listener.AcceptTcpClientAsync();
-            NetworkStream stream = client.GetStream();
-            byte[] lengthBuffer = new byte[2];
-            await TestUtilities.ReadExactlyAsync(stream, lengthBuffer, 2, token);
-            if (BitConverter.IsLittleEndian) Array.Reverse(lengthBuffer);
-            int length = BitConverter.ToUInt16(lengthBuffer, 0);
-            byte[] queryBuffer = new byte[length];
-            await TestUtilities.ReadExactlyAsync(stream, queryBuffer, length, token);
-            onReceived();
-            byte[] prefix = BitConverter.GetBytes((ushort)response.Length);
-            if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
-            await stream.WriteAsync(prefix, 0, prefix.Length, token);
-            await stream.WriteAsync(response, 0, response.Length, token);
-            listener.Stop();
+        private static async Task RunTcpServerAsync(TcpListener listener, byte[] response, Action onReceived, CancellationToken token) {
+            try {
+                using TcpClient client = await listener.AcceptTcpClientAsync();
+                NetworkStream stream = client.GetStream();
+                byte[] lengthBuffer = new byte[2];
+                await TestUtilities.ReadExactlyAsync(stream, lengthBuffer, 2, token);
+                if (BitConverter.IsLittleEndian) Array.Reverse(lengthBuffer);
+                int length = BitConverter.ToUInt16(lengthBuffer, 0);
+                byte[] queryBuffer = new byte[length];
+                await TestUtilities.ReadExactlyAsync(stream, queryBuffer, length, token);
+                onReceived();
+                byte[] prefix = BitConverter.GetBytes((ushort)response.Length);
+                if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
+                await stream.WriteAsync(prefix, 0, prefix.Length, token);
+                await stream.WriteAsync(response, 0, response.Length, token);
+            } finally {
+                listener.Stop();
+            }
         }
 
         /// <summary>
@@ -62,13 +63,15 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldFallbackToTcpWhenTruncated() {
-            int port = GetFreePort();
             var udpResponse = CreateDnsHeader(truncated: true);
             var tcpResponse = CreateDnsHeader(truncated: false);
             bool tcpCalled = false;
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             var udpTask = RunUdpServerAsync(port, udpResponse, cts.Token);
-            var tcpTask = RunTcpServerAsync(port, tcpResponse, () => tcpCalled = true, cts.Token);
+            var tcpTask = RunTcpServerAsync(listener, tcpResponse, () => tcpCalled = true, cts.Token);
 
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port };
             DnsResponse response = await DnsWireResolveUdp.ResolveWireFormatUdp(
@@ -86,6 +89,7 @@ namespace DnsClientX.Tests {
             await Task.WhenAll(udpTask, tcpTask);
             Assert.True(tcpCalled, "Expected TCP fallback to be used");
             Assert.False(response.IsTruncated);
+            Assert.Equal(Transport.Tcp, response.UsedTransport);
         }
 
         /// <summary>
@@ -93,7 +97,7 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldNotFallbackWhenDisabled() {
-            int port = GetFreePort();
+            int port = GetFreeUdpPort();
             var udpResponse = CreateDnsHeader(truncated: true);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var udpTask = RunUdpServerAsync(port, udpResponse, cts.Token);
@@ -113,6 +117,7 @@ namespace DnsClientX.Tests {
 
             await udpTask;
             Assert.True(response.IsTruncated);
+            Assert.Equal(Transport.Udp, response.UsedTransport);
         }
     }
 }
