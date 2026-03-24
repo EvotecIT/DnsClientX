@@ -40,7 +40,7 @@ namespace DnsClientX.Tests {
             var advance = (Action)Delegate.CreateDelegate(typeof(Action), config, "AdvanceToNextHostname", false)!;
             var ex = await Assert.ThrowsAsync<DnsClientException>(async () =>
             {
-                await (Task<DnsResponse>)generic.Invoke(null, new object?[] { action, 2, 1, advance, false, CancellationToken.None })!;
+                await (Task<DnsResponse>)generic.Invoke(null, new object?[] { action, 2, 1, advance, null, false, CancellationToken.None })!;
             });
             Assert.Same(response, ex.Response);
 

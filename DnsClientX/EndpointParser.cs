@@ -127,6 +127,33 @@ namespace DnsClientX {
             return list.ToArray();
         }
 
+        /// <summary>
+        /// Builds the effective DoH URI for a parsed endpoint, preserving custom ports.
+        /// </summary>
+        public static Uri BuildDohUri(DnsResolverEndpoint endpoint) {
+            if (endpoint == null) {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
+
+            if (endpoint.DohUrl != null) {
+                return endpoint.DohUrl;
+            }
+
+            if (string.IsNullOrWhiteSpace(endpoint.Host)) {
+                throw new ArgumentException("DoH endpoint requires Host.", nameof(endpoint));
+            }
+
+            var builder = new UriBuilder(Uri.UriSchemeHttps, endpoint.Host!) {
+                Path = "/dns-query"
+            };
+
+            if (endpoint.Port > 0 && endpoint.Port != 443) {
+                builder.Port = endpoint.Port;
+            }
+
+            return builder.Uri;
+        }
+
         private static bool TryParseTransportPrefix(string value, out Transport transport) {
             switch (value.Trim().ToLowerInvariant()) {
                 case "udp":

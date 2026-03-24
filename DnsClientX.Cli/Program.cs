@@ -1171,7 +1171,7 @@ namespace DnsClientX.Cli {
 
         private static ClientX CreateClient(DnsResolverEndpoint endpoint) {
             if (endpoint.Transport == Transport.Doh) {
-                Uri dohUri = endpoint.DohUrl ?? new Uri($"https://{endpoint.Host}/dns-query");
+                Uri dohUri = EndpointParser.BuildDohUri(endpoint);
                 return new ClientX(dohUri, MapTransport(endpoint.Transport));
             }
 

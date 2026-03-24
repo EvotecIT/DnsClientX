@@ -85,6 +85,7 @@ namespace DnsClientX {
         /// Dictionary of clients for different selection strategies
         /// </summary>
         private readonly Dictionary<DnsSelectionStrategy, HttpClient> _clients = new Dictionary<DnsSelectionStrategy, HttpClient>();
+        private readonly HashSet<HttpClient> _managedClients = new HashSet<HttpClient>();
 
         private static readonly DnsResponseCache _cache = new();
         private readonly bool _cacheEnabled;
@@ -353,6 +354,7 @@ namespace DnsClientX {
         private void ConfigureClient() {
             lock (_lock) {
                 if (Client != null && TryAddDisposedClient(Client)) {
+                    _managedClients.Remove(Client);
                     Client.Dispose();
                     if (_handlerOwnedByClient && handler != null) {
                         TryAddDisposedClient(handler);
@@ -363,6 +365,7 @@ namespace DnsClientX {
                 }
 
                 Client = CreateOptimizedHttpClient();
+                _managedClients.Add(Client);
                 _clients[EndpointConfiguration.SelectionStrategy] = Client;
             }
         }
@@ -400,6 +403,7 @@ namespace DnsClientX {
                 // dispose any clients created for other strategies
                 foreach (KeyValuePair<DnsSelectionStrategy, HttpClient> kv in _clients) {
                     if (kv.Key != strategy && TryAddDisposedClient(kv.Value)) {
+                        _managedClients.Remove(kv.Value);
                         kv.Value.Dispose();
                         if (ReferenceEquals(kv.Value, Client)) {
                             if (!_handlerOwnedByClient && handler != null && TryAddDisposedClient(handler)) {
@@ -417,6 +421,7 @@ namespace DnsClientX {
 
                 // dispose the currently assigned client and handler if present
                 if (Client != null && TryAddDisposedClient(Client)) {
+                    _managedClients.Remove(Client);
                     Client.Dispose();
                     if (_handlerOwnedByClient && handler != null) {
                         TryAddDisposedClient(handler);
@@ -436,6 +441,10 @@ namespace DnsClientX {
         }
 
         private bool ClientMatchesConfiguration(HttpClient client) {
+            if (!_managedClients.Contains(client)) {
+                return true;
+            }
+
             Uri? expectedBase = EndpointConfiguration.BaseUri;
             if (!UriEquals(client.BaseAddress, expectedBase)) {
                 return false;
@@ -455,12 +464,14 @@ namespace DnsClientX {
 
         private void RecreateClientForStrategy(DnsSelectionStrategy strategy, HttpClient existingClient) {
             if (TryAddDisposedClient(existingClient)) {
+                _managedClients.Remove(existingClient);
                 existingClient.Dispose();
                 System.Threading.Interlocked.Increment(ref _disposalCount);
             }
 
             handler = null;
             var replacement = CreateOptimizedHttpClient();
+            _managedClients.Add(replacement);
             _clients[strategy] = replacement;
             if (ReferenceEquals(Client, existingClient)) {
                 Client = replacement;
