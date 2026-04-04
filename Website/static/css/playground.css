@@ -1,0 +1,213 @@
+.dns-playground {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.dns-playground__panel,
+.dns-playground__code-card,
+.dns-playground__table-wrap,
+.dns-playground__summary-card {
+  background: var(--imo-glass);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--imo-glass-border);
+  border-radius: var(--imo-radius-xl);
+  box-shadow: var(--imo-shadow-lg);
+}
+
+.dns-playground__panel,
+.dns-playground__code-card,
+.dns-playground__table-wrap {
+  padding: 1.35rem;
+}
+
+.dns-playground__heading h2,
+.dns-playground__code-header h3,
+.dns-playground__table-title {
+  margin-bottom: 0.45rem;
+}
+
+.dns-playground__eyebrow {
+  display: inline-flex;
+  margin-bottom: 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--imo-accent);
+}
+
+.dns-playground__form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.35rem;
+}
+
+.dns-playground__field,
+.dns-playground__toggle {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.dns-playground__field span,
+.dns-playground__toggle span {
+  font-size: 0.9rem;
+  color: var(--imo-text-secondary);
+}
+
+.dns-playground__field input,
+.dns-playground__field select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.8rem 0.95rem;
+  color: var(--imo-text);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--imo-glass-border);
+  border-radius: var(--imo-radius);
+}
+
+[data-theme="light"] .dns-playground__field input,
+[data-theme="light"] .dns-playground__field select {
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.dns-playground__toggle {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--imo-glass-border);
+  border-radius: var(--imo-radius);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.dns-playground__toggle input {
+  width: 18px;
+  height: 18px;
+  margin-top: 0.05rem;
+}
+
+.dns-playground__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  grid-column: 1 / -1;
+}
+
+.dns-playground__note,
+.dns-playground__status {
+  color: var(--imo-text-secondary);
+}
+
+.dns-playground__status[data-state="error"] {
+  color: #fca5a5;
+}
+
+.dns-playground__summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.dns-playground__summary-card {
+  padding: 1rem 1.1rem;
+}
+
+.dns-playground__summary-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--imo-text-secondary);
+}
+
+.dns-playground__summary-value {
+  display: block;
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: var(--imo-text);
+}
+
+.dns-playground__summary-meta {
+  display: block;
+  margin-top: 0.45rem;
+  color: var(--imo-text-secondary);
+  font-size: 0.9rem;
+}
+
+.dns-playground__records,
+.dns-playground__code {
+  display: grid;
+  gap: 1rem;
+}
+
+.dns-playground__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dns-playground__table th,
+.dns-playground__table td {
+  padding: 0.8rem 0.9rem;
+  border-bottom: 1px solid var(--imo-glass-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.dns-playground__table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--imo-accent);
+}
+
+.dns-playground__table code {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.dns-playground__flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+
+.dns-playground__flag {
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.14);
+  color: var(--imo-text-secondary);
+  font-size: 0.8rem;
+}
+
+.dns-playground__empty {
+  padding: 1rem 1.1rem;
+  border: 1px dashed var(--imo-glass-border-hover);
+  border-radius: var(--imo-radius);
+  color: var(--imo-text-secondary);
+}
+
+.dns-playground pre {
+  margin: 0;
+  overflow: auto;
+}
+
+@media (max-width: 900px) {
+  .dns-playground__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .dns-playground__form,
+  .dns-playground__summary {
+    grid-template-columns: 1fr;
+  }
+
+  .dns-playground__actions {
+    flex-direction: column;
+  }
+}
