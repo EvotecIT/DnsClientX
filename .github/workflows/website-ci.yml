@@ -1,0 +1,27 @@
+name: Website Build
+
+on:
+  pull_request:
+    paths:
+      - "Website/**"
+      - ".github/workflows/website-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: website-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  website-build:
+    uses: EvotecIT/PSPublishModule/.github/workflows/powerforge-website-ci.yml@4a8c9b3a69e505dab381db94b602cd3d70406cae
+    with:
+      website_root: Website
+      pipeline_config: Website/pipeline.json
+      engine_mode: source
+      runner_labels_json: '["ubuntu-latest"]'
+      powerforge_repository: EvotecIT/PSPublishModule
+      powerforge_ref: 4a8c9b3a69e505dab381db94b602cd3d70406cae
+      report_artifact_name: powerforge-website-reports

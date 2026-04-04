@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://evotecit.github.io/DnsClientX/sitemap.xml

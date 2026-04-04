@@ -1,0 +1,251 @@
+{
+  "$schema": "https://raw.githubusercontent.com/EvotecIT/PSPublishModule/main/schemas/powerforge.web.sitespec.schema.json",
+  "SchemaVersion": 1,
+  "Name": "DnsClientX",
+  "BaseUrl": "https://evotecit.github.io/DnsClientX",
+  "DefaultTheme": "dnsclientx",
+  "Features": ["docs", "apiDocs", "notFound"],
+  "TrailingSlash": "always",
+  "ContentRoot": "content",
+  "ProjectsRoot": "projects",
+  "ThemesRoot": "themes",
+  "DataRoot": "data",
+  "StaticAssets": [{ "Source": "static" }],
+  "Collections": [
+    {
+      "Name": "pages",
+      "Input": "content/pages",
+      "Output": "/",
+      "DefaultLayout": "page",
+      "UseToc": false,
+      "Include": ["*.md", "**/*.md"]
+    },
+    {
+      "Name": "products",
+      "Input": "content/products",
+      "Output": "/products",
+      "DefaultLayout": "product",
+      "UseToc": false,
+      "Include": ["*.md", "**/*.md"]
+    },
+    {
+      "Name": "docs",
+      "Input": "content/docs",
+      "Output": "/docs",
+      "DefaultLayout": "docs",
+      "UseToc": true,
+      "TocFile": "content/docs/toc.json",
+      "Include": ["*.md", "**/*.md"]
+    }
+  ],
+  "Head": {
+    "Links": [
+      { "Rel": "icon", "Href": "/favicon.svg", "Type": "image/svg+xml" }
+    ]
+  },
+  "Social": {
+    "Enabled": true,
+    "SiteName": "DnsClientX",
+    "Image": "/images/dnsclientx-social.png",
+    "TwitterCard": "summary_large_image",
+    "AutoGenerateCards": true,
+    "GeneratedCardsPath": "/assets/social/generated",
+    "GeneratedCardWidth": 1200,
+    "GeneratedCardHeight": 630,
+    "GeneratedCardStyle": "default",
+    "GeneratedCardVariant": "standard",
+    "GeneratedCardStylesByCollection": {
+      "pages": "default",
+      "docs": "docs",
+      "products": "default"
+    },
+    "GeneratedCardVariantsByCollection": {
+      "pages": "hero",
+      "docs": "compact",
+      "products": "hero"
+    }
+  },
+  "StructuredData": {
+    "Enabled": true,
+    "Breadcrumbs": true,
+    "OrganizationLegalName": "Evotec Services sp. z o.o.",
+    "OrganizationDescription": "Modern DNS client tooling for .NET and PowerShell, positioned as part of the DomainDetective product family.",
+    "OrganizationLogo": "https://evotecit.github.io/DnsClientX/favicon.svg",
+    "OrganizationSameAs": [
+      "https://github.com/EvotecIT/DnsClientX",
+      "https://github.com/EvotecIT/DomainDetective",
+      "https://evotec.xyz",
+      "https://evo.yt/discord"
+    ],
+    "OrganizationEmail": "support@evotec.xyz",
+    "OrganizationContactUrl": "https://github.com/EvotecIT/DnsClientX/issues"
+  },
+  "EditLinks": {
+    "Enabled": true,
+    "Template": "https://github.com/EvotecIT/DnsClientX/edit/main/{path}",
+    "PathBase": "Website"
+  },
+  "AssetRegistry": {
+    "CssStrategy": "standard",
+    "Bundles": [
+      {
+        "Name": "global",
+        "Css": ["/css/app.css", "/css/prism-theme.css"],
+        "Js": [
+          "/js/site.js",
+          "/assets/prism/prism-core.min.js",
+          "/assets/prism/prism-autoloader.min.js"
+        ]
+      },
+      { "Name": "home", "Css": ["/css/home.css"] },
+      { "Name": "product", "Css": ["/css/product.css"] },
+      { "Name": "docs", "Css": ["/css/docs.css"] },
+      { "Name": "playground", "Css": ["/css/playground.css"], "Js": ["/js/dns-playground.js"] }
+    ],
+    "RouteBundles": [
+      { "Match": "/", "Bundles": ["global", "home"] },
+      { "Match": "/products/**", "Bundles": ["global", "product"] },
+      { "Match": "/docs/**", "Bundles": ["global", "docs"] },
+      { "Match": "/playground/**", "Bundles": ["global", "playground"] },
+      { "Match": "/**", "Bundles": ["global"] }
+    ],
+    "CriticalCss": [
+      {
+        "Name": "dnsclientx",
+        "Path": "themes/dnsclientx/critical.css"
+      }
+    ]
+  },
+  "AssetPolicy": {
+    "Mode": "local",
+    "Hashing": {
+      "Enabled": true,
+      "Extensions": [".css", ".js"],
+      "Exclude": ["**/assets/prism/components/**", "**/css/prism-theme.css"]
+    },
+    "CacheHeaders": {
+      "Enabled": true,
+      "OutputPath": "_headers",
+      "HtmlCacheControl": "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400, stale-if-error=604800"
+    }
+  },
+  "Prism": {
+    "Mode": "auto",
+    "Source": "local",
+    "ThemeLight": "/css/prism-theme.css",
+    "ThemeDark": "/css/prism-theme.css",
+    "Local": {
+      "Core": "/assets/prism/prism-core.min.js",
+      "Autoloader": "/assets/prism/prism-autoloader.min.js",
+      "LanguagesPath": "/assets/prism/components/"
+    }
+  },
+  "A11y": {
+    "SkipLinkLabel": "Skip to content",
+    "ExternalLinkLabel": "Opens in a new tab",
+    "NavToggleLabel": "Toggle navigation"
+  },
+  "LinkRules": {
+    "ExternalRel": "noopener",
+    "ExternalTarget": "_blank",
+    "AddExternalIcon": true
+  },
+  "Xref": {
+    "Enabled": true,
+    "MapFiles": ["data/xrefmap.json"],
+    "WarnOnMissing": true,
+    "EmitMap": true,
+    "MaxWarnings": 25
+  },
+  "Navigation": {
+    "Surfaces": [
+      { "Name": "main", "Path": "/", "PrimaryMenu": "main" },
+      { "Name": "products", "Path": "/products/", "PrimaryMenu": "main" },
+      {
+        "Name": "docs",
+        "Path": "/docs/",
+        "Collection": "docs",
+        "Layout": "docs",
+        "PrimaryMenu": "main",
+        "SidebarMenu": "docs"
+      },
+      {
+        "Name": "apidocs",
+        "Path": "/api/",
+        "Layout": "apiDocs",
+        "PrimaryMenu": "main",
+        "SidebarMenu": "docs"
+      },
+      { "Name": "notFound", "Path": "/404/", "PrimaryMenu": "main" }
+    ],
+    "Auto": [{ "Collection": "docs", "Menu": "docs", "Sort": "order,title" }],
+    "Menus": [
+      {
+        "Name": "main",
+        "Items": [
+          { "Title": "Home", "Url": "/" },
+          { "Title": "Playground", "Url": "/playground/" },
+          { "Title": "Docs", "Url": "/docs/" },
+          { "Title": "API", "Url": "/api/" },
+          { "Title": "Downloads", "Url": "/downloads/" }
+        ]
+      },
+      {
+        "Name": "docs",
+        "Items": [
+          { "Title": "Docs Home", "Url": "/docs/" },
+          { "Title": "Getting Started", "Url": "/docs/getting-started/" },
+          { "Title": "C# Usage", "Url": "/docs/csharp/" },
+          { "Title": "PowerShell Usage", "Url": "/docs/powershell/" },
+          { "Title": "Playground Guide", "Url": "/docs/playground/" }
+        ]
+      },
+      {
+        "Name": "footer-products",
+        "Items": [
+          { "Title": "DnsClientX for .NET", "Url": "/products/dnsclientx/" },
+          { "Title": "DnsClientX PowerShell", "Url": "/products/powershell/" }
+        ]
+      },
+      {
+        "Name": "footer-docs",
+        "Items": [
+          { "Title": "Getting Started", "Url": "/docs/getting-started/" },
+          { "Title": "C# Usage", "Url": "/docs/csharp/" },
+          { "Title": "PowerShell Usage", "Url": "/docs/powershell/" },
+          { "Title": "API Reference", "Url": "/api/" }
+        ]
+      },
+      {
+        "Name": "footer-resources",
+        "Items": [
+          { "Title": "Playground", "Url": "/playground/" },
+          { "Title": "Downloads", "Url": "/downloads/" },
+          { "Title": "GitHub Issues", "Url": "https://github.com/EvotecIT/DnsClientX/issues", "External": true }
+        ]
+      },
+      {
+        "Name": "footer-community",
+        "Items": [
+          { "Title": "GitHub", "Url": "https://github.com/EvotecIT/DnsClientX", "External": true },
+          { "Title": "DomainDetective", "Url": "https://github.com/EvotecIT/DomainDetective", "External": true },
+          { "Title": "Discord", "Url": "https://evo.yt/discord", "External": true }
+        ]
+      }
+    ],
+    "Actions": [
+      {
+        "Title": "GitHub",
+        "Url": "https://github.com/EvotecIT/DnsClientX",
+        "External": true,
+        "CssClass": "imo-btn imo-btn-ghost"
+      },
+      {
+        "Title": "DomainDetective",
+        "Url": "https://github.com/EvotecIT/DomainDetective",
+        "External": true,
+        "CssClass": "imo-btn imo-btn-primary"
+      }
+    ]
+  }
+}
