@@ -373,5 +373,3 @@ build/*
 /Module/Lib/*dotnet-install.sh
 packages-microsoft-prod.deb
 dotnet-install.sh
-Website/_site/
-Website/_temp/
