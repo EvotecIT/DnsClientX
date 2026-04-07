@@ -20,6 +20,9 @@ on:
                 default: false
                 type: boolean
 
+permissions:
+    contents: read
+
 env:
     DOTNET_VERSION: '10.x'
     BUILD_CONFIGURATION: 'Release'
