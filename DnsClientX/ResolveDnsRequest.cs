@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 
 namespace DnsClientX {
     /// <summary>
@@ -297,12 +298,16 @@ namespace DnsClientX {
                 throw new ArgumentOutOfRangeException(nameof(MaxConcurrency), "MaxConcurrency cannot be negative.");
             }
 
-            if (EdnsBufferSize < 0) {
-                throw new ArgumentOutOfRangeException(nameof(EdnsBufferSize), "EdnsBufferSize cannot be negative.");
+            if (EdnsBufferSize < 0 || EdnsBufferSize > ushort.MaxValue) {
+                throw new ArgumentOutOfRangeException(nameof(EdnsBufferSize), $"EdnsBufferSize must be between 0 and {ushort.MaxValue}.");
             }
 
             if (AllServers && Servers.Length == 0) {
                 throw new InvalidOperationException("AllServers requires at least one server.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(ClientSubnet)) {
+                ValidateClientSubnet(ClientSubnet!);
             }
         }
 
@@ -343,6 +348,22 @@ namespace DnsClientX {
             }
 
             return options;
+        }
+
+        private static void ValidateClientSubnet(string subnet) {
+            string[] parts = subnet.Split('/');
+            if (parts.Length is < 1 or > 2 || !IPAddress.TryParse(parts[0], out var ipAddress)) {
+                throw new ArgumentException("ClientSubnet must be a valid IP address or CIDR subnet.", nameof(ClientSubnet));
+            }
+
+            int maxPrefixLength = ipAddress.AddressFamily == AddressFamily.InterNetwork ? 32 : 128;
+            if (parts.Length == 1) {
+                return;
+            }
+
+            if (!int.TryParse(parts[1], out int prefixLength) || prefixLength < 0 || prefixLength > maxPrefixLength) {
+                throw new ArgumentException($"ClientSubnet prefix length must be between 0 and {maxPrefixLength} for {ipAddress.AddressFamily}.", nameof(ClientSubnet));
+            }
         }
     }
 }

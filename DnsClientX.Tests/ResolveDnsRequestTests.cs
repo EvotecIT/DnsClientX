@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -211,6 +212,59 @@ namespace DnsClientX.Tests {
             var exception = Assert.Throws<InvalidOperationException>(() => request.Validate());
 
             Assert.Contains("Specify only one resolver source", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Verifies that EDNS buffer size is constrained to the wire-level 16-bit payload limit.
+        /// </summary>
+        [Fact]
+        public void ResolveDnsRequest_RejectsEdnsBufferSizeAboveUInt16() {
+            var request = new ResolveDnsRequest {
+                Names = new[] { "example.com" },
+                RecordTypes = new[] { DnsRecordType.A },
+                DnsProviders = new[] { DnsEndpoint.Cloudflare },
+                EdnsBufferSize = ushort.MaxValue + 1
+            };
+
+            var exception = Assert.Throws<ArgumentOutOfRangeException>(() => request.Validate());
+
+            Assert.Contains("EdnsBufferSize", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Verifies that malformed ECS input is rejected before request execution.
+        /// </summary>
+        [Fact]
+        public void ResolveDnsRequest_RejectsInvalidClientSubnet() {
+            var request = new ResolveDnsRequest {
+                Names = new[] { "example.com" },
+                RecordTypes = new[] { DnsRecordType.A },
+                DnsProviders = new[] { DnsEndpoint.Cloudflare },
+                ClientSubnet = "192.0.2.1/99"
+            };
+
+            var exception = Assert.Throws<ArgumentException>(() => request.Validate());
+
+            Assert.Contains("ClientSubnet", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Verifies that valid IPv6 ECS input is accepted by reusable request validation.
+        /// </summary>
+        [Fact]
+        public void ResolveDnsRequest_AllowsValidIpv6ClientSubnet() {
+            var request = new ResolveDnsRequest {
+                Names = new[] { "example.com" },
+                RecordTypes = new[] { DnsRecordType.AAAA },
+                DnsProviders = new[] { DnsEndpoint.Cloudflare },
+                ClientSubnet = "2001:db8::/56"
+            };
+
+            request.Validate();
+
+            EdnsOptions? options = request.CreateEdnsOptions();
+            Assert.NotNull(options);
+            Assert.Equal(new EdnsClientSubnetOption("2001:db8::/56"), options!.Subnet);
         }
     }
 }
