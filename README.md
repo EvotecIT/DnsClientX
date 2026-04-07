@@ -32,6 +32,17 @@ DnsClientX is available as NuGet from the Nuget Gallery and as PowerShell module
 
 **DnsClientX** is an async C# library for DNS over UDP, TCP, HTTPS (DoH), and TLS (DoT). It also has a PowerShell module that can be used to query DNS records. It provides a simple way to query DNS records using multiple DNS providers. It supports multiple DNS record types and parallel queries. It's available for .NET 8, .NET 10, .NET Standard 2.0, and .NET 4.7.2.
 
+## DomainDetective.dev
+
+DnsClientX is also documented as a first-class product inside DomainDetective.dev. Use those pages when you want the guided web experience instead of browsing the repository directly:
+
+- Product overview: [https://domaindetective.dev/products/dnsclientx/](https://domaindetective.dev/products/dnsclientx/)
+- C# guide: [https://domaindetective.dev/docs/dnsclientx/csharp/](https://domaindetective.dev/docs/dnsclientx/csharp/)
+- PowerShell guide: [https://domaindetective.dev/docs/dnsclientx/powershell/](https://domaindetective.dev/docs/dnsclientx/powershell/)
+- DNS playground: [https://domaindetective.dev/tools/raw-dns-query/](https://domaindetective.dev/tools/raw-dns-query/)
+- .NET API reference: [https://domaindetective.dev/api/dnsclientx/](https://domaindetective.dev/api/dnsclientx/)
+- PowerShell API reference: [https://domaindetective.dev/api/dnsclientx-powershell/](https://domaindetective.dev/api/dnsclientx-powershell/)
+
 ## Response Format Options: Typed vs Non-Typed Records
 
 DnsClientX gives you **two ways** to work with DNS query results, depending on your needs:
@@ -1090,7 +1101,7 @@ $Response = Resolve-Dns -Name 'google.com' -Type A -DnsProvider Cloudflare -Full
 $Response.Questions | Format-Table
 $Response.Answers | Format-Table
 $Response.AnswersMinimal | Format-Table
-$Response.Authority | Format-Table
+$Response.Authorities | Format-Table
 $Response.Additional | Format-Table
 
 # Check response metadata
