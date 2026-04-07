@@ -322,7 +322,9 @@ namespace DnsClientX {
             var keys = endpoints.Select(EndpointKey).OrderBy(k => k, StringComparer.Ordinal);
             return string.Join("|", keys);
         }
-        private static string EndpointKey(DnsResolverEndpoint ep) => EndpointKeyCache.GetOrAdd(ep, e => e.Transport + ":" + (e.DohUrl?.ToString() ?? (e.Host ?? string.Empty)) + ":" + e.Port.ToString());
+        private static string EndpointKey(DnsResolverEndpoint ep) => EndpointKeyCache.GetOrAdd(
+            ep,
+            e => $"{e.Transport}:{(e.RequestFormat ?? MapTransport(e.Transport))}:{(e.DohUrl?.ToString() ?? (e.Host ?? string.Empty))}:{e.Port}");
 
         private static DnsResponse ChooseBetterError(DnsResponse? current, DnsResponse candidate) {
             if (current == null) return candidate;

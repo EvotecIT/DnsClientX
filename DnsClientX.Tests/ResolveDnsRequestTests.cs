@@ -105,6 +105,82 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Verifies that multi-resolver execution honors retry settings for transient failures.
+        /// </summary>
+        [Fact]
+        public async Task QueryDns_RequestWithResolverEndpoints_RetriesTransientFailures() {
+            try {
+                int calls = 0;
+                DnsMultiResolver.ResolveOverride = (ep, name, type, ct) => {
+                    calls++;
+                    if (calls == 1) {
+                        return Task.FromResult(new DnsResponse {
+                            Questions = new[] {
+                                new DnsQuestion {
+                                    Name = name,
+                                    OriginalName = name,
+                                    Type = type,
+                                    HostName = ep.Host
+                                }
+                            },
+                            Status = DnsResponseCode.ServerFailure,
+                            Error = "timeout",
+                            ErrorCode = DnsQueryErrorCode.Timeout
+                        });
+                    }
+
+                    return Task.FromResult(new DnsResponse {
+                        Questions = new[] {
+                            new DnsQuestion {
+                                Name = name,
+                                OriginalName = name,
+                                Type = type,
+                                HostName = ep.Host
+                            }
+                        },
+                        Answers = new[] {
+                            new DnsAnswer {
+                                Name = name,
+                                Type = type,
+                                TTL = 30,
+                                DataRaw = "127.0.0.1"
+                            }
+                        },
+                        Status = DnsResponseCode.NoError
+                    });
+                };
+
+                var request = new ResolveDnsRequest {
+                    Names = new[] { "example.com" },
+                    RecordTypes = new[] { DnsRecordType.A },
+                    ResolverEndpoints = new[] { "1.1.1.1:53" },
+                    RetryCount = 2,
+                    RetryDelayMs = 0
+                };
+
+                var responses = await ClientX.QueryDns(request);
+
+                Assert.Single(responses);
+                Assert.Equal(DnsResponseCode.NoError, responses[0].Status);
+                Assert.Equal(2, calls);
+            } finally {
+                DnsMultiResolver.ResolveOverride = null;
+            }
+        }
+
+        /// <summary>
+        /// Verifies that explicit server DoH requests preserve provider-specific JSON paths and port overrides.
+        /// </summary>
+        [Fact]
+        public void CreateServerBaseUri_PreservesProviderSpecificJsonPathAndPort() {
+            Uri google = ClientX.CreateServerBaseUri("dns.google", DnsRequestFormat.DnsOverHttpsJSON, 444);
+            Assert.Equal("https://dns.google:444/resolve", google.AbsoluteUri);
+
+            Uri cloudflare = ClientX.CreateServerBaseUri("1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON);
+            Assert.Equal("https://1.1.1.1/dns-query", cloudflare.AbsoluteUri);
+        }
+
+        /// <summary>
         /// Verifies that malformed explicit server values are rejected by the reusable request execution path.
         /// </summary>
         [Fact]

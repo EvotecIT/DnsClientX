@@ -88,7 +88,10 @@ namespace DnsClientX {
             using var resolver = new DnsMultiResolver(endpoints, options);
             var responses = new List<DnsResponse>();
             foreach (var recordType in request.RecordTypes) {
-                var result = await resolver.QueryBatchAsync(namesToUse, recordType, cancellationToken).ConfigureAwait(false);
+                var result = await ExecuteWithRetryAsync(
+                    request,
+                    () => resolver.QueryBatchAsync(namesToUse, recordType, cancellationToken),
+                    cancellationToken).ConfigureAwait(false);
                 responses.AddRange(result);
             }
 
@@ -234,20 +237,35 @@ namespace DnsClientX {
         }
 
         private static ClientX CreateClientForServer(ResolveDnsRequest request, string serverName, EdnsOptions? ednsOptions) {
-            var client = new ClientX(
-                serverName,
-                request.RequestFormat,
-                timeOutMilliseconds: request.TimeOutMilliseconds,
-                userAgent: request.UserAgent,
-                httpVersion: request.HttpVersion,
-                ignoreCertificateErrors: request.IgnoreCertificateErrors,
-                enableCache: false,
-                useTcpFallback: request.UseTcpFallback,
-                webProxy: request.CreateWebProxy(),
-                maxConnectionsPerServer: request.EffectiveMaxConnectionsPerServer);
+            ClientX client;
+            if (UsesExplicitServerBaseUri(request.RequestFormat)) {
+                client = new ClientX(
+                    CreateServerBaseUri(serverName, request.RequestFormat, request.Port),
+                    request.RequestFormat,
+                    timeOutMilliseconds: request.TimeOutMilliseconds,
+                    userAgent: request.UserAgent,
+                    httpVersion: request.HttpVersion,
+                    ignoreCertificateErrors: request.IgnoreCertificateErrors,
+                    enableCache: false,
+                    useTcpFallback: request.UseTcpFallback,
+                    webProxy: request.CreateWebProxy(),
+                    maxConnectionsPerServer: request.EffectiveMaxConnectionsPerServer);
+            } else {
+                client = new ClientX(
+                    serverName,
+                    request.RequestFormat,
+                    timeOutMilliseconds: request.TimeOutMilliseconds,
+                    userAgent: request.UserAgent,
+                    httpVersion: request.HttpVersion,
+                    ignoreCertificateErrors: request.IgnoreCertificateErrors,
+                    enableCache: false,
+                    useTcpFallback: request.UseTcpFallback,
+                    webProxy: request.CreateWebProxy(),
+                    maxConnectionsPerServer: request.EffectiveMaxConnectionsPerServer);
 
-            if (request.Port > 0) {
-                client.EndpointConfiguration.Port = request.Port;
+                if (request.Port > 0) {
+                    client.EndpointConfiguration.Port = request.Port;
+                }
             }
 
             ApplyRequestConfiguration(client, request, ednsOptions);
@@ -335,6 +353,44 @@ namespace DnsClientX {
             }
 
             return IPAddress.TryParse(value, out _) || Uri.CheckHostName(value) != UriHostNameType.Unknown;
+        }
+
+        internal static Uri CreateServerBaseUri(string serverName, DnsRequestFormat requestFormat, int portOverride = 0) {
+            var builder = new UriBuilder(Uri.UriSchemeHttps, serverName) {
+                Path = GetServerRequestPath(serverName, requestFormat)
+            };
+
+            int port = portOverride > 0 ? portOverride : 443;
+            if (port != 443) {
+                builder.Port = port;
+            }
+
+            return builder.Uri;
+        }
+
+        private static bool UsesExplicitServerBaseUri(DnsRequestFormat requestFormat) {
+            return requestFormat is
+                DnsRequestFormat.DnsOverHttps or
+                DnsRequestFormat.DnsOverHttpsJSON or
+                DnsRequestFormat.DnsOverHttpsPOST or
+                DnsRequestFormat.DnsOverHttpsWirePost or
+                DnsRequestFormat.DnsOverHttpsJSONPOST or
+                DnsRequestFormat.DnsOverHttp2 or
+                DnsRequestFormat.DnsOverHttp3 or
+                DnsRequestFormat.ObliviousDnsOverHttps or
+                DnsRequestFormat.DnsOverGrpc;
+        }
+
+        private static string GetServerRequestPath(string serverName, DnsRequestFormat requestFormat) {
+            if (requestFormat is DnsRequestFormat.DnsOverHttpsJSON or DnsRequestFormat.DnsOverHttpsJSONPOST) {
+                if (string.Equals(serverName, "dns.google", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(serverName, "8.8.8.8", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(serverName, "8.8.4.4", StringComparison.OrdinalIgnoreCase)) {
+                    return "/resolve";
+                }
+            }
+
+            return "/dns-query";
         }
 
         private static void Shuffle(List<string> values) {

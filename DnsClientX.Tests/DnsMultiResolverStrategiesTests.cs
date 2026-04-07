@@ -131,6 +131,62 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Ensures FastestWins cache differentiates endpoints that share a URL but use different request formats.
+        /// </summary>
+        [Fact]
+        public async Task FastestWins_CacheKey_Separates_RequestFormats() {
+            try {
+                DnsMultiResolver.ClearFastestCache();
+                var jsonEndpoint = new DnsResolverEndpoint {
+                    Host = "1.1.1.1",
+                    Port = 443,
+                    Transport = Transport.Doh,
+                    DohUrl = new Uri("https://1.1.1.1/dns-query"),
+                    RequestFormat = DnsRequestFormat.DnsOverHttpsJSON
+                };
+                var wireEndpoint = new DnsResolverEndpoint {
+                    Host = "1.1.1.1",
+                    Port = 443,
+                    Transport = Transport.Doh,
+                    DohUrl = new Uri("https://1.1.1.1/dns-query"),
+                    RequestFormat = DnsRequestFormat.DnsOverHttps
+                };
+
+                var calls = new ConcurrentDictionary<string, int>();
+                string Key(DnsResolverEndpoint ep) => ep.RequestFormat?.ToString() ?? string.Empty;
+
+                DnsMultiResolver.ResolveOverride = async (ep, name, type, ct) => {
+                    calls.AddOrUpdate(Key(ep), 1, (_, value) => value + 1);
+                    if (ep.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
+                        await Task.Delay(50, ct);
+                    } else {
+                        await Task.Delay(5, ct);
+                    }
+
+                    return Ok(name, type);
+                };
+
+                var first = new DnsMultiResolver(
+                    new[] { jsonEndpoint, wireEndpoint },
+                    new MultiResolverOptions { Strategy = MultiResolverStrategy.FastestWins, MaxParallelism = 2, FastestCacheDuration = TimeSpan.FromMinutes(5) });
+                var firstResponse = await first.QueryAsync("example.com", DnsRecordType.A);
+                Assert.Equal(DnsResponseCode.NoError, firstResponse.Status);
+
+                int jsonBefore = calls.TryGetValue(DnsRequestFormat.DnsOverHttpsJSON.ToString(), out var jsonCount) ? jsonCount : 0;
+                int wireBefore = calls.TryGetValue(DnsRequestFormat.DnsOverHttps.ToString(), out var wireCount) ? wireCount : 0;
+
+                var second = new DnsMultiResolver(
+                    new[] { wireEndpoint, jsonEndpoint },
+                    new MultiResolverOptions { Strategy = MultiResolverStrategy.FastestWins, MaxParallelism = 2, FastestCacheDuration = TimeSpan.FromMinutes(5) });
+                var secondResponse = await second.QueryAsync("example.org", DnsRecordType.A);
+
+                Assert.Equal(DnsResponseCode.NoError, secondResponse.Status);
+                Assert.Equal(jsonBefore, calls.TryGetValue(DnsRequestFormat.DnsOverHttpsJSON.ToString(), out jsonCount) ? jsonCount : 0);
+                Assert.True((calls.TryGetValue(DnsRequestFormat.DnsOverHttps.ToString(), out wireCount) ? wireCount : 0) > wireBefore);
+            } finally { DnsMultiResolver.ResolveOverride = null; DnsMultiResolver.ClearFastestCache(); }
+        }
+
+        /// <summary>
         /// Ensures SequentialAll tries endpoints in order and returns the first success.
         /// </summary>
         [Fact]
