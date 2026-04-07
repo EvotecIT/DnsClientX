@@ -126,7 +126,7 @@ If you want to learn about DNS:
 
 ### Examples Project
 - **.NET 8.0** only
-- Spectre.Console (0.54.0) for enhanced console output
+- Spectre.Console (0.55.0) for enhanced console output
 
 ## Build Status
 

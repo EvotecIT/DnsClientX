@@ -14,6 +14,9 @@ on:
             - main
     workflow_dispatch:
 
+permissions:
+    contents: read
+
 env:
     DOTNET_VERSION: '10.x'
     BUILD_CONFIGURATION: 'Debug'
