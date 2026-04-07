@@ -30,6 +30,38 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Provider variants should preserve their distinct hosts when expanded.
+        /// </summary>
+        [Fact]
+        public void From_VariantProviders_PreservesDistinctHosts() {
+            var quad9 = DnsResolverEndpointFactory.From(DnsEndpoint.Quad9ECS);
+            Assert.Single(quad9);
+            Assert.Equal("dns11.quad9.net", quad9[0].Host);
+
+            var openDnsFamily = DnsResolverEndpointFactory.From(DnsEndpoint.OpenDNSFamily);
+            Assert.Contains(openDnsFamily, e => e.Host == "208.67.222.123");
+            Assert.Contains(openDnsFamily, e => e.Host == "208.67.220.123");
+        }
+
+        /// <summary>
+        /// Request format overrides should be preserved for non-default transports.
+        /// </summary>
+        [Fact]
+        public void From_AdvancedProviders_PreservesRequestFormat() {
+            var cloudflarePost = DnsResolverEndpointFactory.From(DnsEndpoint.CloudflareWireFormatPost);
+            Assert.All(cloudflarePost, e => Assert.Equal(DnsRequestFormat.DnsOverHttpsWirePost, e.RequestFormat));
+
+            var quic = DnsResolverEndpointFactory.From(DnsEndpoint.CloudflareQuic);
+            Assert.NotEmpty(quic);
+            Assert.All(quic, e => Assert.Equal(Transport.Quic, e.Transport));
+            Assert.All(quic, e => Assert.Equal(DnsRequestFormat.DnsOverQuic, e.RequestFormat));
+
+            var odoh = DnsResolverEndpointFactory.From(DnsEndpoint.CloudflareOdoh);
+            Assert.Single(odoh);
+            Assert.Equal(DnsRequestFormat.ObliviousDnsOverHttps, odoh[0].RequestFormat);
+        }
+
+        /// <summary>
         /// Endpoint ToString should format DoH and host:port consistently.
         /// </summary>
         [Fact]

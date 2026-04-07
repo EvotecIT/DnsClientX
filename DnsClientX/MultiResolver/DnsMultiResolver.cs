@@ -322,7 +322,9 @@ namespace DnsClientX {
             var keys = endpoints.Select(EndpointKey).OrderBy(k => k, StringComparer.Ordinal);
             return string.Join("|", keys);
         }
-        private static string EndpointKey(DnsResolverEndpoint ep) => EndpointKeyCache.GetOrAdd(ep, e => e.Transport + ":" + (e.DohUrl?.ToString() ?? (e.Host ?? string.Empty)) + ":" + e.Port.ToString());
+        private static string EndpointKey(DnsResolverEndpoint ep) => EndpointKeyCache.GetOrAdd(
+            ep,
+            e => $"{e.Transport}:{(e.RequestFormat ?? MapTransport(e.Transport))}:{(e.DohUrl?.ToString() ?? (e.Host ?? string.Empty))}:{e.Port}");
 
         private static DnsResponse ChooseBetterError(DnsResponse? current, DnsResponse candidate) {
             if (current == null) return candidate;
@@ -379,32 +381,33 @@ namespace DnsClientX {
         private async Task<DnsResponse> PerformQuery(DnsResolverEndpoint ep, string name, DnsRecordType type, CancellationToken ct) {
             // Configure ClientX according to endpoint
             ClientX client;
+            DnsRequestFormat requestFormat = ep.RequestFormat ?? MapTransport(ep.Transport);
             if (ep.Transport == Transport.Doh) {
                 var dohUri = ep.DohUrl ?? new Uri($"https://{ep.Host}/dns-query");
                 client = new ClientX(
                     baseUri: dohUri,
-                    requestFormat: MapTransport(ep.Transport),
+                    requestFormat: requestFormat,
                     timeOutMilliseconds: DefaultPerQueryTimeoutMs,
-                    userAgent: null,
-                    httpVersion: null,
-                    ignoreCertificateErrors: false,
+                    userAgent: _options.UserAgent,
+                    httpVersion: _options.HttpVersion,
+                    ignoreCertificateErrors: _options.IgnoreCertificateErrors,
                     enableCache: _options.EnableResponseCache,
-                    useTcpFallback: true,
-                    webProxy: null,
-                    maxConnectionsPerServer: Configuration.DefaultMaxConnectionsPerServer);
+                    useTcpFallback: _options.UseTcpFallback,
+                    webProxy: _options.WebProxy,
+                    maxConnectionsPerServer: _options.MaxConnectionsPerServer > 0 ? _options.MaxConnectionsPerServer : Configuration.DefaultMaxConnectionsPerServer);
             } else {
                 if (string.IsNullOrWhiteSpace(ep.Host)) throw new ArgumentException("Endpoint.Host is required for non-DoH transports");
                 client = new ClientX(
                     hostname: ep.Host!,
-                    requestFormat: MapTransport(ep.Transport),
+                    requestFormat: requestFormat,
                     timeOutMilliseconds: DefaultPerQueryTimeoutMs,
-                    userAgent: null,
-                    httpVersion: null,
-                    ignoreCertificateErrors: false,
+                    userAgent: _options.UserAgent,
+                    httpVersion: _options.HttpVersion,
+                    ignoreCertificateErrors: _options.IgnoreCertificateErrors,
                     enableCache: _options.EnableResponseCache,
-                    useTcpFallback: true,
-                    webProxy: null,
-                    maxConnectionsPerServer: Configuration.DefaultMaxConnectionsPerServer);
+                    useTcpFallback: _options.UseTcpFallback,
+                    webProxy: _options.WebProxy,
+                    maxConnectionsPerServer: _options.MaxConnectionsPerServer > 0 ? _options.MaxConnectionsPerServer : Configuration.DefaultMaxConnectionsPerServer);
             }
 
             using (client) {
@@ -416,9 +419,12 @@ namespace DnsClientX {
                     // DoH: keep 443 or URL port
                     client.EndpointConfiguration.Port = (ep.DohUrl?.IsDefaultPort ?? true) ? 443 : ep.DohUrl!.Port;
                 }
-                client.EndpointConfiguration.UseTcpFallback = ep.AllowTcpFallback;
+                client.EndpointConfiguration.UseTcpFallback = _options.UseTcpFallback && ep.AllowTcpFallback;
+                client.EndpointConfiguration.MaxConcurrency = _options.MaxConcurrency;
                 if (ep.EdnsBufferSize.HasValue) client.EndpointConfiguration.UdpBufferSize = ep.EdnsBufferSize.Value;
                 if (ep.Timeout.HasValue) client.EndpointConfiguration.TimeOut = (int)Math.Max(1, ep.Timeout.Value.TotalMilliseconds);
+                client.EndpointConfiguration.CheckingDisabled = _options.CheckingDisabled;
+                if (_options.EdnsOptions != null) client.EndpointConfiguration.EdnsOptions = _options.EdnsOptions;
 
                 // Configure caching bounds when enabled
                 if (_options.EnableResponseCache) {
@@ -428,7 +434,17 @@ namespace DnsClientX {
                 }
 
                 // A single query; retries disabled, we rely on strategy behavior
-                return await client.Resolve(name, type, requestDnsSec: ep.DnsSecOk ?? false, validateDnsSec: false, returnAllTypes: false, retryOnTransient: false, cancellationToken: ct).ConfigureAwait(false);
+                bool requestDnsSec = _options.RequestDnsSec || _options.ValidateDnsSec || ep.DnsSecOk == true;
+                return await client.Resolve(
+                    name,
+                    type,
+                    requestDnsSec: requestDnsSec,
+                    validateDnsSec: _options.ValidateDnsSec,
+                    returnAllTypes: false,
+                    retryOnTransient: false,
+                    typedRecords: _options.TypedRecords,
+                    parseTypedTxtRecords: _options.ParseTypedTxtRecords,
+                    cancellationToken: ct).ConfigureAwait(false);
             }
         }
         /// <summary>

@@ -523,7 +523,7 @@ var opts = new MultiResolverOptions {
 - PowerShell:
 
 ```powershell
-Resolve-Dns -Name 'example.com' -Type A -DnsProvider Cloudflare,Google \
+Resolve-Dns -Name 'example.com' -Type A -DnsProvider Cloudflare,Google `
   -ResolverStrategy FirstSuccess -ResponseCache -CacheExpirationSeconds 30 -MinCacheTtlSeconds 1 -MaxCacheTtlSeconds 3600
 ```
 
@@ -532,16 +532,24 @@ Resolve-Dns -Name 'example.com' -Type A -DnsProvider Cloudflare,Google \
 Balance across providers with caps:
 
 ```powershell
-Resolve-Dns -Name @('a.com','b.com') -Type A \
-  -DnsProvider System,Cloudflare,Quad9 \
+Resolve-Dns -Name @('a.com','b.com') -Type A `
+  -DnsProvider System,Cloudflare,Quad9 `
   -ResolverStrategy RoundRobin -MaxParallelism 32 -PerEndpointMaxInFlight 4
 ```
 
 First success across mixed endpoints:
 
 ```powershell
-Resolve-Dns -Name 'example.com' -Type A \
+Resolve-Dns -Name 'example.com' -Type A `
   -ResolverEndpoint '1.1.1.1:53','https://dns.google/dns-query' -ResolverStrategy FirstSuccess
+```
+
+EDNS client subnet and DNSSEC details:
+
+```powershell
+Resolve-Dns -Name 'example.com' -Type A `
+  -ResolverEndpoint 'https://dns.google/dns-query' `
+  -EnableEdns -ClientSubnet '192.0.2.0/24' -RequestDnsSec -ValidateDnsSec -FullResponse
 ```
 
 ### Managing FastestWins Cache
@@ -956,6 +964,7 @@ try {
 ## Usage in PowerShell
 
 DnsClientX provides a comprehensive PowerShell module with multiple cmdlets for DNS operations.
+`Resolve-Dns` covers the main query surface, including built-in providers, explicit server transports, resolver endpoint strategies, DNSSEC, EDNS/ECS, and typed records.
 
 ### Installation
 
@@ -1025,8 +1034,12 @@ Test-DnsBenchmark -Name 'example.com' -DnsProvider Cloudflare,Google `
 # Use system-configured DNS servers
 Resolve-Dns -Name 'google.com' -Type A -DnsProvider System -Verbose | Format-Table
 
-# Query with custom DNS server
+# Query with custom DNS server over classic UDP
 Resolve-Dns -Name 'google.com' -Type A -Server '8.8.8.8' | Format-Table
+
+# Query a named resolver over DoH with explicit transport settings
+Resolve-Dns -Name 'google.com' -Type A -Server 'dns.google' `
+    -RequestFormat DnsOverHttps -Port 443 -UserAgent 'DnsClientX/PowerShell' | Format-Table
 
 # Multiple servers with fallback
 Resolve-Dns -Name 'google.com' -Type A -Server '1.1.1.1', '8.8.8.8' -Fallback | Format-Table
@@ -1036,11 +1049,27 @@ Resolve-Dns -Name 'google.com' -Type A -Server '1.1.1.1', '8.8.8.8' -Fallback | 
 
 #### DNSSEC Validation
 ```powershell
-# Request and validate DNSSEC
+# Request and validate DNSSEC with a built-in provider
 Resolve-Dns -Name 'google.com' -Type A -DnsProvider Cloudflare -RequestDnsSec -ValidateDnsSec | Format-Table
+
+# Request and validate DNSSEC across explicit resolver endpoints
+Resolve-Dns -Name 'google.com' -Type A `
+    -ResolverEndpoint 'https://dns.google/dns-query', 'tcp@9.9.9.9:53' `
+    -RequestDnsSec -ValidateDnsSec -FullResponse | Format-List
 
 # Query DNSSEC-specific records
 Resolve-Dns -Name 'google.com' -Type DS, DNSKEY -DnsProvider Cloudflare | Format-Table
+```
+
+#### EDNS and Client Subnet
+```powershell
+# Enable EDNS and send ECS (client subnet)
+Resolve-Dns -Name 'example.com' -Type A -DnsProvider Quad9ECS `
+    -EnableEdns -ClientSubnet '192.0.2.0/24' | Format-Table
+
+# Request resolver NSID metadata
+Resolve-Dns -Name 'example.com' -Type A -ResolverEndpoint 'https://dns.google/dns-query' `
+    -EnableEdns -RequestNsid -FullResponse | Format-List
 ```
 
 #### Pattern-Based Queries
@@ -1074,6 +1103,10 @@ Write-Host "DNSSEC: $($Response.IsSecure)"
 ```powershell
 # Custom timeout (in milliseconds)
 Resolve-Dns -Name 'google.com' -Type A -TimeOut 5000 | Format-Table
+
+# Limit per-client concurrency and HTTP connections
+Resolve-Dns -Name 'google.com', 'microsoft.com' -Type A -DnsProvider Cloudflare `
+    -MaxConcurrency 8 -MaxConnectionsPerServer 20 | Format-Table
 
 # With verbose output for troubleshooting
 Resolve-Dns -Name 'google.com' -Type A -DnsProvider Cloudflare -Verbose | Format-Table
@@ -1147,8 +1180,8 @@ Resolve-Dns -Name 'example.com' -Type NAPTR | Format-Table
 # Discover all services in a domain
 Get-DnsService -Domain 'example.com' | Format-Table
 
-# Find specific service types
-Find-DnsService -Domain 'example.com' -Service 'http' -Protocol 'tcp' | Format-Table
+# Find services using the alternate cmdlet name
+Find-DnsService -Domain 'example.com' | Where-Object ServiceName -like '*http*' | Format-Table
 ```
 
 ### Zone Operations
