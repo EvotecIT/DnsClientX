@@ -302,8 +302,26 @@ namespace DnsClientX {
                 throw new ArgumentOutOfRangeException(nameof(EdnsBufferSize), $"EdnsBufferSize must be between 0 and {ushort.MaxValue}.");
             }
 
-            if (AllServers && Servers.Length == 0) {
-                throw new InvalidOperationException("AllServers requires at least one server.");
+            if (Servers.Length == 0) {
+                if (AllServers) {
+                    throw new InvalidOperationException("AllServers requires at least one server.");
+                }
+
+                if (Fallback) {
+                    throw new InvalidOperationException("Fallback requires at least one server.");
+                }
+
+                if (RandomServer) {
+                    throw new InvalidOperationException("RandomServer requires at least one server.");
+                }
+
+                if (Port > 0) {
+                    throw new InvalidOperationException("Port requires at least one server.");
+                }
+
+                if (RequestFormat != DnsRequestFormat.DnsOverUDP) {
+                    throw new InvalidOperationException("RequestFormat requires at least one server.");
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(ClientSubnet)) {

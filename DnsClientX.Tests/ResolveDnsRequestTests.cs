@@ -249,6 +249,41 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Verifies that server-only transport overrides are rejected when no explicit server is configured.
+        /// </summary>
+        [Fact]
+        public void ResolveDnsRequest_RejectsServerTransportOptionsWithoutServer() {
+            var request = new ResolveDnsRequest {
+                Names = new[] { "example.com" },
+                RecordTypes = new[] { DnsRecordType.A },
+                DnsProviders = new[] { DnsEndpoint.Cloudflare },
+                RequestFormat = DnsRequestFormat.DnsOverHttps,
+                Port = 443
+            };
+
+            var exception = Assert.Throws<InvalidOperationException>(() => request.Validate());
+
+            Assert.Contains("requires at least one server", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Verifies that server fallback controls are rejected when no explicit server is configured.
+        /// </summary>
+        [Fact]
+        public void ResolveDnsRequest_RejectsServerFlowFlagsWithoutServer() {
+            var request = new ResolveDnsRequest {
+                Names = new[] { "example.com" },
+                RecordTypes = new[] { DnsRecordType.A },
+                DnsProviders = new[] { DnsEndpoint.Cloudflare },
+                Fallback = true
+            };
+
+            var exception = Assert.Throws<InvalidOperationException>(() => request.Validate());
+
+            Assert.Contains("Fallback requires at least one server", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
         /// Verifies that valid IPv6 ECS input is accepted by reusable request validation.
         /// </summary>
         [Fact]
