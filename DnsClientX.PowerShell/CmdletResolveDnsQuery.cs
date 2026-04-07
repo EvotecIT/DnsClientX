@@ -8,8 +8,8 @@ using DnsClientX;
 
 namespace DnsClientX.PowerShell {
     /// <summary>
-    /// <para type="synopsis">Resolves DNS records (A, AAAA, MX, TXT, …) over UDP/TCP/DoT/DoH with optional multi-resolver strategies.</para>
-    /// <para type="description">Supports single-provider queries, multiple providers with FirstSuccess/FastestWins/SequentialAll/RoundRobin, direct endpoints (IPv4/IPv6/DoH URLs), concurrency control, and TTL-based response caching.</para>
+    /// <para type="synopsis">Resolves DNS records (A, AAAA, MX, TXT, …) over UDP, TCP, DoT, DoH, QUIC, or multicast with optional multi-resolver strategies.</para>
+    /// <para type="description">Supports single-provider queries, explicit servers with transport selection, multiple providers with FirstSuccess/FastestWins/SequentialAll/RoundRobin, direct resolver endpoints, DNSSEC, EDNS/ECS, concurrency control, and TTL-based response caching.</para>
     /// <example>
     ///  <para>Simple (system default)</para>
     ///  <code>Resolve-Dns -Name "example.com" -Type A</code>
@@ -37,6 +37,14 @@ namespace DnsClientX.PowerShell {
     /// <example>
     ///  <para>Enable TTL-based response cache with bounds</para>
     ///  <code>Resolve-Dns -Name 'example.com' -Type MX -DnsProvider Cloudflare,Google -ResponseCache -CacheExpirationSeconds 30 -MinCacheTtlSeconds 1 -MaxCacheTtlSeconds 3600</code>
+    /// </example>
+    /// <example>
+    ///  <para>Query a specific server over DoH with explicit transport settings</para>
+    ///  <code>Resolve-Dns -Name 'example.com' -Type A -Server 'dns.google' -RequestFormat DnsOverHttps -Port 443 -UserAgent 'DnsClientX/PowerShell' -HttpVersion 2.0</code>
+    /// </example>
+    /// <example>
+    ///  <para>Send EDNS client subnet and request NSID metadata</para>
+    ///  <code>Resolve-Dns -Name 'example.com' -Type A -DnsProvider Quad9ECS -EnableEdns -ClientSubnet '192.0.2.0/24' -RequestNsid -FullResponse</code>
     /// </example>
     /// </summary>
     /// <seealso cref="DnsClientX.PowerShell.AsyncPSCmdlet" />
@@ -80,6 +88,12 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
         public DnsEndpoint[] DnsProvider { get; set; } = Array.Empty<DnsEndpoint>();
+
+        /// <summary>
+        /// <para type="description">How to choose among built-in provider hostnames when a single provider exposes multiple backends.</para>
+        /// </summary>
+        [Parameter(Mandatory = false)]
+        public DnsSelectionStrategy DnsSelectionStrategy { get; set; } = DnsSelectionStrategy.First;
 
         /// <summary>
         /// <para type="description">Server to use for the query. If not specified, the default provider System (UDP) is used.</para>
@@ -236,6 +250,7 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        [Parameter(Mandatory = false)]
         public SwitchParameter FullResponse;
 
         /// <summary>
@@ -245,6 +260,7 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        [Parameter(Mandatory = false)]
         public SwitchParameter TypedRecords;
 
         /// <summary>
@@ -256,6 +272,7 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        [Parameter(Mandatory = false)]
         public SwitchParameter ParseTypedTxtRecords;
 
         /// <summary>
@@ -263,6 +280,7 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        [Parameter(Mandatory = false)]
         public int TimeOut = Configuration.DefaultTimeout;
 
         /// <summary>
@@ -272,6 +290,7 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
+        [Parameter(Mandatory = false)]
         public int RetryCount = 3;
 
         /// <summary>
@@ -281,6 +300,7 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
+        [Parameter(Mandatory = false)]
         public int RetryDelayMs = 200;
 
         /// <summary>
@@ -290,6 +310,7 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        [Parameter(Mandatory = false)]
         public SwitchParameter RequestDnsSec;
 
         /// <summary>
@@ -299,9 +320,233 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        [Parameter(Mandatory = false)]
         public SwitchParameter ValidateDnsSec;
 
+        /// <summary>
+        /// <para type="description">Enables EDNS on outgoing queries.</para>
+        /// </summary>
+        [Parameter(Mandatory = false)]
+        public SwitchParameter EnableEdns;
+
+        /// <summary>
+        /// <para type="description">Sets the EDNS UDP buffer size. When specified, EDNS is enabled automatically.</para>
+        /// </summary>
+        [Parameter(Mandatory = false)]
+        public int EdnsBufferSize { get; set; }
+
+        /// <summary>
+        /// <para type="description">Sets the EDNS Client Subnet (ECS) in CIDR notation, for example 192.0.2.0/24.</para>
+        /// </summary>
+        [Parameter(Mandatory = false)]
+        public string? ClientSubnet { get; set; }
+
+        /// <summary>
+        /// <para type="description">Sets the CD (checking disabled) bit on outgoing queries.</para>
+        /// </summary>
+        [Parameter(Mandatory = false)]
+        public SwitchParameter CheckingDisabled;
+
+        /// <summary>
+        /// <para type="description">Requests the NSID EDNS option so compatible servers may include resolver identity metadata in the response.</para>
+        /// </summary>
+        [Parameter(Mandatory = false)]
+        public SwitchParameter RequestNsid;
+
+        /// <summary>
+        /// <para type="description">Explicit request format for the -Server path, such as DnsOverUDP, DnsOverTCP, DnsOverTLS, or DnsOverHttps.</para>
+        /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        public DnsRequestFormat RequestFormat { get; set; } = DnsRequestFormat.DnsOverUDP;
+
+        /// <summary>
+        /// <para type="description">Optional port override for the -Server path. If omitted, the selected request format decides the default port.</para>
+        /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        public int Port { get; set; }
+
+        /// <summary>
+        /// <para type="description">Optional User-Agent header for HTTP-based transports.</para>
+        /// </summary>
+        [Parameter(Mandatory = false)]
+        public string? UserAgent { get; set; }
+
+        /// <summary>
+        /// <para type="description">Optional preferred HTTP protocol version, for example 2.0 or 3.0.</para>
+        /// </summary>
+        [Parameter(Mandatory = false)]
+        public Version? HttpVersion { get; set; }
+
+        /// <summary>
+        /// <para type="description">Ignore TLS certificate validation errors.</para>
+        /// </summary>
+        [Parameter(Mandatory = false)]
+        public SwitchParameter IgnoreCertificateErrors { get; set; }
+
+        /// <summary>
+        /// <para type="description">Controls whether UDP queries may fall back to TCP when truncated.</para>
+        /// </summary>
+        [Parameter(Mandatory = false)]
+        public bool UseTcpFallback { get; set; } = true;
+
+        /// <summary>
+        /// <para type="description">Optional web proxy URI for HTTP-based transports.</para>
+        /// </summary>
+        [Parameter(Mandatory = false)]
+        public Uri? ProxyUri { get; set; }
+
+        /// <summary>
+        /// <para type="description">Maximum HTTP connections allowed per server. When 0, the library default is used.</para>
+        /// </summary>
+        [Parameter(Mandatory = false)]
+        public int MaxConnectionsPerServer { get; set; }
+
+        /// <summary>
+        /// <para type="description">Optional cap on client-side query concurrency for single-resolver operations. When 0, the library default is used.</para>
+        /// </summary>
+        [Parameter(Mandatory = false)]
+        public int MaxConcurrency { get; set; }
+
         private InternalLogger? _logger;
+
+        private bool IsMultiResolverParameterSet =>
+            this.ParameterSetName == "ResolverEndpoint" ||
+            this.ParameterSetName == "PatternResolverEndpoint" ||
+            this.ParameterSetName == "ResolverDnsProvider" ||
+            this.ParameterSetName == "PatternResolverDnsProvider" ||
+            ((this.ParameterSetName == "DnsProvider" || this.ParameterSetName == "PatternDnsProvider") && DnsProvider is { Length: > 1 });
+
+        private bool ShouldRequestDnsSec => RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent;
+        private bool ShouldValidateDnsSec => ValidateDnsSec.IsPresent;
+        private bool HasBoundParameter(string name) => MyInvocation.BoundParameters.ContainsKey(name);
+
+        private IWebProxy? CreateWebProxy() {
+            if (!HasBoundParameter(nameof(ProxyUri)) || ProxyUri is null) {
+                return null;
+            }
+
+            return new WebProxy(ProxyUri);
+        }
+
+        private int EffectiveMaxConnectionsPerServer =>
+            MaxConnectionsPerServer > 0 ? MaxConnectionsPerServer : Configuration.DefaultMaxConnectionsPerServer;
+
+        private int? EffectiveMaxConcurrency =>
+            MaxConcurrency > 0 ? MaxConcurrency : null;
+
+        private EdnsOptions? CreateEdnsOptions() {
+            if (EdnsBufferSize < 0) {
+                throw new ArgumentOutOfRangeException(nameof(EdnsBufferSize), "EdnsBufferSize cannot be negative.");
+            }
+
+            bool hasSubnet = !string.IsNullOrWhiteSpace(ClientSubnet);
+            bool enableEdns = EnableEdns.IsPresent || hasSubnet || EdnsBufferSize > 0 || RequestNsid.IsPresent;
+            if (!enableEdns) {
+                return null;
+            }
+
+            var options = new EdnsOptions {
+                EnableEdns = true
+            };
+
+            if (EdnsBufferSize > 0) {
+                options.UdpBufferSize = EdnsBufferSize;
+            }
+
+            if (hasSubnet) {
+                options.Subnet = new EdnsClientSubnetOption(ClientSubnet!);
+            }
+
+            if (RequestNsid.IsPresent) {
+                options.Options.Add(new NsidOption());
+            }
+
+            return options;
+        }
+
+        private void ApplyAdvancedConfiguration(ClientX client, EdnsOptions? ednsOptions) {
+            client.EndpointConfiguration.TimeOut = TimeOut;
+            client.EndpointConfiguration.CheckingDisabled = CheckingDisabled.IsPresent;
+            client.EndpointConfiguration.MaxConcurrency = EffectiveMaxConcurrency;
+            if (ednsOptions != null) {
+                client.EndpointConfiguration.EdnsOptions = ednsOptions;
+            }
+        }
+
+        private ClientX CreateClientForServer(string serverName) {
+            var client = new ClientX(
+                serverName,
+                RequestFormat,
+                timeOutMilliseconds: TimeOut,
+                userAgent: UserAgent,
+                httpVersion: HttpVersion,
+                ignoreCertificateErrors: IgnoreCertificateErrors.IsPresent,
+                enableCache: false,
+                useTcpFallback: UseTcpFallback,
+                webProxy: CreateWebProxy(),
+                maxConnectionsPerServer: EffectiveMaxConnectionsPerServer);
+
+            if (Port > 0) {
+                client.EndpointConfiguration.Port = Port;
+            }
+
+            return client;
+        }
+
+        private ClientX CreateClientForProvider(DnsEndpoint provider) {
+            return new ClientX(
+                provider,
+                DnsSelectionStrategy,
+                TimeOut,
+                UserAgent,
+                HttpVersion,
+                IgnoreCertificateErrors.IsPresent,
+                enableCache: false,
+                useTcpFallback: UseTcpFallback,
+                webProxy: CreateWebProxy(),
+                maxConnectionsPerServer: EffectiveMaxConnectionsPerServer);
+        }
+
+        private static bool IsValidServerName(string value) {
+            if (string.IsNullOrWhiteSpace(value)) {
+                return false;
+            }
+
+            return IPAddress.TryParse(value, out _) || Uri.CheckHostName(value) != UriHostNameType.Unknown;
+        }
+
+        private async Task<DnsResponse[]> QueryWithClientAsync(ClientX client, string[] namesToUse) {
+            var responses = new List<DnsResponse>();
+            foreach (var recordType in Type) {
+                var result = await client.Resolve(
+                    namesToUse,
+                    recordType,
+                    requestDnsSec: ShouldRequestDnsSec,
+                    validateDnsSec: ShouldValidateDnsSec,
+                    returnAllTypes: false,
+                    retryOnTransient: false,
+                    maxRetries: 1,
+                    retryDelayMs: RetryDelayMs,
+                    typedRecords: TypedRecords.IsPresent,
+                    parseTypedTxtRecords: ParseTypedTxtRecords.IsPresent,
+                    cancellationToken: CancelToken).ConfigureAwait(false);
+                responses.AddRange(result);
+            }
+
+            return responses.ToArray();
+        }
+
+        private void WriteResponse(DnsResponse record) {
+            if (FullResponse.IsPresent) {
+                WriteObject(record);
+            } else if (TypedRecords.IsPresent && record.TypedAnswers != null) {
+                WriteObject(record.TypedAnswers, true);
+            } else {
+                WriteObject(record.AnswersMinimal);
+            }
+        }
 
         private async Task<DnsResponse[]> ExecuteWithRetry(Func<Task<DnsResponse[]>> query) {
             DnsResponse[] lastResults = Array.Empty<DnsResponse>();
@@ -343,26 +588,38 @@ namespace DnsClientX.PowerShell {
             if (TimeOut <= 0) {
                 throw new ArgumentOutOfRangeException(nameof(TimeOut), "TimeOut must be greater than zero.");
             }
+            if (RetryCount <= 0) {
+                throw new ArgumentOutOfRangeException(nameof(RetryCount), "RetryCount must be greater than zero.");
+            }
+            if (RetryDelayMs < 0) {
+                throw new ArgumentOutOfRangeException(nameof(RetryDelayMs), "RetryDelayMs cannot be negative.");
+            }
+            if (Port < 0 || Port > 65535) {
+                throw new ArgumentOutOfRangeException(nameof(Port), "Port must be between 0 and 65535.");
+            }
+            if (MaxConnectionsPerServer < 0) {
+                throw new ArgumentOutOfRangeException(nameof(MaxConnectionsPerServer), "MaxConnectionsPerServer cannot be negative.");
+            }
+            if (MaxConcurrency < 0) {
+                throw new ArgumentOutOfRangeException(nameof(MaxConcurrency), "MaxConcurrency cannot be negative.");
+            }
             if (AllServers.IsPresent && Server.Count == 0) {
                 throw new InvalidOperationException("AllServers requires at least one server.");
             }
+
             var namesToUse = Pattern is null ? Name : ClientX.ExpandPattern(Pattern).ToArray();
             string names = string.Join(", ", namesToUse);
             string types = string.Join(", ", Type);
-            bool requestDnsSec = RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent;
-            bool validateDnsSec = ValidateDnsSec.IsPresent;
-            if (this.ParameterSetName == "ResolverEndpoint" || this.ParameterSetName == "PatternResolverEndpoint" || this.ParameterSetName == "ResolverDnsProvider" || this.ParameterSetName == "PatternResolverDnsProvider" || ((this.ParameterSetName == "DnsProvider" || this.ParameterSetName == "PatternDnsProvider") && DnsProvider != null && DnsProvider.Length > 1)) {
-                var namesToUse2 = Pattern is null ? Name : ClientX.ExpandPattern(Pattern).ToArray();
-                string names2 = string.Join(", ", namesToUse2);
-                string types2 = string.Join(", ", Type);
-                bool requestDnsSec2 = RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent;
-                bool validateDnsSec2 = ValidateDnsSec.IsPresent; // not used in multi-resolver yet
+            var ednsOptions = CreateEdnsOptions();
 
+            if (IsMultiResolverParameterSet) {
                 DnsResolverEndpoint[] endpoints;
                 if (this.ParameterSetName == "ResolverEndpoint" || this.ParameterSetName == "PatternResolverEndpoint") {
                     endpoints = EndpointParser.TryParseMany(ResolverEndpoint, out var errors);
                     if (errors.Count > 0) {
-                        foreach (var err in errors) _logger?.WriteError(err);
+                        foreach (var err in errors) {
+                            _logger?.WriteError(err);
+                        }
                         return;
                     }
                 } else if (this.ParameterSetName == "ResolverDnsProvider" || this.ParameterSetName == "PatternResolverDnsProvider") {
@@ -377,27 +634,11 @@ namespace DnsClientX.PowerShell {
                         all.AddRange(DnsResolverEndpointFactory.From(ep));
                     }
                     endpoints = all.ToArray();
-                    if (endpoints.Length == 0) {
-                        _logger?.WriteWarning("No endpoints were produced from the specified DnsProvider values.");
-                        return;
-                    }
                 }
 
-                // Apply DO bit preference uniformly when requested
-                if (requestDnsSec2) {
-                    for (int i = 0; i < endpoints.Length; i++) {
-                        endpoints[i] = new DnsResolverEndpoint {
-                            Host = endpoints[i].Host,
-                            Port = endpoints[i].Port,
-                            Family = endpoints[i].Family,
-                            Transport = endpoints[i].Transport,
-                            Timeout = endpoints[i].Timeout,
-                            AllowTcpFallback = endpoints[i].AllowTcpFallback,
-                            EdnsBufferSize = endpoints[i].EdnsBufferSize,
-                            DnsSecOk = true,
-                            DohUrl = endpoints[i].DohUrl
-                        };
-                    }
+                if (endpoints.Length == 0) {
+                    _logger?.WriteWarning("No endpoints were produced from the specified resolver inputs.");
+                    return;
                 }
 
                 var opts = new MultiResolverOptions {
@@ -410,37 +651,43 @@ namespace DnsClientX.PowerShell {
                     EnableResponseCache = ResponseCache.IsPresent,
                     CacheExpiration = CacheExpirationSeconds > 0 ? TimeSpan.FromSeconds(CacheExpirationSeconds) : null,
                     MinCacheTtl = MinCacheTtlSeconds > 0 ? TimeSpan.FromSeconds(MinCacheTtlSeconds) : null,
-                    MaxCacheTtl = MaxCacheTtlSeconds > 0 ? TimeSpan.FromSeconds(MaxCacheTtlSeconds) : null
+                    MaxCacheTtl = MaxCacheTtlSeconds > 0 ? TimeSpan.FromSeconds(MaxCacheTtlSeconds) : null,
+                    RequestDnsSec = ShouldRequestDnsSec,
+                    ValidateDnsSec = ShouldValidateDnsSec,
+                    TypedRecords = TypedRecords.IsPresent,
+                    ParseTypedTxtRecords = ParseTypedTxtRecords.IsPresent,
+                    CheckingDisabled = CheckingDisabled.IsPresent,
+                    EdnsOptions = ednsOptions,
+                    UserAgent = UserAgent,
+                    HttpVersion = HttpVersion,
+                    IgnoreCertificateErrors = IgnoreCertificateErrors.IsPresent,
+                    UseTcpFallback = UseTcpFallback,
+                    WebProxy = CreateWebProxy(),
+                    MaxConnectionsPerServer = EffectiveMaxConnectionsPerServer,
+                    MaxConcurrency = EffectiveMaxConcurrency
                 };
 
-                IDnsMultiResolver mr = new DnsMultiResolver(endpoints, opts);
-
-                foreach (var t in Type) {
-                    _logger?.WriteVerbose("Querying DNS for {0} with type {1} across {2} endpoints", names2, t, endpoints.Length);
-                    var result = await mr.QueryBatchAsync(namesToUse2, t, this.CancelToken);
+                using var mr = new DnsMultiResolver(endpoints, opts);
+                foreach (var recordType in Type) {
+                    _logger?.WriteVerbose("Querying DNS for {0} with type {1} across {2} endpoints", names, recordType, endpoints.Length);
+                    var result = await mr.QueryBatchAsync(namesToUse, recordType, this.CancelToken).ConfigureAwait(false);
                     foreach (var record in result) {
                         if (record.Status == DnsResponseCode.NoError) {
-                            _logger?.WriteVerbose("Query successful for {0} with type {1}", string.Join(", ", record.Questions.Select(q => q.OriginalName)), t);
+                            _logger?.WriteVerbose("Query successful for {0} with type {1}", string.Join(", ", record.Questions.Select(q => q.OriginalName)), recordType);
                         } else {
-                            _logger?.WriteWarning("Query failed for {0} with type {1}: {2}", string.Join(", ", record.Questions.Select(q => q.OriginalName)), t, record.Error);
+                            _logger?.WriteWarning("Query failed for {0} with type {1}: {2}", string.Join(", ", record.Questions.Select(q => q.OriginalName)), recordType, record.Error);
                         }
-                        if (FullResponse.IsPresent) {
-                            WriteObject(record);
-                        } else if (TypedRecords.IsPresent && record.TypedAnswers != null) {
-                            WriteObject(record.TypedAnswers, true);
-                        } else {
-                            WriteObject(record.AnswersMinimal);
-                        }
+                        WriteResponse(record);
                     }
                 }
             } else if (Server.Count > 0) {
                 var validServers = new List<string>();
                 foreach (string serverEntry in Server) {
                     string trimmed = serverEntry.Trim();
-                    if (IPAddress.TryParse(trimmed, out _)) {
+                    if (IsValidServerName(trimmed)) {
                         validServers.Add(trimmed);
                     } else {
-                    _logger?.WriteError("Malformed server address '{0}'.", serverEntry);
+                        _logger?.WriteError("Malformed server address '{0}'.", serverEntry);
                     }
                 }
 
@@ -463,7 +710,11 @@ namespace DnsClientX.PowerShell {
                     var aggregatedResults = new List<DnsResponse>();
                     foreach (string serverName in serverOrder) {
                         _logger?.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, serverName);
-                        var result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec, typedRecords: TypedRecords.IsPresent, parseTypedTxtRecords: ParseTypedTxtRecords.IsPresent));
+                        var result = await ExecuteWithRetry(async () => {
+                            using var client = CreateClientForServer(serverName);
+                            ApplyAdvancedConfiguration(client, ednsOptions);
+                            return await QueryWithClientAsync(client, namesToUse).ConfigureAwait(false);
+                        }).ConfigureAwait(false);
                         aggregatedResults.AddRange(result);
                     }
                     results = aggregatedResults;
@@ -471,7 +722,11 @@ namespace DnsClientX.PowerShell {
                     var aggregatedResults = new List<DnsResponse>();
                     foreach (string serverName in serverOrder) {
                         _logger?.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, serverName);
-                        var result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, serverName, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec, typedRecords: TypedRecords.IsPresent, parseTypedTxtRecords: ParseTypedTxtRecords.IsPresent));
+                        var result = await ExecuteWithRetry(async () => {
+                            using var client = CreateClientForServer(serverName);
+                            ApplyAdvancedConfiguration(client, ednsOptions);
+                            return await QueryWithClientAsync(client, namesToUse).ConfigureAwait(false);
+                        }).ConfigureAwait(false);
                         aggregatedResults.AddRange(result);
                         if (aggregatedResults.Any(r => r.Status == DnsResponseCode.NoError)) {
                             break;
@@ -481,7 +736,11 @@ namespace DnsClientX.PowerShell {
                 } else {
                     string myServer = serverOrder.First();
                     _logger?.WriteVerbose("Querying DNS for {0} with type {1}, {2}", names, types, myServer);
-                    var result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, myServer, DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec, typedRecords: TypedRecords.IsPresent, parseTypedTxtRecords: ParseTypedTxtRecords.IsPresent));
+                    var result = await ExecuteWithRetry(async () => {
+                        using var client = CreateClientForServer(myServer);
+                        ApplyAdvancedConfiguration(client, ednsOptions);
+                        return await QueryWithClientAsync(client, namesToUse).ConfigureAwait(false);
+                    }).ConfigureAwait(false);
                     results = result;
                 }
 
@@ -496,41 +755,43 @@ namespace DnsClientX.PowerShell {
                         _logger?.WriteWarning("Query failed for {0} with type {1}, {2} and error: {3}", names, types, serverUsed, record.Error);
                     }
 
-                    if (FullResponse.IsPresent) {
-                        WriteObject(record);
-                    } else if (TypedRecords.IsPresent && record.TypedAnswers != null) {
-                        WriteObject(record.TypedAnswers, true);
-                    } else {
-                        WriteObject(record.AnswersMinimal);
-                    }
+                    WriteResponse(record);
                 }
             } else {
                 DnsResponse[] result;
-                if (DnsProvider == null || DnsProvider.Length == 0) {
-                    _logger?.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, "Default");
-                    result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec, typedRecords: TypedRecords.IsPresent, parseTypedTxtRecords: ParseTypedTxtRecords.IsPresent));
+                DnsEndpoint provider = DnsProvider == null || DnsProvider.Length == 0 ? DnsEndpoint.System : DnsProvider[0];
+                _logger?.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, provider);
+                if (provider == DnsEndpoint.RootServer) {
+                    result = await ExecuteWithRetry(() => ClientX.QueryDns(
+                        namesToUse,
+                        Type,
+                        provider,
+                        timeOutMilliseconds: TimeOut,
+                        retryOnTransient: false,
+                        maxRetries: 1,
+                        retryDelayMs: RetryDelayMs,
+                        requestDnsSec: ShouldRequestDnsSec,
+                        validateDnsSec: ShouldValidateDnsSec,
+                        typedRecords: TypedRecords.IsPresent,
+                        parseTypedTxtRecords: ParseTypedTxtRecords.IsPresent,
+                        cancellationToken: CancelToken)).ConfigureAwait(false);
                 } else {
-                    var provider = DnsProvider[0];
-                    _logger?.WriteVerbose("Querying DNS for {0} with type {1} and provider {2}", names, types, provider);
-                    result = await ExecuteWithRetry(() => ClientX.QueryDns(namesToUse, Type, provider, timeOutMilliseconds: TimeOut, retryOnTransient: false, maxRetries: 1, retryDelayMs: RetryDelayMs, requestDnsSec: requestDnsSec, validateDnsSec: validateDnsSec, typedRecords: TypedRecords.IsPresent, parseTypedTxtRecords: ParseTypedTxtRecords.IsPresent));
+                    result = await ExecuteWithRetry(async () => {
+                        using var client = CreateClientForProvider(provider);
+                        ApplyAdvancedConfiguration(client, ednsOptions);
+                        return await QueryWithClientAsync(client, namesToUse).ConfigureAwait(false);
+                    }).ConfigureAwait(false);
                 }
 
                 foreach (var record in result) {
+                    string providerLabel = provider.ToString();
                     if (record.Status == DnsResponseCode.NoError)
                     {
-                        string providerLabel = (DnsProvider != null && DnsProvider.Length > 0) ? DnsProvider[0].ToString() : "Default";
                         _logger?.WriteVerbose("Query successful for {0} with type {1}, {2} (retries {3})", names, types, providerLabel, record.RetryCount);
                     } else {
-                        string providerLabel = (DnsProvider != null && DnsProvider.Length > 0) ? DnsProvider[0].ToString() : "Default";
                         _logger?.WriteWarning("Query failed for {0} with type {1}, {2} and error: {3}", names, types, providerLabel, record.Error);
                     }
-                    if (FullResponse.IsPresent) {
-                        WriteObject(record);
-                    } else if (TypedRecords.IsPresent && record.TypedAnswers != null) {
-                        WriteObject(record.TypedAnswers, true);
-                    } else {
-                        WriteObject(record.AnswersMinimal);
-                    }
+                    WriteResponse(record);
                 }
             }
 

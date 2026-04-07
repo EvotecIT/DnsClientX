@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 
 namespace DnsClientX {
     /// <summary>
@@ -76,6 +77,71 @@ namespace DnsClientX {
         /// library's built-in cache to avoid repeated lookups for the same (name,type) across instances.
         /// </summary>
         public bool EnableResponseCache { get; set; }
+
+        /// <summary>
+        /// Requests DNSSEC data from the resolver.
+        /// </summary>
+        public bool RequestDnsSec { get; set; }
+
+        /// <summary>
+        /// Validates DNSSEC data for each query.
+        /// </summary>
+        public bool ValidateDnsSec { get; set; }
+
+        /// <summary>
+        /// Requests typed record output for successful responses.
+        /// </summary>
+        public bool TypedRecords { get; set; }
+
+        /// <summary>
+        /// Parses TXT answers into specialized record types when <see cref="TypedRecords"/> is enabled.
+        /// </summary>
+        public bool ParseTypedTxtRecords { get; set; }
+
+        /// <summary>
+        /// Sets the CD bit on outgoing queries.
+        /// </summary>
+        public bool CheckingDisabled { get; set; }
+
+        /// <summary>
+        /// Optional EDNS configuration applied to each endpoint query.
+        /// </summary>
+        public EdnsOptions? EdnsOptions { get; set; }
+
+        /// <summary>
+        /// Optional User-Agent header for HTTP-based transports.
+        /// </summary>
+        public string? UserAgent { get; set; }
+
+        /// <summary>
+        /// Optional HTTP version preference for HTTP-based transports.
+        /// </summary>
+        public Version? HttpVersion { get; set; }
+
+        /// <summary>
+        /// Allows ignoring TLS certificate validation errors.
+        /// </summary>
+        public bool IgnoreCertificateErrors { get; set; }
+
+        /// <summary>
+        /// Controls whether UDP transports may fall back to TCP when truncated.
+        /// </summary>
+        public bool UseTcpFallback { get; set; } = true;
+
+        /// <summary>
+        /// Optional web proxy for HTTP-based transports.
+        /// </summary>
+        public IWebProxy? WebProxy { get; set; }
+
+        /// <summary>
+        /// Maximum HTTP connections allowed per server.
+        /// </summary>
+        public int MaxConnectionsPerServer { get; set; } = Configuration.DefaultMaxConnectionsPerServer;
+
+        /// <summary>
+        /// Optional cap on client-side query concurrency for individual resolver instances.
+        /// </summary>
+        public int? MaxConcurrency { get; set; }
 
         private TimeSpan? _cacheExpiration;
         /// <summary>

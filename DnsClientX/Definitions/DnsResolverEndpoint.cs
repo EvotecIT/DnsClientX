@@ -52,6 +52,12 @@ namespace DnsClientX {
         public Uri? DohUrl { get; init; }
 
         /// <summary>
+        /// Optional request format override for this endpoint.
+        /// When omitted, the format is inferred from <see cref="Transport"/>.
+        /// </summary>
+        public DnsRequestFormat? RequestFormat { get; init; }
+
+        /// <summary>
         /// Returns a human-readable endpoint string.
         /// </summary>
         public override string ToString() {
