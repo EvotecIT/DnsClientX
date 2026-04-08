@@ -82,6 +82,19 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Ensures single-target resolution returns the only effective built-in target.
+        /// </summary>
+        [Fact]
+        public async Task ResolveSingleAsync_ReturnsSingleBuiltInTarget() {
+            ResolverExecutionTarget target = await ResolverExecutionTargetResolver.ResolveSingleAsync(new ResolverExecutionTargetSource {
+                BuiltInEndpoints = new[] { DnsEndpoint.Cloudflare }
+            });
+
+            Assert.Equal(DnsEndpoint.Cloudflare, target.BuiltInEndpoint);
+            Assert.Null(target.ExplicitEndpoint);
+        }
+
+        /// <summary>
         /// Ensures invalid mixed target sources are rejected.
         /// </summary>
         [Fact]
@@ -89,6 +102,16 @@ namespace DnsClientX.Tests {
             await Assert.ThrowsAsync<InvalidOperationException>(() => ResolverExecutionTargetResolver.ResolveAsync(new ResolverExecutionTargetSource {
                 ProbeProfile = DnsEndpoint.Cloudflare,
                 BuiltInEndpoints = new[] { DnsEndpoint.Google }
+            }));
+        }
+
+        /// <summary>
+        /// Ensures single-target resolution rejects sources that expand to more than one target.
+        /// </summary>
+        [Fact]
+        public async Task ResolveSingleAsync_RejectsMultipleTargets() {
+            await Assert.ThrowsAsync<InvalidOperationException>(() => ResolverExecutionTargetResolver.ResolveSingleAsync(new ResolverExecutionTargetSource {
+                BuiltInEndpoints = new[] { DnsEndpoint.Cloudflare, DnsEndpoint.Google }
             }));
         }
     }

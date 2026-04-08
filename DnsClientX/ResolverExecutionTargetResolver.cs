@@ -58,5 +58,24 @@ namespace DnsClientX {
 
             return ResolverExecutionPlanBuilder.BuildBuiltInTargets(source.BuiltInEndpoints);
         }
+
+        /// <summary>
+        /// Resolves one shared target-source description into exactly one runnable execution target.
+        /// </summary>
+        /// <param name="source">The target source to resolve.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The normalized execution target.</returns>
+        public static async Task<ResolverExecutionTarget> ResolveSingleAsync(ResolverExecutionTargetSource source, CancellationToken cancellationToken = default) {
+            ResolverExecutionTarget[] targets = await ResolveAsync(source, cancellationToken).ConfigureAwait(false);
+            if (targets.Length == 0) {
+                throw new InvalidOperationException("No resolver execution targets were produced.");
+            }
+
+            if (targets.Length > 1) {
+                throw new InvalidOperationException($"Resolver target source produced {targets.Length} targets but a single target was required.");
+            }
+
+            return targets[0];
+        }
     }
 }

@@ -134,12 +134,7 @@ namespace DnsClientX.Cli {
                     return await RunZoneTransferAsync(parsedOptions, cts.Token).ConfigureAwait(false);
                 }
 
-                ResolverSelectionResult? resolverSelection = null;
-                if (!string.IsNullOrWhiteSpace(parsedOptions.ResolverUsePath)) {
-                    resolverSelection = LoadRecommendedResolverSelection(parsedOptions.ResolverUsePath!);
-                }
-
-                return await RunStandardQueryAsync(parsedOptions, resolverSelection, cts.Token).ConfigureAwait(false);
+                return await RunStandardQueryAsync(parsedOptions, cts.Token).ConfigureAwait(false);
             } catch (OperationCanceledException) {
                 Console.Error.WriteLine("Operation canceled.");
                 return 1;
@@ -866,10 +861,11 @@ namespace DnsClientX.Cli {
             return 0;
         }
 
-        private static async Task<int> RunStandardQueryAsync(CliOptions options, ResolverSelectionResult? resolverSelection, CancellationToken cancellationToken) {
-            await using ClientX client = resolverSelection?.Kind == ResolverSelectionKind.ExplicitEndpoint
-                ? ResolverEndpointClientFactory.CreateClient(resolverSelection.ExplicitEndpoint!)
-                : new ClientX(resolverSelection?.BuiltInEndpoint ?? options.Endpoint);
+        private static async Task<int> RunStandardQueryAsync(CliOptions options, CancellationToken cancellationToken) {
+            ResolverExecutionTarget target = await ResolverExecutionTargetResolver.ResolveSingleAsync(
+                CreateStandardQueryTargetSource(options),
+                cancellationToken).ConfigureAwait(false);
+            await using ClientX client = CreateStandardQueryClient(target);
             ConfigureClient(client, options);
 
             var stopwatch = Stopwatch.StartNew();
@@ -914,6 +910,30 @@ namespace DnsClientX.Cli {
             }
 
             return 0;
+        }
+
+        private static ResolverExecutionTargetSource CreateStandardQueryTargetSource(CliOptions options) {
+            if (!string.IsNullOrWhiteSpace(options.ResolverUsePath)) {
+                return new ResolverExecutionTargetSource {
+                    ResolverSelectionPath = options.ResolverUsePath
+                };
+            }
+
+            return new ResolverExecutionTargetSource {
+                BuiltInEndpoints = new[] { options.Endpoint }
+            };
+        }
+
+        private static ClientX CreateStandardQueryClient(ResolverExecutionTarget target) {
+            if (target.ExplicitEndpoint != null) {
+                return ResolverEndpointClientFactory.CreateClient(target.ExplicitEndpoint);
+            }
+
+            if (target.BuiltInEndpoint.HasValue) {
+                return new ClientX(target.BuiltInEndpoint.Value);
+            }
+
+            throw new InvalidOperationException("Standard query target did not resolve to a runnable client.");
         }
 
         private static Task<int> RunResolverSelectionAsync(CliOptions options, CancellationToken cancellationToken) {

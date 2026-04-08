@@ -178,7 +178,7 @@ namespace DnsClientX.Tests {
                             Name = name,
                             OriginalName = name,
                             Type = type,
-                            HostName = request.DnsProviders[0].ToString()
+                            HostName = "Cloudflare"
                         }
                     },
                     Answers = new[] {
@@ -203,6 +203,67 @@ namespace DnsClientX.Tests {
                 Assert.Single(responses);
                 Assert.Equal("Cloudflare", responses[0].Questions[0].HostName);
             } finally {
+                ClientX.QueryDnsRequestOverride = null;
+                File.Delete(snapshotPath);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that an explicit resolver selection uses the single-query execution path instead of the multi-resolver flow.
+        /// </summary>
+        [Fact]
+        public async Task QueryDns_RequestWithExplicitResolverSelection_UsesSingleTargetExecutionPath() {
+            string snapshotPath = Path.GetTempFileName();
+
+            try {
+                ResolverScoreStore.Save(snapshotPath, new ResolverScoreSnapshot {
+                    Summary = new ResolverScoreSummary {
+                        Mode = ResolverScoreMode.Probe,
+                        RecommendationAvailable = true,
+                        RecommendedTarget = "udp@127.0.0.1:53",
+                        RecommendedResolver = "127.0.0.1:53",
+                        RecommendedTransport = "Udp",
+                        RecommendedAverageMs = 5
+                    }
+                });
+
+                DnsMultiResolver.ResolveOverride = (_, _, _, _) => throw new InvalidOperationException("Multi-resolver path should not be used.");
+                ClientX.QueryDnsRequestOverride = (request, names, type, ct) => {
+                    Assert.Empty(request.DnsProviders);
+                    Assert.Empty(request.ResolverEndpoints);
+                    return Task.FromResult(names.Select(name => new DnsResponse {
+                        Questions = new[] {
+                            new DnsQuestion {
+                                Name = name,
+                                OriginalName = name,
+                                Type = type,
+                                HostName = "127.0.0.1"
+                            }
+                        },
+                        Answers = new[] {
+                            new DnsAnswer {
+                                Name = name,
+                                Type = type,
+                                TTL = 30,
+                                DataRaw = "127.0.0.1"
+                            }
+                        },
+                        Status = DnsResponseCode.NoError
+                    }).ToArray());
+                };
+
+                var request = new ResolveDnsRequest {
+                    Names = new[] { "example.com" },
+                    RecordTypes = new[] { DnsRecordType.A },
+                    ResolverSelectionPath = snapshotPath
+                };
+
+                DnsResponse[] responses = await ClientX.QueryDns(request);
+
+                Assert.Single(responses);
+                Assert.Equal("127.0.0.1", responses[0].Questions[0].HostName);
+            } finally {
+                DnsMultiResolver.ResolveOverride = null;
                 ClientX.QueryDnsRequestOverride = null;
                 File.Delete(snapshotPath);
             }
