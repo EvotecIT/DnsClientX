@@ -87,7 +87,12 @@ namespace DnsClientX {
             }
 
             DnsRequestFormat requestFormat = endpoint.RequestFormat ?? DnsRequestFormatMapper.FromTransport(endpoint.Transport);
-            string prefix = DnsRequestFormatMapper.ToTransport(requestFormat).ToString().ToLowerInvariant();
+            string prefix = requestFormat switch {
+                DnsRequestFormat.DnsOverHttp3 => "doh3",
+                DnsRequestFormat.DnsOverHttp2 => "doh2",
+                DnsRequestFormat.DnsOverQuic => "doq",
+                _ => DnsRequestFormatMapper.ToTransport(requestFormat).ToString().ToLowerInvariant()
+            };
             return $"{prefix}@{endpoint}";
         }
 

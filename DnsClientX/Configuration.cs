@@ -439,6 +439,16 @@ namespace DnsClientX {
                     RequestFormat = DnsRequestFormat.DnsOverQuic;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
+                case DnsEndpoint.Quad9Http3:
+                    hostnames = new List<string> { "dns.quad9.net" };
+                    RequestFormat = DnsRequestFormat.DnsOverHttp3;
+                    baseUriFormat = "https://{0}/dns-query";
+                    break;
+                case DnsEndpoint.Quad9Quic:
+                    hostnames = new List<string> { "dns.quad9.net" };
+                    RequestFormat = DnsRequestFormat.DnsOverQuic;
+                    baseUriFormat = "https://{0}/dns-query";
+                    break;
                 case DnsEndpoint.CloudflareOdoh:
                     hostnames = ["odoh.cloudflare-dns.com"];
                     RequestFormat = DnsRequestFormat.ObliviousDnsOverHttps;

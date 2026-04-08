@@ -90,5 +90,20 @@ namespace DnsClientX.Tests {
 
             Assert.Equal("dot@resolver.example:853", description);
         }
+
+        /// <summary>
+        /// Ensures HTTP/3 request format overrides retain a distinct endpoint prefix.
+        /// </summary>
+        [Fact]
+        public void DescribeEndpoint_UsesHttp3PrefixForDoh3Endpoints() {
+            string description = ResolverExecutionPlanBuilder.DescribeEndpoint(new DnsResolverEndpoint {
+                Transport = Transport.Doh,
+                Host = "dns.quad9.net",
+                Port = 443,
+                RequestFormat = DnsRequestFormat.DnsOverHttp3
+            });
+
+            Assert.Equal("doh3@dns.quad9.net:443", description);
+        }
     }
 }

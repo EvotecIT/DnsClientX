@@ -143,15 +143,17 @@ namespace DnsClientX {
                 }
 
                 Transport? explicitTransport = null;
+                DnsRequestFormat? explicitRequestFormat = null;
                 int transportSeparator = raw.IndexOf('@');
                 if (transportSeparator > 0) {
                     string transportName = raw.Substring(0, transportSeparator);
-                    if (!TryParseTransportPrefix(transportName, out Transport parsedTransport)) {
+                    if (!TryParseTransportPrefix(transportName, out Transport parsedTransport, out DnsRequestFormat? parsedRequestFormat)) {
                         errs.Add($"Unsupported transport prefix: {transportName}");
                         continue;
                     }
 
                     explicitTransport = parsedTransport;
+                    explicitRequestFormat = parsedRequestFormat;
                     raw = raw.Substring(transportSeparator + 1);
                     if (string.IsNullOrWhiteSpace(raw)) {
                         errs.Add($"Missing endpoint after transport prefix: {rawIn}");
@@ -174,7 +176,8 @@ namespace DnsClientX {
                             Transport = Transport.Doh,
                             DohUrl = uri,
                             Host = uri.Host,
-                            Port = uri.IsDefaultPort ? 443 : uri.Port
+                            Port = uri.IsDefaultPort ? 443 : uri.Port,
+                            RequestFormat = explicitRequestFormat
                         });
                         continue;
                     }
@@ -189,7 +192,13 @@ namespace DnsClientX {
                         string ip = raw.Substring(1, end - 1);
                         string portPart = raw.Length > end + 1 && raw[end + 1] == ':' ? raw.Substring(end + 2) : GetDefaultPort(explicitTransport).ToString();
                         if (IPAddress.TryParse(ip, out var addr) && addr.AddressFamily == AddressFamily.InterNetworkV6 && int.TryParse(portPart, out int p) && p > 0 && p <= 65535) {
-                            list.Add(new DnsResolverEndpoint { Host = ip, Port = p, Transport = explicitTransport ?? Transport.Udp, Family = AddressFamily.InterNetworkV6 });
+                            list.Add(new DnsResolverEndpoint {
+                                Host = ip,
+                                Port = p,
+                                Transport = explicitTransport ?? Transport.Udp,
+                                Family = AddressFamily.InterNetworkV6,
+                                RequestFormat = explicitRequestFormat
+                            });
                             continue;
                         }
                     }
@@ -206,7 +215,13 @@ namespace DnsClientX {
                         if (IPAddress.TryParse(host, out var ipAddr)) {
                             family = ipAddr.AddressFamily;
                         }
-                        list.Add(new DnsResolverEndpoint { Host = host, Port = port, Transport = explicitTransport ?? Transport.Udp, Family = family });
+                        list.Add(new DnsResolverEndpoint {
+                            Host = host,
+                            Port = port,
+                            Transport = explicitTransport ?? Transport.Udp,
+                            Family = family,
+                            RequestFormat = explicitRequestFormat
+                        });
                         continue;
                     } else {
                         errs.Add($"Invalid port in endpoint: {raw}");
@@ -224,7 +239,8 @@ namespace DnsClientX {
                         Host = raw,
                         Port = GetDefaultPort(explicitTransport),
                         Transport = explicitTransport ?? Transport.Udp,
-                        Family = family
+                        Family = family,
+                        RequestFormat = explicitRequestFormat
                     });
                     continue;
                 }
@@ -263,35 +279,49 @@ namespace DnsClientX {
             return builder.Uri;
         }
 
-        private static bool TryParseTransportPrefix(string value, out Transport transport) {
+        private static bool TryParseTransportPrefix(string value, out Transport transport, out DnsRequestFormat? requestFormat) {
             switch (value.Trim().ToLowerInvariant()) {
                 case "udp":
                     transport = Transport.Udp;
+                    requestFormat = DnsRequestFormat.DnsOverUDP;
                     return true;
                 case "tcp":
                     transport = Transport.Tcp;
+                    requestFormat = DnsRequestFormat.DnsOverTCP;
                     return true;
                 case "dot":
                 case "tls":
                     transport = Transport.Dot;
+                    requestFormat = DnsRequestFormat.DnsOverTLS;
                     return true;
                 case "doh":
                 case "https":
                     transport = Transport.Doh;
+                    requestFormat = DnsRequestFormat.DnsOverHttps;
+                    return true;
+                case "doh3":
+                case "http3":
+                case "h3":
+                    transport = Transport.Doh;
+                    requestFormat = DnsRequestFormat.DnsOverHttp3;
                     return true;
                 case "quic":
                 case "doq":
                     transport = Transport.Quic;
+                    requestFormat = DnsRequestFormat.DnsOverQuic;
                     return true;
                 case "grpc":
                     transport = Transport.Grpc;
+                    requestFormat = DnsRequestFormat.DnsOverGrpc;
                     return true;
                 case "multicast":
                 case "mdns":
                     transport = Transport.Multicast;
+                    requestFormat = DnsRequestFormat.Multicast;
                     return true;
                 default:
                     transport = default;
+                    requestFormat = null;
                     return false;
             }
         }

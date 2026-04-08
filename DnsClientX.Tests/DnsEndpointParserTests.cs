@@ -48,13 +48,15 @@ namespace DnsClientX.Tests {
                 "tcp@1.1.1.1:53",
                 "dot@dns.google",
                 "grpc@resolver.example.com",
-                "doh@https://dns.google/dns-query"
+                "doh@https://dns.google/dns-query",
+                "doh3@https://dns.quad9.net/dns-query",
+                "doq@dns.quad9.net:853"
             };
 
             var endpoints = EndpointParser.TryParseMany(inputs, out var errors);
 
             Assert.Empty(errors);
-            Assert.Equal(4, endpoints.Length);
+            Assert.Equal(6, endpoints.Length);
             Assert.Equal(Transport.Tcp, endpoints[0].Transport);
             Assert.Equal(53, endpoints[0].Port);
             Assert.Equal(Transport.Dot, endpoints[1].Transport);
@@ -63,6 +65,10 @@ namespace DnsClientX.Tests {
             Assert.Equal(443, endpoints[2].Port);
             Assert.Equal(Transport.Doh, endpoints[3].Transport);
             Assert.NotNull(endpoints[3].DohUrl);
+            Assert.Equal(DnsRequestFormat.DnsOverHttp3, endpoints[4].RequestFormat);
+            Assert.Equal(Transport.Doh, endpoints[4].Transport);
+            Assert.Equal(DnsRequestFormat.DnsOverQuic, endpoints[5].RequestFormat);
+            Assert.Equal(Transport.Quic, endpoints[5].Transport);
         }
     }
 }

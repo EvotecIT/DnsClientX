@@ -46,9 +46,13 @@ namespace DnsClientX {
                     DnsEndpoint.AdGuardNonFiltering
                 },
                 DnsEndpoint.Quad9 or
+                DnsEndpoint.Quad9Http3 or
+                DnsEndpoint.Quad9Quic or
                 DnsEndpoint.Quad9ECS or
                 DnsEndpoint.Quad9Unsecure => new[] {
                     DnsEndpoint.Quad9,
+                    DnsEndpoint.Quad9Http3,
+                    DnsEndpoint.Quad9Quic,
                     DnsEndpoint.Quad9ECS,
                     DnsEndpoint.Quad9Unsecure
                 },

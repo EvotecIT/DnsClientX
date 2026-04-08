@@ -62,5 +62,19 @@ namespace DnsClientX.Tests {
 
             Assert.Equal("https://resolver.example:8443/dns-query", uri.AbsoluteUri);
         }
+
+        /// <summary>
+        /// Custom DoH3 endpoints should preserve their explicit request format when using host-based inputs.
+        /// </summary>
+        [Fact]
+        public void TryParseMany_Doh3HostInput_PreservesHttp3Format() {
+            var endpoints = EndpointParser.TryParseMany(new[] { "doh3@dns.quad9.net:443" }, out var errors);
+
+            Assert.Empty(errors);
+            Assert.Single(endpoints);
+            Assert.Equal(Transport.Doh, endpoints[0].Transport);
+            Assert.Equal(DnsRequestFormat.DnsOverHttp3, endpoints[0].RequestFormat);
+            Assert.Equal("dns.quad9.net", endpoints[0].Host);
+        }
     }
 }

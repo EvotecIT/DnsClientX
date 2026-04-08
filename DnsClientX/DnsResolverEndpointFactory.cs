@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace DnsClientX {
     /// <summary>
     /// Factory helpers to convert predefined <see cref="DnsEndpoint"/> values into <see cref="DnsResolverEndpoint"/> instances.
-    /// Only transports supported by the multi-resolver (UDP, TCP, DoT, DoH) are emitted.
+    /// Built-in entries cover the core transport families supported by the shared resolver workflows.
     /// </summary>
     public static class DnsResolverEndpointFactory {
         /// <summary>
@@ -106,6 +106,12 @@ namespace DnsClientX {
                 case DnsEndpoint.CloudflareQuic:
                     AddHost("1.1.1.1", 853, Transport.Quic, DnsRequestFormat.DnsOverQuic);
                     AddHost("1.0.0.1", 853, Transport.Quic, DnsRequestFormat.DnsOverQuic);
+                    break;
+                case DnsEndpoint.Quad9Http3:
+                    AddDoh("dns.quad9.net", "/dns-query", DnsRequestFormat.DnsOverHttp3);
+                    break;
+                case DnsEndpoint.Quad9Quic:
+                    AddHost("dns.quad9.net", 853, Transport.Quic, DnsRequestFormat.DnsOverQuic);
                     break;
                 case DnsEndpoint.GoogleQuic:
                     AddHost("8.8.8.8", 853, Transport.Quic, DnsRequestFormat.DnsOverQuic);

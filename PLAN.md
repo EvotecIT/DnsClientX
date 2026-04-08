@@ -26,6 +26,16 @@ The best next features are the ones that deepen the resolver, parser, diagnostic
 
 For modern targets, the main package should stay dependency-free where practical. If a feature is valuable but pushes the core too far, it should move into an optional package instead of reshaping the main library.
 
+### Keep runtime-native modern transports in core
+
+If a transport can be implemented with no additional NuGet dependency on the modern target line, it belongs in the main package even if older targets cannot support it fully.
+
+That means:
+
+- modern runtime-native transports should live in the core package for `net8+`
+- older targets may degrade gracefully instead of matching feature parity
+- optional packages should be reserved for features that genuinely add dependency graph weight or separate maintenance burden
+
 ### Build through existing surfaces
 
 New capabilities should be aligned with the current architecture:
@@ -172,6 +182,14 @@ Goal: keep the main library lean while still leaving room for higher-complexity 
 ### Rationale
 
 These features may be valuable, but they should not force the main package to absorb significant complexity, new dependencies, or a broader maintenance burden than the core library needs.
+
+### Packaging Policy
+
+- keep `DoH3` in the core package when it remains dependency-free on modern targets
+- keep `DoQ` in the core package when it remains dependency-free on modern targets
+- do not add compatibility dependencies just to backport `DoH3` or `DoQ` to older targets
+- return clear non-support behavior on older frameworks when the runtime cannot provide the transport
+- create optional packages only when a protocol requires external dependencies, specialized crypto, or a materially different support contract
 
 ## Difficulty And Fit
 

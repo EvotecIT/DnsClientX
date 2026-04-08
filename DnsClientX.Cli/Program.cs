@@ -1483,7 +1483,7 @@ namespace DnsClientX.Cli {
             Console.WriteLine("      --benchmark-summary-line  Append one stable BENCHMARK_SUMMARY key=value line for automation");
             Console.WriteLine("      --benchmark-save <path>  Persist benchmark scoring and recommendation data as JSON");
             Console.WriteLine("      --probe              Probe the selected endpoint profile and related variants");
-            Console.WriteLine("      --probe-endpoint <endpoint>  Probe a custom endpoint such as tcp@1.1.1.1:53 or doh@https://dns.google/dns-query");
+            Console.WriteLine("      --probe-endpoint <endpoint>  Probe a custom endpoint such as tcp@1.1.1.1:53, doq@dns.quad9.net:853, or doh3@https://dns.quad9.net/dns-query");
             Console.WriteLine("      --resolver-file <path>  Load custom endpoints from a text file for probe or benchmark");
             Console.WriteLine("      --resolver-url <url>  Load custom endpoints from an HTTP or HTTPS URL for probe or benchmark");
             Console.WriteLine("      --probe-summary-only  Suppress per-endpoint probe lines and print only the header and summary");

@@ -41,5 +41,23 @@ namespace DnsClientX.Tests {
 
             Assert.Equal(new[] { DnsEndpoint.NextDNS }, plan);
         }
+
+        /// <summary>
+        /// Ensures Quad9 probing expands to include modern HTTP/3 and QUIC variants.
+        /// </summary>
+        [Fact]
+        public void BuildPlan_Quad9Profile_ExpandsToAllQuad9Variants() {
+            DnsEndpoint[] plan = ProbePlanBuilder.BuildPlan(DnsEndpoint.Quad9Http3);
+
+            Assert.Equal(
+                new[] {
+                    DnsEndpoint.Quad9,
+                    DnsEndpoint.Quad9Http3,
+                    DnsEndpoint.Quad9Quic,
+                    DnsEndpoint.Quad9ECS,
+                    DnsEndpoint.Quad9Unsecure
+                },
+                plan);
+        }
     }
 }
