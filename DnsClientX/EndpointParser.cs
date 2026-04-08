@@ -1,14 +1,123 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace DnsClientX {
     /// <summary>
     /// Parses user-provided resolver endpoint strings into validated endpoints.
     /// </summary>
     public static class EndpointParser {
+        /// <summary>
+        /// Loads resolver endpoint input values from inline entries, files, and URLs.
+        /// </summary>
+        public static async Task<string[]> LoadInputsAsync(
+            IEnumerable<string>? inputs = null,
+            IEnumerable<string>? files = null,
+            IEnumerable<string>? urls = null,
+            CancellationToken cancellationToken = default) {
+            var list = new List<string>();
+
+            foreach (string? input in inputs ?? Array.Empty<string>()) {
+                string trimmed = input?.Trim() ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(trimmed)) {
+                    list.Add(trimmed);
+                }
+            }
+
+            foreach (string? fileEntry in files ?? Array.Empty<string>()) {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                string filePath = fileEntry?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(filePath)) {
+                    continue;
+                }
+
+                string fullPath = Path.GetFullPath(filePath);
+                if (!File.Exists(fullPath)) {
+                    throw new FileNotFoundException($"Resolver file not found: {fileEntry}", fileEntry);
+                }
+
+                using var reader = File.OpenText(fullPath);
+                string content = await reader.ReadToEndAsync().ConfigureAwait(false);
+                list.AddRange(ParseImportedEntries(content));
+            }
+
+            string[] urlEntries = (urls ?? Array.Empty<string>())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value.Trim())
+                .ToArray();
+
+            if (urlEntries.Length > 0) {
+                using var httpClient = new HttpClient();
+                foreach (string urlEntry in urlEntries) {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    if (!Uri.TryCreate(urlEntry, UriKind.Absolute, out Uri? uri) ||
+                        (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)) {
+                        throw new ArgumentException($"Invalid resolver URL: {urlEntry}", nameof(urls));
+                    }
+
+                    using HttpResponseMessage response = await httpClient.GetAsync(uri, cancellationToken).ConfigureAwait(false);
+                    if (!response.IsSuccessStatusCode) {
+                        throw new InvalidOperationException($"Resolver URL returned HTTP {(int)response.StatusCode}: {urlEntry}");
+                    }
+
+                    string content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    list.AddRange(ParseImportedEntries(content));
+                }
+            }
+
+            return list
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        /// <summary>
+        /// Loads resolver endpoint inputs and parses them into validated endpoints.
+        /// </summary>
+        public static async Task<(DnsResolverEndpoint[] Endpoints, IReadOnlyList<string> Errors)> TryParseManyAsync(
+            IEnumerable<string>? inputs = null,
+            IEnumerable<string>? files = null,
+            IEnumerable<string>? urls = null,
+            CancellationToken cancellationToken = default) {
+            string[] loadedInputs = await LoadInputsAsync(inputs, files, urls, cancellationToken).ConfigureAwait(false);
+            DnsResolverEndpoint[] endpoints = TryParseMany(loadedInputs, out IReadOnlyList<string> errors);
+            return (endpoints, errors);
+        }
+
+        /// <summary>
+        /// Parses imported resolver endpoint content, skipping blank lines and full-line comments.
+        /// </summary>
+        public static IEnumerable<string> ParseImportedEntries(string? content) {
+            if (string.IsNullOrWhiteSpace(content)) {
+                yield break;
+            }
+
+            using var reader = new StringReader(content);
+            while (reader.ReadLine() is string line) {
+                string trimmed = line.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed) ||
+                    trimmed.StartsWith("#", StringComparison.Ordinal) ||
+                    trimmed.StartsWith(";", StringComparison.Ordinal) ||
+                    trimmed.StartsWith("//", StringComparison.Ordinal)) {
+                    continue;
+                }
+
+                foreach (string entry in trimmed.Split(',')) {
+                    string value = entry.Trim();
+                    if (!string.IsNullOrWhiteSpace(value)) {
+                        yield return value;
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// Tries to parse multiple endpoint input strings.
         /// Accepted formats:

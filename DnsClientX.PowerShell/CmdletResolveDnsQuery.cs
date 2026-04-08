@@ -46,6 +46,10 @@ namespace DnsClientX.PowerShell {
     ///  <para>Send EDNS client subnet and request NSID metadata</para>
     ///  <code>Resolve-Dns -Name 'example.com' -Type A -DnsProvider Quad9ECS -EnableEdns -ClientSubnet '192.0.2.0/24' -RequestNsid -FullResponse</code>
     /// </example>
+    /// <example>
+    ///  <para>Reuse the recommended resolver from a saved selection snapshot</para>
+    ///  <code>Resolve-Dns -Name 'example.com' -Type A -ResolverSelectionPath '.\resolver-score.json'</code>
+    /// </example>
     /// </summary>
     /// <seealso cref="DnsClientX.PowerShell.AsyncPSCmdlet" />
     [Alias("Resolve-DnsQuery")]
@@ -58,6 +62,7 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ServerName")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ResolverEndpoint")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ResolverDnsProvider")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ResolverSelection")]
         public string[] Name { get; set; } = Array.Empty<string>();
 
         /// <summary>
@@ -67,6 +72,7 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternServerName")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternResolverEndpoint")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternResolverDnsProvider")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternResolverSelection")]
         public string? Pattern { get; set; }
         /// <summary>
         /// <para type="description">The type of the record to query for. If not specified, A record is queried.</para>
@@ -79,6 +85,8 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, Position = 1, ParameterSetName = "PatternResolverEndpoint")]
         [Parameter(Mandatory = false, Position = 1, ParameterSetName = "ResolverDnsProvider")]
         [Parameter(Mandatory = false, Position = 1, ParameterSetName = "PatternResolverDnsProvider")]
+        [Parameter(Mandatory = false, Position = 1, ParameterSetName = "ResolverSelection")]
+        [Parameter(Mandatory = false, Position = 1, ParameterSetName = "PatternResolverSelection")]
         public DnsRecordType[] Type = [DnsRecordType.A];
         /// <summary>
         /// <para type="description">Predefined provider(s) (DnsEndpoint) for the query.</para>
@@ -108,9 +116,23 @@ namespace DnsClientX.PowerShell {
         /// <summary>
         /// <para type="description">One or more resolver endpoints in string format. Accepted: "1.1.1.1:53", "[2606:4700:4700::1111]:53", "dns.google:53", or DoH URLs like "https://dns.google/dns-query".</para>
         /// </summary>
-        [Parameter(Mandatory = true, ParameterSetName = "ResolverEndpoint")]
-        [Parameter(Mandatory = true, ParameterSetName = "PatternResolverEndpoint")]
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverEndpoint")]
         public string[] ResolverEndpoint { get; set; } = Array.Empty<string>();
+
+        /// <summary>
+        /// <para type="description">One or more files containing resolver endpoints for the multi-resolver. Blank lines and full-line comments are ignored.</para>
+        /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverEndpoint")]
+        public string[] ResolverEndpointFile { get; set; } = Array.Empty<string>();
+
+        /// <summary>
+        /// <para type="description">One or more HTTP or HTTPS URLs exposing resolver endpoints for the multi-resolver.</para>
+        /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverEndpoint")]
+        public string[] ResolverEndpointUrl { get; set; } = Array.Empty<string>();
 
         /// <summary>
         /// <para type="description">One or more predefined providers (DnsEndpoint enum) to expand into endpoints for the multi-resolver.</para>
@@ -120,6 +142,13 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = true, ParameterSetName = "ResolverDnsProvider")]
         [Parameter(Mandatory = true, ParameterSetName = "PatternResolverDnsProvider")]
         public DnsEndpoint[] ResolverDnsProvider { get; set; } = Array.Empty<DnsEndpoint>();
+
+        /// <summary>
+        /// <para type="description">Path to a saved resolver score snapshot whose recommended resolver should be reused for the query.</para>
+        /// </summary>
+        [Parameter(Mandatory = true, ParameterSetName = "ResolverSelection")]
+        [Parameter(Mandatory = true, ParameterSetName = "PatternResolverSelection")]
+        public string ResolverSelectionPath { get; set; } = string.Empty;
 
         /// <summary>
         /// <para type="description">Multi-resolver strategy to use when multiple endpoints are provided.</para>
@@ -428,7 +457,10 @@ namespace DnsClientX.PowerShell {
                 DnsSelectionStrategy = DnsSelectionStrategy,
                 Servers = Server?.ToArray() ?? Array.Empty<string>(),
                 ResolverEndpoints = ResolverEndpoint ?? Array.Empty<string>(),
+                ResolverEndpointFiles = ResolverEndpointFile ?? Array.Empty<string>(),
+                ResolverEndpointUrls = ResolverEndpointUrl ?? Array.Empty<string>(),
                 ResolverDnsProviders = ResolverDnsProvider ?? Array.Empty<DnsEndpoint>(),
+                ResolverSelectionPath = ResolverSelectionPath,
                 ResolverStrategy = ResolverStrategy,
                 MaxParallelism = MaxParallelism,
                 RespectEndpointTimeout = RespectEndpointTimeout.IsPresent,
@@ -465,6 +497,22 @@ namespace DnsClientX.PowerShell {
             };
         }
 
+        private void ValidateResolverEndpointInputs() {
+            if (ParameterSetName != "ResolverEndpoint" && ParameterSetName != "PatternResolverEndpoint") {
+                return;
+            }
+
+            bool hasInlineEndpoints = ResolverEndpoint is { Length: > 0 };
+            bool hasFiles = ResolverEndpointFile is { Length: > 0 };
+            bool hasUrls = ResolverEndpointUrl is { Length: > 0 };
+
+            if (!hasInlineEndpoints && !hasFiles && !hasUrls) {
+                throw new PSArgumentException(
+                    "At least one resolver endpoint, resolver endpoint file, or resolver endpoint URL must be specified.",
+                    nameof(ResolverEndpoint));
+            }
+        }
+
         private void LogResponse(DnsResponse record) {
             string names = string.Join(", ", record.Questions.Select(q => q.OriginalName ?? q.Name));
             string types = string.Join(", ", record.Questions.Select(q => q.Type).Distinct());
@@ -479,6 +527,7 @@ namespace DnsClientX.PowerShell {
 
         /// <inheritdoc />
         protected override async Task ProcessRecordAsync() {
+            ValidateResolverEndpointInputs();
             var request = CreateRequest();
 
             try {

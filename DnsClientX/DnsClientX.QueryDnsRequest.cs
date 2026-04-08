@@ -38,6 +38,7 @@ namespace DnsClientX {
 
         private static async Task<DnsResponse[]> QueryDnsInternal(ResolveDnsRequest request, CancellationToken cancellationToken) {
             request.Validate();
+            ApplyResolverSelection(request);
 
             string[] namesToUse = request.GetExpandedNames();
             var ednsOptions = request.CreateEdnsOptions();
@@ -53,8 +54,27 @@ namespace DnsClientX {
             return await ExecuteProviderAsync(request, namesToUse, ednsOptions, cancellationToken).ConfigureAwait(false);
         }
 
+        private static void ApplyResolverSelection(ResolveDnsRequest request) {
+            if (string.IsNullOrWhiteSpace(request.ResolverSelectionPath)) {
+                return;
+            }
+
+            ResolverSelectionResult selection = ResolverExecutionTargetResolver.LoadRecommendedSelection(request.ResolverSelectionPath!);
+
+            switch (selection.Kind) {
+                case ResolverSelectionKind.BuiltInEndpoint when selection.BuiltInEndpoint.HasValue:
+                    request.DnsProviders = new[] { selection.BuiltInEndpoint.Value };
+                    break;
+                case ResolverSelectionKind.ExplicitEndpoint when selection.ExplicitEndpoint != null:
+                    request.ResolverEndpoints = new[] { ResolverExecutionPlanBuilder.DescribeEndpoint(selection.ExplicitEndpoint) };
+                    break;
+                default:
+                    throw new InvalidOperationException($"Resolver selection '{selection.Target}' could not be applied.");
+            }
+        }
+
         private static async Task<DnsResponse[]> ExecuteMultiResolverAsync(ResolveDnsRequest request, string[] namesToUse, EdnsOptions? ednsOptions, CancellationToken cancellationToken) {
-            DnsResolverEndpoint[] endpoints = ExpandMultiResolverEndpoints(request);
+            DnsResolverEndpoint[] endpoints = await ExpandMultiResolverEndpointsAsync(request, cancellationToken).ConfigureAwait(false);
             if (endpoints.Length == 0) {
                 throw new InvalidOperationException("No endpoints were produced from the specified resolver inputs.");
             }
@@ -298,9 +318,13 @@ namespace DnsClientX {
             }
         }
 
-        private static DnsResolverEndpoint[] ExpandMultiResolverEndpoints(ResolveDnsRequest request) {
-            if (request.ResolverEndpoints.Length > 0) {
-                var endpoints = EndpointParser.TryParseMany(request.ResolverEndpoints, out var errors);
+        private static async Task<DnsResolverEndpoint[]> ExpandMultiResolverEndpointsAsync(ResolveDnsRequest request, CancellationToken cancellationToken) {
+            if (request.HasResolverEndpointInputs) {
+                var (endpoints, errors) = await EndpointParser.TryParseManyAsync(
+                    request.ResolverEndpoints,
+                    request.ResolverEndpointFiles,
+                    request.ResolverEndpointUrls,
+                    cancellationToken).ConfigureAwait(false);
                 if (errors.Count > 0) {
                     throw new ArgumentException(string.Join("; ", errors), nameof(request.ResolverEndpoints));
                 }

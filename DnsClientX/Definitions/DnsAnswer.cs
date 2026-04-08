@@ -89,6 +89,25 @@ namespace DnsClientX {
         public string[] DataStrings => ConvertToMultiString();
 
         /// <summary>
+        /// Returns TXT data flattened into a single string for script-friendly output.
+        /// Non-TXT records return <see cref="Data"/>.
+        /// </summary>
+        [JsonIgnore]
+        public string TxtConcatenatedData {
+            get {
+                if (Type != DnsRecordType.TXT) {
+                    return Data;
+                }
+
+                string[] segments = DataStringsEscaped;
+                string combined = segments.Length == 0
+                    ? Data
+                    : string.Concat(segments.Select(segment => segment.Trim('"')));
+                return NormalizeLineEndings(combined).Replace("\r", string.Empty).Replace("\n", string.Empty);
+            }
+        }
+
+        /// <summary>
         /// Returns the record parsed into a typed representation when supported.
         /// </summary>
         [JsonIgnore]

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -102,6 +103,108 @@ namespace DnsClientX.Tests {
                 Assert.Contains(responses[0].Questions[0].HostName, new[] { "1.1.1.1", "dns.google" });
             } finally {
                 DnsMultiResolver.ResolveOverride = null;
+            }
+        }
+
+        /// <summary>
+        /// Verifies that resolver endpoint files also flow through the multi-resolver execution path.
+        /// </summary>
+        [Fact]
+        public async Task QueryDns_RequestWithResolverEndpointFile_UsesMultiResolverExecutionPath() {
+            string resolverFile = Path.GetTempFileName();
+            File.WriteAllText(resolverFile, "udp@1.1.1.1:53\r\n");
+
+            try {
+                DnsMultiResolver.ResolveOverride = (ep, name, type, ct) => Task.FromResult(new DnsResponse {
+                    Questions = new[] {
+                        new DnsQuestion {
+                            Name = name,
+                            OriginalName = name,
+                            Type = type,
+                            HostName = ep.Host
+                        }
+                    },
+                    Answers = new[] {
+                        new DnsAnswer {
+                            Name = name,
+                            Type = type,
+                            TTL = 30,
+                            DataRaw = "127.0.0.1"
+                        }
+                    },
+                    Status = DnsResponseCode.NoError
+                });
+
+                var request = new ResolveDnsRequest {
+                    Names = new[] { "example.com" },
+                    RecordTypes = new[] { DnsRecordType.A },
+                    ResolverEndpointFiles = new[] { resolverFile },
+                    ResolverStrategy = MultiResolverStrategy.FirstSuccess
+                };
+
+                var responses = await ClientX.QueryDns(request);
+
+                Assert.Single(responses);
+                Assert.Equal(DnsResponseCode.NoError, responses[0].Status);
+                Assert.Equal("1.1.1.1", responses[0].Questions[0].HostName);
+            } finally {
+                DnsMultiResolver.ResolveOverride = null;
+                File.Delete(resolverFile);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a reusable request can load a recommended resolver from a saved selection snapshot.
+        /// </summary>
+        [Fact]
+        public async Task QueryDns_RequestWithResolverSelectionPath_UsesRecommendedResolver() {
+            string snapshotPath = Path.GetTempFileName();
+
+            try {
+                ResolverScoreStore.Save(snapshotPath, new ResolverScoreSnapshot {
+                    Summary = new ResolverScoreSummary {
+                        Mode = ResolverScoreMode.Benchmark,
+                        RecommendationAvailable = true,
+                        RecommendedTarget = "Cloudflare",
+                        RecommendedResolver = "1.1.1.1:53",
+                        RecommendedTransport = "Doh",
+                        RecommendedAverageMs = 7
+                    }
+                });
+
+                ClientX.QueryDnsRequestOverride = (request, names, type, ct) => Task.FromResult(names.Select(name => new DnsResponse {
+                    Questions = new[] {
+                        new DnsQuestion {
+                            Name = name,
+                            OriginalName = name,
+                            Type = type,
+                            HostName = request.DnsProviders[0].ToString()
+                        }
+                    },
+                    Answers = new[] {
+                        new DnsAnswer {
+                            Name = name,
+                            Type = type,
+                            TTL = 30,
+                            DataRaw = "127.0.0.1"
+                        }
+                    },
+                    Status = DnsResponseCode.NoError
+                }).ToArray());
+
+                var request = new ResolveDnsRequest {
+                    Names = new[] { "example.com" },
+                    RecordTypes = new[] { DnsRecordType.A },
+                    ResolverSelectionPath = snapshotPath
+                };
+
+                var responses = await ClientX.QueryDns(request);
+
+                Assert.Single(responses);
+                Assert.Equal("Cloudflare", responses[0].Questions[0].HostName);
+            } finally {
+                ClientX.QueryDnsRequestOverride = null;
+                File.Delete(snapshotPath);
             }
         }
 
@@ -300,6 +403,48 @@ namespace DnsClientX.Tests {
             EdnsOptions? options = request.CreateEdnsOptions();
             Assert.NotNull(options);
             Assert.Equal(new EdnsClientSubnetOption("2001:db8::/56"), options!.Subnet);
+        }
+
+        /// <summary>
+        /// Verifies that richer EDNS request properties flow into reusable request option creation.
+        /// </summary>
+        [Fact]
+        public void ResolveDnsRequest_CreateEdnsOptions_IncludesPaddingCookieAndNsid() {
+            byte[] cookie = { 1, 2, 3, 4, 5, 6, 7, 8 };
+            var request = new ResolveDnsRequest {
+                Names = new[] { "example.com" },
+                RecordTypes = new[] { DnsRecordType.A },
+                DnsProviders = new[] { DnsEndpoint.Cloudflare },
+                EdnsPaddingLength = 16,
+                EdnsCookie = cookie,
+                RequestNsid = true
+            };
+
+            request.Validate();
+
+            EdnsOptions? options = request.CreateEdnsOptions();
+
+            Assert.NotNull(options);
+            Assert.Equal(16, options!.PaddingLength);
+            Assert.Equal(cookie, options.Cookie);
+            Assert.Contains(options.Options, option => option is NsidOption);
+        }
+
+        /// <summary>
+        /// Verifies that malformed EDNS cookie lengths are rejected before request execution.
+        /// </summary>
+        [Fact]
+        public void ResolveDnsRequest_RejectsInvalidEdnsCookieLength() {
+            var request = new ResolveDnsRequest {
+                Names = new[] { "example.com" },
+                RecordTypes = new[] { DnsRecordType.A },
+                DnsProviders = new[] { DnsEndpoint.Cloudflare },
+                EdnsCookie = new byte[] { 1, 2, 3 }
+            };
+
+            var exception = Assert.Throws<ArgumentException>(() => request.Validate());
+
+            Assert.Contains("EdnsCookie", exception.Message, StringComparison.OrdinalIgnoreCase);
         }
     }
 }
