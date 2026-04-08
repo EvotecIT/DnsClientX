@@ -1517,35 +1517,18 @@ namespace DnsClientX.Cli {
             bool trace,
             string? zone = null,
             int? ttl = null) {
-            Console.WriteLine("Explain:");
-            Console.WriteLine($"  Operation: {operation}");
-            if (!string.IsNullOrWhiteSpace(zone)) {
-                Console.WriteLine($"  Zone: {zone}");
+            foreach (string line in ResolverReportTextFormatter.BuildSingleOperationExplainLines(
+                         result,
+                         operation,
+                         target,
+                         recordType,
+                         requestDnsSec,
+                         validateDnsSec,
+                         FormatDuration,
+                         zone,
+                         ttl)) {
+                Console.WriteLine(line);
             }
-            Console.WriteLine($"  Target: {target}");
-            Console.WriteLine($"  Type: {recordType}");
-            if (ttl.HasValue) {
-                Console.WriteLine($"  TTL: {ttl.Value}");
-            }
-            DnsResponse response = result.Response;
-            Console.WriteLine($"  Resolver profile: {result.SelectionStrategy} via {result.RequestFormat}");
-            Console.WriteLine($"  Resolver: {DescribeResolver(result)}");
-            Console.WriteLine($"  Actual transport: {DescribeUsedTransport(response)}");
-            Console.WriteLine($"  Cache enabled: {result.CacheEnabled}");
-            Console.WriteLine($"  Attempts recorded: {result.AuditTrail.Length}");
-            Console.WriteLine($"  Final source: {DescribeFinalSource(result)}");
-            Console.WriteLine($"  Resolvers tried: {DescribeAttemptResolvers(result)}");
-            Console.WriteLine($"  Retry reasons: {DescribeRetryReasons(result)}");
-            Console.WriteLine($"  DNSSEC requested: {requestDnsSec}");
-            Console.WriteLine($"  DNSSEC validated: {validateDnsSec}");
-            Console.WriteLine($"  Retries: {response.RetryCount}");
-            Console.WriteLine($"  Elapsed: {FormatDuration(response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : result.Elapsed)}");
-            Console.WriteLine($"  Answers: {response.Answers?.Length ?? 0}");
-            Console.WriteLine($"  Authorities: {response.Authorities?.Length ?? 0}");
-            Console.WriteLine($"  Additional: {response.Additional?.Length ?? 0}");
-            Console.WriteLine($"  Truncated: {response.IsTruncated}");
-            Console.WriteLine($"  AuthenticData: {response.AuthenticData}");
-            Console.WriteLine($"  CheckingDisabled: {response.CheckingDisabled}");
 
             if (trace) {
                 WriteTrace(result);
@@ -1553,90 +1536,13 @@ namespace DnsClientX.Cli {
         }
 
         private static void WriteTrace(ResolverSingleOperationResult result) {
-            DnsResponse response = result.Response;
-            Console.WriteLine("Trace:");
-            Console.WriteLine($"  Audit entries: {result.AuditTrail.Length}");
-            Console.WriteLine($"  Question count: {response.Questions?.Length ?? 0}");
-            Console.WriteLine($"  Used transport: {DescribeUsedTransport(response)}");
-            Console.WriteLine($"  Error code: {response.ErrorCode}");
-            if (!string.IsNullOrWhiteSpace(response.Error)) {
-                Console.WriteLine($"  Error: {response.Error}");
+            foreach (string line in ResolverReportTextFormatter.BuildSingleOperationTraceLines(result, FormatDuration)) {
+                Console.WriteLine(line);
             }
-            if (!string.IsNullOrWhiteSpace(response.Comments)) {
-                Console.WriteLine($"  Comments: {response.Comments}");
-            }
-            if (response.ExtendedDnsErrorInfo.Length > 0) {
-                foreach (var ede in response.ExtendedDnsErrorInfo) {
-                    Console.WriteLine($"  Extended DNS error: {ede.Code} {ede.Text}");
-                }
-            }
-            foreach (var question in response.Questions ?? Array.Empty<DnsQuestion>()) {
-                Console.WriteLine($"  Question: {question.Name} {question.Type} via {question.RequestFormat}");
-            }
-            foreach (var entry in result.AuditTrail) {
-                int attempt = entry.AttemptNumber > 0 ? entry.AttemptNumber : 1;
-                string outcome = entry.Response != null ? entry.Response.Status.ToString() : "NoResponse";
-                string exception = entry.Exception?.GetType().Name ?? "None";
-                string resolver = !string.IsNullOrWhiteSpace(entry.ResolverHost)
-                    ? $"{entry.ResolverHost}:{entry.ResolverPort}"
-                    : "(unknown)";
-                string cache = entry.ServedFromCache ? "cache" : "network";
-                string retry = string.IsNullOrWhiteSpace(entry.RetryReason) ? string.Empty : $", retry: {entry.RetryReason}";
-                Console.WriteLine($"  Attempt {attempt}: {entry.Name} {entry.RecordType} via {entry.RequestFormat}/{entry.UsedTransport} to {resolver} => {outcome} in {FormatDuration(entry.Duration)} ({cache}, exception: {exception}{retry})");
-            }
-        }
-
-        private static string DescribeResolver(ResolverSingleOperationResult result) {
-            string? host = result.Response.ServerAddress;
-            if (string.IsNullOrWhiteSpace(host)) {
-                host = result.ConfiguredResolverHost;
-            }
-
-            if (string.IsNullOrWhiteSpace(host)) {
-                host = "(unknown)";
-            }
-
-            int port = result.ConfiguredResolverPort;
-            return $"{host}:{port}";
         }
 
         private static string DescribeUsedTransport(DnsResponse response) {
             return response.UsedTransport.ToString();
-        }
-
-        private static string DescribeFinalSource(ResolverSingleOperationResult result) {
-            AuditEntry? last = null;
-            foreach (var entry in result.AuditTrail) {
-                last = entry;
-            }
-
-            if (last == null) {
-                return "unknown";
-            }
-
-            return last.ServedFromCache ? "cache" : "network";
-        }
-
-        private static string DescribeAttemptResolvers(ResolverSingleOperationResult result) {
-            string[] resolvers = result.AuditTrail
-                .Select(entry => !string.IsNullOrWhiteSpace(entry.ResolverHost)
-                    ? $"{entry.ResolverHost}:{entry.ResolverPort}"
-                    : "(unknown)")
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-
-            return resolvers.Length == 0 ? "none" : string.Join(" -> ", resolvers);
-        }
-
-        private static string DescribeRetryReasons(ResolverSingleOperationResult result) {
-            string[] reasons = result.AuditTrail
-                .Select(entry => entry.RetryReason)
-                .Where(reason => !string.IsNullOrWhiteSpace(reason))
-                .Select(reason => reason!)
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
-
-            return reasons.Length == 0 ? "none" : string.Join(" | ", reasons);
         }
 
         private static string FormatDuration(TimeSpan duration) {

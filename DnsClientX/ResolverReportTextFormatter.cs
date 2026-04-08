@@ -270,6 +270,168 @@ namespace DnsClientX {
             };
         }
 
+        /// <summary>
+        /// Builds the human-readable lines for single-target explain output.
+        /// </summary>
+        public static string[] BuildSingleOperationExplainLines(
+            ResolverSingleOperationResult result,
+            string operation,
+            string target,
+            DnsRecordType recordType,
+            bool requestDnsSec,
+            bool validateDnsSec,
+            Func<TimeSpan, string> durationFormatter,
+            string? zone = null,
+            int? ttl = null) {
+            if (result == null) {
+                throw new ArgumentNullException(nameof(result));
+            }
+
+            if (durationFormatter == null) {
+                throw new ArgumentNullException(nameof(durationFormatter));
+            }
+
+            DnsResponse response = result.Response;
+            var lines = new List<string> {
+                "Explain:",
+                $"  Operation: {operation}"
+            };
+
+            if (!string.IsNullOrWhiteSpace(zone)) {
+                lines.Add($"  Zone: {zone}");
+            }
+
+            lines.Add($"  Target: {target}");
+            lines.Add($"  Type: {recordType}");
+
+            if (ttl.HasValue) {
+                lines.Add($"  TTL: {ttl.Value}");
+            }
+
+            lines.Add($"  Resolver profile: {result.SelectionStrategy} via {result.RequestFormat}");
+            lines.Add($"  Resolver: {DescribeSingleOperationResolver(result)}");
+            lines.Add($"  Actual transport: {response.UsedTransport}");
+            lines.Add($"  Cache enabled: {result.CacheEnabled}");
+            lines.Add($"  Attempts recorded: {result.AuditTrail.Length}");
+            lines.Add($"  Final source: {DescribeSingleOperationFinalSource(result)}");
+            lines.Add($"  Resolvers tried: {DescribeSingleOperationAttemptResolvers(result)}");
+            lines.Add($"  Retry reasons: {DescribeSingleOperationRetryReasons(result)}");
+            lines.Add($"  DNSSEC requested: {requestDnsSec}");
+            lines.Add($"  DNSSEC validated: {validateDnsSec}");
+            lines.Add($"  Retries: {response.RetryCount}");
+            lines.Add($"  Elapsed: {durationFormatter(response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : result.Elapsed)}");
+            lines.Add($"  Answers: {response.Answers?.Length ?? 0}");
+            lines.Add($"  Authorities: {response.Authorities?.Length ?? 0}");
+            lines.Add($"  Additional: {response.Additional?.Length ?? 0}");
+            lines.Add($"  Truncated: {response.IsTruncated}");
+            lines.Add($"  AuthenticData: {response.AuthenticData}");
+            lines.Add($"  CheckingDisabled: {response.CheckingDisabled}");
+
+            return lines.ToArray();
+        }
+
+        /// <summary>
+        /// Builds the human-readable lines for single-target trace output.
+        /// </summary>
+        public static string[] BuildSingleOperationTraceLines(ResolverSingleOperationResult result, Func<TimeSpan, string> durationFormatter) {
+            if (result == null) {
+                throw new ArgumentNullException(nameof(result));
+            }
+
+            if (durationFormatter == null) {
+                throw new ArgumentNullException(nameof(durationFormatter));
+            }
+
+            DnsResponse response = result.Response;
+            var lines = new List<string> {
+                "Trace:",
+                $"  Audit entries: {result.AuditTrail.Length}",
+                $"  Question count: {response.Questions?.Length ?? 0}",
+                $"  Used transport: {response.UsedTransport}",
+                $"  Error code: {response.ErrorCode}"
+            };
+
+            if (!string.IsNullOrWhiteSpace(response.Error)) {
+                lines.Add($"  Error: {response.Error}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(response.Comments)) {
+                lines.Add($"  Comments: {response.Comments}");
+            }
+
+            if (response.ExtendedDnsErrorInfo.Length > 0) {
+                foreach (ExtendedDnsErrorInfo ede in response.ExtendedDnsErrorInfo) {
+                    lines.Add($"  Extended DNS error: {ede.Code} {ede.Text}");
+                }
+            }
+
+            foreach (DnsQuestion question in response.Questions ?? Array.Empty<DnsQuestion>()) {
+                lines.Add($"  Question: {question.Name} {question.Type} via {question.RequestFormat}");
+            }
+
+            foreach (AuditEntry entry in result.AuditTrail) {
+                int attempt = entry.AttemptNumber > 0 ? entry.AttemptNumber : 1;
+                string outcome = entry.Response != null ? entry.Response.Status.ToString() : "NoResponse";
+                string exception = entry.Exception?.GetType().Name ?? "None";
+                string resolver = !string.IsNullOrWhiteSpace(entry.ResolverHost)
+                    ? $"{entry.ResolverHost}:{entry.ResolverPort}"
+                    : "(unknown)";
+                string cache = entry.ServedFromCache ? "cache" : "network";
+                string retry = string.IsNullOrWhiteSpace(entry.RetryReason) ? string.Empty : $", retry: {entry.RetryReason}";
+                lines.Add($"  Attempt {attempt}: {entry.Name} {entry.RecordType} via {entry.RequestFormat}/{entry.UsedTransport} to {resolver} => {outcome} in {durationFormatter(entry.Duration)} ({cache}, exception: {exception}{retry})");
+            }
+
+            return lines.ToArray();
+        }
+
+        private static string DescribeSingleOperationResolver(ResolverSingleOperationResult result) {
+            string? host = result.Response.ServerAddress;
+            if (string.IsNullOrWhiteSpace(host)) {
+                host = result.ConfiguredResolverHost;
+            }
+
+            if (string.IsNullOrWhiteSpace(host)) {
+                host = "(unknown)";
+            }
+
+            return $"{host}:{result.ConfiguredResolverPort}";
+        }
+
+        private static string DescribeSingleOperationFinalSource(ResolverSingleOperationResult result) {
+            AuditEntry? last = null;
+            foreach (AuditEntry entry in result.AuditTrail) {
+                last = entry;
+            }
+
+            if (last == null) {
+                return "unknown";
+            }
+
+            return last.ServedFromCache ? "cache" : "network";
+        }
+
+        private static string DescribeSingleOperationAttemptResolvers(ResolverSingleOperationResult result) {
+            string[] resolvers = result.AuditTrail
+                .Select(entry => !string.IsNullOrWhiteSpace(entry.ResolverHost)
+                    ? $"{entry.ResolverHost}:{entry.ResolverPort}"
+                    : "(unknown)")
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            return resolvers.Length == 0 ? "none" : string.Join(" -> ", resolvers);
+        }
+
+        private static string DescribeSingleOperationRetryReasons(ResolverSingleOperationResult result) {
+            string[] reasons = result.AuditTrail
+                .Select(entry => entry.RetryReason)
+                .Where(reason => !string.IsNullOrWhiteSpace(reason))
+                .Select(reason => reason!)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+
+            return reasons.Length == 0 ? "none" : string.Join(" | ", reasons);
+        }
+
         private static string NormalizeSummaryToken(string? value) {
             if (string.IsNullOrWhiteSpace(value)) {
                 return "none";

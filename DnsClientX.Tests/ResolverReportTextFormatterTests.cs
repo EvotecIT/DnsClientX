@@ -159,6 +159,84 @@ namespace DnsClientX.Tests {
             Assert.Contains("      Success rate: 67% (2/3)", benchmarkLines);
         }
 
+        /// <summary>
+        /// Ensures single-operation explain and trace formatting is preserved in shared helpers.
+        /// </summary>
+        [Fact]
+        public void SingleOperationFormatting_ProducesExpectedLines() {
+            ResolverSingleOperationResult result = new ResolverSingleOperationResult {
+                Response = new DnsResponse {
+                    Status = DnsResponseCode.NoError,
+                    UsedTransport = Transport.Udp,
+                    RetryCount = 1,
+                    Questions = new[] {
+                        new DnsQuestion {
+                            Name = "example.com",
+                            Type = DnsRecordType.A,
+                            RequestFormat = DnsRequestFormat.DnsOverUDP
+                        }
+                    },
+                    Answers = new[] {
+                        new DnsAnswer {
+                            Name = "example.com",
+                            Type = DnsRecordType.A,
+                            DataRaw = "203.0.113.10"
+                        }
+                    }
+                },
+                Elapsed = TimeSpan.FromMilliseconds(5),
+                SelectionStrategy = DnsSelectionStrategy.First,
+                RequestFormat = DnsRequestFormat.DnsOverUDP,
+                CacheEnabled = false,
+                ConfiguredResolverHost = "127.0.0.1",
+                ConfiguredResolverPort = 53,
+                AuditTrail = new[] {
+                    new AuditEntry("example.com", DnsRecordType.A) {
+                        AttemptNumber = 1,
+                        ResolverHost = "127.0.0.1",
+                        ResolverPort = 53,
+                        RequestFormat = DnsRequestFormat.DnsOverUDP,
+                        UsedTransport = Transport.Udp,
+                        Duration = TimeSpan.FromMilliseconds(2),
+                        RetryReason = "transient response",
+                        Response = new DnsResponse {
+                            Status = DnsResponseCode.ServerFailure
+                        }
+                    },
+                    new AuditEntry("example.com", DnsRecordType.A) {
+                        AttemptNumber = 2,
+                        ResolverHost = "127.0.0.1",
+                        ResolverPort = 53,
+                        RequestFormat = DnsRequestFormat.DnsOverUDP,
+                        UsedTransport = Transport.Udp,
+                        Duration = TimeSpan.FromMilliseconds(3),
+                        Response = new DnsResponse {
+                            Status = DnsResponseCode.NoError
+                        }
+                    }
+                }
+            };
+
+            string[] explainLines = ResolverReportTextFormatter.BuildSingleOperationExplainLines(
+                result,
+                "query",
+                "example.com",
+                DnsRecordType.A,
+                requestDnsSec: false,
+                validateDnsSec: false,
+                FormatDuration);
+
+            Assert.Contains("Explain:", explainLines);
+            Assert.Contains("  Resolver: 127.0.0.1:53", explainLines);
+            Assert.Contains("  Retry reasons: transient response", explainLines);
+
+            string[] traceLines = ResolverReportTextFormatter.BuildSingleOperationTraceLines(result, FormatDuration);
+            Assert.Contains("Trace:", traceLines);
+            Assert.Contains("  Question: example.com A via DnsOverUDP", traceLines);
+            Assert.Contains("  Attempt 1: example.com A via DnsOverUDP/Udp to 127.0.0.1:53 => ServerFailure in 2 ms (network, exception: None, retry: transient response)", traceLines);
+            Assert.Contains("  Attempt 2: example.com A via DnsOverUDP/Udp to 127.0.0.1:53 => NoError in 3 ms (network, exception: None)", traceLines);
+        }
+
         private static string FormatDuration(TimeSpan duration) {
             return $"{(int)Math.Round(duration.TotalMilliseconds, MidpointRounding.AwayFromZero)} ms";
         }
