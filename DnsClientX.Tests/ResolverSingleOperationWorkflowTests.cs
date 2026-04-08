@@ -179,5 +179,31 @@ namespace DnsClientX.Tests {
             Assert.Equal(server.Port, result.ConfiguredResolverPort);
             Assert.True(result.Elapsed >= TimeSpan.Zero);
         }
+
+#if NET472
+        /// <summary>
+        /// Ensures unsupported modern transports return a shared non-network NotImplemented result on older frameworks.
+        /// </summary>
+        [Fact]
+        public async Task QueryAsync_UnsupportedModernTransport_ReturnsNotImplementedWithoutAuditEntries() {
+            ResolverSingleOperationResult result = await ResolverSingleOperationWorkflow.QueryAsync(
+                new ResolverExecutionTarget {
+                    DisplayName = "doh3@dns.quad9.net:443",
+                    ExplicitEndpoint = new DnsResolverEndpoint {
+                        Transport = Transport.Doh,
+                        Host = "dns.quad9.net",
+                        Port = 443,
+                        RequestFormat = DnsRequestFormat.DnsOverHttp3
+                    }
+                },
+                "example.com",
+                DnsRecordType.A);
+
+            Assert.Equal(DnsResponseCode.NotImplemented, result.Response.Status);
+            Assert.Equal(DnsRequestFormat.DnsOverHttp3, result.RequestFormat);
+            Assert.Empty(result.AuditTrail);
+            Assert.Contains("net8+", result.Response.Error, StringComparison.OrdinalIgnoreCase);
+        }
+#endif
     }
 }

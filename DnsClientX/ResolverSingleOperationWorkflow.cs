@@ -51,6 +51,10 @@ namespace DnsClientX {
             ResolverExecutionClientOptions? clientOptions = null,
             CancellationToken cancellationToken = default) {
             await using ClientX client = ResolverExecutionClientFactory.CreateClient(target, clientOptions);
+            if (!DnsTransportCapabilities.Supports(client.EndpointConfiguration.RequestFormat)) {
+                return CreateUnsupportedResult(client, name, recordType);
+            }
+
             var stopwatch = Stopwatch.StartNew();
             DnsResponse response = await client.Resolve(name, recordType, requestDnsSec, validateDnsSec, cancellationToken: cancellationToken).ConfigureAwait(false);
             stopwatch.Stop();
@@ -104,6 +108,10 @@ namespace DnsClientX {
             ResolverExecutionClientOptions? clientOptions = null,
             CancellationToken cancellationToken = default) {
             await using ClientX client = ResolverExecutionClientFactory.CreateClient(target, clientOptions);
+            if (!DnsTransportCapabilities.Supports(client.EndpointConfiguration.RequestFormat)) {
+                return CreateUnsupportedResult(client, name, recordType);
+            }
+
             var stopwatch = Stopwatch.StartNew();
             DnsResponse response = await client.UpdateRecordAsync(zone, name, recordType, data, ttl, cancellationToken).ConfigureAwait(false);
             stopwatch.Stop();
@@ -121,6 +129,24 @@ namespace DnsClientX {
                 ConfiguredResolverHost = client.EndpointConfiguration.BaseUri?.Host ?? client.EndpointConfiguration.Hostname,
                 ConfiguredResolverPort = client.EndpointConfiguration.BaseUri?.Port ?? client.EndpointConfiguration.Port
             };
+        }
+
+        private static ResolverSingleOperationResult CreateUnsupportedResult(ClientX client, string name, DnsRecordType recordType) {
+            DnsRequestFormat requestFormat = client.EndpointConfiguration.RequestFormat;
+            var response = new DnsResponse {
+                Questions = new[] {
+                    new DnsQuestion {
+                        Name = name,
+                        Type = recordType,
+                        RequestFormat = requestFormat,
+                        OriginalName = name
+                    }
+                },
+                Status = DnsResponseCode.NotImplemented,
+                Error = DnsTransportCapabilities.GetUnsupportedMessage(requestFormat)
+            };
+            response.AddServerDetails(client.EndpointConfiguration);
+            return CreateResult(client, response, System.TimeSpan.Zero);
         }
     }
 }

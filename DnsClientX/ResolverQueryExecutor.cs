@@ -97,6 +97,11 @@ namespace DnsClientX {
             bool validateDnsSec,
             ResolverQueryRunOptions options,
             CancellationToken cancellationToken) {
+            DnsRequestFormat requestFormat = client.EndpointConfiguration.RequestFormat;
+            if (!DnsTransportCapabilities.Supports(requestFormat)) {
+                return CreateUnsupportedAttemptResult(client, displayName, name, recordType, requestFormat);
+            }
+
             var stopwatch = Stopwatch.StartNew();
             try {
                 DnsResponse response = await client.Resolve(
@@ -112,7 +117,7 @@ namespace DnsClientX {
 
                 return new ResolverQueryAttemptResult {
                     Target = displayName,
-                    RequestFormat = client.EndpointConfiguration.RequestFormat,
+                    RequestFormat = requestFormat,
                     Resolver = !string.IsNullOrWhiteSpace(response.ServerAddress) ? response.ServerAddress! : ResolverEndpointClientFactory.DescribeConfiguredResolver(client),
                     Response = response,
                     Elapsed = response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : stopwatch.Elapsed
@@ -121,12 +126,41 @@ namespace DnsClientX {
                 stopwatch.Stop();
                 return new ResolverQueryAttemptResult {
                     Target = displayName,
-                    RequestFormat = client.EndpointConfiguration.RequestFormat,
+                    RequestFormat = requestFormat,
                     Resolver = ResolverEndpointClientFactory.DescribeConfiguredResolver(client),
                     Elapsed = stopwatch.Elapsed,
                     Error = ex.Message
                 };
             }
+        }
+
+        private static ResolverQueryAttemptResult CreateUnsupportedAttemptResult(
+            ClientX client,
+            string displayName,
+            string name,
+            DnsRecordType recordType,
+            DnsRequestFormat requestFormat) {
+            var response = new DnsResponse {
+                Questions = new[] {
+                    new DnsQuestion {
+                        Name = name,
+                        Type = recordType,
+                        RequestFormat = requestFormat,
+                        OriginalName = name
+                    }
+                },
+                Status = DnsResponseCode.NotImplemented,
+                Error = DnsTransportCapabilities.GetUnsupportedMessage(requestFormat)
+            };
+            response.AddServerDetails(client.EndpointConfiguration);
+
+            return new ResolverQueryAttemptResult {
+                Target = displayName,
+                RequestFormat = requestFormat,
+                Resolver = ResolverEndpointClientFactory.DescribeConfiguredResolver(client),
+                Response = response,
+                Elapsed = TimeSpan.Zero
+            };
         }
     }
 }

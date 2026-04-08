@@ -71,6 +71,30 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Ensures unsupported transport capability failures are not treated as transient.
+        /// </summary>
+        [Fact]
+        public void IsTransient_ResponseReturnsFalseForUnsupportedTransportCapability() {
+            var response = new DnsResponse {
+                Status = DnsResponseCode.NotImplemented,
+                Questions = new[] {
+                    new DnsQuestion {
+                        Name = "example.com",
+                        Type = DnsRecordType.A,
+                        RequestFormat = DnsRequestFormat.DnsOverHttp3
+                    }
+                }
+            };
+
+#if NET8_0_OR_GREATER
+            Assert.Equal(!DnsTransportCapabilities.Supports(DnsRequestFormat.DnsOverHttp3), DnsQueryDiagnostics.IsTransportCapabilityFailure(response));
+#else
+            Assert.True(DnsQueryDiagnostics.IsTransportCapabilityFailure(response));
+            Assert.False(DnsQueryDiagnostics.IsTransient(response));
+#endif
+        }
+
+        /// <summary>
         /// Ensures SSL request failures are treated as transient transport issues.
         /// </summary>
         [Fact]

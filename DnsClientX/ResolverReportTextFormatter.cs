@@ -310,6 +310,7 @@ namespace DnsClientX {
 
             lines.Add($"  Resolver profile: {result.SelectionStrategy} via {result.RequestFormat}");
             lines.Add($"  Resolver: {DescribeSingleOperationResolver(result)}");
+            lines.Add($"  Runtime transport support: {DescribeTransportSupport(result.RequestFormat)}");
             lines.Add($"  Actual transport: {response.UsedTransport}");
             lines.Add($"  Cache enabled: {result.CacheEnabled}");
             lines.Add($"  Attempts recorded: {result.AuditTrail.Length}");
@@ -430,6 +431,12 @@ namespace DnsClientX {
                 .ToArray();
 
             return reasons.Length == 0 ? "none" : string.Join(" | ", reasons);
+        }
+
+        private static string DescribeTransportSupport(DnsRequestFormat requestFormat) {
+            return DnsTransportCapabilities.Supports(requestFormat)
+                ? "supported"
+                : DnsTransportCapabilities.GetUnsupportedMessage(requestFormat);
         }
 
         private static string NormalizeSummaryToken(string? value) {

@@ -228,6 +228,7 @@ namespace DnsClientX.Tests {
 
             Assert.Contains("Explain:", explainLines);
             Assert.Contains("  Resolver: 127.0.0.1:53", explainLines);
+            Assert.Contains("  Runtime transport support: supported", explainLines);
             Assert.Contains("  Retry reasons: transient response", explainLines);
 
             string[] traceLines = ResolverReportTextFormatter.BuildSingleOperationTraceLines(result, FormatDuration);
@@ -236,6 +237,41 @@ namespace DnsClientX.Tests {
             Assert.Contains("  Attempt 1: example.com A via DnsOverUDP/Udp to 127.0.0.1:53 => ServerFailure in 2 ms (network, exception: None, retry: transient response)", traceLines);
             Assert.Contains("  Attempt 2: example.com A via DnsOverUDP/Udp to 127.0.0.1:53 => NoError in 3 ms (network, exception: None)", traceLines);
         }
+
+#if NET472
+        /// <summary>
+        /// Ensures unsupported modern transports are called out explicitly in explain output on older frameworks.
+        /// </summary>
+        [Fact]
+        public void SingleOperationFormatting_ReportsUnsupportedModernTransport() {
+            ResolverSingleOperationResult result = new ResolverSingleOperationResult {
+                Response = new DnsResponse {
+                    Status = DnsResponseCode.NotImplemented,
+                    Questions = new[] {
+                        new DnsQuestion {
+                            Name = "example.com",
+                            Type = DnsRecordType.A,
+                            RequestFormat = DnsRequestFormat.DnsOverHttp3
+                        }
+                    }
+                },
+                RequestFormat = DnsRequestFormat.DnsOverHttp3,
+                ConfiguredResolverHost = "dns.quad9.net",
+                ConfiguredResolverPort = 443
+            };
+
+            string[] explainLines = ResolverReportTextFormatter.BuildSingleOperationExplainLines(
+                result,
+                "query",
+                "example.com",
+                DnsRecordType.A,
+                requestDnsSec: false,
+                validateDnsSec: false,
+                FormatDuration);
+
+            Assert.Contains("  Runtime transport support: DNS over HTTP/3 is supported in the core package on net8+ and is unavailable on this runtime.", explainLines);
+        }
+#endif
 
         private static string FormatDuration(TimeSpan duration) {
             return $"{(int)Math.Round(duration.TotalMilliseconds, MidpointRounding.AwayFromZero)} ms";

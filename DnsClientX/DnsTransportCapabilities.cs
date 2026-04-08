@@ -53,5 +53,20 @@ namespace DnsClientX {
                 _ => true
             };
         }
+
+        /// <summary>
+        /// Returns a human-readable unsupported-transport message for the given request format.
+        /// </summary>
+        /// <param name="requestFormat">Request format to describe.</param>
+        /// <returns>Unsupported message when the format is not available on the current runtime.</returns>
+        public static string GetUnsupportedMessage(DnsRequestFormat requestFormat) {
+            return requestFormat switch {
+                DnsRequestFormat.DnsOverHttp3 =>
+                    "DNS over HTTP/3 is supported in the core package on net8+ and is unavailable on this runtime.",
+                DnsRequestFormat.DnsOverQuic =>
+                    "DNS over QUIC is supported in the core package on net8+ when the runtime provides QUIC support and is unavailable on this runtime.",
+                _ => $"{requestFormat} is not supported on this runtime."
+            };
+        }
     }
 }
