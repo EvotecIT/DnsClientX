@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -857,24 +856,26 @@ namespace DnsClientX.Cli {
         }
 
         private static async Task<int> RunStandardQueryAsync(CliOptions options, CancellationToken cancellationToken) {
-            ResolverExecutionTarget target = await ResolverExecutionTargetResolver.ResolveSingleAsync(
-                CreateStandardQueryTargetSource(options),
-                cancellationToken).ConfigureAwait(false);
+            ResolverExecutionTargetSource targetSource = CreateStandardQueryTargetSource(options);
             ResolverExecutionClientOptions clientOptions = CreateExecutionClientOptions(options);
-            await using ClientX client = ResolverExecutionClientFactory.CreateClient(target, clientOptions);
-
-            var stopwatch = Stopwatch.StartNew();
+            ResolverSingleOperationResult result;
             DnsResponse response;
             if (options.DoUpdate) {
-                response = await client.UpdateRecordAsync(options.Zone!, options.UpdateName!, options.RecordType, options.UpdateData!, options.Ttl, cancellationToken).ConfigureAwait(false);
-                stopwatch.Stop();
+                result = await ResolverSingleOperationWorkflow.UpdateAsync(
+                    targetSource,
+                    options.Zone!,
+                    options.UpdateName!,
+                    options.RecordType,
+                    options.UpdateData!,
+                    options.Ttl,
+                    clientOptions,
+                    cancellationToken).ConfigureAwait(false);
+                response = result.Response;
 
                 Console.WriteLine($"Update status: {response.Status} (retries {response.RetryCount})");
                 if (options.Explain || options.Trace) {
                     WriteExplain(
-                        client,
-                        response,
-                        stopwatch.Elapsed,
+                        result,
                         operation: "update",
                         target: options.UpdateName!,
                         recordType: options.RecordType,
@@ -885,16 +886,21 @@ namespace DnsClientX.Cli {
                         ttl: options.Ttl);
                 }
             } else {
-                response = await client.Resolve(options.Domain!, options.RecordType, options.RequestDnsSec, options.ValidateDnsSec, cancellationToken: cancellationToken).ConfigureAwait(false);
-                stopwatch.Stop();
+                result = await ResolverSingleOperationWorkflow.QueryAsync(
+                    targetSource,
+                    options.Domain!,
+                    options.RecordType,
+                    options.RequestDnsSec,
+                    options.ValidateDnsSec,
+                    clientOptions,
+                    cancellationToken).ConfigureAwait(false);
+                response = result.Response;
 
-                WriteQueryResponse(response, options, stopwatch.Elapsed);
+                WriteQueryResponse(response, options, result.Elapsed);
 
                 if (options.Explain || options.Trace) {
                     WriteExplain(
-                        client,
-                        response,
-                        stopwatch.Elapsed,
+                        result,
                         operation: "query",
                         target: options.Domain!,
                         recordType: options.RecordType,
@@ -1502,9 +1508,7 @@ namespace DnsClientX.Cli {
         }
 
         private static void WriteExplain(
-            ClientX client,
-            DnsResponse response,
-            TimeSpan elapsed,
+            ResolverSingleOperationResult result,
             string operation,
             string target,
             DnsRecordType recordType,
@@ -1523,18 +1527,19 @@ namespace DnsClientX.Cli {
             if (ttl.HasValue) {
                 Console.WriteLine($"  TTL: {ttl.Value}");
             }
-            Console.WriteLine($"  Resolver profile: {client.EndpointConfiguration.SelectionStrategy} via {client.EndpointConfiguration.RequestFormat}");
-            Console.WriteLine($"  Resolver: {DescribeResolver(client, response)}");
+            DnsResponse response = result.Response;
+            Console.WriteLine($"  Resolver profile: {result.SelectionStrategy} via {result.RequestFormat}");
+            Console.WriteLine($"  Resolver: {DescribeResolver(result)}");
             Console.WriteLine($"  Actual transport: {DescribeUsedTransport(response)}");
-            Console.WriteLine($"  Cache enabled: {client.CacheEnabled}");
-            Console.WriteLine($"  Attempts recorded: {client.AuditTrail.Count}");
-            Console.WriteLine($"  Final source: {DescribeFinalSource(client)}");
-            Console.WriteLine($"  Resolvers tried: {DescribeAttemptResolvers(client)}");
-            Console.WriteLine($"  Retry reasons: {DescribeRetryReasons(client)}");
+            Console.WriteLine($"  Cache enabled: {result.CacheEnabled}");
+            Console.WriteLine($"  Attempts recorded: {result.AuditTrail.Length}");
+            Console.WriteLine($"  Final source: {DescribeFinalSource(result)}");
+            Console.WriteLine($"  Resolvers tried: {DescribeAttemptResolvers(result)}");
+            Console.WriteLine($"  Retry reasons: {DescribeRetryReasons(result)}");
             Console.WriteLine($"  DNSSEC requested: {requestDnsSec}");
             Console.WriteLine($"  DNSSEC validated: {validateDnsSec}");
             Console.WriteLine($"  Retries: {response.RetryCount}");
-            Console.WriteLine($"  Elapsed: {FormatDuration(response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : elapsed)}");
+            Console.WriteLine($"  Elapsed: {FormatDuration(response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : result.Elapsed)}");
             Console.WriteLine($"  Answers: {response.Answers?.Length ?? 0}");
             Console.WriteLine($"  Authorities: {response.Authorities?.Length ?? 0}");
             Console.WriteLine($"  Additional: {response.Additional?.Length ?? 0}");
@@ -1543,13 +1548,14 @@ namespace DnsClientX.Cli {
             Console.WriteLine($"  CheckingDisabled: {response.CheckingDisabled}");
 
             if (trace) {
-                WriteTrace(client, response);
+                WriteTrace(result);
             }
         }
 
-        private static void WriteTrace(ClientX client, DnsResponse response) {
+        private static void WriteTrace(ResolverSingleOperationResult result) {
+            DnsResponse response = result.Response;
             Console.WriteLine("Trace:");
-            Console.WriteLine($"  Audit entries: {client.AuditTrail.Count}");
+            Console.WriteLine($"  Audit entries: {result.AuditTrail.Length}");
             Console.WriteLine($"  Question count: {response.Questions?.Length ?? 0}");
             Console.WriteLine($"  Used transport: {DescribeUsedTransport(response)}");
             Console.WriteLine($"  Error code: {response.ErrorCode}");
@@ -1567,7 +1573,7 @@ namespace DnsClientX.Cli {
             foreach (var question in response.Questions ?? Array.Empty<DnsQuestion>()) {
                 Console.WriteLine($"  Question: {question.Name} {question.Type} via {question.RequestFormat}");
             }
-            foreach (var entry in client.AuditTrail) {
+            foreach (var entry in result.AuditTrail) {
                 int attempt = entry.AttemptNumber > 0 ? entry.AttemptNumber : 1;
                 string outcome = entry.Response != null ? entry.Response.Status.ToString() : "NoResponse";
                 string exception = entry.Exception?.GetType().Name ?? "None";
@@ -1580,17 +1586,17 @@ namespace DnsClientX.Cli {
             }
         }
 
-        private static string DescribeResolver(ClientX client, DnsResponse response) {
-            string? host = response.ServerAddress;
+        private static string DescribeResolver(ResolverSingleOperationResult result) {
+            string? host = result.Response.ServerAddress;
             if (string.IsNullOrWhiteSpace(host)) {
-                host = client.EndpointConfiguration.BaseUri?.Host ?? client.EndpointConfiguration.Hostname;
+                host = result.ConfiguredResolverHost;
             }
 
             if (string.IsNullOrWhiteSpace(host)) {
                 host = "(unknown)";
             }
 
-            int port = client.EndpointConfiguration.BaseUri?.Port ?? client.EndpointConfiguration.Port;
+            int port = result.ConfiguredResolverPort;
             return $"{host}:{port}";
         }
 
@@ -1598,9 +1604,9 @@ namespace DnsClientX.Cli {
             return response.UsedTransport.ToString();
         }
 
-        private static string DescribeFinalSource(ClientX client) {
+        private static string DescribeFinalSource(ResolverSingleOperationResult result) {
             AuditEntry? last = null;
-            foreach (var entry in client.AuditTrail) {
+            foreach (var entry in result.AuditTrail) {
                 last = entry;
             }
 
@@ -1611,8 +1617,8 @@ namespace DnsClientX.Cli {
             return last.ServedFromCache ? "cache" : "network";
         }
 
-        private static string DescribeAttemptResolvers(ClientX client) {
-            string[] resolvers = client.AuditTrail
+        private static string DescribeAttemptResolvers(ResolverSingleOperationResult result) {
+            string[] resolvers = result.AuditTrail
                 .Select(entry => !string.IsNullOrWhiteSpace(entry.ResolverHost)
                     ? $"{entry.ResolverHost}:{entry.ResolverPort}"
                     : "(unknown)")
@@ -1622,8 +1628,8 @@ namespace DnsClientX.Cli {
             return resolvers.Length == 0 ? "none" : string.Join(" -> ", resolvers);
         }
 
-        private static string DescribeRetryReasons(ClientX client) {
-            string[] reasons = client.AuditTrail
+        private static string DescribeRetryReasons(ResolverSingleOperationResult result) {
+            string[] reasons = result.AuditTrail
                 .Select(entry => entry.RetryReason)
                 .Where(reason => !string.IsNullOrWhiteSpace(reason))
                 .Select(reason => reason!)

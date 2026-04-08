@@ -72,6 +72,19 @@ namespace DnsClientX.Tests {
             return client.EndpointConfiguration.RequestFormat;
         }
 
+        private static ResolverSingleOperationResult CreateOperationResult(ClientX client, DnsResponse response, TimeSpan elapsed) {
+            return new ResolverSingleOperationResult {
+                Response = response,
+                Elapsed = elapsed,
+                SelectionStrategy = client.EndpointConfiguration.SelectionStrategy,
+                RequestFormat = client.EndpointConfiguration.RequestFormat,
+                CacheEnabled = client.CacheEnabled,
+                AuditTrail = client.AuditTrail as AuditEntry[] ?? new List<AuditEntry>(client.AuditTrail).ToArray(),
+                ConfiguredResolverHost = client.EndpointConfiguration.BaseUri?.Host ?? client.EndpointConfiguration.Hostname,
+                ConfiguredResolverPort = client.EndpointConfiguration.BaseUri?.Port ?? client.EndpointConfiguration.Port
+            };
+        }
+
         /// <summary>
         /// Ensures the CLI explain mode prints resolver diagnostics for a successful query.
         /// </summary>
@@ -170,10 +183,9 @@ namespace DnsClientX.Tests {
             TextWriter originalOut = Console.Out;
             try {
                 Console.SetOut(output);
+                ResolverSingleOperationResult result = CreateOperationResult(client, response, TimeSpan.FromMilliseconds(5));
                 writeExplain.Invoke(null, new object?[] {
-                    client,
-                    response,
-                    TimeSpan.FromMilliseconds(5),
+                    result,
                     "query",
                     "example.com",
                     DnsRecordType.A,
@@ -219,7 +231,8 @@ namespace DnsClientX.Tests {
             TextWriter originalOut = Console.Out;
             try {
                 Console.SetOut(output);
-                writeTrace.Invoke(null, new object[] { client, response });
+                ResolverSingleOperationResult result = CreateOperationResult(client, response, TimeSpan.FromMilliseconds(5));
+                writeTrace.Invoke(null, new object[] { result });
             } finally {
                 Console.SetOut(originalOut);
             }
