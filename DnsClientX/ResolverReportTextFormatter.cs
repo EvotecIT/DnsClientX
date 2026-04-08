@@ -105,6 +105,19 @@ namespace DnsClientX {
         }
 
         /// <summary>
+        /// Describes runtime capability warnings captured during a probe run.
+        /// </summary>
+        public static string DescribeProbeRuntimeCapabilities(ResolverProbeReportSummary summary) {
+            if (summary == null) {
+                throw new ArgumentNullException(nameof(summary));
+            }
+
+            return summary.RuntimeCapabilityWarnings.Length == 0
+                ? "all requested transports supported on this runtime"
+                : string.Join(" | ", summary.RuntimeCapabilityWarnings);
+        }
+
+        /// <summary>
         /// Builds the machine-readable probe summary line.
         /// </summary>
         public static string BuildProbeSummaryLine(ResolverProbeReportSummary summary, int exitCode) {
@@ -137,6 +150,7 @@ namespace DnsClientX {
                 $"recommended_status={NormalizeSummaryToken(summary.RecommendationStatus)}",
                 $"recommendation_source={NormalizeSummaryToken(summary.RecommendationSource)}",
                 $"why_not_recommended={NormalizeSummaryToken(summary.RecommendationReason)}",
+                $"runtime_unsupported_candidates={summary.RuntimeUnsupportedCandidateCount}",
                 $"policy_reason={NormalizeSummaryToken(summary.PolicyReason)}"
             });
         }
@@ -163,6 +177,7 @@ namespace DnsClientX {
                 $"concurrency={summary.MaxConcurrency}",
                 $"policy_result={(summary.PolicyPassed ? "pass" : "fail")}",
                 $"policy_reason={NormalizeSummaryToken(summary.PolicyReason)}",
+                $"runtime_unsupported_candidates={summary.RuntimeUnsupportedCandidateCount}",
                 $"best_target={NormalizeSummaryToken(summary.RecommendedTarget)}",
                 $"best_resolver={NormalizeSummaryToken(summary.RecommendedResolver)}",
                 $"best_transport={NormalizeSummaryToken(summary.RecommendedTransport)}",
@@ -197,6 +212,19 @@ namespace DnsClientX {
             return best == null
                 ? "none"
                 : $"{best.Target} in {durationFormatter(TimeSpan.FromMilliseconds(best.AverageMs))} average ({best.SuccessPercent}% success)";
+        }
+
+        /// <summary>
+        /// Describes runtime capability warnings captured during a benchmark run.
+        /// </summary>
+        public static string DescribeBenchmarkRuntimeCapabilities(ResolverBenchmarkReportSummary summary) {
+            if (summary == null) {
+                throw new ArgumentNullException(nameof(summary));
+            }
+
+            return summary.RuntimeCapabilityWarnings.Length == 0
+                ? "all requested transports supported on this runtime"
+                : string.Join(" | ", summary.RuntimeCapabilityWarnings);
         }
 
         /// <summary>

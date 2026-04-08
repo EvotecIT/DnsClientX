@@ -256,6 +256,16 @@ namespace DnsClientX.PowerShell {
         /// Reason why no recommendation was produced, or <c>none</c>.
         /// </summary>
         public string RecommendationReason { get; set; } = "none";
+
+        /// <summary>
+        /// Number of unique candidates blocked by runtime transport support.
+        /// </summary>
+        public int RuntimeUnsupportedCandidateCount { get; set; }
+
+        /// <summary>
+        /// Runtime capability warnings captured during the probe run.
+        /// </summary>
+        public string[] RuntimeCapabilityWarnings { get; set; } = Array.Empty<string>();
     }
 
     /// <summary>
@@ -614,7 +624,9 @@ namespace DnsClientX.PowerShell {
                 RecommendedAverageMs = summary.RecommendedAverageMs,
                 RecommendationSource = summary.RecommendationSource,
                 RecommendationStatus = summary.RecommendationStatus,
-                RecommendationReason = summary.RecommendationReason
+                RecommendationReason = summary.RecommendationReason,
+                RuntimeUnsupportedCandidateCount = summary.RuntimeUnsupportedCandidateCount,
+                RuntimeCapabilityWarnings = summary.RuntimeCapabilityWarnings
             };
         }
 

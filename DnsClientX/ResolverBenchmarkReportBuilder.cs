@@ -33,10 +33,10 @@ namespace DnsClientX {
                         ElapsedMs = Math.Round(result.Elapsed.TotalMilliseconds, 2, MidpointRounding.AwayFromZero),
                         Succeeded = result.Succeeded,
                         AnswerSignature = result.AnswerSignature
-                    })))
+                     })))
                 .ToArray();
 
-            return Build(
+            ResolverBenchmarkReport report = Build(
                 candidates,
                 names,
                 recordTypes,
@@ -44,6 +44,10 @@ namespace DnsClientX {
                 maxConcurrency,
                 timeoutMs,
                 policy);
+
+            report.Summary.RuntimeUnsupportedCandidateCount = DnsTransportCapabilities.CountUnsupportedTargets(attempts);
+            report.Summary.RuntimeCapabilityWarnings = DnsTransportCapabilities.GetUnsupportedWarnings(attempts);
+            return report;
         }
 
         /// <summary>

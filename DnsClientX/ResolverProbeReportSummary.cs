@@ -71,6 +71,10 @@ namespace DnsClientX {
         public string RecommendationReason { get; set; } = "none";
         /// <summary>Gets or sets the transport coverage entries.</summary>
         public ResolverProbeTransportCoverage[] TransportCoverage { get; set; } = System.Array.Empty<ResolverProbeTransportCoverage>();
+        /// <summary>Gets or sets the number of unique probe candidates blocked by runtime transport support.</summary>
+        public int RuntimeUnsupportedCandidateCount { get; set; }
+        /// <summary>Gets or sets the runtime capability warnings observed in the probe run.</summary>
+        public string[] RuntimeCapabilityWarnings { get; set; } = System.Array.Empty<string>();
         /// <summary>Gets or sets the targets outside the leading consensus group.</summary>
         public string[] MismatchedTargets { get; set; } = System.Array.Empty<string>();
         /// <summary>Gets or sets the distinct successful answer variants.</summary>

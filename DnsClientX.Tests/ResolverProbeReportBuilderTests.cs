@@ -31,6 +31,27 @@ namespace DnsClientX.Tests {
             Assert.Equal("udp@1.1.1.1:53", report.Summary.FastestSuccessTarget);
         }
 
+        /// <summary>
+        /// Ensures probe summaries surface runtime capability warnings for unsupported transports.
+        /// </summary>
+        [Fact]
+        public void Build_TracksUnsupportedTransportWarnings() {
+            ResolverProbeReport report = ResolverProbeReportBuilder.Build(
+                new[] {
+                    CreateAttempt("doh3@dns.quad9.net:443", DnsRequestFormat.DnsOverHttp3, "dns.quad9.net:443", false, 1, "example.com", "203.0.113.10"),
+                    CreateAttempt("udp@1.1.1.1:53", DnsRequestFormat.DnsOverUDP, "1.1.1.1:53", true, 5, "example.com", "203.0.113.10")
+                },
+                "example.com",
+                DnsRecordType.A,
+                2000,
+                new ResolverProbePolicy());
+
+            Assert.Equal(DnsTransportCapabilities.Supports(DnsRequestFormat.DnsOverHttp3) ? 0 : 1, report.Summary.RuntimeUnsupportedCandidateCount);
+            if (!DnsTransportCapabilities.Supports(DnsRequestFormat.DnsOverHttp3)) {
+                Assert.Contains(report.Summary.RuntimeCapabilityWarnings, warning => warning.Contains("doh3@dns.quad9.net:443", StringComparison.Ordinal));
+            }
+        }
+
         private static ResolverQueryAttemptResult CreateAttempt(string target, DnsRequestFormat requestFormat, string resolver, bool succeeded, int elapsedMs, string name, string data) {
             return new ResolverQueryAttemptResult {
                 Target = target,

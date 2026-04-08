@@ -1049,6 +1049,7 @@ namespace DnsClientX.Cli {
             Console.WriteLine($"  Successful candidates: {report.Summary.SuccessfulCandidates}/{report.Summary.CandidateCount}");
             Console.WriteLine($"  Successful queries: {report.Summary.OverallSuccessCount}/{report.Summary.OverallQueryCount}");
             Console.WriteLine($"  Successful query rate: {report.Summary.OverallSuccessPercent}%");
+            Console.WriteLine($"  Runtime capability hints: {ResolverReportTextFormatter.DescribeBenchmarkRuntimeCapabilities(report.Summary)}");
             for (int i = 0; i < report.Results.Length; i++) {
                 Console.WriteLine(ResolverReportTextFormatter.BuildBenchmarkRankedLine(report.Results[i], i + 1, FormatDuration));
             }
@@ -1280,6 +1281,7 @@ namespace DnsClientX.Cli {
             Console.WriteLine($"  Fastest success: {ResolverReportTextFormatter.DescribeProbeFastestSuccess(summary, FormatDuration)}");
             Console.WriteLine($"  Fastest consensus responder: {ResolverReportTextFormatter.DescribeProbeFastestConsensus(summary, FormatDuration)}");
             Console.WriteLine($"  Transport coverage: {ResolverReportTextFormatter.DescribeProbeTransportCoverage(summary)}");
+            Console.WriteLine($"  Runtime capability hints: {ResolverReportTextFormatter.DescribeProbeRuntimeCapabilities(summary)}");
             Console.WriteLine($"  Answer consensus: {ResolverReportTextFormatter.DescribeProbeAnswerConsensus(summary)}");
             Console.WriteLine($"  Mismatched responders: {ResolverReportTextFormatter.DescribeProbeMismatchedTargets(summary)}");
             Console.WriteLine($"  Distinct answer sets: {summary.DistinctAnswerSets}");

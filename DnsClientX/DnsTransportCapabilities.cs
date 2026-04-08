@@ -90,6 +90,43 @@ namespace DnsClientX {
         }
 
         /// <summary>
+        /// Builds unique runtime capability warnings for executed attempts that targeted unsupported transports.
+        /// </summary>
+        /// <param name="attempts">Executed attempts to inspect.</param>
+        /// <returns>Unique warning strings ordered by target and request format.</returns>
+        public static string[] GetUnsupportedWarnings(IEnumerable<ResolverQueryAttemptResult> attempts) {
+            if (attempts == null) {
+                throw new ArgumentNullException(nameof(attempts));
+            }
+
+            return attempts
+                .Where(result => !Supports(result.RequestFormat))
+                .GroupBy(result => $"{result.Target}|{result.RequestFormat}", StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .OrderBy(result => result.Target, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(result => result.RequestFormat.ToString(), StringComparer.Ordinal)
+                .Select(result => $"{result.Target}: {GetUnsupportedMessage(result.RequestFormat)}")
+                .ToArray();
+        }
+
+        /// <summary>
+        /// Counts unique targets whose configured request format is unsupported on the current runtime.
+        /// </summary>
+        /// <param name="attempts">Executed attempts to inspect.</param>
+        /// <returns>Unique unsupported target count.</returns>
+        public static int CountUnsupportedTargets(IEnumerable<ResolverQueryAttemptResult> attempts) {
+            if (attempts == null) {
+                throw new ArgumentNullException(nameof(attempts));
+            }
+
+            return attempts
+                .Where(result => !Supports(result.RequestFormat))
+                .Select(result => result.Target)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count();
+        }
+
+        /// <summary>
         /// Returns a human-readable unsupported-transport message for the given request format.
         /// </summary>
         /// <param name="requestFormat">Request format to describe.</param>

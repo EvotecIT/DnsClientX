@@ -251,6 +251,16 @@ namespace DnsClientX.PowerShell {
         /// Indicates whether a recommendation is available under the current policy.
         /// </summary>
         public bool RecommendationAvailable { get; set; }
+
+        /// <summary>
+        /// Number of unique candidates blocked by runtime transport support.
+        /// </summary>
+        public int RuntimeUnsupportedCandidateCount { get; set; }
+
+        /// <summary>
+        /// Runtime capability warnings captured during the benchmark run.
+        /// </summary>
+        public string[] RuntimeCapabilityWarnings { get; set; } = Array.Empty<string>();
     }
 
     /// <summary>
@@ -619,7 +629,9 @@ namespace DnsClientX.PowerShell {
                 RecommendedResolver = summary.RecommendedResolver,
                 RecommendedTransport = summary.RecommendedTransport,
                 RecommendedAverageMs = summary.RecommendedAverageMs,
-                RecommendationAvailable = summary.RecommendationAvailable
+                RecommendationAvailable = summary.RecommendationAvailable,
+                RuntimeUnsupportedCandidateCount = summary.RuntimeUnsupportedCandidateCount,
+                RuntimeCapabilityWarnings = summary.RuntimeCapabilityWarnings
             };
         }
 

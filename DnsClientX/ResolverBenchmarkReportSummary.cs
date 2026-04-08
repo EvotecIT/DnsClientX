@@ -41,5 +41,9 @@ namespace DnsClientX {
         public double RecommendedAverageMs { get; set; }
         /// <summary>Gets or sets a value indicating whether a recommendation is available.</summary>
         public bool RecommendationAvailable { get; set; }
+        /// <summary>Gets or sets the number of unique benchmark candidates blocked by runtime transport support.</summary>
+        public int RuntimeUnsupportedCandidateCount { get; set; }
+        /// <summary>Gets or sets the runtime capability warnings observed in the benchmark run.</summary>
+        public string[] RuntimeCapabilityWarnings { get; set; } = System.Array.Empty<string>();
     }
 }

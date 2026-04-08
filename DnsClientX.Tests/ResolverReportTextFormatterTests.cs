@@ -56,6 +56,7 @@ namespace DnsClientX.Tests {
             Assert.Equal("udp@9.9.9.9:53", ResolverReportTextFormatter.DescribeProbeMismatchedTargets(summary));
             Assert.Contains("[1] example.com A 203.0.113.10 <- udp@1.1.1.1:53, tcp@1.1.1.1:53", ResolverReportTextFormatter.DescribeProbeAnswerVariants(summary));
             Assert.Equal("udp@1.1.1.1:53 in 5 ms via Udp", ResolverReportTextFormatter.DescribeProbeRecommended(summary, FormatDuration));
+            Assert.Equal("all requested transports supported on this runtime", ResolverReportTextFormatter.DescribeProbeRuntimeCapabilities(summary));
             Assert.Contains("recommended_target=udp_1_1_1_1_53", ResolverReportTextFormatter.BuildProbeSummaryLine(summary, 0));
         }
 
@@ -93,6 +94,7 @@ namespace DnsClientX.Tests {
 
             Assert.Equal("  Ranked 1: Cloudflare avg 7 ms, success 100% (2/2), resolver 1.1.1.1:443", ResolverReportTextFormatter.BuildBenchmarkRankedLine(results[0], 1, FormatDuration));
             Assert.Equal("Cloudflare in 7 ms average (100% success)", ResolverReportTextFormatter.DescribeBenchmarkBest(results, summary, FormatDuration));
+            Assert.Equal("all requested transports supported on this runtime", ResolverReportTextFormatter.DescribeBenchmarkRuntimeCapabilities(summary));
             Assert.Contains("best_target=cloudflare", ResolverReportTextFormatter.BuildBenchmarkSummaryLine(summary, 0));
         }
 

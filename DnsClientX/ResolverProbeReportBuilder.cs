@@ -60,6 +60,7 @@ namespace DnsClientX {
                 .ToArray();
 
             ResolverQueryAttemptResult[] successful = attempts.Where(result => result.Succeeded).ToArray();
+            string[] runtimeCapabilityWarnings = DnsTransportCapabilities.GetUnsupportedWarnings(attempts);
             ResolverQueryAttemptResult[][] groups = successful
                 .GroupBy(result => result.AnswerSignature, StringComparer.Ordinal)
                 .OrderByDescending(group => group.Count())
@@ -110,6 +111,8 @@ namespace DnsClientX {
                         TotalCount = group.Count()
                     })
                     .ToArray(),
+                RuntimeUnsupportedCandidateCount = DnsTransportCapabilities.CountUnsupportedTargets(attempts),
+                RuntimeCapabilityWarnings = runtimeCapabilityWarnings,
                 MismatchedTargets = groups.Length <= 1
                     ? Array.Empty<string>()
                     : groups

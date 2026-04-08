@@ -32,10 +32,33 @@ namespace DnsClientX.Tests {
             Assert.Equal(4, report.Snapshot.Summary.MaxConcurrency);
         }
 
-        private static ResolverQueryAttemptResult CreateAttempt(string target, string resolver, string transport, int elapsedMs, bool succeeded) {
+        /// <summary>
+        /// Ensures benchmark summaries surface runtime capability warnings for unsupported transports.
+        /// </summary>
+        [Fact]
+        public void Build_TracksUnsupportedTransportWarnings() {
+            ResolverBenchmarkReport report = ResolverBenchmarkReportBuilder.Build(
+                new[] {
+                    CreateAttempt("Quad9DoH3", "dns.quad9.net:443", "Http3", 1, false, DnsRequestFormat.DnsOverHttp3),
+                    CreateAttempt("Cloudflare", "1.1.1.1:443", "Doh", 7, true, DnsRequestFormat.DnsOverHttps)
+                },
+                new[] { "example.com" },
+                new[] { DnsRecordType.A },
+                1,
+                4,
+                2000,
+                new ResolverBenchmarkPolicy());
+
+            Assert.Equal(DnsTransportCapabilities.Supports(DnsRequestFormat.DnsOverHttp3) ? 0 : 1, report.Summary.RuntimeUnsupportedCandidateCount);
+            if (!DnsTransportCapabilities.Supports(DnsRequestFormat.DnsOverHttp3)) {
+                Assert.Contains(report.Summary.RuntimeCapabilityWarnings, warning => warning.Contains("Quad9DoH3", StringComparison.Ordinal));
+            }
+        }
+
+        private static ResolverQueryAttemptResult CreateAttempt(string target, string resolver, string transport, int elapsedMs, bool succeeded, DnsRequestFormat requestFormat = DnsRequestFormat.DnsOverHttps) {
             return new ResolverQueryAttemptResult {
                 Target = target,
-                RequestFormat = DnsRequestFormat.DnsOverHttps,
+                RequestFormat = requestFormat,
                 Resolver = resolver,
                 Response = succeeded
                     ? new DnsResponse {
