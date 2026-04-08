@@ -1324,8 +1324,8 @@ namespace DnsClientX.Cli {
         }
 
         private static void WriteShortResponse(DnsResponse response, CliOptions options) {
-            foreach (DnsAnswer answer in response.Answers ?? Array.Empty<DnsAnswer>()) {
-                Console.WriteLine(FormatAnswerData(answer, options.TxtConcatOutput));
+            foreach (string line in DnsResponseTextFormatter.BuildShortLines(response, options.TxtConcatOutput)) {
+                Console.WriteLine(line);
             }
         }
 
@@ -1385,94 +1385,33 @@ namespace DnsClientX.Cli {
         }
 
         private static void WritePrettyResponse(DnsResponse response, CliOptions options) {
-            Console.WriteLine($"Status: {response.Status} (retries {response.RetryCount})");
-
             bool showQuestions = ShouldShowQuestionSection(options, rawDefault: false);
             bool showAnswers = ShouldShowAnswerSection(options, rawDefault: false);
             bool showAuthorities = ShouldShowAuthoritySection(options, rawDefault: false);
             bool showAdditional = ShouldShowAdditionalSection(options, rawDefault: false);
-
-            if (showQuestions) {
-                WriteQuestionSection("Questions", response.Questions ?? Array.Empty<DnsQuestion>());
-            }
-
-            if (showAnswers) {
-                WriteAnswerSection("Answers", response.Answers ?? Array.Empty<DnsAnswer>(), includeTtl: true, txtConcat: options.TxtConcatOutput);
-            }
-
-            if (showAuthorities) {
-                WriteAnswerSection("Authorities", response.Authorities ?? Array.Empty<DnsAnswer>(), includeTtl: true, txtConcat: options.TxtConcatOutput);
-            }
-
-            if (showAdditional) {
-                WriteAnswerSection("Additional", response.Additional ?? Array.Empty<DnsAnswer>(), includeTtl: true, txtConcat: options.TxtConcatOutput);
+            foreach (string line in DnsResponseTextFormatter.BuildPrettyLines(
+                         response,
+                         showQuestions,
+                         showAnswers,
+                         showAuthorities,
+                         showAdditional,
+                         options.TxtConcatOutput)) {
+                Console.WriteLine(line);
             }
         }
 
         private static void WriteRawResponse(DnsResponse response, CliOptions options, TimeSpan elapsed) {
-            DnsQuestion[] questions = response.Questions ?? Array.Empty<DnsQuestion>();
-            DnsAnswer[] answers = response.Answers ?? Array.Empty<DnsAnswer>();
-            DnsAnswer[] authorities = response.Authorities ?? Array.Empty<DnsAnswer>();
-            DnsAnswer[] additional = response.Additional ?? Array.Empty<DnsAnswer>();
-
-            Console.WriteLine($";; status: {response.Status}");
-            Console.WriteLine($";; transport: {DescribeUsedTransport(response)}");
-            Console.WriteLine($";; query time: {FormatDuration(response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : elapsed)}");
-            Console.WriteLine($";; sections: question {questions.Length}, answer {answers.Length}, authority {authorities.Length}, additional {additional.Length}");
-
-            if (ShouldShowQuestionSection(options, rawDefault: true)) {
-                Console.WriteLine();
-                Console.WriteLine(";; QUESTION SECTION:");
-                foreach (DnsQuestion question in questions) {
-                    Console.WriteLine($";{question.Name}\tIN\t{question.Type}");
-                }
+            foreach (string line in DnsResponseTextFormatter.BuildRawLines(
+                         response,
+                         elapsed,
+                         ShouldShowQuestionSection(options, rawDefault: true),
+                         ShouldShowAnswerSection(options, rawDefault: true),
+                         ShouldShowAuthoritySection(options, rawDefault: true),
+                         ShouldShowAdditionalSection(options, rawDefault: true),
+                         options.TxtConcatOutput,
+                         FormatDuration)) {
+                Console.WriteLine(line);
             }
-
-            if (ShouldShowAnswerSection(options, rawDefault: true)) {
-                Console.WriteLine();
-                Console.WriteLine(";; ANSWER SECTION:");
-                foreach (DnsAnswer answer in answers) {
-                    Console.WriteLine($"{answer.Name}\t{answer.TTL}\tIN\t{answer.Type}\t{FormatAnswerData(answer, options.TxtConcatOutput)}");
-                }
-            }
-
-            if (ShouldShowAuthoritySection(options, rawDefault: true)) {
-                Console.WriteLine();
-                Console.WriteLine(";; AUTHORITY SECTION:");
-                foreach (DnsAnswer answer in authorities) {
-                    Console.WriteLine($"{answer.Name}\t{answer.TTL}\tIN\t{answer.Type}\t{FormatAnswerData(answer, options.TxtConcatOutput)}");
-                }
-            }
-
-            if (ShouldShowAdditionalSection(options, rawDefault: true)) {
-                Console.WriteLine();
-                Console.WriteLine(";; ADDITIONAL SECTION:");
-                foreach (DnsAnswer answer in additional) {
-                    Console.WriteLine($"{answer.Name}\t{answer.TTL}\tIN\t{answer.Type}\t{FormatAnswerData(answer, options.TxtConcatOutput)}");
-                }
-            }
-        }
-
-        private static void WriteQuestionSection(string title, IEnumerable<DnsQuestion> questions) {
-            Console.WriteLine($"{title}:");
-            foreach (DnsQuestion question in questions) {
-                Console.WriteLine($"  {question.Name}\t{question.Type}");
-            }
-        }
-
-        private static void WriteAnswerSection(string title, IEnumerable<DnsAnswer> answers, bool includeTtl, bool txtConcat) {
-            Console.WriteLine($"{title}:");
-            foreach (DnsAnswer answer in answers) {
-                if (includeTtl) {
-                    Console.WriteLine($"  {answer.Name}\t{answer.Type}\t{answer.TTL}\t{FormatAnswerData(answer, txtConcat)}");
-                } else {
-                    Console.WriteLine($"  {answer.Name}\t{answer.Type}\t{FormatAnswerData(answer, txtConcat)}");
-                }
-            }
-        }
-
-        private static string FormatAnswerData(DnsAnswer answer, bool txtConcat) {
-            return txtConcat ? answer.TxtConcatenatedData : answer.Data;
         }
 
         private static bool ShouldShowQuestionSection(CliOptions options, bool rawDefault) {
@@ -1539,10 +1478,6 @@ namespace DnsClientX.Cli {
             foreach (string line in ResolverReportTextFormatter.BuildSingleOperationTraceLines(result, FormatDuration)) {
                 Console.WriteLine(line);
             }
-        }
-
-        private static string DescribeUsedTransport(DnsResponse response) {
-            return response.UsedTransport.ToString();
         }
 
         private static string FormatDuration(TimeSpan duration) {
