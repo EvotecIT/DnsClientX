@@ -32,9 +32,32 @@ namespace DnsClientX.Tests {
                         Port = 53
                     }
                 },
-                portOverride: 5353);
+                new ResolverExecutionClientOptions {
+                    PortOverride = 5353
+                });
 
             Assert.Equal(5353, client.EndpointConfiguration.Port);
+        }
+
+        /// <summary>
+        /// Ensures shared client options apply audit, timeout, and DoH wire-post preferences.
+        /// </summary>
+        [Fact]
+        public void CreateClient_AppliesSharedClientOptions() {
+            using var client = ResolverExecutionClientFactory.CreateClient(
+                new ResolverExecutionTarget {
+                    DisplayName = "Cloudflare",
+                    BuiltInEndpoint = DnsEndpoint.Cloudflare
+                },
+                new ResolverExecutionClientOptions {
+                    EnableAudit = true,
+                    TimeoutMs = 2345,
+                    ForceDohWirePost = true
+                });
+
+            Assert.True(client.EnableAudit);
+            Assert.Equal(2345, client.EndpointConfiguration.TimeOut);
+            Assert.Equal(DnsRequestFormat.DnsOverHttpsWirePost, client.EndpointConfiguration.RequestFormat);
         }
 
         /// <summary>

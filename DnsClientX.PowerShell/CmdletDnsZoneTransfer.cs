@@ -79,15 +79,14 @@ public sealed class CmdletDnsZoneTransfer : AsyncPSCmdlet {
             return;
         }
 
-        using var client = ResolverExecutionClientFactory.CreateClient(new ResolverExecutionTarget {
+        await foreach (var rrset in ResolverZoneTransferWorkflow.StreamAsync(new ResolverExecutionTarget {
             DisplayName = $"tcp@{Server}:{Port}",
             ExplicitEndpoint = new DnsResolverEndpoint {
                 Transport = Transport.Tcp,
                 Host = Server,
                 Port = Port
             }
-        });
-        await foreach (var rrset in client.ZoneTransferStreamAsync(Zone, cancellationToken: CancelToken)) {
+        }, Zone, cancellationToken: CancelToken).ConfigureAwait(false)) {
             WriteObject(rrset);
         }
     }

@@ -827,43 +827,29 @@ namespace DnsClientX.Cli {
             return true;
         }
 
-        private static void ConfigureClient(ClientX client, CliOptions options) {
-            client.EnableAudit = options.Explain || options.Trace;
-
-            if (options.Benchmark) {
-                client.EndpointConfiguration.TimeOut = options.BenchmarkTimeoutMs;
-            }
-
+        private static ResolverExecutionClientOptions CreateExecutionClientOptions(CliOptions options, bool useBenchmarkTimeout = false) {
             string? envPort = Environment.GetEnvironmentVariable("DNSCLIENTX_CLI_PORT");
-            if (int.TryParse(envPort, NumberStyles.Integer, CultureInfo.InvariantCulture, out int customPort) && customPort > 0) {
-                client.EndpointConfiguration.Port = customPort;
-            }
+            int? customPort = int.TryParse(envPort, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedPort) && parsedPort > 0
+                ? parsedPort
+                : null;
 
-            if (options.WirePost &&
-                (client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps ||
-                 client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST ||
-                 client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON ||
-                 client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST)) {
-                client.EndpointConfiguration.RequestFormat = DnsRequestFormat.DnsOverHttpsWirePost;
-            }
-        }
-
-        private static int? GetClientPortOverride(CliOptions options) {
-            string? envPort = Environment.GetEnvironmentVariable("DNSCLIENTX_CLI_PORT");
-            if (int.TryParse(envPort, NumberStyles.Integer, CultureInfo.InvariantCulture, out int customPort) && customPort > 0) {
-                return customPort;
-            }
-
-            return null;
+            return new ResolverExecutionClientOptions {
+                EnableAudit = options.Explain || options.Trace,
+                TimeoutMs = useBenchmarkTimeout ? options.BenchmarkTimeoutMs : null,
+                PortOverride = customPort,
+                ForceDohWirePost = options.WirePost
+            };
         }
 
         private static async Task<int> RunZoneTransferAsync(CliOptions options, CancellationToken cancellationToken) {
+            ResolverExecutionClientOptions clientOptions = CreateExecutionClientOptions(options);
             RecursiveZoneTransferResult result = await ResolverZoneTransferWorkflow.RunRecursiveAsync(
                 new ResolverExecutionTargetSource {
                     BuiltInEndpoints = new[] { options.Endpoint }
                 },
                 options.Domain!,
-                port: GetClientPortOverride(options) ?? 53,
+                port: clientOptions.PortOverride ?? 53,
+                clientOptions: clientOptions,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
 
             WriteZoneTransferResponse(result, options);
@@ -874,8 +860,8 @@ namespace DnsClientX.Cli {
             ResolverExecutionTarget target = await ResolverExecutionTargetResolver.ResolveSingleAsync(
                 CreateStandardQueryTargetSource(options),
                 cancellationToken).ConfigureAwait(false);
-            await using ClientX client = ResolverExecutionClientFactory.CreateClient(target);
-            ConfigureClient(client, options);
+            ResolverExecutionClientOptions clientOptions = CreateExecutionClientOptions(options);
+            await using ClientX client = ResolverExecutionClientFactory.CreateClient(target, clientOptions);
 
             var stopwatch = Stopwatch.StartNew();
             DnsResponse response;

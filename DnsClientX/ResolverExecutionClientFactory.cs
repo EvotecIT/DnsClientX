@@ -9,9 +9,9 @@ namespace DnsClientX {
         /// Creates a client for the supplied execution target.
         /// </summary>
         /// <param name="target">The normalized execution target.</param>
-        /// <param name="portOverride">Optional port override applied after client creation.</param>
+        /// <param name="options">Optional shared client creation options.</param>
         /// <returns>A configured client instance for the supplied target.</returns>
-        public static ClientX CreateClient(ResolverExecutionTarget target, int? portOverride = null) {
+        public static ClientX CreateClient(ResolverExecutionTarget target, ResolverExecutionClientOptions? options = null) {
             if (target == null) {
                 throw new ArgumentNullException(nameof(target));
             }
@@ -22,11 +22,36 @@ namespace DnsClientX {
                     ? new ClientX(target.BuiltInEndpoint.Value)
                     : throw new InvalidOperationException("Resolver execution target did not resolve to a runnable client.");
 
-            if (portOverride.HasValue && portOverride.Value > 0) {
-                client.EndpointConfiguration.Port = portOverride.Value;
+            ApplyOptions(client, options);
+            return client;
+        }
+
+        private static void ApplyOptions(ClientX client, ResolverExecutionClientOptions? options) {
+            if (client == null) {
+                throw new ArgumentNullException(nameof(client));
             }
 
-            return client;
+            if (options == null) {
+                return;
+            }
+
+            client.EnableAudit = options.EnableAudit;
+
+            if (options.TimeoutMs.HasValue && options.TimeoutMs.Value > 0) {
+                client.EndpointConfiguration.TimeOut = options.TimeoutMs.Value;
+            }
+
+            if (options.PortOverride.HasValue && options.PortOverride.Value > 0) {
+                client.EndpointConfiguration.Port = options.PortOverride.Value;
+            }
+
+            if (options.ForceDohWirePost &&
+                (client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps ||
+                 client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST ||
+                 client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON ||
+                 client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST)) {
+                client.EndpointConfiguration.RequestFormat = DnsRequestFormat.DnsOverHttpsWirePost;
+            }
         }
     }
 }
