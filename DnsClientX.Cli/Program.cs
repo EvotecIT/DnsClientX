@@ -848,13 +848,22 @@ namespace DnsClientX.Cli {
             }
         }
 
-        private static async Task<int> RunZoneTransferAsync(CliOptions options, CancellationToken cancellationToken) {
-            await using var client = new ClientX(options.Endpoint);
-            ConfigureClient(client, options);
+        private static int? GetClientPortOverride(CliOptions options) {
+            string? envPort = Environment.GetEnvironmentVariable("DNSCLIENTX_CLI_PORT");
+            if (int.TryParse(envPort, NumberStyles.Integer, CultureInfo.InvariantCulture, out int customPort) && customPort > 0) {
+                return customPort;
+            }
 
-            RecursiveZoneTransferResult result = await client.ZoneTransferRecursiveAsync(
+            return null;
+        }
+
+        private static async Task<int> RunZoneTransferAsync(CliOptions options, CancellationToken cancellationToken) {
+            RecursiveZoneTransferResult result = await ResolverZoneTransferWorkflow.RunRecursiveAsync(
+                new ResolverExecutionTargetSource {
+                    BuiltInEndpoints = new[] { options.Endpoint }
+                },
                 options.Domain!,
-                port: client.EndpointConfiguration.Port,
+                port: GetClientPortOverride(options) ?? 53,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
 
             WriteZoneTransferResponse(result, options);
@@ -865,7 +874,7 @@ namespace DnsClientX.Cli {
             ResolverExecutionTarget target = await ResolverExecutionTargetResolver.ResolveSingleAsync(
                 CreateStandardQueryTargetSource(options),
                 cancellationToken).ConfigureAwait(false);
-            await using ClientX client = CreateStandardQueryClient(target);
+            await using ClientX client = ResolverExecutionClientFactory.CreateClient(target);
             ConfigureClient(client, options);
 
             var stopwatch = Stopwatch.StartNew();
@@ -922,18 +931,6 @@ namespace DnsClientX.Cli {
             return new ResolverExecutionTargetSource {
                 BuiltInEndpoints = new[] { options.Endpoint }
             };
-        }
-
-        private static ClientX CreateStandardQueryClient(ResolverExecutionTarget target) {
-            if (target.ExplicitEndpoint != null) {
-                return ResolverEndpointClientFactory.CreateClient(target.ExplicitEndpoint);
-            }
-
-            if (target.BuiltInEndpoint.HasValue) {
-                return new ClientX(target.BuiltInEndpoint.Value);
-            }
-
-            throw new InvalidOperationException("Standard query target did not resolve to a runnable client.");
         }
 
         private static Task<int> RunResolverSelectionAsync(CliOptions options, CancellationToken cancellationToken) {

@@ -54,10 +54,18 @@ public sealed class CmdletDnsUpdate : AsyncPSCmdlet {
 
     /// <inheritdoc />
     protected override async Task ProcessRecordAsync() {
-        using var client = new ClientX(Server, DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = Port } };
+        var target = new ResolverExecutionTarget {
+            DisplayName = $"tcp@{Server}:{Port}",
+            ExplicitEndpoint = new DnsResolverEndpoint {
+                Transport = Transport.Tcp,
+                Host = Server,
+                Port = Port
+            }
+        };
+
         DnsResponse result = Delete.IsPresent
-            ? await client.DeleteRecordAsync(Zone, Name, Type)
-            : await client.UpdateRecordAsync(Zone, Name, Type, Data, Ttl);
+            ? await ResolverUpdateWorkflow.DeleteAsync(target, Zone, Name, Type, cancellationToken: CancelToken).ConfigureAwait(false)
+            : await ResolverUpdateWorkflow.UpdateAsync(target, Zone, Name, Type, Data, Ttl, cancellationToken: CancelToken).ConfigureAwait(false);
         WriteObject(result);
     }
 }

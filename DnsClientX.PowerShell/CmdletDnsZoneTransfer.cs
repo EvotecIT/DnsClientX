@@ -52,11 +52,21 @@ public sealed class CmdletDnsZoneTransfer : AsyncPSCmdlet {
     /// <inheritdoc />
     protected override async Task ProcessRecordAsync() {
         if (Recursive.IsPresent) {
-            using ClientX discoveryClient = string.IsNullOrWhiteSpace(Server)
-                ? new ClientX(DnsProvider)
-                : new ClientX(Server, DnsRequestFormat.DnsOverUDP) { EndpointConfiguration = { Port = Port } };
+            ResolverExecutionTarget target = string.IsNullOrWhiteSpace(Server)
+                ? new ResolverExecutionTarget {
+                    DisplayName = DnsProvider.ToString(),
+                    BuiltInEndpoint = DnsProvider
+                }
+                : new ResolverExecutionTarget {
+                    DisplayName = $"udp@{Server}:{Port}",
+                    ExplicitEndpoint = new DnsResolverEndpoint {
+                        Transport = Transport.Udp,
+                        Host = Server,
+                        Port = Port
+                    }
+                };
 
-            RecursiveZoneTransferResult result = await discoveryClient.ZoneTransferRecursiveAsync(Zone, port: Port, cancellationToken: CancelToken).ConfigureAwait(false);
+            RecursiveZoneTransferResult result = await ResolverZoneTransferWorkflow.RunRecursiveAsync(target, Zone, port: Port, cancellationToken: CancelToken).ConfigureAwait(false);
             WriteVerbose($"Recursive AXFR succeeded for {result.Zone} via {result.SelectedServer} (authority {result.SelectedAuthority}).");
             WriteVerbose($"Authorities discovered: {string.Join(", ", result.Authorities)}");
             WriteVerbose($"AXFR targets tried: {string.Join(", ", result.TriedServers)}");
@@ -69,7 +79,14 @@ public sealed class CmdletDnsZoneTransfer : AsyncPSCmdlet {
             return;
         }
 
-        using var client = new ClientX(Server, DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = Port } };
+        using var client = ResolverExecutionClientFactory.CreateClient(new ResolverExecutionTarget {
+            DisplayName = $"tcp@{Server}:{Port}",
+            ExplicitEndpoint = new DnsResolverEndpoint {
+                Transport = Transport.Tcp,
+                Host = Server,
+                Port = Port
+            }
+        });
         await foreach (var rrset in client.ZoneTransferStreamAsync(Zone, cancellationToken: CancelToken)) {
             WriteObject(rrset);
         }
