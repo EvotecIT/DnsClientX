@@ -7,6 +7,48 @@ namespace DnsClientX {
     /// </summary>
     public static class DnsResponseTextFormatter {
         /// <summary>
+        /// Builds output lines for a response using the requested presentation mode.
+        /// </summary>
+        public static string[] BuildOutputLines(
+            DnsResponse response,
+            DnsResponsePresentationOptions options,
+            TimeSpan elapsed,
+            Func<TimeSpan, string> durationFormatter) {
+            if (response == null) {
+                throw new ArgumentNullException(nameof(response));
+            }
+
+            if (options == null) {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            if (durationFormatter == null) {
+                throw new ArgumentNullException(nameof(durationFormatter));
+            }
+
+            return options.Mode switch {
+                DnsResponsePresentationMode.Short => BuildShortLines(response, options.TxtConcat),
+                DnsResponsePresentationMode.Raw => BuildRawLines(
+                    response,
+                    elapsed,
+                    options.ShowQuestions,
+                    options.ShowAnswers,
+                    options.ShowAuthorities,
+                    options.ShowAdditional,
+                    options.TxtConcat,
+                    durationFormatter),
+                DnsResponsePresentationMode.Json => new[] { DnsClientXJsonSerializer.Serialize(response) },
+                _ => BuildPrettyLines(
+                    response,
+                    options.ShowQuestions,
+                    options.ShowAnswers,
+                    options.ShowAuthorities,
+                    options.ShowAdditional,
+                    options.TxtConcat)
+            };
+        }
+
+        /// <summary>
         /// Builds short output lines containing answer values only.
         /// </summary>
         public static string[] BuildShortLines(DnsResponse response, bool txtConcat) {

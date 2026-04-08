@@ -1,7 +1,5 @@
 using System;
 using System.IO;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace DnsClientX {
     /// <summary>
@@ -22,7 +20,7 @@ namespace DnsClientX {
             }
 
             string content = File.ReadAllText(fullPath);
-            ResolverScoreSnapshot? snapshot = JsonSerializer.Deserialize<ResolverScoreSnapshot>(content, CreateSerializerOptions());
+            ResolverScoreSnapshot? snapshot = DnsClientXJsonSerializer.Deserialize<ResolverScoreSnapshot>(content);
             if (snapshot == null) {
                 throw new InvalidOperationException($"Resolver score snapshot could not be read: {path}");
             }
@@ -48,19 +46,7 @@ namespace DnsClientX {
                 Directory.CreateDirectory(directory);
             }
 
-            File.WriteAllText(fullPath, JsonSerializer.Serialize(snapshot, CreateSerializerOptions()));
-        }
-
-        /// <summary>
-        /// Creates serializer options for persisted resolver score snapshots.
-        /// </summary>
-        public static JsonSerializerOptions CreateSerializerOptions() {
-            var serializerOptions = new JsonSerializerOptions {
-                WriteIndented = true,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-            };
-            serializerOptions.Converters.Add(new JsonStringEnumConverter());
-            return serializerOptions;
+            File.WriteAllText(fullPath, DnsClientXJsonSerializer.Serialize(snapshot));
         }
     }
 }

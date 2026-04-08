@@ -6,6 +6,9 @@ namespace DnsClientX.Tests {
     /// Tests shared DNS response text formatting helpers.
     /// </summary>
     public class DnsResponseTextFormatterTests {
+        private static readonly Func<TimeSpan, string> DurationFormatter =
+            duration => $"{(int)Math.Round(duration.TotalMilliseconds, MidpointRounding.AwayFromZero)} ms";
+
         /// <summary>
         /// Ensures short output uses the requested answer projection.
         /// </summary>
@@ -128,7 +131,7 @@ namespace DnsClientX.Tests {
                 showAuthorities: true,
                 showAdditional: false,
                 txtConcat: false,
-                durationFormatter: static duration => $"{(int)Math.Round(duration.TotalMilliseconds, MidpointRounding.AwayFromZero)} ms");
+                durationFormatter: DurationFormatter);
 
             Assert.Equal(";; status: NoError", lines[0]);
             Assert.Equal(";; transport: Udp", lines[1]);
@@ -141,6 +144,61 @@ namespace DnsClientX.Tests {
             Assert.Contains(";; AUTHORITY SECTION:", lines);
             Assert.Contains("example.com\t300\tIN\tA\t203.0.113.53", lines);
             Assert.DoesNotContain(";; ADDITIONAL SECTION:", lines);
+        }
+
+        /// <summary>
+        /// Ensures mode selection is handled by the shared presentation helper.
+        /// </summary>
+        [Fact]
+        public void BuildOutputLines_UsesRequestedMode() {
+            DnsResponse response = new DnsResponse {
+                Status = DnsResponseCode.NoError,
+                RetryCount = 1,
+                Questions = new[] {
+                    new DnsQuestion {
+                        Name = "example.com",
+                        Type = DnsRecordType.A
+                    }
+                },
+                Answers = new[] {
+                    new DnsAnswer {
+                        Name = "example.com",
+                        Type = DnsRecordType.A,
+                        TTL = 60,
+                        DataRaw = "203.0.113.10"
+                    }
+                }
+            };
+
+            string[] shortLines = DnsResponseTextFormatter.BuildOutputLines(
+                response,
+                new DnsResponsePresentationOptions {
+                    Mode = DnsResponsePresentationMode.Short
+                },
+                TimeSpan.Zero,
+                DurationFormatter);
+            Assert.Equal(new[] { "203.0.113.10" }, shortLines);
+
+            string[] prettyLines = DnsResponseTextFormatter.BuildOutputLines(
+                response,
+                new DnsResponsePresentationOptions {
+                    Mode = DnsResponsePresentationMode.Pretty,
+                    ShowQuestions = true,
+                    ShowAnswers = true
+                },
+                TimeSpan.Zero,
+                DurationFormatter);
+            Assert.Contains("Status: NoError (retries 1)", prettyLines);
+
+            string[] jsonLines = DnsResponseTextFormatter.BuildOutputLines(
+                response,
+                new DnsResponsePresentationOptions {
+                    Mode = DnsResponsePresentationMode.Json
+                },
+                TimeSpan.Zero,
+                DurationFormatter);
+            Assert.Single(jsonLines);
+            Assert.Contains("\"Status\": \"NoError\"", jsonLines[0], StringComparison.Ordinal);
         }
     }
 }

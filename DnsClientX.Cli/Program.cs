@@ -4,8 +4,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -1294,56 +1292,36 @@ namespace DnsClientX.Cli {
         }
 
         private static void WriteQueryResponse(DnsResponse response, CliOptions options, TimeSpan elapsed) {
-            if (options.ShortOutput) {
-                WriteShortResponse(response, options);
-                return;
+            var presentationOptions = new DnsResponsePresentationOptions {
+                Mode = GetResponsePresentationMode(options),
+                TxtConcat = options.TxtConcatOutput,
+                ShowQuestions = ShouldShowQuestionSection(options, rawDefault: false),
+                ShowAnswers = ShouldShowAnswerSection(options, rawDefault: false),
+                ShowAuthorities = ShouldShowAuthoritySection(options, rawDefault: false),
+                ShowAdditional = ShouldShowAdditionalSection(options, rawDefault: false)
+            };
+
+            if (presentationOptions.Mode == DnsResponsePresentationMode.Raw) {
+                presentationOptions.ShowQuestions = ShouldShowQuestionSection(options, rawDefault: true);
+                presentationOptions.ShowAnswers = ShouldShowAnswerSection(options, rawDefault: true);
+                presentationOptions.ShowAuthorities = ShouldShowAuthoritySection(options, rawDefault: true);
+                presentationOptions.ShowAdditional = ShouldShowAdditionalSection(options, rawDefault: true);
             }
 
-            switch (options.OutputFormat) {
-                case QueryOutputFormat.Json:
-                    WriteJsonResponse(response);
-                    return;
-                case QueryOutputFormat.Raw:
-                    WriteRawResponse(response, options, elapsed);
-                    return;
-                default:
-                    WritePrettyResponse(response, options);
-                    return;
+            foreach (string line in DnsResponseTextFormatter.BuildOutputLines(response, presentationOptions, elapsed, FormatDuration)) {
+                Console.WriteLine(line);
             }
         }
 
         private static void WriteZoneTransferResponse(RecursiveZoneTransferResult result, CliOptions options) {
             switch (options.OutputFormat) {
                 case QueryOutputFormat.Json:
-                    WriteJsonResponse(result);
+                    Console.WriteLine(DnsClientXJsonSerializer.Serialize(result));
                     return;
                 default:
                     WritePrettyZoneTransferResponse(result, options);
                     return;
             }
-        }
-
-        private static void WriteShortResponse(DnsResponse response, CliOptions options) {
-            foreach (string line in DnsResponseTextFormatter.BuildShortLines(response, options.TxtConcatOutput)) {
-                Console.WriteLine(line);
-            }
-        }
-
-        private static void WriteJsonResponse(DnsResponse response) {
-            Console.WriteLine(JsonSerializer.Serialize(response, CreateJsonSerializerOptions()));
-        }
-
-        private static void WriteJsonResponse(RecursiveZoneTransferResult result) {
-            Console.WriteLine(JsonSerializer.Serialize(result, CreateJsonSerializerOptions()));
-        }
-
-        private static JsonSerializerOptions CreateJsonSerializerOptions() {
-            var serializerOptions = new JsonSerializerOptions {
-                WriteIndented = true,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-            };
-            serializerOptions.Converters.Add(new JsonStringEnumConverter());
-            return serializerOptions;
         }
 
         private static void SaveResolverScoreSnapshot(string path, ResolverScoreSnapshot snapshot) {
@@ -1352,7 +1330,7 @@ namespace DnsClientX.Cli {
 
         private static void WriteResolverSelection(ResolverSelectionResult selection, CliOptions options) {
             if (options.OutputFormat == QueryOutputFormat.Json) {
-                Console.WriteLine(JsonSerializer.Serialize(selection, CreateJsonSerializerOptions()));
+                Console.WriteLine(DnsClientXJsonSerializer.Serialize(selection));
                 return;
             }
 
@@ -1384,34 +1362,16 @@ namespace DnsClientX.Cli {
             }
         }
 
-        private static void WritePrettyResponse(DnsResponse response, CliOptions options) {
-            bool showQuestions = ShouldShowQuestionSection(options, rawDefault: false);
-            bool showAnswers = ShouldShowAnswerSection(options, rawDefault: false);
-            bool showAuthorities = ShouldShowAuthoritySection(options, rawDefault: false);
-            bool showAdditional = ShouldShowAdditionalSection(options, rawDefault: false);
-            foreach (string line in DnsResponseTextFormatter.BuildPrettyLines(
-                         response,
-                         showQuestions,
-                         showAnswers,
-                         showAuthorities,
-                         showAdditional,
-                         options.TxtConcatOutput)) {
-                Console.WriteLine(line);
+        private static DnsResponsePresentationMode GetResponsePresentationMode(CliOptions options) {
+            if (options.ShortOutput) {
+                return DnsResponsePresentationMode.Short;
             }
-        }
 
-        private static void WriteRawResponse(DnsResponse response, CliOptions options, TimeSpan elapsed) {
-            foreach (string line in DnsResponseTextFormatter.BuildRawLines(
-                         response,
-                         elapsed,
-                         ShouldShowQuestionSection(options, rawDefault: true),
-                         ShouldShowAnswerSection(options, rawDefault: true),
-                         ShouldShowAuthoritySection(options, rawDefault: true),
-                         ShouldShowAdditionalSection(options, rawDefault: true),
-                         options.TxtConcatOutput,
-                         FormatDuration)) {
-                Console.WriteLine(line);
-            }
+            return options.OutputFormat switch {
+                QueryOutputFormat.Json => DnsResponsePresentationMode.Json,
+                QueryOutputFormat.Raw => DnsResponsePresentationMode.Raw,
+                _ => DnsResponsePresentationMode.Pretty
+            };
         }
 
         private static bool ShouldShowQuestionSection(CliOptions options, bool rawDefault) {
