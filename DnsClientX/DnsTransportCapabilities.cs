@@ -4,6 +4,11 @@ namespace DnsClientX {
     /// <summary>
     /// Reports transport capabilities available in the current runtime.
     /// </summary>
+    /// <remarks>
+    /// Modern transports such as DNS over HTTP/3 and DNS over QUIC remain part of the core package
+    /// and do not add extra NuGet dependencies for modern target frameworks. Older targets can still
+    /// reference the same API surface, but unsupported transports are reported explicitly at runtime.
+    /// </remarks>
     public static class DnsTransportCapabilities {
         /// <summary>
         /// Gets a value indicating whether DNS over HTTP/3 is supported by the current target/runtime combination.
@@ -21,6 +26,9 @@ namespace DnsClientX {
         /// <summary>
         /// Gets a value indicating whether DNS over QUIC is supported by the current target/runtime combination.
         /// </summary>
+        /// <remarks>
+        /// Support depends on both the target framework and the active runtime QUIC implementation.
+        /// </remarks>
         public static bool SupportsDnsOverQuic {
             get {
 #if NET8_0_OR_GREATER

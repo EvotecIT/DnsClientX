@@ -19,6 +19,10 @@ namespace DnsClientX {
         /// <summary>
         /// Gets or sets inline explicit resolver endpoint values.
         /// </summary>
+        /// <remarks>
+        /// Examples include <c>udp@1.1.1.1:53</c>, <c>doq@dns.quad9.net:853</c>, and
+        /// <c>doh3@https://dns.quad9.net/dns-query</c>.
+        /// </remarks>
         public string[] ResolverEndpoints { get; set; } = Array.Empty<string>();
 
         /// <summary>

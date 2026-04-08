@@ -265,6 +265,10 @@ namespace DnsClientX.PowerShell {
     ///   <code>Test-DnsBenchmark -Name example.com,microsoft.com -Type A,AAAA -ResolverEndpoint 'udp@1.1.1.1:53','tcp@9.9.9.9:53' -Attempts 3 -MaxConcurrency 8</code>
     /// </example>
     /// <example>
+    ///   <para>Benchmark modern transports without changing the core package graph</para>
+    ///   <code>Test-DnsBenchmark -Name example.com -ResolverEndpoint 'doq@dns.quad9.net:853','doh3@https://dns.quad9.net/dns-query' -Attempts 2 -SummaryOnly</code>
+    /// </example>
+    /// <example>
     ///   <para>Require strong benchmark health before recommending a winner</para>
     ///   <code>Test-DnsBenchmark -Name example.com -DnsProvider Cloudflare,Quad9 -MinSuccessPercent 90 -MinSuccessfulCandidates 2</code>
     /// </example>

@@ -4,7 +4,7 @@
     <AssemblyName>DnsClientX.Cli</AssemblyName>
     <AssemblyTitle>DnsClientX CLI</AssemblyTitle>
     <Title>DnsClientX Command Line Interface</Title>
-    <Description>Command-line interface for DnsClientX DNS library. Provides quick DNS queries and scripting capabilities.</Description>
+    <Description>Command-line interface for DnsClientX DNS library. Provides quick DNS queries, resolver benchmarking, and scripting capabilities including modern DoH3 and DoQ flows on .NET 8+.</Description>
     <VersionPrefix>1.0.7</VersionPrefix>
     <AssemblyVersion>1.0.7</AssemblyVersion>
     <FileVersion>1.0.7</FileVersion>

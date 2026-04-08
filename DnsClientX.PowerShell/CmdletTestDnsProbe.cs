@@ -278,6 +278,10 @@ namespace DnsClientX.PowerShell {
     ///   <code>Test-DnsProbe -Name example.com -ResolverEndpoint 'udp@1.1.1.1:53','tcp@9.9.9.9:53' -MinSuccessCount 2 -MinConsensusPercent 60</code>
     /// </example>
     /// <example>
+    ///   <para>Probe modern transports with explicit endpoint strings</para>
+    ///   <code>Test-DnsProbe -Name example.com -ResolverEndpoint 'doq@dns.quad9.net:853','doh3@https://dns.quad9.net/dns-query' -IncludeSummary</code>
+    /// </example>
+    /// <example>
     ///   <para>Reuse the recommended resolver from a saved snapshot as the single probe candidate</para>
     ///   <code>Test-DnsProbe -Name example.com -ResolverSelectionPath '.\resolver-score.json' -SummaryOnly</code>
     /// </example>

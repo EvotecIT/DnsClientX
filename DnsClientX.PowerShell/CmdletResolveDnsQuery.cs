@@ -35,6 +35,10 @@ namespace DnsClientX.PowerShell {
     ///  <code>Resolve-Dns -Name 'example.com' -Type TXT -ResolverEndpoint '1.1.1.1:53','https://dns.google/dns-query' -ResolverStrategy FirstSuccess</code>
     /// </example>
     /// <example>
+    ///  <para>Modern endpoints (DoQ + DoH3) through the shared endpoint parser</para>
+    ///  <code>Resolve-Dns -Name 'example.com' -Type A -ResolverEndpoint 'doq@dns.quad9.net:853','doh3@https://dns.quad9.net/dns-query' -ResolverStrategy FirstSuccess</code>
+    /// </example>
+    /// <example>
     ///  <para>Enable TTL-based response cache with bounds</para>
     ///  <code>Resolve-Dns -Name 'example.com' -Type MX -DnsProvider Cloudflare,Google -ResponseCache -CacheExpirationSeconds 30 -MinCacheTtlSeconds 1 -MaxCacheTtlSeconds 3600</code>
     /// </example>
@@ -114,7 +118,7 @@ namespace DnsClientX.PowerShell {
         public List<string> Server { get; set; } = new List<string>();
 
         /// <summary>
-        /// <para type="description">One or more resolver endpoints in string format. Accepted: "1.1.1.1:53", "[2606:4700:4700::1111]:53", "dns.google:53", or DoH URLs like "https://dns.google/dns-query".</para>
+        /// <para type="description">One or more resolver endpoints in string format. Accepted: "1.1.1.1:53", "[2606:4700:4700::1111]:53", "dns.google:53", DoH URLs like "https://dns.google/dns-query", and transport-prefixed values such as "doq@dns.quad9.net:853" or "doh3@https://dns.quad9.net/dns-query".</para>
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternResolverEndpoint")]

@@ -16,6 +16,11 @@ namespace DnsClientX {
         /// <summary>
         /// Loads resolver endpoint input values from inline entries, files, and URLs.
         /// </summary>
+        /// <param name="inputs">Inline resolver endpoint values such as <c>udp@1.1.1.1:53</c> or <c>doh3@https://dns.quad9.net/dns-query</c>.</param>
+        /// <param name="files">Text files containing one resolver endpoint per line.</param>
+        /// <param name="urls">HTTP or HTTPS URLs that return resolver endpoint text content.</param>
+        /// <param name="cancellationToken">Cancellation token used for file and network loading.</param>
+        /// <returns>A de-duplicated array of loaded endpoint strings.</returns>
         public static async Task<string[]> LoadInputsAsync(
             IEnumerable<string>? inputs = null,
             IEnumerable<string>? files = null,
@@ -81,6 +86,11 @@ namespace DnsClientX {
         /// <summary>
         /// Loads resolver endpoint inputs and parses them into validated endpoints.
         /// </summary>
+        /// <param name="inputs">Inline resolver endpoint values.</param>
+        /// <param name="files">Resolver endpoint file paths.</param>
+        /// <param name="urls">Resolver endpoint URLs.</param>
+        /// <param name="cancellationToken">Cancellation token used for file and network loading.</param>
+        /// <returns>The parsed endpoints together with non-fatal parsing errors.</returns>
         public static async Task<(DnsResolverEndpoint[] Endpoints, IReadOnlyList<string> Errors)> TryParseManyAsync(
             IEnumerable<string>? inputs = null,
             IEnumerable<string>? files = null,
@@ -94,6 +104,8 @@ namespace DnsClientX {
         /// <summary>
         /// Parses imported resolver endpoint content, skipping blank lines and full-line comments.
         /// </summary>
+        /// <param name="content">Imported text content.</param>
+        /// <returns>Parsed endpoint strings.</returns>
         public static IEnumerable<string> ParseImportedEntries(string? content) {
             if (string.IsNullOrWhiteSpace(content)) {
                 yield break;
@@ -126,7 +138,11 @@ namespace DnsClientX {
         ///  - Hostname: "dns.google:53"
         ///  - DoH URL: "https://dns.google/dns-query"
         ///  - Explicit transport: "tcp@1.1.1.1:53", "dot@dns.google:853", "doh@https://dns.google/dns-query"
+        ///  - Modern transport shortcuts: "doq@dns.quad9.net:853", "doh3@https://dns.quad9.net/dns-query"
         /// </summary>
+        /// <param name="inputs">Endpoint input values to parse.</param>
+        /// <param name="errors">Receives parsing errors for entries that could not be normalized.</param>
+        /// <returns>Successfully parsed resolver endpoints.</returns>
         public static DnsResolverEndpoint[] TryParseMany(IEnumerable<string> inputs, out IReadOnlyList<string> errors) {
             var list = new List<DnsResolverEndpoint>();
             var errs = new List<string>();
@@ -255,6 +271,8 @@ namespace DnsClientX {
         /// <summary>
         /// Builds the effective DoH URI for a parsed endpoint, preserving custom ports.
         /// </summary>
+        /// <param name="endpoint">The parsed resolver endpoint.</param>
+        /// <returns>The effective DoH URI.</returns>
         public static Uri BuildDohUri(DnsResolverEndpoint endpoint) {
             if (endpoint == null) {
                 throw new ArgumentNullException(nameof(endpoint));

@@ -3,6 +3,12 @@
 * Fix custom endpoint docs and add `ClientX(Configuration ...)` constructor
 * Improve UDP/Multicast timeout handling to rely on cancellation tokens
 * Add tests for TXT record filtering and configuration constructor
+* Add shared modern transport capability reporting for DoH3 and DoQ
+* Add `doh3@...` and `doq@...` custom endpoint parsing across library, CLI, and PowerShell flows
+* Add built-in Quad9 HTTP/3 and QUIC endpoints plus capability-aware diagnostics
+* Add opt-in live DoH3 and DoQ verification tests that stay skipped by default
+* Add cached DNS server hostname resolution with stale fallback, configurable TTLs, and tests
+* Add LRU-style cache trimming, failure backoff options, and resolver deduplication tests
 
 ## 0.3.4 - 2024.11.15
 ### What's Changed
@@ -55,7 +61,3 @@
 
 ## 0.1.0 - 2024.04.05
 - Initial release
-## Unreleased
-### What's Changed
-* Add cached DNS server hostname resolution with stale fallback, configurable TTLs, and tests.
-* Add LRU-style cache trimming, failure backoff options, and resolver deduplication tests.
