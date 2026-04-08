@@ -130,6 +130,22 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>
+        /// Ensures the CLI rejects the built-in Custom endpoint and directs callers to explicit endpoint syntax.
+        /// </summary>
+        [Fact]
+        public void ParseCliOptions_RejectsCustomBuiltInEndpoint() {
+            var assembly = Assembly.Load("DnsClientX.Cli");
+            Type programType = assembly.GetType("DnsClientX.Cli.Program")!;
+            MethodInfo tryParseArgs = programType.GetMethod("TryParseArgs", BindingFlags.NonPublic | BindingFlags.Static)!;
+
+            object?[] parameters = { new[] { "--endpoint", "Custom", "example.com" }, null, null, null };
+            bool success = (bool)tryParseArgs.Invoke(null, parameters)!;
+
+            Assert.False(success);
+            Assert.Contains("not supported in the CLI", parameters[2]?.ToString(), StringComparison.OrdinalIgnoreCase);
+        }
+
         private static object ParseCliOptions(params string[] args) {
             var assembly = Assembly.Load("DnsClientX.Cli");
             Type programType = assembly.GetType("DnsClientX.Cli.Program")!;

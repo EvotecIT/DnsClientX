@@ -811,6 +811,10 @@ namespace DnsClientX.Cli {
                         errorMessage = $"Invalid value for --endpoint: {endpointValue}";
                         return false;
                     }
+                    if (endpoint == DnsEndpoint.Custom) {
+                        errorMessage = "--endpoint Custom is not supported in the CLI. Use explicit resolver endpoint syntax such as --probe-endpoint, --resolver-file, or --resolver-url instead.";
+                        return false;
+                    }
                     options.BenchmarkEndpoints.Add(endpoint);
                 }
 
