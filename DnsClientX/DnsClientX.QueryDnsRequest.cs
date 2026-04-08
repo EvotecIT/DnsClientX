@@ -326,9 +326,9 @@ namespace DnsClientX {
         }
 
         private static ClientX CreateClientForEndpoint(ResolveDnsRequest request, DnsResolverEndpoint endpoint, EdnsOptions? ednsOptions) {
-            var client = ResolverEndpointClientFactory.CreateClient(endpoint);
+            var client = CreateConfiguredEndpointClient(request, endpoint);
             ApplyRequestConfiguration(client, request, ednsOptions);
-            client.EndpointConfiguration.UseTcpFallback = endpoint.AllowTcpFallback;
+            client.EndpointConfiguration.UseTcpFallback = request.UseTcpFallback && endpoint.AllowTcpFallback;
             if (endpoint.EdnsBufferSize.HasValue) {
                 client.EndpointConfiguration.UdpBufferSize = endpoint.EdnsBufferSize.Value;
             }
@@ -342,6 +342,39 @@ namespace DnsClientX {
             }
 
             return client;
+        }
+
+        private static ClientX CreateConfiguredEndpointClient(ResolveDnsRequest request, DnsResolverEndpoint endpoint) {
+            DnsRequestFormat requestFormat = endpoint.RequestFormat ?? DnsRequestFormatMapper.FromTransport(endpoint.Transport);
+            if (ResolverEndpointClientFactory.IsUriBasedRequestFormat(requestFormat) || endpoint.Transport == Transport.Doh || endpoint.DohUrl != null) {
+                return new ClientX(
+                    EndpointParser.BuildDohUri(endpoint),
+                    requestFormat,
+                    timeOutMilliseconds: request.TimeOutMilliseconds,
+                    userAgent: request.UserAgent,
+                    httpVersion: request.HttpVersion,
+                    ignoreCertificateErrors: request.IgnoreCertificateErrors,
+                    enableCache: false,
+                    useTcpFallback: request.UseTcpFallback && endpoint.AllowTcpFallback,
+                    webProxy: request.CreateWebProxy(),
+                    maxConnectionsPerServer: request.EffectiveMaxConnectionsPerServer);
+            }
+
+            if (string.IsNullOrWhiteSpace(endpoint.Host)) {
+                throw new ArgumentException("Resolver endpoint requires Host.", nameof(endpoint));
+            }
+
+            return new ClientX(
+                endpoint.Host!,
+                requestFormat,
+                timeOutMilliseconds: request.TimeOutMilliseconds,
+                userAgent: request.UserAgent,
+                httpVersion: request.HttpVersion,
+                ignoreCertificateErrors: request.IgnoreCertificateErrors,
+                enableCache: false,
+                useTcpFallback: request.UseTcpFallback && endpoint.AllowTcpFallback,
+                webProxy: request.CreateWebProxy(),
+                maxConnectionsPerServer: request.EffectiveMaxConnectionsPerServer);
         }
 
         private static void ApplyRequestConfiguration(ClientX client, ResolveDnsRequest request, EdnsOptions? ednsOptions) {

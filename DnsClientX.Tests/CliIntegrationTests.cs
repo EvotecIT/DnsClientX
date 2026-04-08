@@ -94,5 +94,53 @@ namespace DnsClientX.Tests {
             var finalCount = ClientX.DisposalCount;
             Assert.True(finalCount - initialCount >= 1);
         }
+
+        /// <summary>
+        /// Ensures benchmark mode infers PTR when a positional domain is an IP literal.
+        /// </summary>
+        [Fact]
+        public void Benchmark_PositionalIp_DefaultsToPtr() {
+            object cliOptions = ParseCliOptions("--benchmark", "1.1.1.1");
+            Type optionsType = cliOptions.GetType();
+
+            DnsRecordType recordType = (DnsRecordType)optionsType.GetProperty("RecordType")!.GetValue(cliOptions)!;
+            Assert.Equal(DnsRecordType.PTR, recordType);
+        }
+
+        /// <summary>
+        /// Ensures shared query-run options preserve CLI wire-post and port override settings.
+        /// </summary>
+        [Fact]
+        public void CreateQueryRunOptions_PreservesWirePostAndPortOverride() {
+            string? originalPort = Environment.GetEnvironmentVariable("DNSCLIENTX_CLI_PORT");
+            Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", "8053");
+
+            try {
+                object cliOptions = ParseCliOptions("--benchmark", "--wire-post", "example.com");
+                var assembly = Assembly.Load("DnsClientX.Cli");
+                Type programType = assembly.GetType("DnsClientX.Cli.Program")!;
+                MethodInfo createQueryRunOptions = programType.GetMethod("CreateQueryRunOptions", BindingFlags.NonPublic | BindingFlags.Static)!;
+
+                ResolverQueryRunOptions runOptions = (ResolverQueryRunOptions)createQueryRunOptions.Invoke(null, new[] { cliOptions })!;
+
+                Assert.True(runOptions.ForceDohWirePost);
+                Assert.Equal(8053, runOptions.PortOverride);
+            } finally {
+                Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", originalPort);
+            }
+        }
+
+        private static object ParseCliOptions(params string[] args) {
+            var assembly = Assembly.Load("DnsClientX.Cli");
+            Type programType = assembly.GetType("DnsClientX.Cli.Program")!;
+            MethodInfo tryParseArgs = programType.GetMethod("TryParseArgs", BindingFlags.NonPublic | BindingFlags.Static)!;
+
+            object?[] parameters = { args, null, null, null };
+            bool success = (bool)tryParseArgs.Invoke(null, parameters)!;
+
+            Assert.True(success, parameters[2]?.ToString());
+            Assert.NotNull(parameters[1]);
+            return parameters[1]!;
+        }
     }
 }

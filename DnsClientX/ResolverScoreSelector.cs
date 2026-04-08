@@ -53,6 +53,11 @@ namespace DnsClientX {
                 return true;
             }
 
+            if (string.Equals(target, DnsEndpoint.Custom.ToString(), StringComparison.OrdinalIgnoreCase)) {
+                error = "Snapshots that recommend DnsEndpoint.Custom cannot be reused automatically because the custom endpoint configuration is not persisted in the snapshot.";
+                return false;
+            }
+
             DnsResolverEndpoint[] endpoints = EndpointParser.TryParseMany(new[] { target }, out IReadOnlyList<string> errors);
             if (endpoints.Length == 1 && errors.Count == 0) {
                 selection = new ResolverSelectionResult {

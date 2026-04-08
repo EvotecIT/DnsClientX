@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace DnsClientX.Tests {
     /// <summary>
     /// Tests shared runtime transport capability reporting.
@@ -9,10 +11,8 @@ namespace DnsClientX.Tests {
         [Fact]
         public void Supports_ModernTransports_MatchesTargetFramework() {
 #if NET8_0_OR_GREATER
-            Assert.True(DnsTransportCapabilities.SupportsDnsOverHttp3);
-            Assert.Equal(
-                OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(),
-                DnsTransportCapabilities.SupportsDnsOverQuic);
+            Assert.Equal(GetRuntimeQuicSupport(), DnsTransportCapabilities.SupportsDnsOverHttp3);
+            Assert.Equal(GetRuntimeQuicSupport(), DnsTransportCapabilities.SupportsDnsOverQuic);
 #else
             Assert.False(DnsTransportCapabilities.SupportsDnsOverHttp3);
             Assert.False(DnsTransportCapabilities.SupportsDnsOverQuic);
@@ -43,6 +43,24 @@ namespace DnsClientX.Tests {
             Assert.Equal(DnsTransportCapabilities.SupportsDnsOverQuic, quic.Supported);
             Assert.Equal("DnsClientX", http3.Package);
             Assert.Equal("DnsClientX", quic.Package);
+        }
+
+        private static bool GetRuntimeQuicSupport() {
+#if NET8_0_OR_GREATER
+            if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) {
+                return false;
+            }
+
+            Type? quicConnectionType =
+                Type.GetType("System.Net.Quic.QuicConnection, System.Net.Quic", throwOnError: false) ??
+                Type.GetType("System.Net.Quic.QuicConnection", throwOnError: false);
+            object? supported = quicConnectionType?
+                .GetProperty("IsSupported", BindingFlags.Public | BindingFlags.Static)?
+                .GetValue(null);
+            return supported is bool value && value;
+#else
+            return false;
+#endif
         }
     }
 }

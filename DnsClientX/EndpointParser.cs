@@ -13,6 +13,9 @@ namespace DnsClientX {
     /// Parses user-provided resolver endpoint strings into validated endpoints.
     /// </summary>
     public static class EndpointParser {
+        private const int MaxImportedContentBytes = 256 * 1024;
+        private static readonly TimeSpan ImportHttpTimeout = TimeSpan.FromSeconds(15);
+
         /// <summary>
         /// Loads resolver endpoint input values from inline entries, files, and URLs.
         /// </summary>
@@ -48,6 +51,11 @@ namespace DnsClientX {
                     throw new FileNotFoundException($"Resolver file not found: {fileEntry}", fileEntry);
                 }
 
+                FileInfo fileInfo = new FileInfo(fullPath);
+                if (fileInfo.Length > MaxImportedContentBytes) {
+                    throw new InvalidOperationException($"Resolver file exceeds the {MaxImportedContentBytes} byte import limit: {fileEntry}");
+                }
+
                 using var reader = File.OpenText(fullPath);
                 string content = await reader.ReadToEndAsync().ConfigureAwait(false);
                 list.AddRange(ParseImportedEntries(content));
@@ -59,7 +67,9 @@ namespace DnsClientX {
                 .ToArray();
 
             if (urlEntries.Length > 0) {
-                using var httpClient = new HttpClient();
+                using var httpClient = new HttpClient {
+                    Timeout = ImportHttpTimeout
+                };
                 foreach (string urlEntry in urlEntries) {
                     cancellationToken.ThrowIfCancellationRequested();
 
@@ -73,7 +83,7 @@ namespace DnsClientX {
                         throw new InvalidOperationException($"Resolver URL returned HTTP {(int)response.StatusCode}: {urlEntry}");
                     }
 
-                    string content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    string content = await ReadContentWithLimitAsync(response, cancellationToken).ConfigureAwait(false);
                     list.AddRange(ParseImportedEntries(content));
                 }
             }
@@ -353,6 +363,32 @@ namespace DnsClientX {
                 Transport.Multicast => 5353,
                 _ => 53
             };
+        }
+
+        private static async Task<string> ReadContentWithLimitAsync(HttpResponseMessage response, CancellationToken cancellationToken) {
+            cancellationToken.ThrowIfCancellationRequested();
+            using Stream stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+            using var reader = new StreamReader(stream);
+            char[] buffer = new char[4096];
+            int totalChars = 0;
+            var content = new System.Text.StringBuilder();
+
+            while (true) {
+                cancellationToken.ThrowIfCancellationRequested();
+                int read = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                if (read == 0) {
+                    break;
+                }
+
+                totalChars += read;
+                if (totalChars > MaxImportedContentBytes) {
+                    throw new InvalidOperationException($"Resolver URL content exceeds the {MaxImportedContentBytes} byte import limit: {response.RequestMessage?.RequestUri}");
+                }
+
+                content.Append(buffer, 0, read);
+            }
+
+            return content.ToString();
         }
     }
 }

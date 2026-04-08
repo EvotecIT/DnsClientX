@@ -43,8 +43,12 @@ namespace DnsClientX {
             DnsRecordType recordType,
             ResolverQueryRunOptions options,
             CancellationToken cancellationToken) {
-            await using var client = new ClientX(endpoint);
-            client.EndpointConfiguration.TimeOut = Math.Max(1, options.TimeoutMs);
+            await using var client = ResolverExecutionClientFactory.CreateClient(
+                new ResolverExecutionTarget {
+                    DisplayName = displayName,
+                    BuiltInEndpoint = endpoint
+                },
+                CreateClientOptions(options));
 
             return await ExecuteWithClientAsync(
                 client,
@@ -64,8 +68,12 @@ namespace DnsClientX {
             DnsRecordType recordType,
             ResolverQueryRunOptions options,
             CancellationToken cancellationToken) {
-            await using var client = ResolverEndpointClientFactory.CreateClient(endpoint);
-            client.EndpointConfiguration.TimeOut = Math.Max(1, options.TimeoutMs);
+            await using var client = ResolverExecutionClientFactory.CreateClient(
+                new ResolverExecutionTarget {
+                    DisplayName = displayName,
+                    ExplicitEndpoint = endpoint
+                },
+                CreateClientOptions(options));
             client.EndpointConfiguration.UseTcpFallback = endpoint.AllowTcpFallback;
             if (endpoint.EdnsBufferSize.HasValue) {
                 client.EndpointConfiguration.UdpBufferSize = endpoint.EdnsBufferSize.Value;
@@ -73,7 +81,7 @@ namespace DnsClientX {
             if (endpoint.Timeout.HasValue) {
                 client.EndpointConfiguration.TimeOut = (int)Math.Max(1, endpoint.Timeout.Value.TotalMilliseconds);
             }
-            if (endpoint.Transport != Transport.Doh) {
+            if (endpoint.Transport != Transport.Doh && !options.PortOverride.HasValue) {
                 client.EndpointConfiguration.Port = endpoint.Port;
             }
 
@@ -86,6 +94,14 @@ namespace DnsClientX {
                 options.ValidateDnsSec,
                 options,
                 cancellationToken).ConfigureAwait(false);
+        }
+
+        private static ResolverExecutionClientOptions CreateClientOptions(ResolverQueryRunOptions options) {
+            return new ResolverExecutionClientOptions {
+                TimeoutMs = Math.Max(1, options.TimeoutMs),
+                PortOverride = options.PortOverride,
+                ForceDohWirePost = options.ForceDohWirePost
+            };
         }
 
         private static async Task<ResolverQueryAttemptResult> ExecuteWithClientAsync(

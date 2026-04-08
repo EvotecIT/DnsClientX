@@ -114,5 +114,34 @@ namespace DnsClientX.Tests {
                 BuiltInEndpoints = new[] { DnsEndpoint.Cloudflare, DnsEndpoint.Google }
             }));
         }
+
+        /// <summary>
+        /// Ensures snapshots that recommend the custom built-in endpoint fail with a clear reuse error.
+        /// </summary>
+        [Fact]
+        public async Task ResolveAsync_CustomSnapshotSelection_FailsClearly() {
+            string path = Path.GetTempFileName();
+
+            try {
+                ResolverScoreStore.Save(path, new ResolverScoreSnapshot {
+                    Summary = new ResolverScoreSummary {
+                        Mode = ResolverScoreMode.Probe,
+                        RecommendationAvailable = true,
+                        RecommendedTarget = "Custom",
+                        RecommendedResolver = "custom.example:443",
+                        RecommendedTransport = "Doh",
+                        RecommendedAverageMs = 5
+                    }
+                });
+
+                InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() => ResolverExecutionTargetResolver.ResolveAsync(new ResolverExecutionTargetSource {
+                    ResolverSelectionPath = path
+                }));
+
+                Assert.Contains("cannot be reused automatically", exception.Message, StringComparison.OrdinalIgnoreCase);
+            } finally {
+                File.Delete(path);
+            }
+        }
     }
 }

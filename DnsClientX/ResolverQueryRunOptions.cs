@@ -27,5 +27,15 @@ namespace DnsClientX {
         /// Gets or sets the retry delay in milliseconds.
         /// </summary>
         public int RetryDelayMs { get; init; }
+
+        /// <summary>
+        /// Gets or sets an optional port override applied when creating per-target clients.
+        /// </summary>
+        public int? PortOverride { get; init; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether DoH targets should be forced to wire-format POST requests.
+        /// </summary>
+        public bool ForceDohWirePost { get; init; }
     }
 }

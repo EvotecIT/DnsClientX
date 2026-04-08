@@ -49,7 +49,7 @@ namespace DnsClientX {
             return $"{host}:{port}";
         }
 
-        private static bool IsUriBasedRequestFormat(DnsRequestFormat requestFormat) {
+        internal static bool IsUriBasedRequestFormat(DnsRequestFormat requestFormat) {
             return requestFormat == DnsRequestFormat.DnsOverHttps ||
                    requestFormat == DnsRequestFormat.DnsOverHttpsJSON ||
                    requestFormat == DnsRequestFormat.DnsOverHttpsPOST ||

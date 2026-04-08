@@ -105,5 +105,19 @@ namespace DnsClientX.Tests {
 
             Assert.Equal("doh3@dns.quad9.net:443", description);
         }
+
+        /// <summary>
+        /// Ensures IPv6 endpoints retain brackets when converted into stable display strings.
+        /// </summary>
+        [Fact]
+        public void DescribeEndpoint_PreservesBracketedIpv6Host() {
+            string description = ResolverExecutionPlanBuilder.DescribeEndpoint(new DnsResolverEndpoint {
+                Transport = Transport.Tcp,
+                Host = "2001:db8::1",
+                Port = 5353
+            });
+
+            Assert.Equal("tcp@[2001:db8::1]:5353", description);
+        }
     }
 }

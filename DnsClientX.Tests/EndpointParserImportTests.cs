@@ -107,5 +107,24 @@ namespace DnsClientX.Tests {
 
             await serverTask;
         }
+
+        /// <summary>
+        /// Ensures oversized resolver import files are rejected before loading them into memory.
+        /// </summary>
+        [Fact]
+        public async Task LoadInputsAsync_RejectsOversizedResolverFiles() {
+            string resolverFile = Path.GetTempFileName();
+
+            try {
+                File.WriteAllText(resolverFile, new string('a', 300_000));
+
+                InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() => EndpointParser.LoadInputsAsync(
+                    files: new[] { resolverFile }));
+
+                Assert.Contains("import limit", exception.Message, StringComparison.OrdinalIgnoreCase);
+            } finally {
+                File.Delete(resolverFile);
+            }
+        }
     }
 }

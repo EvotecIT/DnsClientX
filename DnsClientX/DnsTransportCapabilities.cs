@@ -28,7 +28,7 @@ namespace DnsClientX {
         public static bool SupportsDnsOverHttp3 {
             get {
 #if NET8_0_OR_GREATER
-                return true;
+                return IsRuntimeQuicSupported();
 #else
                 return false;
 #endif
@@ -44,7 +44,7 @@ namespace DnsClientX {
         public static bool SupportsDnsOverQuic {
             get {
 #if NET8_0_OR_GREATER
-                return OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS();
+                return IsRuntimeQuicSupported();
 #else
                 return false;
 #endif
@@ -208,5 +208,22 @@ namespace DnsClientX {
                 }
             };
         }
+
+#if NET8_0_OR_GREATER
+        private static bool IsRuntimeQuicSupported() {
+            if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) {
+                return false;
+            }
+
+            Type? quicConnectionType =
+                Type.GetType("System.Net.Quic.QuicConnection, System.Net.Quic", throwOnError: false) ??
+                Type.GetType("System.Net.Quic.QuicConnection", throwOnError: false);
+            object? supported = quicConnectionType?
+                .GetProperty("IsSupported", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)?
+                .GetValue(null);
+
+            return supported is bool value && value;
+        }
+#endif
     }
 }

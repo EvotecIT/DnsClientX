@@ -760,8 +760,9 @@ namespace DnsClientX.Cli {
                 return true;
             }
 
+            string[] effectiveBenchmarkDomains = options.Benchmark ? GetEffectiveBenchmarkDomains(options) : Array.Empty<string>();
             bool shouldUsePtrByDefault = options.Benchmark
-                ? options.BenchmarkDomains.Count > 0 && options.BenchmarkDomains.All(IsIpAddressLiteral)
+                ? effectiveBenchmarkDomains.Length > 0 && effectiveBenchmarkDomains.All(IsIpAddressLiteral)
                 : !string.IsNullOrWhiteSpace(options.Domain) && IsIpAddressLiteral(options.Domain);
 
             if (shouldUsePtrByDefault) {
@@ -1131,13 +1132,26 @@ namespace DnsClientX.Cli {
         }
 
         private static ResolverQueryRunOptions CreateQueryRunOptions(CliOptions options) {
+            ResolverExecutionClientOptions clientOptions = CreateExecutionClientOptions(options, useBenchmarkTimeout: options.Benchmark);
             return new ResolverQueryRunOptions {
                 TimeoutMs = options.Benchmark ? options.BenchmarkTimeoutMs : Configuration.DefaultTimeout,
                 RequestDnsSec = options.RequestDnsSec,
                 ValidateDnsSec = options.ValidateDnsSec,
                 MaxRetries = 1,
-                RetryDelayMs = 0
+                RetryDelayMs = 0,
+                PortOverride = clientOptions.PortOverride,
+                ForceDohWirePost = clientOptions.ForceDohWirePost
             };
+        }
+
+        private static string[] GetEffectiveBenchmarkDomains(CliOptions options) {
+            if (options.BenchmarkDomains.Count > 0) {
+                return options.BenchmarkDomains.ToArray();
+            }
+
+            return string.IsNullOrWhiteSpace(options.Domain)
+                ? Array.Empty<string>()
+                : new[] { options.Domain! };
         }
 
         private static Task<ResolverBenchmarkReport> ExecuteBenchmarkReportAsync(

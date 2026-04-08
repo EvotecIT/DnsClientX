@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -267,6 +268,41 @@ namespace DnsClientX.Tests {
                 ClientX.QueryDnsRequestOverride = null;
                 File.Delete(snapshotPath);
             }
+        }
+
+        /// <summary>
+        /// Verifies that request-level HTTP and fallback options are preserved when a selected resolver resolves to an explicit endpoint.
+        /// </summary>
+        [Fact]
+        public void CreateClientForEndpoint_RequestOptionsArePreserved() {
+            MethodInfo method = typeof(ClientX)
+                .GetMethod("CreateClientForEndpoint", BindingFlags.NonPublic | BindingFlags.Static)!;
+
+            var request = new ResolveDnsRequest {
+                Names = new[] { "example.com" },
+                RecordTypes = new[] { DnsRecordType.A },
+                TimeOutMilliseconds = 4321,
+                UserAgent = "DnsClientX.Tests",
+                HttpVersion = new Version(3, 0),
+                IgnoreCertificateErrors = true,
+                UseTcpFallback = false,
+                ProxyUri = new Uri("http://127.0.0.1:8888"),
+                MaxConnectionsPerServer = 12
+            };
+            var endpoint = new DnsResolverEndpoint {
+                Transport = Transport.Doh,
+                DohUrl = new Uri("https://dns.example/dns-query"),
+                AllowTcpFallback = true
+            };
+
+            using var client = (ClientX)method.Invoke(null, new object?[] { request, endpoint, null })!;
+
+            Assert.Equal("DnsClientX.Tests", client.EndpointConfiguration.UserAgent);
+            Assert.Equal(new Version(3, 0), client.EndpointConfiguration.HttpVersion);
+            Assert.True(client.IgnoreCertificateErrors);
+            Assert.False(client.EndpointConfiguration.UseTcpFallback);
+            Assert.Equal(12, client.EndpointConfiguration.MaxConnectionsPerServer);
+            Assert.Equal(4321, client.EndpointConfiguration.TimeOut);
         }
 
         /// <summary>
