@@ -169,6 +169,20 @@ DnsClientX keeps modern transports in the core package instead of moving them be
 
 Use `DnsTransportCapabilities` when you want to check support before executing a query.
 
+PowerShell:
+
+```powershell
+Get-DnsTransportCapability
+Get-DnsTransportCapability -ModernOnly
+```
+
+CLI:
+
+```powershell
+DnsClientX.Cli --capabilities
+DnsClientX.Cli --capabilities --format json
+```
+
 ## Explicit Endpoint Syntax
 
 Custom resolver inputs share one endpoint parser across the library, CLI, and PowerShell.

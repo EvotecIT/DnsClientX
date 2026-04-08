@@ -28,5 +28,21 @@ namespace DnsClientX.Tests {
             Assert.Equal(DnsTransportCapabilities.SupportsDnsOverQuic, DnsTransportCapabilities.Supports(DnsRequestFormat.DnsOverQuic));
             Assert.True(DnsTransportCapabilities.Supports(DnsRequestFormat.DnsOverHttps));
         }
+
+        /// <summary>
+        /// Ensures the user-facing capability report exposes modern transport entries.
+        /// </summary>
+        [Fact]
+        public void GetCapabilityReport_ContainsModernEntries() {
+            DnsTransportCapabilityInfo[] report = DnsTransportCapabilities.GetCapabilityReport();
+
+            DnsTransportCapabilityInfo http3 = Assert.Single(report, entry => entry.RequestFormat == DnsRequestFormat.DnsOverHttp3);
+            DnsTransportCapabilityInfo quic = Assert.Single(report, entry => entry.RequestFormat == DnsRequestFormat.DnsOverQuic);
+
+            Assert.Equal(DnsTransportCapabilities.SupportsDnsOverHttp3, http3.Supported);
+            Assert.Equal(DnsTransportCapabilities.SupportsDnsOverQuic, quic.Supported);
+            Assert.Equal("DnsClientX", http3.Package);
+            Assert.Equal("DnsClientX", quic.Package);
+        }
     }
 }

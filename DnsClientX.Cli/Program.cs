@@ -63,6 +63,7 @@ namespace DnsClientX.Cli {
             public string? BenchmarkSavePath { get; set; }
             public bool Explain { get; set; }
             public bool Trace { get; set; }
+            public bool ShowCapabilities { get; set; }
             public bool DoUpdate { get; set; }
             public string? Zone { get; set; }
             public string? UpdateName { get; set; }
@@ -117,6 +118,10 @@ namespace DnsClientX.Cli {
                 CliOptions parsedOptions = options!;
                 if (parsedOptions.Benchmark) {
                     return await RunBenchmarkAsync(parsedOptions, cts.Token).ConfigureAwait(false);
+                }
+
+                if (parsedOptions.ShowCapabilities) {
+                    return WriteCapabilities(parsedOptions);
                 }
 
                 if (parsedOptions.Probe) {
@@ -455,6 +460,9 @@ namespace DnsClientX.Cli {
                         options.Trace = true;
                         options.Explain = true;
                         break;
+                    case var opt when opt.Equals("--capabilities", StringComparison.OrdinalIgnoreCase):
+                        options.ShowCapabilities = true;
+                        break;
                     case var opt when opt.Equals("--update", StringComparison.OrdinalIgnoreCase):
                         if (!TryReadNext(args, ref i, "--update", out string? zone, out errorMessage) ||
                             !TryReadNext(args, ref i, "--update", out string? updateName, out errorMessage) ||
@@ -510,6 +518,15 @@ namespace DnsClientX.Cli {
 
             if (options.HasCustomEndpointInputs && !options.Benchmark) {
                 options.Probe = true;
+            }
+
+            if (options.ShowCapabilities &&
+                (options.Probe || options.Benchmark || options.DoUpdate || options.ZoneTransfer ||
+                 !string.IsNullOrWhiteSpace(options.ResolverSelectPath) || !string.IsNullOrWhiteSpace(options.ResolverUsePath))) {
+                errorMessage = "--capabilities cannot be combined with query, probe, benchmark, update, axfr, or resolver selection modes.";
+                invalidSwitches = null;
+                options = null;
+                return false;
             }
 
             if (options.DoUpdate && (options.Probe || options.Benchmark || options.ZoneTransfer)) {
@@ -590,6 +607,14 @@ namespace DnsClientX.Cli {
                 return false;
             }
 
+            if (options.ShowCapabilities &&
+                (options.ShortOutput || options.TxtConcatOutput || options.HasExplicitSectionSelection || options.TransferSummary || options.OutputFormat == QueryOutputFormat.Raw)) {
+                errorMessage = "Capability mode supports only default output or --format json.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
             if ((options.Benchmark || options.Probe || options.DoUpdate) &&
                 (options.ShortOutput || options.TxtConcatOutput || options.OutputFormat != QueryOutputFormat.Pretty || options.HasExplicitSectionSelection || options.TransferSummary)) {
                 errorMessage = "Query output switches (--format, --short, --txt-concat, --question, --answer, --authority, --additional) apply only to standard query mode.";
@@ -651,6 +676,8 @@ namespace DnsClientX.Cli {
                     options = null;
                     return false;
                 }
+            } else if (options.ShowCapabilities) {
+                // Capability mode does not require a domain.
             } else if (!string.IsNullOrWhiteSpace(options.ResolverSelectPath)) {
                 // Selection mode requires only the saved snapshot path.
             } else if (options.ZoneTransfer && string.IsNullOrWhiteSpace(options.Domain)) {
@@ -934,6 +961,20 @@ namespace DnsClientX.Cli {
 
         private static ResolverSelectionResult LoadRecommendedResolverSelection(string path) {
             return ResolverExecutionTargetResolver.LoadRecommendedSelection(path);
+        }
+
+        private static int WriteCapabilities(CliOptions options) {
+            DnsTransportCapabilityInfo[] capabilities = DnsTransportCapabilities.GetCapabilityReport();
+            if (options.OutputFormat == QueryOutputFormat.Json) {
+                Console.WriteLine(DnsClientXJsonSerializer.Serialize(capabilities));
+                return 0;
+            }
+
+            foreach (string line in DnsTransportCapabilityTextFormatter.BuildLines(capabilities)) {
+                Console.WriteLine(line);
+            }
+
+            return 0;
         }
 
         private static async Task<int> RunBenchmarkAsync(CliOptions options, CancellationToken cancellationToken) {
@@ -1495,6 +1536,7 @@ namespace DnsClientX.Cli {
             Console.WriteLine("      --probe-min-consensus <percent>  Fail when the top answer set is below the given 1-100 percentage");
             Console.WriteLine("      --probe-min-success <count>  Fail when fewer than the given number of probes succeed");
             Console.WriteLine("      --probe-min-success-percent <percent>  Fail when the probe success rate is below the given 1-100 percentage");
+            Console.WriteLine("      --capabilities       Print the shared transport capability report");
             Console.WriteLine("      --explain            Print resolver and response diagnostics");
             Console.WriteLine("      --trace              Print explain output plus audit details");
             Console.WriteLine("      --update <zone> <name> <type> <data>  Send dynamic update");
