@@ -50,6 +50,8 @@ namespace DnsClientX.Tests {
                 new ResolverBenchmarkPolicy());
 
             Assert.Equal(DnsTransportCapabilities.Supports(DnsRequestFormat.DnsOverHttp3) ? 0 : 1, report.Summary.RuntimeUnsupportedCandidateCount);
+            Assert.Equal(report.Summary.RuntimeUnsupportedCandidateCount, report.Snapshot.Summary.RuntimeUnsupportedCandidateCount);
+            Assert.Equal(report.Summary.RuntimeCapabilityWarnings, report.Snapshot.Summary.RuntimeCapabilityWarnings);
             if (!DnsTransportCapabilities.Supports(DnsRequestFormat.DnsOverHttp3)) {
                 Assert.Contains(report.Summary.RuntimeCapabilityWarnings, warning => warning.Contains("Quad9DoH3", StringComparison.Ordinal));
             }

@@ -183,6 +183,8 @@ DnsClientX.Cli --capabilities
 DnsClientX.Cli --capabilities --format json
 ```
 
+Saved probe and benchmark snapshots also persist runtime capability hints, so recommendation files can distinguish unsupported modern transports from ordinary resolver failures.
+
 ## Explicit Endpoint Syntax
 
 Custom resolver inputs share one endpoint parser across the library, CLI, and PowerShell.

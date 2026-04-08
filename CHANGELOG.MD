@@ -6,6 +6,7 @@
 * Add shared modern transport capability reporting for DoH3 and DoQ
 * Add `doh3@...` and `doq@...` custom endpoint parsing across library, CLI, and PowerShell flows
 * Add built-in Quad9 HTTP/3 and QUIC endpoints plus capability-aware diagnostics
+* Persist runtime capability hints in saved probe and benchmark resolver score snapshots
 * Add opt-in live DoH3 and DoQ verification tests that stay skipped by default
 * Add cached DNS server hostname resolution with stale fallback, configurable TTLs, and tests
 * Add LRU-style cache trimming, failure backoff options, and resolver deduplication tests

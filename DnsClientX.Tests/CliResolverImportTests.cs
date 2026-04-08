@@ -79,7 +79,7 @@ namespace DnsClientX.Tests {
         }
 
         private static (DnsResponse Response, TimeSpan Elapsed, string Resolver, DnsRequestFormat RequestFormat) CreateSuccessfulProbeResult(DnsResolverEndpoint endpoint, int elapsedMs) {
-            DnsRequestFormat requestFormat = endpoint.Transport switch {
+            DnsRequestFormat requestFormat = endpoint.RequestFormat ?? (endpoint.Transport switch {
                 Transport.Tcp => DnsRequestFormat.DnsOverTCP,
                 Transport.Dot => DnsRequestFormat.DnsOverTLS,
                 Transport.Quic => DnsRequestFormat.DnsOverQuic,
@@ -87,7 +87,7 @@ namespace DnsClientX.Tests {
                 Transport.Multicast => DnsRequestFormat.Multicast,
                 Transport.Doh => DnsRequestFormat.DnsOverHttps,
                 _ => DnsRequestFormat.DnsOverUDP
-            };
+            });
 
             return (
                 new DnsResponse {
@@ -197,6 +197,8 @@ namespace DnsClientX.Tests {
                 Assert.Equal("Probe", summary.GetProperty("Mode").GetString());
                 Assert.Equal("udp@1.1.1.1:53", summary.GetProperty("RecommendedTarget").GetString());
                 Assert.True(summary.GetProperty("RecommendationAvailable").GetBoolean());
+                Assert.Equal(0, summary.GetProperty("RuntimeUnsupportedCandidateCount").GetInt32());
+                Assert.Equal(0, summary.GetProperty("RuntimeCapabilityWarnings").GetArrayLength());
 
                 JsonElement results = root.GetProperty("Results");
                 Assert.Equal(2, results.GetArrayLength());
@@ -241,6 +243,8 @@ namespace DnsClientX.Tests {
                 Assert.Equal("doh@https://dns.example/dns-query", summary.GetProperty("RecommendedTarget").GetString());
                 Assert.True(summary.GetProperty("RecommendationAvailable").GetBoolean());
                 Assert.Equal(2, summary.GetProperty("CandidateCount").GetInt32());
+                Assert.Equal(0, summary.GetProperty("RuntimeUnsupportedCandidateCount").GetInt32());
+                Assert.Equal(0, summary.GetProperty("RuntimeCapabilityWarnings").GetArrayLength());
 
                 JsonElement results = root.GetProperty("Results");
                 Assert.Equal(2, results.GetArrayLength());

@@ -132,11 +132,15 @@ namespace DnsClientX {
                     .ToArray()
             };
 
+            ResolverScoreSnapshot snapshot = evaluation.CreateSnapshot(policy, new[] { name ?? string.Empty }, new[] { recordType }, timeoutMs);
+            snapshot.Summary.RuntimeUnsupportedCandidateCount = summary.RuntimeUnsupportedCandidateCount;
+            snapshot.Summary.RuntimeCapabilityWarnings = summary.RuntimeCapabilityWarnings;
+
             return new ResolverProbeReport {
                 Results = results,
                 Summary = summary,
                 Evaluation = evaluation,
-                Snapshot = evaluation.CreateSnapshot(policy, new[] { name ?? string.Empty }, new[] { recordType }, timeoutMs)
+                Snapshot = snapshot
             };
         }
 

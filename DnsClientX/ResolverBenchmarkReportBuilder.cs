@@ -47,6 +47,8 @@ namespace DnsClientX {
 
             report.Summary.RuntimeUnsupportedCandidateCount = DnsTransportCapabilities.CountUnsupportedTargets(attempts);
             report.Summary.RuntimeCapabilityWarnings = DnsTransportCapabilities.GetUnsupportedWarnings(attempts);
+            report.Snapshot.Summary.RuntimeUnsupportedCandidateCount = report.Summary.RuntimeUnsupportedCandidateCount;
+            report.Snapshot.Summary.RuntimeCapabilityWarnings = report.Summary.RuntimeCapabilityWarnings;
             return report;
         }
 
@@ -106,31 +108,39 @@ namespace DnsClientX {
                 })
                 .ToArray();
 
+            ResolverBenchmarkReportSummary summary = new ResolverBenchmarkReportSummary {
+                Domains = names ?? Array.Empty<string>(),
+                RecordTypes = recordTypes ?? Array.Empty<DnsRecordType>(),
+                AttemptsPerCombination = attemptsPerCombination,
+                MaxConcurrency = maxConcurrency,
+                TimeoutMs = timeoutMs,
+                CandidateCount = evaluation.CandidateCount,
+                SuccessfulCandidates = evaluation.SuccessfulCandidates,
+                OverallSuccessCount = evaluation.OverallSuccessCount,
+                OverallQueryCount = evaluation.OverallQueryCount,
+                OverallSuccessPercent = evaluation.OverallSuccessPercent,
+                PolicyPassed = evaluation.PolicyPassed,
+                PolicyReason = evaluation.PolicyReason,
+                RequiredMinSuccessPercent = policy.MinSuccessPercent,
+                RequiredMinSuccessfulCandidates = policy.MinSuccessfulCandidates,
+                RecommendedTarget = evaluation.RecommendedTarget,
+                RecommendedResolver = evaluation.RecommendedResolver,
+                RecommendedTransport = evaluation.RecommendedTransport,
+                RecommendedAverageMs = evaluation.RecommendedAverageMs,
+                RecommendationAvailable = evaluation.RecommendationAvailable,
+                RuntimeUnsupportedCandidateCount = 0,
+                RuntimeCapabilityWarnings = Array.Empty<string>()
+            };
+
+            ResolverScoreSnapshot snapshot = evaluation.CreateSnapshot(policy, names ?? Array.Empty<string>(), recordTypes ?? Array.Empty<DnsRecordType>(), attemptsPerCombination, maxConcurrency, timeoutMs);
+            snapshot.Summary.RuntimeUnsupportedCandidateCount = summary.RuntimeUnsupportedCandidateCount;
+            snapshot.Summary.RuntimeCapabilityWarnings = summary.RuntimeCapabilityWarnings;
+
             return new ResolverBenchmarkReport {
                 Results = results,
-                Summary = new ResolverBenchmarkReportSummary {
-                    Domains = names ?? Array.Empty<string>(),
-                    RecordTypes = recordTypes ?? Array.Empty<DnsRecordType>(),
-                    AttemptsPerCombination = attemptsPerCombination,
-                    MaxConcurrency = maxConcurrency,
-                    TimeoutMs = timeoutMs,
-                    CandidateCount = evaluation.CandidateCount,
-                    SuccessfulCandidates = evaluation.SuccessfulCandidates,
-                    OverallSuccessCount = evaluation.OverallSuccessCount,
-                    OverallQueryCount = evaluation.OverallQueryCount,
-                    OverallSuccessPercent = evaluation.OverallSuccessPercent,
-                    PolicyPassed = evaluation.PolicyPassed,
-                    PolicyReason = evaluation.PolicyReason,
-                    RequiredMinSuccessPercent = policy.MinSuccessPercent,
-                    RequiredMinSuccessfulCandidates = policy.MinSuccessfulCandidates,
-                    RecommendedTarget = evaluation.RecommendedTarget,
-                    RecommendedResolver = evaluation.RecommendedResolver,
-                    RecommendedTransport = evaluation.RecommendedTransport,
-                    RecommendedAverageMs = evaluation.RecommendedAverageMs,
-                    RecommendationAvailable = evaluation.RecommendationAvailable
-                },
+                Summary = summary,
                 Evaluation = evaluation,
-                Snapshot = evaluation.CreateSnapshot(policy, names ?? Array.Empty<string>(), recordTypes ?? Array.Empty<DnsRecordType>(), attemptsPerCombination, maxConcurrency, timeoutMs)
+                Snapshot = snapshot
             };
         }
     }

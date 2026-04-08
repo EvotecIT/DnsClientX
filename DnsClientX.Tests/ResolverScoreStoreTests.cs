@@ -22,7 +22,11 @@ namespace DnsClientX.Tests {
                         RecommendedTarget = "Cloudflare",
                         RecommendedResolver = "1.1.1.1:53",
                         RecommendedTransport = "Doh",
-                        RecommendedAverageMs = 7
+                        RecommendedAverageMs = 7,
+                        RuntimeUnsupportedCandidateCount = 1,
+                        RuntimeCapabilityWarnings = new[] {
+                            "Quad9DoH3: DNS over HTTP/3 is not supported on this runtime."
+                        }
                     },
                     Results = new[] {
                         new ResolverScoreEntry {
@@ -50,6 +54,8 @@ namespace DnsClientX.Tests {
                 Assert.Equal(ResolverScoreMode.Benchmark, loaded.Summary.Mode);
                 Assert.True(loaded.Summary.RecommendationAvailable);
                 Assert.Equal("Cloudflare", loaded.Summary.RecommendedTarget);
+                Assert.Equal(1, loaded.Summary.RuntimeUnsupportedCandidateCount);
+                Assert.Single(loaded.Summary.RuntimeCapabilityWarnings);
                 Assert.Single(loaded.Results);
                 Assert.Equal("Cloudflare", loaded.Results[0].Target);
                 Assert.True(loaded.Results[0].IsRecommended);

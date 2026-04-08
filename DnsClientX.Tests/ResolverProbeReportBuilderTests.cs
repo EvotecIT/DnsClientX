@@ -47,6 +47,8 @@ namespace DnsClientX.Tests {
                 new ResolverProbePolicy());
 
             Assert.Equal(DnsTransportCapabilities.Supports(DnsRequestFormat.DnsOverHttp3) ? 0 : 1, report.Summary.RuntimeUnsupportedCandidateCount);
+            Assert.Equal(report.Summary.RuntimeUnsupportedCandidateCount, report.Snapshot.Summary.RuntimeUnsupportedCandidateCount);
+            Assert.Equal(report.Summary.RuntimeCapabilityWarnings, report.Snapshot.Summary.RuntimeCapabilityWarnings);
             if (!DnsTransportCapabilities.Supports(DnsRequestFormat.DnsOverHttp3)) {
                 Assert.Contains(report.Summary.RuntimeCapabilityWarnings, warning => warning.Contains("doh3@dns.quad9.net:443", StringComparison.Ordinal));
             }

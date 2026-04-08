@@ -184,5 +184,15 @@ namespace DnsClientX {
         /// Gets or sets the reason why no recommendation was produced, or <c>none</c>.
         /// </summary>
         public string RecommendationReason { get; set; } = "none";
+
+        /// <summary>
+        /// Gets or sets the number of unique candidates whose configured transport was unsupported on the runtime that produced the snapshot.
+        /// </summary>
+        public int RuntimeUnsupportedCandidateCount { get; set; }
+
+        /// <summary>
+        /// Gets or sets human-readable runtime capability warnings captured during the scoring run.
+        /// </summary>
+        public string[] RuntimeCapabilityWarnings { get; set; } = Array.Empty<string>();
     }
 }
