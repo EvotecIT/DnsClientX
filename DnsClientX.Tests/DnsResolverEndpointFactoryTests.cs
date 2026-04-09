@@ -59,6 +59,16 @@ namespace DnsClientX.Tests {
             var odoh = DnsResolverEndpointFactory.From(DnsEndpoint.CloudflareOdoh);
             Assert.Single(odoh);
             Assert.Equal(DnsRequestFormat.ObliviousDnsOverHttps, odoh[0].RequestFormat);
+
+            var quad9Http3 = DnsResolverEndpointFactory.From(DnsEndpoint.Quad9Http3);
+            Assert.Single(quad9Http3);
+            Assert.Equal(DnsRequestFormat.DnsOverHttp3, quad9Http3[0].RequestFormat);
+            Assert.Equal(Transport.Doh, quad9Http3[0].Transport);
+
+            var quad9Quic = DnsResolverEndpointFactory.From(DnsEndpoint.Quad9Quic);
+            Assert.Single(quad9Quic);
+            Assert.Equal(DnsRequestFormat.DnsOverQuic, quad9Quic[0].RequestFormat);
+            Assert.Equal(Transport.Quic, quad9Quic[0].Transport);
         }
 
         /// <summary>

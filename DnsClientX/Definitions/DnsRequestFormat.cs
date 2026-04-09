@@ -44,6 +44,9 @@ namespace DnsClientX {
         /// <summary>
         /// DNS over QUIC, defined in <a href="https://www.rfc-editor.org/rfc/rfc9250">RFC 9250</a>.
         /// </summary>
+        /// <remarks>
+        /// Supported in the core package on .NET 8 and later when the active runtime exposes QUIC support.
+        /// </remarks>
         DnsOverQuic,
         /// <summary>
         /// DNS over HTTP/2 using wire format.
@@ -52,6 +55,9 @@ namespace DnsClientX {
         /// <summary>
         /// DNS over HTTP/3 using wire format.
         /// </summary>
+        /// <remarks>
+        /// Supported in the core package on .NET 8 and later without adding extra transport packages.
+        /// </remarks>
         DnsOverHttp3,
         /// <summary>
         /// DNS over DNSCrypt using wire format.

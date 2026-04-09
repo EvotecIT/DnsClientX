@@ -44,9 +44,24 @@ namespace DnsClientX {
         public string[] ResolverEndpoints { get; set; } = Array.Empty<string>();
 
         /// <summary>
+        /// Gets or sets file paths that contain resolver endpoints for the multi-resolver flow.
+        /// </summary>
+        public string[] ResolverEndpointFiles { get; set; } = Array.Empty<string>();
+
+        /// <summary>
+        /// Gets or sets URLs that expose resolver endpoints for the multi-resolver flow.
+        /// </summary>
+        public string[] ResolverEndpointUrls { get; set; } = Array.Empty<string>();
+
+        /// <summary>
         /// Gets or sets the provider inputs that should be expanded into multi-resolver endpoints.
         /// </summary>
         public DnsEndpoint[] ResolverDnsProviders { get; set; } = Array.Empty<DnsEndpoint>();
+
+        /// <summary>
+        /// Gets or sets an optional persisted resolver selection snapshot path.
+        /// </summary>
+        public string? ResolverSelectionPath { get; set; }
 
         /// <summary>
         /// Gets or sets the multi-resolver strategy.
@@ -169,6 +184,16 @@ namespace DnsClientX {
         public bool RequestNsid { get; set; }
 
         /// <summary>
+        /// Gets or sets the EDNS padding length in bytes.
+        /// </summary>
+        public int EdnsPaddingLength { get; set; }
+
+        /// <summary>
+        /// Gets or sets the EDNS cookie payload.
+        /// </summary>
+        public byte[]? EdnsCookie { get; set; }
+
+        /// <summary>
         /// Gets or sets the request format used by explicit server execution.
         /// </summary>
         public DnsRequestFormat RequestFormat { get; set; } = DnsRequestFormat.DnsOverUDP;
@@ -214,10 +239,18 @@ namespace DnsClientX {
         public int MaxConcurrency { get; set; }
 
         /// <summary>
+        /// Gets a value indicating whether inline, file, or URL resolver endpoint inputs were provided.
+        /// </summary>
+        public bool HasResolverEndpointInputs =>
+            ResolverEndpoints.Length > 0 ||
+            ResolverEndpointFiles.Length > 0 ||
+            ResolverEndpointUrls.Length > 0;
+
+        /// <summary>
         /// Gets a value indicating whether this request should execute through the multi-resolver.
         /// </summary>
         public bool IsMultiResolverRequest =>
-            ResolverEndpoints.Length > 0 ||
+            HasResolverEndpointInputs ||
             ResolverDnsProviders.Length > 0 ||
             DnsProviders.Length > 1;
 
@@ -260,10 +293,13 @@ namespace DnsClientX {
             if (Servers.Length > 0) {
                 configuredSources++;
             }
-            if (ResolverEndpoints.Length > 0) {
+            if (HasResolverEndpointInputs) {
                 configuredSources++;
             }
             if (ResolverDnsProviders.Length > 0) {
+                configuredSources++;
+            }
+            if (!string.IsNullOrWhiteSpace(ResolverSelectionPath)) {
                 configuredSources++;
             }
             if (DnsProviders.Length > 0) {
@@ -271,7 +307,7 @@ namespace DnsClientX {
             }
 
             if (configuredSources > 1) {
-                throw new InvalidOperationException("Specify only one resolver source: DnsProviders, Servers, ResolverEndpoints, or ResolverDnsProviders.");
+                throw new InvalidOperationException("Specify only one resolver source: DnsProviders, Servers, ResolverEndpoints/ResolverEndpointFiles/ResolverEndpointUrls, ResolverDnsProviders, or ResolverSelectionPath.");
             }
 
             if (TimeOutMilliseconds <= 0) {
@@ -300,6 +336,14 @@ namespace DnsClientX {
 
             if (EdnsBufferSize < 0 || EdnsBufferSize > ushort.MaxValue) {
                 throw new ArgumentOutOfRangeException(nameof(EdnsBufferSize), $"EdnsBufferSize must be between 0 and {ushort.MaxValue}.");
+            }
+
+            if (EdnsPaddingLength < 0 || EdnsPaddingLength > ushort.MaxValue) {
+                throw new ArgumentOutOfRangeException(nameof(EdnsPaddingLength), $"EdnsPaddingLength must be between 0 and {ushort.MaxValue}.");
+            }
+
+            if (EdnsCookie != null && !CookieOption.IsValidLength(EdnsCookie.Length)) {
+                throw new ArgumentException($"EdnsCookie length must be between {CookieOption.MinCookieLength} and {CookieOption.MaxCookieLength} bytes.", nameof(EdnsCookie));
             }
 
             if (Servers.Length == 0) {
@@ -344,13 +388,16 @@ namespace DnsClientX {
 
         internal EdnsOptions? CreateEdnsOptions() {
             bool hasSubnet = !string.IsNullOrWhiteSpace(ClientSubnet);
-            bool enableEdns = EnableEdns || hasSubnet || EdnsBufferSize > 0 || RequestNsid;
+            bool hasCookie = EdnsCookie is { Length: > 0 };
+            bool enableEdns = EnableEdns || hasSubnet || EdnsBufferSize > 0 || RequestNsid || EdnsPaddingLength > 0 || hasCookie;
             if (!enableEdns) {
                 return null;
             }
 
             var options = new EdnsOptions {
-                EnableEdns = true
+                EnableEdns = true,
+                PaddingLength = EdnsPaddingLength,
+                Cookie = EdnsCookie
             };
 
             if (EdnsBufferSize > 0) {

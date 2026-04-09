@@ -65,6 +65,10 @@ namespace DnsClientX {
                 throw new ArgumentNullException(nameof(response));
             }
 
+            if (IsTransportCapabilityFailure(response)) {
+                return false;
+            }
+
             if (response.Status == DnsResponseCode.ServerFailure) {
                 if (response.Answers != null && response.Answers.Length > 0) {
                     return false;
@@ -83,6 +87,27 @@ namespace DnsClientX {
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Determines whether a response failed because the configured transport is unavailable on the current runtime.
+        /// </summary>
+        /// <param name="response">Response to inspect.</param>
+        /// <returns><c>true</c> when the response represents an unsupported transport capability failure; otherwise <c>false</c>.</returns>
+        public static bool IsTransportCapabilityFailure(DnsResponse response) {
+            if (response is null) {
+                throw new ArgumentNullException(nameof(response));
+            }
+
+            if (response.Status != DnsResponseCode.NotImplemented) {
+                return false;
+            }
+
+            DnsRequestFormat requestFormat = response.Questions != null && response.Questions.Length > 0
+                ? response.Questions[0].RequestFormat
+                : DnsRequestFormat.DnsOverUDP;
+
+            return !DnsTransportCapabilities.Supports(requestFormat);
         }
 
         /// <summary>

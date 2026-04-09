@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -35,6 +37,11 @@ namespace DnsClientX.Tests {
         }
 
         private static void AssertEcsOption(byte[] query, string name) {
+            Dictionary<ushort, byte[]> options = ReadOptOptions(query, name);
+            Assert.True(options.ContainsKey(8));
+        }
+
+        private static Dictionary<ushort, byte[]> ReadOptOptions(byte[] query, string name) {
             int offset = 12;
             foreach (var label in name.Split('.')) {
                 offset += 1 + label.Length;
@@ -49,8 +56,21 @@ namespace DnsClientX.Tests {
             ushort rdlen = (ushort)((query[offset] << 8) | query[offset + 1]);
             Assert.True(rdlen > 0);
             offset += 2;
-            ushort optionCode = (ushort)((query[offset] << 8) | query[offset + 1]);
-            Assert.Equal(8, optionCode);
+
+            int end = offset + rdlen;
+            var options = new Dictionary<ushort, byte[]>();
+            while (offset < end) {
+                ushort optionCode = (ushort)((query[offset] << 8) | query[offset + 1]);
+                ushort optionLength = (ushort)((query[offset + 2] << 8) | query[offset + 3]);
+                offset += 4;
+
+                byte[] optionData = new byte[optionLength];
+                Array.Copy(query, offset, optionData, 0, optionLength);
+                options[optionCode] = optionData;
+                offset += optionLength;
+            }
+
+            return options;
         }
 
         /// <summary>
@@ -81,6 +101,48 @@ namespace DnsClientX.Tests {
             byte[] query = await udpTask;
 
             AssertEcsOption(query, "example.com");
+        }
+
+        /// <summary>
+        /// Ensures padding and cookie options are serialized when configured.
+        /// </summary>
+        [Fact]
+        public async Task UdpRequest_ShouldIncludePaddingAndCookie_WhenOptionsConfigured() {
+            int port = GetFreePort();
+            var response = CreateDnsHeader();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var udpTask = RunUdpServerAsync(port, response, cts.Token);
+            byte[] cookie = { 1, 2, 3, 4, 5, 6, 7, 8 };
+
+            var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
+                Port = port,
+                EdnsOptions = new EdnsOptions {
+                    EnableEdns = true,
+                    PaddingLength = 12,
+                    Cookie = cookie
+                }
+            };
+
+            await DnsWireResolveUdp.ResolveWireFormatUdp(
+                "127.0.0.1",
+                port,
+                "example.com",
+                DnsRecordType.A,
+                requestDnsSec: false,
+                validateDnsSec: false,
+                debug: false,
+                config,
+                1,
+                cts.Token);
+
+            byte[] query = await udpTask;
+            Dictionary<ushort, byte[]> options = ReadOptOptions(query, "example.com");
+
+            Assert.True(options.ContainsKey(10));
+            Assert.True(options.ContainsKey(12));
+            Assert.Equal(cookie, options[10]);
+            Assert.Equal(12, options[12].Length);
+            Assert.All(options[12], value => Assert.Equal(0, value));
         }
 
         /// <summary>

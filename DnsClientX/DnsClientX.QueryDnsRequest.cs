@@ -42,6 +42,10 @@ namespace DnsClientX {
             string[] namesToUse = request.GetExpandedNames();
             var ednsOptions = request.CreateEdnsOptions();
 
+            if (!string.IsNullOrWhiteSpace(request.ResolverSelectionPath)) {
+                return await ExecuteSelectionAsync(request, namesToUse, ednsOptions, cancellationToken).ConfigureAwait(false);
+            }
+
             if (request.IsMultiResolverRequest) {
                 return await ExecuteMultiResolverAsync(request, namesToUse, ednsOptions, cancellationToken).ConfigureAwait(false);
             }
@@ -53,8 +57,24 @@ namespace DnsClientX {
             return await ExecuteProviderAsync(request, namesToUse, ednsOptions, cancellationToken).ConfigureAwait(false);
         }
 
+        private static async Task<DnsResponse[]> ExecuteSelectionAsync(ResolveDnsRequest request, string[] namesToUse, EdnsOptions? ednsOptions, CancellationToken cancellationToken) {
+            ResolverExecutionTarget target = await ResolverExecutionTargetResolver.ResolveSingleAsync(new ResolverExecutionTargetSource {
+                ResolverSelectionPath = request.ResolverSelectionPath
+            }, cancellationToken).ConfigureAwait(false);
+
+            if (target.ExplicitEndpoint != null) {
+                return await ExecuteExplicitEndpointAsync(request, target.ExplicitEndpoint, namesToUse, ednsOptions, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (target.BuiltInEndpoint.HasValue) {
+                return await ExecuteProviderAsync(request, namesToUse, ednsOptions, target.BuiltInEndpoint.Value, cancellationToken).ConfigureAwait(false);
+            }
+
+            throw new InvalidOperationException("Resolver selection did not resolve to a runnable target.");
+        }
+
         private static async Task<DnsResponse[]> ExecuteMultiResolverAsync(ResolveDnsRequest request, string[] namesToUse, EdnsOptions? ednsOptions, CancellationToken cancellationToken) {
-            DnsResolverEndpoint[] endpoints = ExpandMultiResolverEndpoints(request);
+            DnsResolverEndpoint[] endpoints = await ExpandMultiResolverEndpointsAsync(request, cancellationToken).ConfigureAwait(false);
             if (endpoints.Length == 0) {
                 throw new InvalidOperationException("No endpoints were produced from the specified resolver inputs.");
             }
@@ -146,6 +166,10 @@ namespace DnsClientX {
 
         private static async Task<DnsResponse[]> ExecuteProviderAsync(ResolveDnsRequest request, string[] namesToUse, EdnsOptions? ednsOptions, CancellationToken cancellationToken) {
             DnsEndpoint provider = request.DnsProviders.Length == 0 ? DnsEndpoint.System : request.DnsProviders[0];
+            return await ExecuteProviderAsync(request, namesToUse, ednsOptions, provider, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task<DnsResponse[]> ExecuteProviderAsync(ResolveDnsRequest request, string[] namesToUse, EdnsOptions? ednsOptions, DnsEndpoint provider, CancellationToken cancellationToken) {
             if (provider == DnsEndpoint.RootServer) {
                 return await ExecuteWithRetryAsync(request, async () => {
                     var responses = new List<DnsResponse>();
@@ -177,7 +201,19 @@ namespace DnsClientX {
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        private static async Task<DnsResponse[]> QueryWithRequestAsync(ClientX client, ResolveDnsRequest request, string[] namesToUse, CancellationToken cancellationToken) {
+        private static async Task<DnsResponse[]> ExecuteExplicitEndpointAsync(ResolveDnsRequest request, DnsResolverEndpoint endpoint, string[] namesToUse, EdnsOptions? ednsOptions, CancellationToken cancellationToken) {
+            return await ExecuteWithRetryAsync(request, async () => {
+                using var client = CreateClientForEndpoint(request, endpoint, ednsOptions);
+                return await QueryWithRequestAsync(
+                    client,
+                    request,
+                    namesToUse,
+                    cancellationToken,
+                    requestDnsSecOverride: request.ShouldRequestDnsSec || endpoint.DnsSecOk == true).ConfigureAwait(false);
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task<DnsResponse[]> QueryWithRequestAsync(ClientX client, ResolveDnsRequest request, string[] namesToUse, CancellationToken cancellationToken, bool? requestDnsSecOverride = null) {
             var overrideHandler = QueryDnsRequestOverride;
             if (overrideHandler != null) {
                 var overridden = new List<DnsResponse>();
@@ -193,7 +229,7 @@ namespace DnsClientX {
                 var result = await client.Resolve(
                     namesToUse,
                     recordType,
-                    requestDnsSec: request.ShouldRequestDnsSec,
+                    requestDnsSec: requestDnsSecOverride ?? request.ShouldRequestDnsSec,
                     validateDnsSec: request.ShouldValidateDnsSec,
                     returnAllTypes: false,
                     retryOnTransient: false,
@@ -289,6 +325,58 @@ namespace DnsClientX {
             return client;
         }
 
+        private static ClientX CreateClientForEndpoint(ResolveDnsRequest request, DnsResolverEndpoint endpoint, EdnsOptions? ednsOptions) {
+            var client = CreateConfiguredEndpointClient(request, endpoint);
+            ApplyRequestConfiguration(client, request, ednsOptions);
+            client.EndpointConfiguration.UseTcpFallback = request.UseTcpFallback && endpoint.AllowTcpFallback;
+            if (endpoint.EdnsBufferSize.HasValue) {
+                client.EndpointConfiguration.UdpBufferSize = endpoint.EdnsBufferSize.Value;
+            }
+
+            if (endpoint.Timeout.HasValue) {
+                client.EndpointConfiguration.TimeOut = (int)Math.Max(1, endpoint.Timeout.Value.TotalMilliseconds);
+            }
+
+            if (endpoint.Transport != Transport.Doh) {
+                client.EndpointConfiguration.Port = endpoint.Port;
+            }
+
+            return client;
+        }
+
+        private static ClientX CreateConfiguredEndpointClient(ResolveDnsRequest request, DnsResolverEndpoint endpoint) {
+            DnsRequestFormat requestFormat = endpoint.RequestFormat ?? DnsRequestFormatMapper.FromTransport(endpoint.Transport);
+            if (ResolverEndpointClientFactory.IsUriBasedRequestFormat(requestFormat) || endpoint.Transport == Transport.Doh || endpoint.DohUrl != null) {
+                return new ClientX(
+                    EndpointParser.BuildDohUri(endpoint),
+                    requestFormat,
+                    timeOutMilliseconds: request.TimeOutMilliseconds,
+                    userAgent: request.UserAgent,
+                    httpVersion: request.HttpVersion,
+                    ignoreCertificateErrors: request.IgnoreCertificateErrors,
+                    enableCache: false,
+                    useTcpFallback: request.UseTcpFallback && endpoint.AllowTcpFallback,
+                    webProxy: request.CreateWebProxy(),
+                    maxConnectionsPerServer: request.EffectiveMaxConnectionsPerServer);
+            }
+
+            if (string.IsNullOrWhiteSpace(endpoint.Host)) {
+                throw new ArgumentException("Resolver endpoint requires Host.", nameof(endpoint));
+            }
+
+            return new ClientX(
+                endpoint.Host!,
+                requestFormat,
+                timeOutMilliseconds: request.TimeOutMilliseconds,
+                userAgent: request.UserAgent,
+                httpVersion: request.HttpVersion,
+                ignoreCertificateErrors: request.IgnoreCertificateErrors,
+                enableCache: false,
+                useTcpFallback: request.UseTcpFallback && endpoint.AllowTcpFallback,
+                webProxy: request.CreateWebProxy(),
+                maxConnectionsPerServer: request.EffectiveMaxConnectionsPerServer);
+        }
+
         private static void ApplyRequestConfiguration(ClientX client, ResolveDnsRequest request, EdnsOptions? ednsOptions) {
             client.EndpointConfiguration.TimeOut = request.TimeOutMilliseconds;
             client.EndpointConfiguration.CheckingDisabled = request.CheckingDisabled;
@@ -298,9 +386,13 @@ namespace DnsClientX {
             }
         }
 
-        private static DnsResolverEndpoint[] ExpandMultiResolverEndpoints(ResolveDnsRequest request) {
-            if (request.ResolverEndpoints.Length > 0) {
-                var endpoints = EndpointParser.TryParseMany(request.ResolverEndpoints, out var errors);
+        private static async Task<DnsResolverEndpoint[]> ExpandMultiResolverEndpointsAsync(ResolveDnsRequest request, CancellationToken cancellationToken) {
+            if (request.HasResolverEndpointInputs) {
+                var (endpoints, errors) = await EndpointParser.TryParseManyAsync(
+                    request.ResolverEndpoints,
+                    request.ResolverEndpointFiles,
+                    request.ResolverEndpointUrls,
+                    cancellationToken).ConfigureAwait(false);
                 if (errors.Count > 0) {
                     throw new ArgumentException(string.Join("; ", errors), nameof(request.ResolverEndpoints));
                 }

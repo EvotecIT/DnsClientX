@@ -251,6 +251,16 @@ namespace DnsClientX.PowerShell {
         /// Indicates whether a recommendation is available under the current policy.
         /// </summary>
         public bool RecommendationAvailable { get; set; }
+
+        /// <summary>
+        /// Number of unique candidates blocked by runtime transport support.
+        /// </summary>
+        public int RuntimeUnsupportedCandidateCount { get; set; }
+
+        /// <summary>
+        /// Runtime capability warnings captured during the benchmark run.
+        /// </summary>
+        public string[] RuntimeCapabilityWarnings { get; set; } = Array.Empty<string>();
     }
 
     /// <summary>
@@ -263,6 +273,10 @@ namespace DnsClientX.PowerShell {
     /// <example>
     ///   <para>Benchmark a custom resolver matrix across domains and record types</para>
     ///   <code>Test-DnsBenchmark -Name example.com,microsoft.com -Type A,AAAA -ResolverEndpoint 'udp@1.1.1.1:53','tcp@9.9.9.9:53' -Attempts 3 -MaxConcurrency 8</code>
+    /// </example>
+    /// <example>
+    ///   <para>Benchmark modern transports without changing the core package graph</para>
+    ///   <code>Test-DnsBenchmark -Name example.com -ResolverEndpoint 'doq@dns.quad9.net:853','doh3@https://dns.quad9.net/dns-query' -Attempts 2 -SummaryOnly</code>
     /// </example>
     /// <example>
     ///   <para>Require strong benchmark health before recommending a winner</para>
@@ -280,43 +294,24 @@ namespace DnsClientX.PowerShell {
     ///   <para>Benchmark explicit endpoints and keep only the recommended summary for automation</para>
     ///   <code>Test-DnsBenchmark -Name example.com,microsoft.com -Type A,AAAA -ResolverEndpoint 'udp@1.1.1.1:53','tcp@9.9.9.9:53' -Attempts 2 -SummaryOnly</code>
     /// </example>
+    /// <example>
+    ///   <para>Reuse the recommended resolver from a saved score snapshot as the single benchmark candidate</para>
+    ///   <code>Test-DnsBenchmark -Name example.com -ResolverSelectionPath '.\resolver-score.json' -Attempts 3 -SummaryOnly</code>
+    /// </example>
+    /// <example>
+    ///   <para>Benchmark resolvers and persist the scored recommendation snapshot for later reuse</para>
+    ///   <code>Test-DnsBenchmark -Name example.com -DnsProvider Cloudflare,Google -Attempts 3 -SavePath '.\resolver-score.json' -IncludeSummary</code>
+    /// </example>
     /// </summary>
     [Cmdlet(VerbsDiagnostic.Test, "DnsBenchmark", DefaultParameterSetName = "DnsProvider")]
     [OutputType(typeof(DnsBenchmarkResult), typeof(DnsBenchmarkSummary))]
     public sealed class CmdletTestDnsBenchmark : AsyncPSCmdlet {
-        private sealed class BenchmarkCandidate {
-            public string DisplayName { get; set; } = string.Empty;
-            public Func<string, DnsRecordType, CancellationToken, Task<BenchmarkAttemptResult>> Runner { get; set; } = null!;
-        }
-
-        private sealed class BenchmarkAttemptEnvelope {
-            public int CandidateIndex { get; set; }
-            public BenchmarkAttemptResult Attempt { get; set; } = null!;
-        }
-
-        private sealed class BenchmarkAttemptResult {
-            public bool Succeeded { get; set; }
-            public TimeSpan Elapsed { get; set; }
-            public string Resolver { get; set; } = "none";
-            public string Transport { get; set; } = "none";
-            public string AnswerSignature { get; set; } = "(no answers)";
-        }
-
-        private sealed class BenchmarkPolicyOutcome {
-            public bool Passed { get; set; }
-            public string Reason { get; set; } = "none";
-        }
-
-        private sealed class BenchmarkRunResult {
-            public DnsBenchmarkResult[] RankedResults { get; set; } = Array.Empty<DnsBenchmarkResult>();
-            public DnsBenchmarkSummary Summary { get; set; } = new DnsBenchmarkSummary();
-        }
-
         /// <summary>
         /// Domain names to benchmark.
         /// </summary>
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ResolverSelection")]
         public string[] Name { get; set; } = Array.Empty<string>();
 
         /// <summary>
@@ -324,6 +319,7 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Parameter(Mandatory = false, Position = 1, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, Position = 1, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = false, Position = 1, ParameterSetName = "ResolverSelection")]
         public DnsRecordType[] Type { get; set; } = [DnsRecordType.A];
 
         /// <summary>
@@ -335,14 +331,33 @@ namespace DnsClientX.PowerShell {
         /// <summary>
         /// Explicit resolver endpoint candidates to benchmark.
         /// </summary>
-        [Parameter(Mandatory = true, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
         public string[] ResolverEndpoint { get; set; } = Array.Empty<string>();
+
+        /// <summary>
+        /// Files containing resolver endpoint candidates to benchmark.
+        /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
+        public string[] ResolverEndpointFile { get; set; } = Array.Empty<string>();
+
+        /// <summary>
+        /// HTTP or HTTPS URLs exposing resolver endpoint candidates to benchmark.
+        /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
+        public string[] ResolverEndpointUrl { get; set; } = Array.Empty<string>();
+
+        /// <summary>
+        /// Path to a saved resolver score snapshot whose recommended resolver should be reused as the single benchmark candidate.
+        /// </summary>
+        [Parameter(Mandatory = true, ParameterSetName = "ResolverSelection")]
+        public string ResolverSelectionPath { get; set; } = string.Empty;
 
         /// <summary>
         /// Number of attempts per domain/type combination.
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
         public int Attempts { get; set; } = 3;
 
         /// <summary>
@@ -350,6 +365,7 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
         public int MaxConcurrency { get; set; } = 4;
 
         /// <summary>
@@ -357,6 +373,7 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
         public int TimeOut { get; set; } = Configuration.DefaultTimeout;
 
         /// <summary>
@@ -364,6 +381,7 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
         public SwitchParameter RequestDnsSec { get; set; }
 
         /// <summary>
@@ -371,6 +389,7 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
         public SwitchParameter ValidateDnsSec { get; set; }
 
         /// <summary>
@@ -378,6 +397,7 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
         public int? MinSuccessPercent { get; set; }
 
         /// <summary>
@@ -385,6 +405,7 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
         public int? MinSuccessfulCandidates { get; set; }
 
         /// <summary>
@@ -392,6 +413,7 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
         public SwitchParameter IncludeSummary { get; set; }
 
         /// <summary>
@@ -399,7 +421,16 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
         public SwitchParameter SummaryOnly { get; set; }
+
+        /// <summary>
+        /// Optional path where the benchmark score snapshot should be saved for later selection and reuse.
+        /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
+        [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
+        public string SavePath { get; set; } = string.Empty;
 
         /// <inheritdoc />
         protected override async Task ProcessRecordAsync() {
@@ -418,7 +449,8 @@ namespace DnsClientX.PowerShell {
                 ? [DnsRecordType.A]
                 : Type.Distinct().ToArray();
 
-            BenchmarkCandidate[] candidates = CreateCandidates();
+            ResolverExecutionTargetSource targetSource = CreateTargetSource();
+            ResolverExecutionTarget[] candidates = await ResolverExecutionTargetResolver.ResolveAsync(targetSource, CancelToken).ConfigureAwait(false);
             if (candidates.Length == 0) {
                 WriteWarning("No benchmark candidates were produced from the supplied input.");
                 return;
@@ -426,13 +458,24 @@ namespace DnsClientX.PowerShell {
 
             WriteVerbose($"Benchmarking {candidates.Length} candidate(s) across {names.Length} domain(s), {recordTypes.Length} record type(s), and {Attempts} attempt(s) per combination.");
 
-            BenchmarkRunResult report = await RunBenchmarkAsync(candidates, names, recordTypes, CancelToken).ConfigureAwait(false);
+            ResolverBenchmarkReport report = await RunBenchmarkAsync(candidates, names, recordTypes, CancelToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(SavePath)) {
+                ResolverScoreStore.Save(SavePath, report.Snapshot);
+                WriteVerbose($"Saved resolver score snapshot to {SavePath}.");
+            }
             if (!SummaryOnly.IsPresent) {
-                WriteObject(report.RankedResults, true);
+                WriteObject(report.Results.Select(ToDnsBenchmarkResult).ToArray(), true);
             }
             if (IncludeSummary.IsPresent) {
-                WriteObject(report.Summary);
+                WriteObject(ToDnsBenchmarkSummary(report.Summary));
             }
+        }
+
+        private ResolverBenchmarkPolicy CreateBenchmarkPolicy() {
+            return new ResolverBenchmarkPolicy {
+                MinSuccessPercent = MinSuccessPercent,
+                MinSuccessfulCandidates = MinSuccessfulCandidates
+            };
         }
 
         private void ValidateParameters() {
@@ -459,312 +502,138 @@ namespace DnsClientX.PowerShell {
             if (SummaryOnly.IsPresent) {
                 IncludeSummary = true;
             }
+
+            if (ParameterSetName == "ResolverEndpoint" &&
+                (ResolverEndpoint?.Length ?? 0) == 0 &&
+                (ResolverEndpointFile?.Length ?? 0) == 0 &&
+                (ResolverEndpointUrl?.Length ?? 0) == 0) {
+                throw new PSArgumentException(
+                    "At least one resolver endpoint, resolver endpoint file, or resolver endpoint URL must be specified.",
+                    nameof(ResolverEndpoint));
+            }
         }
 
-        private BenchmarkCandidate[] CreateCandidates() {
+        private ResolverExecutionTargetSource CreateTargetSource() {
+            if (ParameterSetName == "ResolverSelection") {
+                return new ResolverExecutionTargetSource {
+                    ResolverSelectionPath = ResolverSelectionPath
+                };
+            }
+
             if (ParameterSetName == "ResolverEndpoint") {
-                DnsResolverEndpoint[] endpoints = EndpointParser.TryParseMany(
-                    ResolverEndpoint.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()),
-                    out IReadOnlyList<string> errors);
-
-                if (errors.Count > 0) {
-                    throw new PSArgumentException(string.Join("; ", errors), nameof(ResolverEndpoint));
-                }
-
-                return endpoints
-                    .GroupBy(DescribeEndpoint, StringComparer.OrdinalIgnoreCase)
-                    .Select(group => group.First())
-                    .Select(endpoint => new BenchmarkCandidate {
-                        DisplayName = DescribeEndpoint(endpoint),
-                        Runner = (name, type, token) => BenchmarkEndpointAsync(endpoint, name, type, token)
-                    })
-                    .ToArray();
+                return new ResolverExecutionTargetSource {
+                    ResolverEndpoints = ResolverEndpoint.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()).ToArray(),
+                    ResolverEndpointFiles = ResolverEndpointFile,
+                    ResolverEndpointUrls = ResolverEndpointUrl
+                };
             }
 
-            return DnsProvider
-                .Distinct()
-                .Select(endpoint => new BenchmarkCandidate {
-                    DisplayName = endpoint.ToString(),
-                    Runner = (name, type, token) => BenchmarkEndpointAsync(endpoint, name, type, token)
-                })
-                .ToArray();
+            return new ResolverExecutionTargetSource {
+                BuiltInEndpoints = DnsProvider.Distinct().ToArray()
+            };
         }
 
-        private async Task<BenchmarkRunResult> RunBenchmarkAsync(IReadOnlyList<BenchmarkCandidate> candidates, string[] names, DnsRecordType[] recordTypes, CancellationToken cancellationToken) {
-            int totalQueries = candidates.Count * names.Length * recordTypes.Length * Attempts;
-            int completed = 0;
-            using var semaphore = new SemaphoreSlim(MaxConcurrency);
-            var tasks = new List<Task<BenchmarkAttemptEnvelope>>(totalQueries);
-
-            for (int candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++) {
-                BenchmarkCandidate candidate = candidates[candidateIndex];
-                foreach (string name in names) {
-                    foreach (DnsRecordType recordType in recordTypes) {
-                        for (int attempt = 0; attempt < Attempts; attempt++) {
-                            tasks.Add(RunBenchmarkAttemptAsync(candidateIndex, candidate, name, recordType, semaphore, totalQueries, () => Interlocked.Increment(ref completed), cancellationToken));
-                        }
-                    }
-                }
-            }
-
-            BenchmarkAttemptEnvelope[] attempts = await Task.WhenAll(tasks).ConfigureAwait(false);
+        private async Task<ResolverBenchmarkReport> RunBenchmarkAsync(IReadOnlyList<ResolverExecutionTarget> candidates, string[] names, DnsRecordType[] recordTypes, CancellationToken cancellationToken) {
+            ResolverBenchmarkReport report = await ResolverBenchmarkWorkflow.RunAsync(
+                candidates,
+                names,
+                recordTypes,
+                Attempts,
+                MaxConcurrency,
+                TimeOut,
+                CreateQueryRunOptions(),
+                CreateBenchmarkPolicy(),
+                progress: (completed, total) => {
+                    int percent = total == 0
+                        ? 100
+                        : (int)Math.Round((double)completed * 100 / total, MidpointRounding.AwayFromZero);
+                    WriteProgress(new ProgressRecord(1, "Testing DNS benchmark candidates", $"{completed}/{total} queries completed") {
+                        PercentComplete = percent
+                    });
+                },
+                cancellationToken: cancellationToken).ConfigureAwait(false);
             WriteProgress(new ProgressRecord(1, "Testing DNS benchmark candidates", "Completed") {
                 PercentComplete = 100,
                 RecordType = ProgressRecordType.Completed
             });
 
-            var results = new List<DnsBenchmarkResult>(candidates.Count);
-            foreach (var group in attempts.GroupBy(item => item.CandidateIndex).OrderBy(group => group.Key)) {
-                BenchmarkCandidate candidate = candidates[group.Key];
-                results.Add(BuildResult(candidate.DisplayName, group.Select(item => item.Attempt).ToArray(), names, recordTypes));
-            }
-
-            DnsBenchmarkResult[] ranked = results
-                .OrderByDescending(result => result.SuccessPercent)
-                .ThenBy(result => result.SuccessCount == 0 ? double.MaxValue : result.AverageMs)
-                .ThenBy(result => result.Target, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-
-            DnsBenchmarkResult? best = ranked.FirstOrDefault(result => result.SuccessCount > 0);
-            BenchmarkPolicyOutcome policy = EvaluatePolicy(ranked);
-            int successfulCandidates = ranked.Count(result => result.SuccessCount > 0);
-            int successfulQueries = ranked.Sum(result => result.SuccessCount);
-            int overallQueryCount = ranked.Sum(result => result.TotalQueries);
-            int overallSuccessPercent = overallQueryCount == 0
-                ? 0
-                : (int)Math.Round((double)successfulQueries * 100 / overallQueryCount, MidpointRounding.AwayFromZero);
-
-            if (!policy.Passed) {
-                WriteWarning($"Benchmark policy failed: {policy.Reason}");
+            if (!report.Evaluation.PolicyPassed) {
+                WriteWarning($"Benchmark policy failed: {report.Evaluation.PolicyReason}");
             } else {
                 WriteVerbose("Benchmark policy passed.");
             }
 
-            for (int i = 0; i < ranked.Length; i++) {
-                ranked[i].Rank = i + 1;
-                ranked[i].IsBest = best != null && string.Equals(ranked[i].Target, best.Target, StringComparison.OrdinalIgnoreCase);
-                ranked[i].IsRecommended = policy.Passed && ranked[i].IsBest;
-                ranked[i].PolicyPassed = policy.Passed;
-                ranked[i].PolicyReason = policy.Passed ? "none" : policy.Reason;
-                ranked[i].CandidateCount = ranked.Length;
-                ranked[i].SuccessfulCandidates = successfulCandidates;
-                ranked[i].OverallSuccessPercent = overallSuccessPercent;
-                ranked[i].OverallSuccessCount = successfulQueries;
-                ranked[i].OverallQueryCount = overallQueryCount;
-            }
+            return report;
+        }
 
-            return new BenchmarkRunResult {
-                RankedResults = ranked,
-                Summary = new DnsBenchmarkSummary {
-                    Domains = names,
-                    RecordTypes = recordTypes,
-                    AttemptsPerCombination = Attempts,
-                    MaxConcurrency = MaxConcurrency,
-                    TimeoutMs = TimeOut,
-                    CandidateCount = ranked.Length,
-                    SuccessfulCandidates = successfulCandidates,
-                    OverallSuccessCount = successfulQueries,
-                    OverallQueryCount = overallQueryCount,
-                    OverallSuccessPercent = overallSuccessPercent,
-                    PolicyPassed = policy.Passed,
-                    PolicyReason = policy.Passed ? "none" : policy.Reason,
-                    RequiredMinSuccessPercent = MinSuccessPercent,
-                    RequiredMinSuccessfulCandidates = MinSuccessfulCandidates,
-                    RecommendedTarget = best?.Target ?? "none",
-                    RecommendedResolver = best?.Resolver ?? "none",
-                    RecommendedTransport = best?.Transport ?? "none",
-                    RecommendedAverageMs = best?.AverageMs ?? 0,
-                    RecommendationAvailable = policy.Passed && best != null
-                }
+        private ResolverQueryRunOptions CreateQueryRunOptions() {
+            return new ResolverQueryRunOptions {
+                TimeoutMs = TimeOut,
+                RequestDnsSec = RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent,
+                ValidateDnsSec = ValidateDnsSec.IsPresent,
+                MaxRetries = 1,
+                RetryDelayMs = 0
             };
         }
 
-        private async Task<BenchmarkAttemptEnvelope> RunBenchmarkAttemptAsync(int candidateIndex, BenchmarkCandidate candidate, string name, DnsRecordType recordType, SemaphoreSlim semaphore, int totalQueries, Func<int> markCompleted, CancellationToken cancellationToken) {
-            await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try {
-                BenchmarkAttemptResult result = await candidate.Runner(name, recordType, cancellationToken).ConfigureAwait(false);
-                return new BenchmarkAttemptEnvelope {
-                    CandidateIndex = candidateIndex,
-                    Attempt = result
-                };
-            } finally {
-                int finished = markCompleted();
-                int percent = totalQueries == 0
-                    ? 100
-                    : (int)Math.Round((double)finished * 100 / totalQueries, MidpointRounding.AwayFromZero);
-                WriteProgress(new ProgressRecord(1, "Testing DNS benchmark candidates", $"{finished}/{totalQueries} queries completed") {
-                    PercentComplete = percent
-                });
-                semaphore.Release();
-            }
-        }
-
-        private DnsBenchmarkResult BuildResult(string displayName, IReadOnlyList<BenchmarkAttemptResult> attempts, string[] names, DnsRecordType[] recordTypes) {
-            BenchmarkAttemptResult[] successful = attempts.Where(result => result.Succeeded).ToArray();
-            BenchmarkAttemptResult? fastest = successful
-                .OrderBy(result => result.Elapsed)
-                .FirstOrDefault();
-            int totalQueries = attempts.Count;
-            int successCount = successful.Length;
-            int failureCount = totalQueries - successCount;
-            int successPercent = totalQueries == 0
-                ? 0
-                : (int)Math.Round((double)successCount * 100 / totalQueries, MidpointRounding.AwayFromZero);
-
+        private static DnsBenchmarkResult ToDnsBenchmarkResult(ResolverBenchmarkReportResult result) {
             return new DnsBenchmarkResult {
-                Target = displayName,
-                Resolver = fastest?.Resolver ?? "none",
-                Transport = fastest?.Transport ?? "none",
-                Domains = names,
-                RecordTypes = recordTypes,
-                AttemptsPerCombination = Attempts,
-                TotalQueries = totalQueries,
-                SuccessCount = successCount,
-                FailureCount = failureCount,
-                SuccessPercent = successPercent,
-                AverageMs = successCount == 0 ? 0 : Math.Round(successful.Average(result => result.Elapsed.TotalMilliseconds), 2, MidpointRounding.AwayFromZero),
-                MinMs = successCount == 0 ? 0 : Math.Round(successful.Min(result => result.Elapsed.TotalMilliseconds), 2, MidpointRounding.AwayFromZero),
-                MaxMs = successCount == 0 ? 0 : Math.Round(successful.Max(result => result.Elapsed.TotalMilliseconds), 2, MidpointRounding.AwayFromZero),
-                DistinctAnswerSets = successCount == 0 ? 0 : successful.GroupBy(result => result.AnswerSignature, StringComparer.Ordinal).Count()
+                Target = result.Target,
+                Resolver = result.Resolver,
+                Transport = result.Transport,
+                Domains = result.Domains,
+                RecordTypes = result.RecordTypes,
+                AttemptsPerCombination = result.AttemptsPerCombination,
+                MaxConcurrency = result.MaxConcurrency,
+                TimeoutMs = result.TimeoutMs,
+                TotalQueries = result.TotalQueries,
+                SuccessCount = result.SuccessCount,
+                FailureCount = result.FailureCount,
+                SuccessPercent = result.SuccessPercent,
+                AverageMs = result.AverageMs,
+                MinMs = result.MinMs,
+                MaxMs = result.MaxMs,
+                DistinctAnswerSets = result.DistinctAnswerSets,
+                Rank = result.Rank,
+                IsBest = result.IsBest,
+                IsRecommended = result.IsRecommended,
+                PolicyPassed = result.PolicyPassed,
+                PolicyReason = result.PolicyReason,
+                RequiredMinSuccessPercent = result.RequiredMinSuccessPercent,
+                RequiredMinSuccessfulCandidates = result.RequiredMinSuccessfulCandidates,
+                CandidateCount = result.CandidateCount,
+                SuccessfulCandidates = result.SuccessfulCandidates,
+                OverallSuccessPercent = result.OverallSuccessPercent,
+                OverallSuccessCount = result.OverallSuccessCount,
+                OverallQueryCount = result.OverallQueryCount
             };
         }
 
-        private BenchmarkPolicyOutcome EvaluatePolicy(IReadOnlyList<DnsBenchmarkResult> results) {
-            int successfulCandidates = results.Count(result => result.SuccessCount > 0);
-            int totalQueries = results.Sum(result => result.TotalQueries);
-            int successfulQueries = results.Sum(result => result.SuccessCount);
-            int successPercent = totalQueries == 0
-                ? 0
-                : (int)Math.Round((double)successfulQueries * 100 / totalQueries, MidpointRounding.AwayFromZero);
-
-            if (successfulCandidates == 0) {
-                return new BenchmarkPolicyOutcome {
-                    Passed = false,
-                    Reason = "no successful candidates"
-                };
-            }
-
-            if (MinSuccessfulCandidates.HasValue && successfulCandidates < MinSuccessfulCandidates.Value) {
-                return new BenchmarkPolicyOutcome {
-                    Passed = false,
-                    Reason = $"successful candidates {successfulCandidates}/{results.Count} below required count {MinSuccessfulCandidates.Value}"
-                };
-            }
-
-            if (MinSuccessPercent.HasValue && successPercent < MinSuccessPercent.Value) {
-                return new BenchmarkPolicyOutcome {
-                    Passed = false,
-                    Reason = $"success rate {successPercent}% below required {MinSuccessPercent.Value}%"
-                };
-            }
-
-            return new BenchmarkPolicyOutcome {
-                Passed = true
+        private static DnsBenchmarkSummary ToDnsBenchmarkSummary(ResolverBenchmarkReportSummary summary) {
+            return new DnsBenchmarkSummary {
+                Domains = summary.Domains,
+                RecordTypes = summary.RecordTypes,
+                AttemptsPerCombination = summary.AttemptsPerCombination,
+                MaxConcurrency = summary.MaxConcurrency,
+                TimeoutMs = summary.TimeoutMs,
+                CandidateCount = summary.CandidateCount,
+                SuccessfulCandidates = summary.SuccessfulCandidates,
+                OverallSuccessCount = summary.OverallSuccessCount,
+                OverallQueryCount = summary.OverallQueryCount,
+                OverallSuccessPercent = summary.OverallSuccessPercent,
+                PolicyPassed = summary.PolicyPassed,
+                PolicyReason = summary.PolicyReason,
+                RequiredMinSuccessPercent = summary.RequiredMinSuccessPercent,
+                RequiredMinSuccessfulCandidates = summary.RequiredMinSuccessfulCandidates,
+                RecommendedTarget = summary.RecommendedTarget,
+                RecommendedResolver = summary.RecommendedResolver,
+                RecommendedTransport = summary.RecommendedTransport,
+                RecommendedAverageMs = summary.RecommendedAverageMs,
+                RecommendationAvailable = summary.RecommendationAvailable,
+                RuntimeUnsupportedCandidateCount = summary.RuntimeUnsupportedCandidateCount,
+                RuntimeCapabilityWarnings = summary.RuntimeCapabilityWarnings
             };
         }
 
-        private async Task<BenchmarkAttemptResult> BenchmarkEndpointAsync(DnsEndpoint endpoint, string name, DnsRecordType recordType, CancellationToken cancellationToken) {
-            using var client = new ClientX(endpoint);
-            ConfigureClient(client);
-            return await ExecuteAttemptAsync(client, name, recordType, cancellationToken).ConfigureAwait(false);
-        }
-
-        private async Task<BenchmarkAttemptResult> BenchmarkEndpointAsync(DnsResolverEndpoint endpoint, string name, DnsRecordType recordType, CancellationToken cancellationToken) {
-            using var client = CreateClient(endpoint);
-            ConfigureClient(client, endpoint);
-            return await ExecuteAttemptAsync(client, name, recordType, cancellationToken).ConfigureAwait(false);
-        }
-
-        private void ConfigureClient(ClientX client, DnsResolverEndpoint? endpoint = null) {
-            client.EndpointConfiguration.TimeOut = TimeOut;
-            if (endpoint?.Port > 0 == true) {
-                client.EndpointConfiguration.Port = endpoint.Port;
-            }
-        }
-
-        private async Task<BenchmarkAttemptResult> ExecuteAttemptAsync(ClientX client, string name, DnsRecordType recordType, CancellationToken cancellationToken) {
-            bool requestDnsSec = RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent;
-            bool validateDnsSec = ValidateDnsSec.IsPresent;
-            var stopwatch = Stopwatch.StartNew();
-
-            try {
-                DnsResponse response = await client.Resolve(
-                    name,
-                    recordType,
-                    requestDnsSec,
-                    validateDnsSec,
-                    retryOnTransient: false,
-                    maxRetries: 1,
-                    retryDelayMs: 0,
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
-                stopwatch.Stop();
-
-                bool succeeded = response.Status == DnsResponseCode.NoError && string.IsNullOrWhiteSpace(response.Error);
-                TimeSpan elapsed = response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : stopwatch.Elapsed;
-                return new BenchmarkAttemptResult {
-                    Succeeded = succeeded,
-                    Elapsed = elapsed,
-                    Resolver = !string.IsNullOrWhiteSpace(response.ServerAddress) ? response.ServerAddress! : "none",
-                    Transport = response.UsedTransport.ToString(),
-                    AnswerSignature = BuildAnswerSignature(response)
-                };
-            } catch (Exception ex) {
-                stopwatch.Stop();
-                WriteVerbose($"Benchmark attempt failed for {name} {recordType}: {ex.Message}");
-                return new BenchmarkAttemptResult {
-                    Succeeded = false,
-                    Elapsed = stopwatch.Elapsed,
-                    Resolver = "none",
-                    Transport = "none",
-                    AnswerSignature = "(no answers)"
-                };
-            }
-        }
-
-        private static ClientX CreateClient(DnsResolverEndpoint endpoint) {
-            if (endpoint.Transport == Transport.Doh) {
-                Uri dohUri = EndpointParser.BuildDohUri(endpoint);
-                return new ClientX(dohUri, MapTransport(endpoint.Transport));
-            }
-
-            if (string.IsNullOrWhiteSpace(endpoint.Host)) {
-                throw new ArgumentException("Custom benchmark endpoint requires Host.", nameof(endpoint));
-            }
-
-            var client = new ClientX(endpoint.Host!, MapTransport(endpoint.Transport));
-            client.EndpointConfiguration.Port = endpoint.Port;
-            return client;
-        }
-
-        private static DnsRequestFormat MapTransport(Transport transport) {
-            return transport switch {
-                Transport.Udp => DnsRequestFormat.DnsOverUDP,
-                Transport.Tcp => DnsRequestFormat.DnsOverTCP,
-                Transport.Dot => DnsRequestFormat.DnsOverTLS,
-                Transport.Doh => DnsRequestFormat.DnsOverHttps,
-                Transport.Quic => DnsRequestFormat.DnsOverQuic,
-                Transport.Grpc => DnsRequestFormat.DnsOverGrpc,
-                Transport.Multicast => DnsRequestFormat.Multicast,
-                _ => DnsRequestFormat.DnsOverUDP
-            };
-        }
-
-        private static string DescribeEndpoint(DnsResolverEndpoint endpoint) {
-            string prefix = endpoint.Transport.ToString().ToLowerInvariant();
-            return $"{prefix}@{endpoint}";
-        }
-
-        private static string BuildAnswerSignature(DnsResponse response) {
-            if (response.Answers == null || response.Answers.Length == 0) {
-                return "(no answers)";
-            }
-
-            string[] values = response.Answers
-                .Select(answer => $"{answer.Name}|{answer.Type}|{answer.Data}")
-                .OrderBy(value => value, StringComparer.Ordinal)
-                .ToArray();
-
-            return string.Join(";", values);
-        }
     }
 }

@@ -30,7 +30,7 @@ DnsClientX is available as NuGet from the Nuget Gallery and as PowerShell module
 
 ## What it's all about
 
-**DnsClientX** is an async C# library for DNS over UDP, TCP, HTTPS (DoH), and TLS (DoT). It also has a PowerShell module that can be used to query DNS records. It provides a simple way to query DNS records using multiple DNS providers. It supports multiple DNS record types and parallel queries. It's available for .NET 8, .NET 10, .NET Standard 2.0, and .NET 4.7.2.
+**DnsClientX** is an async C# library for DNS over UDP, TCP, HTTPS (DoH), TLS (DoT), HTTP/3 (DoH3), and QUIC (DoQ). It also has a PowerShell module that can be used to query DNS records. It provides a simple way to query DNS records using multiple DNS providers. It supports multiple DNS record types and parallel queries. It's available for .NET 8, .NET 10, .NET Standard 2.0, and .NET 4.7.2.
 
 ## DomainDetective.dev
 
@@ -96,6 +96,8 @@ It provides querying multiple DNS Providers.
 | AdGuardFamily            | ✓   |     |     |     |     |          |      |
 | AdGuardNonFiltering      | ✓   |     |     |     |     |          |      |
 | Quad9                    | ✓   |     |     |     |     |          |      |
+| Quad9Http3               | ✓   |     |     |     |     |          |      |
+| Quad9Quic                |     | ✓   |     |     |     |          |      |
 | Quad9ECS                 | ✓   |     |     |     |     |          |      |
 | Quad9Unsecure            | ✓   |     |     |     |     |          |      |
 | OpenDNS                  | ✓   |     |     |     |     |          |      |
@@ -116,6 +118,7 @@ If you want to learn about DNS:
 ### Core Library (DnsClientX)
 - **.NET 8.0 / .NET 10.0** (Windows, Linux, macOS)
   - No external dependencies
+  - DoH3 and DoQ stay in the core package with no added NuGet transport dependencies
 - **.NET Standard 2.0** (Cross-platform compatibility)
   - System.Text.Json (10.0.5)
   - Microsoft.Bcl.AsyncInterfaces (10.0.5)
@@ -123,6 +126,7 @@ If you want to learn about DNS:
   - System.Net.Http (built-in)
   - System.Text.Json (10.0.5)
   - Microsoft.Bcl.AsyncInterfaces (10.0.5)
+  - Modern transports such as DoH3 and DoQ are exposed by the shared API surface but return unsupported at runtime
 
 ### Command Line Interface (DnsClientX.exe)
 - **.NET 8.0 / .NET 10.0** (Windows, Linux, macOS)
@@ -152,7 +156,9 @@ If you want to learn about DNS:
 - [x] Supports multiple built-in DNS Providers (System, Cloudflare, Google, Quad9, OpenDNS, etc.)
 - [x] Supports both JSON and Wireformat
 - [x] Supports DNS over HTTPS (DoH) using GET and POST methods
+- [x] Supports DNS over HTTP/3 (DoH3) on .NET 8 and .NET 10
 - [x] Supports DNS over TLS (DoT)
+- [x] Supports DNS over QUIC (DoQ) on .NET 8 and .NET 10
 - [x] Supports DNS over UDP, and switches to TCP if needed
 - [x] Supports DNS over TCP
 - [x] Supports DNSSEC
@@ -163,6 +169,64 @@ If you want to learn about DNS:
 - [x] Implements IDisposable to release cached HttpClient resources
 - [x] Multi-line record data normalized to use `\n` line endings
 - [x] Supports DNS Service Discovery (DNS-SD)
+
+## Modern Transport Support
+
+DnsClientX keeps modern transports in the core package instead of moving them behind extra transport packages:
+
+- **DoH3 (`DnsOverHttp3`)** is available in the core package on .NET 8 and .NET 10 with no extra NuGet dependencies.
+- **DoQ (`DnsOverQuic`)** is available in the core package on .NET 8 and .NET 10 when the runtime exposes QUIC support, also with no extra NuGet dependencies.
+- **.NET Standard 2.0 / .NET Framework 4.7.2** keep the same API surface, but modern transports are reported as unsupported at runtime instead of pulling in separate QUIC stacks.
+
+Use `DnsTransportCapabilities` when you want to check support before executing a query.
+
+PowerShell:
+
+```powershell
+Get-DnsTransportCapability
+Get-DnsTransportCapability -ModernOnly
+```
+
+CLI:
+
+```powershell
+DnsClientX.Cli --capabilities
+DnsClientX.Cli --capabilities --format json
+```
+
+Saved probe and benchmark snapshots also persist runtime capability hints, so recommendation files can distinguish unsupported modern transports from ordinary resolver failures.
+
+## Explicit Endpoint Syntax
+
+Custom resolver inputs share one endpoint parser across the library, CLI, and PowerShell.
+
+- UDP: `udp@1.1.1.1:53`
+- TCP: `tcp@9.9.9.9:53`
+- DoT: `dot@dns.quad9.net:853`
+- DoH: `doh@https://dns.google/dns-query`
+- DoH3: `doh3@https://dns.quad9.net/dns-query`
+- DoQ: `doq@dns.quad9.net:853`
+
+The same syntax works in:
+
+- `Resolve-Dns -ResolverEndpoint ...`
+- `Test-DnsProbe -ResolverEndpoint ...`
+- `Test-DnsBenchmark -ResolverEndpoint ...`
+- CLI probe and benchmark endpoint inputs
+
+## Opt-In Real Modern Transport Checks
+
+The test suite includes limited live checks for DoH3 and DoQ. They are opt-in so default CI stays stable.
+
+Set both environment variables before running tests:
+
+```powershell
+$env:DNSCLIENTX_RUN_REAL_DNS_TESTS = '1'
+$env:DNSCLIENTX_RUN_MODERN_TRANSPORT_TESTS = '1'
+dotnet test .\DnsClientX.Tests\DnsClientX.Tests.csproj --filter FullyQualifiedName~ModernTransportRealTests
+```
+
+These live tests only run on .NET 8 and later and stay focused on a small set of real endpoints.
 
 ## Understanding DNS Query Behavior
 

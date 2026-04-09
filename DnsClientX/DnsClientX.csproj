@@ -2,11 +2,11 @@
     <PropertyGroup>
         <Title>DnsClientX</Title>
         <Description>
-            DnsClientX is an async C# library for DNS over UDP, TCP, HTTPS (DoH), and TLS
-            (DoT). It also has a PowerShell module that can be used to query DNS records. It
-            provides a simple way to query DNS records using multiple DNS providers. It supports
-            multiple DNS record types and parallel queries. It's available for .NET 8, .NET 10,
-            .NET Standard 2.0, and .NET Framework 4.7.2.
+            DnsClientX is an async C# library for DNS over UDP, TCP, HTTPS (DoH), TLS
+            (DoT), HTTP/3 (DoH3), and QUIC (DoQ). It also has a PowerShell module that can be
+            used to query DNS records. It provides a simple way to query DNS records using
+            multiple DNS providers. It supports multiple DNS record types and parallel queries.
+            It's available for .NET 8, .NET 10, .NET Standard 2.0, and .NET Framework 4.7.2.
         </Description>
         <AssemblyName>DnsClientX</AssemblyName>
         <AssemblyTitle>DnsClientX</AssemblyTitle>

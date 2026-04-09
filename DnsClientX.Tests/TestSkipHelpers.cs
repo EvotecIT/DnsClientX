@@ -19,6 +19,29 @@ internal static class TestSkipHelpers
         return $"Skipped {details}. Set DNSCLIENTX_RUN_REAL_DNS_TESTS=1 to run live-host DNS tests.";
     }
 
+    internal static string? GetModernTransportSkipReason(DnsRequestFormat requestFormat, string? scenario = null)
+    {
+        string? baseReason = GetRealDnsSkipReason(scenario ?? "modern transport live DNS test");
+        if (baseReason != null)
+        {
+            return baseReason;
+        }
+
+        var allow = Environment.GetEnvironmentVariable("DNSCLIENTX_RUN_MODERN_TRANSPORT_TESTS");
+        if (!string.Equals(allow, "1", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(allow, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Skipped modern transport live DNS test. Set DNSCLIENTX_RUN_MODERN_TRANSPORT_TESTS=1 together with DNSCLIENTX_RUN_REAL_DNS_TESTS=1 to run DoH3/DoQ live checks.";
+        }
+
+        if (!DnsTransportCapabilities.Supports(requestFormat))
+        {
+            return DnsTransportCapabilities.GetUnsupportedMessage(requestFormat);
+        }
+
+        return null;
+    }
+
     internal static bool ShouldSkipEndpoint(DnsEndpoint endpoint, ITestOutputHelper? output = null)
     {
         return ShouldSkipSystemUdp(endpoint, output) || ShouldSkipSystemTcp(endpoint, output) || ShouldSkipOdoh(endpoint, output);

@@ -1,17 +1,35 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX.Cli {
     internal static class Program {
+        private enum QueryOutputFormat {
+            Pretty,
+            Json,
+            Raw
+        }
+
         private sealed class CliOptions {
             public string? Domain { get; set; }
             public DnsRecordType RecordType { get; set; } = DnsRecordType.A;
+            public bool RecordTypeSpecified { get; set; }
             public DnsEndpoint Endpoint { get; set; } = DnsEndpoint.System;
+            public QueryOutputFormat OutputFormat { get; set; } = QueryOutputFormat.Pretty;
+            public bool ShortOutput { get; set; }
+            public bool TxtConcatOutput { get; set; }
+            public bool ShowQuestionSection { get; set; }
+            public bool ShowAnswerSection { get; set; }
+            public bool ShowAuthoritySection { get; set; }
+            public bool ShowAdditionalSection { get; set; }
+            public bool ReverseLookup { get; set; }
+            public bool ZoneTransfer { get; set; }
+            public bool TransferSummary { get; set; }
             public bool Benchmark { get; set; }
             public int BenchmarkAttempts { get; set; } = 3;
             public int BenchmarkTimeoutMs { get; set; } = 2000;
@@ -26,65 +44,42 @@ namespace DnsClientX.Cli {
             public List<string> EndpointInputs { get; } = new List<string>();
             public List<string> DomainInputs { get; } = new List<string>();
             public List<string> RecordTypeInputs { get; } = new List<string>();
+            public List<string> ProbeEndpointFiles { get; } = new List<string>();
+            public List<string> ProbeEndpointUrls { get; } = new List<string>();
             public bool RequestDnsSec { get; set; }
             public bool ValidateDnsSec { get; set; }
             public bool WirePost { get; set; }
             public bool Probe { get; set; }
             public List<string> ProbeEndpoints { get; } = new List<string>();
+            public string? ProbeSavePath { get; set; }
+            public string? ResolverSelectPath { get; set; }
+            public string? ResolverUsePath { get; set; }
             public bool ProbeSummaryOnly { get; set; }
             public bool ProbeSummaryLine { get; set; }
             public bool ProbeRequireConsensus { get; set; }
             public int? ProbeMinConsensusPercent { get; set; }
             public int? ProbeMinSuccessCount { get; set; }
             public int? ProbeMinSuccessPercent { get; set; }
+            public string? BenchmarkSavePath { get; set; }
             public bool Explain { get; set; }
             public bool Trace { get; set; }
+            public bool ShowCapabilities { get; set; }
             public bool DoUpdate { get; set; }
             public string? Zone { get; set; }
             public string? UpdateName { get; set; }
             public string? UpdateData { get; set; }
             public int Ttl { get; set; } = 300;
-        }
 
-        private sealed class ProbeResult {
-            public DnsEndpoint Endpoint { get; set; }
-            public string? DisplayName { get; set; }
-            public DnsRequestFormat RequestFormat { get; set; }
-            public string Resolver { get; set; } = string.Empty;
-            public DnsResponse? Response { get; set; }
-            public TimeSpan Elapsed { get; set; }
-            public string? Error { get; set; }
+            public bool HasExplicitSectionSelection =>
+                ShowQuestionSection ||
+                ShowAnswerSection ||
+                ShowAuthoritySection ||
+                ShowAdditionalSection;
 
-            public bool Succeeded =>
-                Response != null &&
-                Response.Status == DnsResponseCode.NoError &&
-                string.IsNullOrWhiteSpace(Response.Error);
-        }
-
-        private sealed class ProbePolicyOutcome {
-            public bool Passed { get; set; }
-            public string Reason { get; set; } = "none";
-            public int ExitCode { get; set; }
-        }
-
-        private sealed class BenchmarkPolicyOutcome {
-            public bool Passed { get; set; }
-            public string Reason { get; set; } = "none";
-            public int ExitCode { get; set; }
-        }
-
-        private sealed class BenchmarkResult {
-            public string DisplayName { get; set; } = string.Empty;
-            public string Resolver { get; set; } = "none";
-            public string Transport { get; set; } = "none";
-            public int TotalQueries { get; set; }
-            public int SuccessCount { get; set; }
-            public int FailureCount { get; set; }
-            public int SuccessPercent { get; set; }
-            public TimeSpan AverageElapsed { get; set; }
-            public TimeSpan MinElapsed { get; set; }
-            public TimeSpan MaxElapsed { get; set; }
-            public int DistinctAnswerSets { get; set; }
+            public bool HasCustomEndpointInputs =>
+                ProbeEndpoints.Count > 0 ||
+                ProbeEndpointFiles.Count > 0 ||
+                ProbeEndpointUrls.Count > 0;
         }
 
         private static Func<DnsEndpoint, string, CancellationToken, Task<(DnsResponse Response, TimeSpan Elapsed, string Resolver, DnsRequestFormat RequestFormat)>>? ProbeOverride = null;
@@ -120,62 +115,28 @@ namespace DnsClientX.Cli {
             };
 
             try {
-                if (options!.Benchmark) {
-                    return await RunBenchmarkAsync(options, cts.Token).ConfigureAwait(false);
+                CliOptions parsedOptions = options!;
+                if (parsedOptions.Benchmark) {
+                    return await RunBenchmarkAsync(parsedOptions, cts.Token).ConfigureAwait(false);
                 }
 
-                if (options.Probe) {
-                    return await RunProbeAsync(options, cts.Token).ConfigureAwait(false);
+                if (parsedOptions.ShowCapabilities) {
+                    return WriteCapabilities(parsedOptions);
                 }
 
-                await using var client = new ClientX(options!.Endpoint);
-                ConfigureClient(client, options);
-
-                var stopwatch = Stopwatch.StartNew();
-                DnsResponse response;
-                if (options.DoUpdate) {
-                    response = await client.UpdateRecordAsync(options.Zone!, options.UpdateName!, options.RecordType, options.UpdateData!, options.Ttl, cts.Token).ConfigureAwait(false);
-                    stopwatch.Stop();
-
-                    Console.WriteLine($"Update status: {response.Status} (retries {response.RetryCount})");
-                    if (options.Explain || options.Trace) {
-                        WriteExplain(
-                            client,
-                            response,
-                            stopwatch.Elapsed,
-                            operation: "update",
-                            target: options.UpdateName!,
-                            recordType: options.RecordType,
-                            requestDnsSec: false,
-                            validateDnsSec: false,
-                            trace: options.Trace,
-                            zone: options.Zone,
-                            ttl: options.Ttl);
-                    }
-                } else {
-                    response = await client.Resolve(options.Domain!, options.RecordType, options.RequestDnsSec, options.ValidateDnsSec, cancellationToken: cts.Token).ConfigureAwait(false);
-                    stopwatch.Stop();
-
-                    Console.WriteLine($"Status: {response.Status} (retries {response.RetryCount})");
-                    foreach (var answer in response.Answers ?? Array.Empty<DnsAnswer>()) {
-                        Console.WriteLine($"{answer.Name}\t{answer.Type}\t{answer.TTL}\t{answer.Data}");
-                    }
-
-                    if (options.Explain || options.Trace) {
-                        WriteExplain(
-                            client,
-                            response,
-                            stopwatch.Elapsed,
-                            operation: "query",
-                            target: options.Domain!,
-                            recordType: options.RecordType,
-                            requestDnsSec: options.RequestDnsSec,
-                            validateDnsSec: options.ValidateDnsSec,
-                            trace: options.Trace);
-                    }
+                if (parsedOptions.Probe) {
+                    return await RunProbeAsync(parsedOptions, cts.Token).ConfigureAwait(false);
                 }
 
-                return 0;
+                if (!string.IsNullOrWhiteSpace(parsedOptions.ResolverSelectPath)) {
+                    return await RunResolverSelectionAsync(parsedOptions, cts.Token).ConfigureAwait(false);
+                }
+
+                if (parsedOptions.ZoneTransfer) {
+                    return await RunZoneTransferAsync(parsedOptions, cts.Token).ConfigureAwait(false);
+                }
+
+                return await RunStandardQueryAsync(parsedOptions, cts.Token).ConfigureAwait(false);
             } catch (OperationCanceledException) {
                 Console.Error.WriteLine("Operation canceled.");
                 return 1;
@@ -201,6 +162,7 @@ namespace DnsClientX.Cli {
                             return false;
                         }
                         AddOptionValues(options.RecordTypeInputs, recordTypeValue);
+                        options.RecordTypeSpecified = true;
                         break;
                     case var opt when opt.Equals("-e", StringComparison.OrdinalIgnoreCase) ||
                                        opt.Equals("--endpoint", StringComparison.OrdinalIgnoreCase):
@@ -219,6 +181,17 @@ namespace DnsClientX.Cli {
                         }
                         AddOptionValues(options.DomainInputs, domainValue);
                         break;
+                    case var opt when opt.Equals("--reverse", StringComparison.OrdinalIgnoreCase) ||
+                                       opt.Equals("--ptr", StringComparison.OrdinalIgnoreCase):
+                        options.ReverseLookup = true;
+                        break;
+                    case var opt when opt.Equals("--axfr", StringComparison.OrdinalIgnoreCase) ||
+                                       opt.Equals("--zone-transfer", StringComparison.OrdinalIgnoreCase):
+                        options.ZoneTransfer = true;
+                        break;
+                    case var opt when opt.Equals("--transfer-summary", StringComparison.OrdinalIgnoreCase):
+                        options.TransferSummary = true;
+                        break;
                     case var opt when opt.Equals("--dnssec", StringComparison.OrdinalIgnoreCase):
                         options.RequestDnsSec = true;
                         break;
@@ -227,6 +200,38 @@ namespace DnsClientX.Cli {
                         break;
                     case var opt when opt.Equals("--wire-post", StringComparison.OrdinalIgnoreCase):
                         options.WirePost = true;
+                        break;
+                    case var opt when opt.Equals("--format", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--format", out string? formatValue, out errorMessage)) {
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        if (!TryParseQueryOutputFormat(formatValue, out QueryOutputFormat outputFormat)) {
+                            errorMessage = $"Invalid value for --format: {formatValue}";
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        options.OutputFormat = outputFormat;
+                        break;
+                    case var opt when opt.Equals("--short", StringComparison.OrdinalIgnoreCase):
+                        options.ShortOutput = true;
+                        break;
+                    case var opt when opt.Equals("--txt-concat", StringComparison.OrdinalIgnoreCase):
+                        options.TxtConcatOutput = true;
+                        break;
+                    case var opt when opt.Equals("--question", StringComparison.OrdinalIgnoreCase):
+                        options.ShowQuestionSection = true;
+                        break;
+                    case var opt when opt.Equals("--answer", StringComparison.OrdinalIgnoreCase):
+                        options.ShowAnswerSection = true;
+                        break;
+                    case var opt when opt.Equals("--authority", StringComparison.OrdinalIgnoreCase):
+                        options.ShowAuthoritySection = true;
+                        break;
+                    case var opt when opt.Equals("--additional", StringComparison.OrdinalIgnoreCase):
+                        options.ShowAdditionalSection = true;
                         break;
                     case var opt when opt.Equals("--benchmark", StringComparison.OrdinalIgnoreCase):
                         options.Benchmark = true;
@@ -320,6 +325,15 @@ namespace DnsClientX.Cli {
                         options.Benchmark = true;
                         options.BenchmarkSummaryLine = true;
                         break;
+                    case var opt when opt.Equals("--benchmark-save", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--benchmark-save", out string? benchmarkSavePath, out errorMessage)) {
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        options.Benchmark = true;
+                        options.BenchmarkSavePath = benchmarkSavePath;
+                        break;
                     case var opt when opt.Equals("--benchmark-summary-only", StringComparison.OrdinalIgnoreCase):
                         options.Benchmark = true;
                         options.BenchmarkSummaryOnly = true;
@@ -335,6 +349,22 @@ namespace DnsClientX.Cli {
                         }
                         AddOptionValues(options.ProbeEndpoints, probeEndpoint);
                         break;
+                    case var opt when opt.Equals("--resolver-file", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--resolver-file", out string? resolverFile, out errorMessage)) {
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        AddOptionValues(options.ProbeEndpointFiles, resolverFile);
+                        break;
+                    case var opt when opt.Equals("--resolver-url", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--resolver-url", out string? resolverUrl, out errorMessage)) {
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        AddOptionValues(options.ProbeEndpointUrls, resolverUrl);
+                        break;
                     case var opt when opt.Equals("--probe-summary-only", StringComparison.OrdinalIgnoreCase):
                         options.Probe = true;
                         options.ProbeSummaryOnly = true;
@@ -342,6 +372,31 @@ namespace DnsClientX.Cli {
                     case var opt when opt.Equals("--probe-summary-line", StringComparison.OrdinalIgnoreCase):
                         options.Probe = true;
                         options.ProbeSummaryLine = true;
+                        break;
+                    case var opt when opt.Equals("--resolver-select", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--resolver-select", out string? resolverSelectPath, out errorMessage)) {
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        options.ResolverSelectPath = resolverSelectPath;
+                        break;
+                    case var opt when opt.Equals("--resolver-use", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--resolver-use", out string? resolverUsePath, out errorMessage)) {
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        options.ResolverUsePath = resolverUsePath;
+                        break;
+                    case var opt when opt.Equals("--probe-save", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--probe-save", out string? probeSavePath, out errorMessage)) {
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        options.Probe = true;
+                        options.ProbeSavePath = probeSavePath;
                         break;
                     case var opt when opt.Equals("--probe-require-consensus", StringComparison.OrdinalIgnoreCase):
                         options.Probe = true;
@@ -405,6 +460,9 @@ namespace DnsClientX.Cli {
                         options.Trace = true;
                         options.Explain = true;
                         break;
+                    case var opt when opt.Equals("--capabilities", StringComparison.OrdinalIgnoreCase):
+                        options.ShowCapabilities = true;
+                        break;
                     case var opt when opt.Equals("--update", StringComparison.OrdinalIgnoreCase):
                         if (!TryReadNext(args, ref i, "--update", out string? zone, out errorMessage) ||
                             !TryReadNext(args, ref i, "--update", out string? updateName, out errorMessage) ||
@@ -458,14 +516,25 @@ namespace DnsClientX.Cli {
                 return false;
             }
 
-            if (options.ProbeEndpoints.Count > 0 && !options.Benchmark) {
+            if (options.HasCustomEndpointInputs && !options.Benchmark) {
                 options.Probe = true;
             }
 
-            if (options.DoUpdate && (options.Probe || options.Benchmark)) {
+            if (options.ShowCapabilities &&
+                (options.Probe || options.Benchmark || options.DoUpdate || options.ZoneTransfer ||
+                 !string.IsNullOrWhiteSpace(options.ResolverSelectPath) || !string.IsNullOrWhiteSpace(options.ResolverUsePath))) {
+                errorMessage = "--capabilities cannot be combined with query, probe, benchmark, update, axfr, or resolver selection modes.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (options.DoUpdate && (options.Probe || options.Benchmark || options.ZoneTransfer)) {
                 errorMessage = options.Benchmark
                     ? "--benchmark cannot be combined with --update."
-                    : "--probe cannot be combined with --update.";
+                    : options.Probe
+                        ? "--probe cannot be combined with --update."
+                        : "--axfr cannot be combined with --update.";
                 invalidSwitches = null;
                 options = null;
                 return false;
@@ -478,6 +547,128 @@ namespace DnsClientX.Cli {
                 return false;
             }
 
+            if (!string.IsNullOrWhiteSpace(options.ResolverSelectPath) &&
+                (options.Probe || options.Benchmark || options.DoUpdate || options.ZoneTransfer)) {
+                errorMessage = "--resolver-select cannot be combined with probe, benchmark, update, or axfr modes.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(options.ResolverUsePath) &&
+                (!string.IsNullOrWhiteSpace(options.ResolverSelectPath) || options.DoUpdate || options.ZoneTransfer)) {
+                errorMessage = "--resolver-use cannot be combined with --resolver-select, update, or axfr modes.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(options.ResolverUsePath) &&
+                (options.EndpointInputs.Count > 0 || options.HasCustomEndpointInputs)) {
+                errorMessage = "--resolver-use cannot be combined with --endpoint, --probe-endpoint, --resolver-file, or --resolver-url.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (options.ZoneTransfer && (options.Probe || options.Benchmark)) {
+                errorMessage = options.Probe
+                    ? "--axfr cannot be combined with --probe."
+                    : "--axfr cannot be combined with --benchmark.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (options.ZoneTransfer && options.ReverseLookup) {
+                errorMessage = "--reverse cannot be combined with --axfr.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (!ApplyReverseLookupDefaults(options, out errorMessage)) {
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (options.ShortOutput && options.OutputFormat != QueryOutputFormat.Pretty) {
+                errorMessage = "--short cannot be combined with --format json or --format raw.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (options.TxtConcatOutput && options.OutputFormat == QueryOutputFormat.Json) {
+                errorMessage = "--txt-concat cannot be combined with --format json.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (options.ShowCapabilities &&
+                (options.ShortOutput || options.TxtConcatOutput || options.HasExplicitSectionSelection || options.TransferSummary || options.OutputFormat == QueryOutputFormat.Raw)) {
+                errorMessage = "Capability mode supports only default output or --format json.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if ((options.Benchmark || options.Probe || options.DoUpdate) &&
+                (options.ShortOutput || options.TxtConcatOutput || options.OutputFormat != QueryOutputFormat.Pretty || options.HasExplicitSectionSelection || options.TransferSummary)) {
+                errorMessage = "Query output switches (--format, --short, --txt-concat, --question, --answer, --authority, --additional) apply only to standard query mode.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(options.ResolverSelectPath) &&
+                (options.ShortOutput || options.TxtConcatOutput || options.HasExplicitSectionSelection || options.TransferSummary || options.OutputFormat == QueryOutputFormat.Raw)) {
+                errorMessage = "Resolver selection mode supports only default output or --format json.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(options.ResolverUsePath) &&
+                (options.TransferSummary || options.OutputFormat == QueryOutputFormat.Raw && (options.Probe || options.Benchmark))) {
+                errorMessage = "Resolver reuse mode does not change the output rules of probe or benchmark workflows.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(options.ResolverSelectPath) &&
+                (options.ReverseLookup || options.RecordTypeSpecified || options.RequestDnsSec || options.ValidateDnsSec || options.WirePost)) {
+                errorMessage = "Query switches do not apply to --resolver-select.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (options.ZoneTransfer &&
+                (options.ShortOutput || options.TxtConcatOutput || options.HasExplicitSectionSelection || options.OutputFormat == QueryOutputFormat.Raw)) {
+                errorMessage = "AXFR mode supports only --format pretty|json and optional --transfer-summary.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (options.TransferSummary && !options.ZoneTransfer) {
+                errorMessage = "--transfer-summary applies only to --axfr mode.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (options.ZoneTransfer && options.RecordTypeSpecified && options.RecordType != DnsRecordType.AXFR) {
+                errorMessage = "--type can be used with --axfr only when set to AXFR.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
             if (options.DoUpdate) {
                 if (options.Zone is null || options.UpdateName is null || options.UpdateData is null) {
                     errorMessage = "Invalid --update arguments.";
@@ -485,6 +676,15 @@ namespace DnsClientX.Cli {
                     options = null;
                     return false;
                 }
+            } else if (options.ShowCapabilities) {
+                // Capability mode does not require a domain.
+            } else if (!string.IsNullOrWhiteSpace(options.ResolverSelectPath)) {
+                // Selection mode requires only the saved snapshot path.
+            } else if (options.ZoneTransfer && string.IsNullOrWhiteSpace(options.Domain)) {
+                errorMessage = "Zone name is required.";
+                invalidSwitches = null;
+                options = null;
+                return false;
             } else if (!options.Probe && !options.Benchmark && string.IsNullOrWhiteSpace(options.Domain)) {
                 errorMessage = "Domain name is required.";
                 invalidSwitches = null;
@@ -496,7 +696,7 @@ namespace DnsClientX.Cli {
                 if (options.BenchmarkDomains.Count == 0) {
                     options.BenchmarkDomains.Add(!string.IsNullOrWhiteSpace(options.Domain) ? options.Domain! : "example.com");
                 }
-                if (options.BenchmarkEndpoints.Count == 0 && options.ProbeEndpoints.Count == 0) {
+                if (options.BenchmarkEndpoints.Count == 0 && !options.HasCustomEndpointInputs) {
                     options.BenchmarkEndpoints.Add(options.Endpoint);
                 }
                 if (options.BenchmarkRecordTypes.Count == 0) {
@@ -518,6 +718,67 @@ namespace DnsClientX.Cli {
             value = args[++index];
             errorMessage = null;
             return true;
+        }
+
+        private static bool TryParseQueryOutputFormat(string? value, out QueryOutputFormat format) {
+            switch (value?.Trim().ToLowerInvariant()) {
+                case "pretty":
+                    format = QueryOutputFormat.Pretty;
+                    return true;
+                case "json":
+                    format = QueryOutputFormat.Json;
+                    return true;
+                case "raw":
+                    format = QueryOutputFormat.Raw;
+                    return true;
+                default:
+                    format = default;
+                    return false;
+            }
+        }
+
+        private static bool ApplyReverseLookupDefaults(CliOptions options, out string? errorMessage) {
+            errorMessage = null;
+
+            if (options.ReverseLookup) {
+                if (options.RecordTypeSpecified &&
+                    options.BenchmarkRecordTypes.Any(recordType => recordType != DnsRecordType.PTR)) {
+                    errorMessage = "--reverse cannot be combined with a record type other than PTR.";
+                    return false;
+                }
+
+                options.RecordType = DnsRecordType.PTR;
+                if (options.BenchmarkRecordTypes.Count > 0) {
+                    options.BenchmarkRecordTypes.Clear();
+                    options.BenchmarkRecordTypes.Add(DnsRecordType.PTR);
+                }
+
+                return true;
+            }
+
+            if (options.RecordTypeSpecified || options.DoUpdate) {
+                return true;
+            }
+
+            string[] effectiveBenchmarkDomains = options.Benchmark ? GetEffectiveBenchmarkDomains(options) : Array.Empty<string>();
+            bool shouldUsePtrByDefault = options.Benchmark
+                ? effectiveBenchmarkDomains.Length > 0 && effectiveBenchmarkDomains.All(IsIpAddressLiteral)
+                : !string.IsNullOrWhiteSpace(options.Domain) && IsIpAddressLiteral(options.Domain);
+
+            if (shouldUsePtrByDefault) {
+                options.RecordType = DnsRecordType.PTR;
+            }
+
+            return true;
+        }
+
+        private static bool IsIpAddressLiteral(string? value) {
+            if (string.IsNullOrWhiteSpace(value)) {
+                return false;
+            }
+
+            string trimmed = value!.Trim();
+            return IPAddress.TryParse(trimmed, out _);
         }
 
         private static void AddOptionValues(ICollection<string> target, string? rawValue) {
@@ -548,6 +809,10 @@ namespace DnsClientX.Cli {
                 foreach (string endpointValue in options.EndpointInputs) {
                     if (!Enum.TryParse(endpointValue, true, out DnsEndpoint endpoint)) {
                         errorMessage = $"Invalid value for --endpoint: {endpointValue}";
+                        return false;
+                    }
+                    if (endpoint == DnsEndpoint.Custom) {
+                        errorMessage = "--endpoint Custom is not supported in the CLI. Use explicit resolver endpoint syntax such as --probe-endpoint, --resolver-file, or --resolver-url instead.";
                         return false;
                     }
                     options.BenchmarkEndpoints.Add(endpoint);
@@ -591,25 +856,130 @@ namespace DnsClientX.Cli {
             return true;
         }
 
-        private static void ConfigureClient(ClientX client, CliOptions options) {
-            client.EnableAudit = options.Explain || options.Trace;
-
-            if (options.Benchmark) {
-                client.EndpointConfiguration.TimeOut = options.BenchmarkTimeoutMs;
-            }
-
+        private static ResolverExecutionClientOptions CreateExecutionClientOptions(CliOptions options, bool useBenchmarkTimeout = false) {
             string? envPort = Environment.GetEnvironmentVariable("DNSCLIENTX_CLI_PORT");
-            if (int.TryParse(envPort, NumberStyles.Integer, CultureInfo.InvariantCulture, out int customPort) && customPort > 0) {
-                client.EndpointConfiguration.Port = customPort;
+            int? customPort = int.TryParse(envPort, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedPort) && parsedPort > 0
+                ? parsedPort
+                : null;
+
+            return new ResolverExecutionClientOptions {
+                EnableAudit = options.Explain || options.Trace,
+                TimeoutMs = useBenchmarkTimeout ? options.BenchmarkTimeoutMs : null,
+                PortOverride = customPort,
+                ForceDohWirePost = options.WirePost
+            };
+        }
+
+        private static async Task<int> RunZoneTransferAsync(CliOptions options, CancellationToken cancellationToken) {
+            ResolverExecutionClientOptions clientOptions = CreateExecutionClientOptions(options);
+            RecursiveZoneTransferResult result = await ResolverZoneTransferWorkflow.RunRecursiveAsync(
+                new ResolverExecutionTargetSource {
+                    BuiltInEndpoints = new[] { options.Endpoint }
+                },
+                options.Domain!,
+                port: clientOptions.PortOverride ?? 53,
+                clientOptions: clientOptions,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            WriteZoneTransferResponse(result, options);
+            return 0;
+        }
+
+        private static async Task<int> RunStandardQueryAsync(CliOptions options, CancellationToken cancellationToken) {
+            ResolverExecutionTargetSource targetSource = CreateStandardQueryTargetSource(options);
+            ResolverExecutionClientOptions clientOptions = CreateExecutionClientOptions(options);
+            ResolverSingleOperationResult result;
+            DnsResponse response;
+            if (options.DoUpdate) {
+                result = await ResolverSingleOperationWorkflow.UpdateAsync(
+                    targetSource,
+                    options.Zone!,
+                    options.UpdateName!,
+                    options.RecordType,
+                    options.UpdateData!,
+                    options.Ttl,
+                    clientOptions,
+                    cancellationToken).ConfigureAwait(false);
+                response = result.Response;
+
+                Console.WriteLine($"Update status: {response.Status} (retries {response.RetryCount})");
+                if (options.Explain || options.Trace) {
+                    WriteExplain(
+                        result,
+                        operation: "update",
+                        target: options.UpdateName!,
+                        recordType: options.RecordType,
+                        requestDnsSec: false,
+                        validateDnsSec: false,
+                        trace: options.Trace,
+                        zone: options.Zone,
+                        ttl: options.Ttl);
+                }
+            } else {
+                result = await ResolverSingleOperationWorkflow.QueryAsync(
+                    targetSource,
+                    options.Domain!,
+                    options.RecordType,
+                    options.RequestDnsSec,
+                    options.ValidateDnsSec,
+                    clientOptions,
+                    cancellationToken).ConfigureAwait(false);
+                response = result.Response;
+
+                WriteQueryResponse(response, options, result.Elapsed);
+
+                if (options.Explain || options.Trace) {
+                    WriteExplain(
+                        result,
+                        operation: "query",
+                        target: options.Domain!,
+                        recordType: options.RecordType,
+                        requestDnsSec: options.RequestDnsSec,
+                        validateDnsSec: options.ValidateDnsSec,
+                        trace: options.Trace);
+                }
             }
 
-            if (options.WirePost &&
-                (client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps ||
-                 client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST ||
-                 client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON ||
-                 client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST)) {
-                client.EndpointConfiguration.RequestFormat = DnsRequestFormat.DnsOverHttpsWirePost;
+            return 0;
+        }
+
+        private static ResolverExecutionTargetSource CreateStandardQueryTargetSource(CliOptions options) {
+            if (!string.IsNullOrWhiteSpace(options.ResolverUsePath)) {
+                return new ResolverExecutionTargetSource {
+                    ResolverSelectionPath = options.ResolverUsePath
+                };
             }
+
+            return new ResolverExecutionTargetSource {
+                BuiltInEndpoints = new[] { options.Endpoint }
+            };
+        }
+
+        private static Task<int> RunResolverSelectionAsync(CliOptions options, CancellationToken cancellationToken) {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            ResolverSelectionResult selection = LoadRecommendedResolverSelection(options.ResolverSelectPath!);
+
+            WriteResolverSelection(selection, options);
+            return Task.FromResult(0);
+        }
+
+        private static ResolverSelectionResult LoadRecommendedResolverSelection(string path) {
+            return ResolverExecutionTargetResolver.LoadRecommendedSelection(path);
+        }
+
+        private static int WriteCapabilities(CliOptions options) {
+            DnsTransportCapabilityInfo[] capabilities = DnsTransportCapabilities.GetCapabilityReport();
+            if (options.OutputFormat == QueryOutputFormat.Json) {
+                Console.WriteLine(DnsClientXJsonSerializer.Serialize(capabilities));
+                return 0;
+            }
+
+            foreach (string line in DnsTransportCapabilityTextFormatter.BuildLines(capabilities)) {
+                Console.WriteLine(line);
+            }
+
+            return 0;
         }
 
         private static async Task<int> RunBenchmarkAsync(CliOptions options, CancellationToken cancellationToken) {
@@ -619,48 +989,29 @@ namespace DnsClientX.Cli {
             DnsRecordType[] recordTypes = options.BenchmarkRecordTypes
                 .Distinct()
                 .ToArray();
-
-            if (options.ProbeEndpoints.Count > 0) {
-                return await RunCustomBenchmarkAsync(options, domains, recordTypes, cancellationToken).ConfigureAwait(false);
-            }
-
-            DnsEndpoint[] endpoints = options.BenchmarkEndpoints
-                .Distinct()
-                .ToArray();
-
-            Console.WriteLine("Benchmark:");
-            Console.WriteLine($"  Domains: {string.Join(", ", domains)}");
-            Console.WriteLine($"  Types: {string.Join(", ", recordTypes)}");
-            Console.WriteLine($"  Attempts per combination: {options.BenchmarkAttempts}");
-            Console.WriteLine($"  Timeout (ms): {options.BenchmarkTimeoutMs}");
-            Console.WriteLine($"  Concurrency: {options.BenchmarkConcurrency}");
-            Console.WriteLine($"  Detail mode: {(options.BenchmarkSummaryOnly ? "summary-only" : "full")}");
-            Console.WriteLine($"  Candidates: {endpoints.Length}");
-            Console.WriteLine($"  Queries per candidate: {domains.Length * recordTypes.Length * options.BenchmarkAttempts}");
-
-            var results = new List<BenchmarkResult>(endpoints.Length);
-            foreach (DnsEndpoint endpoint in endpoints) {
-                cancellationToken.ThrowIfCancellationRequested();
-                ProbeResult[] attempts = await BenchmarkEndpointAsync(endpoint, domains, recordTypes, options, cancellationToken).ConfigureAwait(false);
-                BenchmarkResult result = BuildBenchmarkResult(attempts);
-                results.Add(result);
-                if (!options.BenchmarkSummaryOnly) {
-                    WriteBenchmarkResult(result);
-                }
-            }
-
-            return WriteBenchmarkSummary(results, options);
-        }
-
-        private static async Task<int> RunCustomBenchmarkAsync(CliOptions options, string[] domains, DnsRecordType[] recordTypes, CancellationToken cancellationToken) {
-            DnsResolverEndpoint[] endpoints = EndpointParser.TryParseMany(options.ProbeEndpoints, out IReadOnlyList<string> errors);
-            if (errors.Count > 0) {
-                foreach (string error in errors) {
-                    Console.Error.WriteLine(error);
-                }
+            ResolverExecutionTargetSource targetSource = CreateBenchmarkTargetSource(options);
+            ResolverExecutionTarget[] targets = await ResolverExecutionTargetResolver.ResolveAsync(targetSource, cancellationToken).ConfigureAwait(false);
+            if (options.HasCustomEndpointInputs && targets.Length == 0) {
+                Console.Error.WriteLine("No custom resolver endpoints were supplied.");
                 return 1;
             }
 
+            return await RunBenchmarkWithTargetsAsync(
+                options,
+                targets,
+                domains,
+                recordTypes,
+                GetBenchmarkEndpointProfile(options),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task<int> RunBenchmarkWithTargetsAsync(
+            CliOptions options,
+            ResolverExecutionTarget[] targets,
+            string[] domains,
+            DnsRecordType[] recordTypes,
+            string? endpointProfile,
+            CancellationToken cancellationToken) {
             Console.WriteLine("Benchmark:");
             Console.WriteLine($"  Domains: {string.Join(", ", domains)}");
             Console.WriteLine($"  Types: {string.Join(", ", recordTypes)}");
@@ -668,1012 +1019,456 @@ namespace DnsClientX.Cli {
             Console.WriteLine($"  Timeout (ms): {options.BenchmarkTimeoutMs}");
             Console.WriteLine($"  Concurrency: {options.BenchmarkConcurrency}");
             Console.WriteLine($"  Detail mode: {(options.BenchmarkSummaryOnly ? "summary-only" : "full")}");
-            Console.WriteLine("  Endpoint profile: custom");
-            Console.WriteLine($"  Candidates: {endpoints.Length}");
+            if (!string.IsNullOrWhiteSpace(endpointProfile)) {
+                Console.WriteLine($"  Endpoint profile: {endpointProfile}");
+            }
+
+            Console.WriteLine($"  Candidates: {targets.Length}");
             Console.WriteLine($"  Queries per candidate: {domains.Length * recordTypes.Length * options.BenchmarkAttempts}");
 
-            var results = new List<BenchmarkResult>(endpoints.Length);
-            foreach (DnsResolverEndpoint endpoint in endpoints) {
-                cancellationToken.ThrowIfCancellationRequested();
-                ProbeResult[] attempts = await BenchmarkEndpointAsync(endpoint, domains, recordTypes, options, cancellationToken).ConfigureAwait(false);
-                BenchmarkResult result = BuildBenchmarkResult(attempts);
-                results.Add(result);
-                if (!options.BenchmarkSummaryOnly) {
+            ResolverBenchmarkReport report = await ExecuteBenchmarkReportAsync(
+                targets,
+                domains,
+                recordTypes,
+                options,
+                cancellationToken).ConfigureAwait(false);
+            if (!options.BenchmarkSummaryOnly) {
+                foreach (ResolverBenchmarkReportResult result in report.Results) {
                     WriteBenchmarkResult(result);
                 }
             }
 
-            return WriteBenchmarkSummary(results, options);
+            return WriteBenchmarkSummary(report, options);
         }
 
-        private static BenchmarkResult BuildBenchmarkResult(IReadOnlyList<ProbeResult> attempts) {
-            ProbeResult first = attempts[0];
-            ProbeResult[] successful = attempts.Where(result => result.Succeeded).ToArray();
-            ProbeResult? fastest = successful
-                .OrderBy(result => result.Elapsed)
-                .FirstOrDefault();
-
-            int totalQueries = attempts.Count;
-            int successCount = successful.Length;
-            int failureCount = totalQueries - successCount;
-            int successPercent = totalQueries == 0
-                ? 0
-                : (int)Math.Round((double)successCount * 100 / totalQueries, MidpointRounding.AwayFromZero);
-
-            return new BenchmarkResult {
-                DisplayName = first.DisplayName ?? first.Endpoint.ToString(),
-                Resolver = fastest?.Resolver ?? first.Resolver ?? "none",
-                Transport = fastest != null ? DescribeProbeTransport(fastest) : "none",
-                TotalQueries = totalQueries,
-                SuccessCount = successCount,
-                FailureCount = failureCount,
-                SuccessPercent = successPercent,
-                AverageElapsed = successCount == 0 ? TimeSpan.Zero : TimeSpan.FromMilliseconds(successful.Average(result => result.Elapsed.TotalMilliseconds)),
-                MinElapsed = successCount == 0 ? TimeSpan.Zero : TimeSpan.FromMilliseconds(successful.Min(result => result.Elapsed.TotalMilliseconds)),
-                MaxElapsed = successCount == 0 ? TimeSpan.Zero : TimeSpan.FromMilliseconds(successful.Max(result => result.Elapsed.TotalMilliseconds)),
-                DistinctAnswerSets = successCount == 0 ? 0 : successful.GroupBy(BuildAnswerSignature, StringComparer.Ordinal).Count()
-            };
-        }
-
-        private static Task<ProbeResult[]> BenchmarkEndpointAsync(DnsEndpoint endpoint, IReadOnlyList<string> domains, IReadOnlyList<DnsRecordType> recordTypes, CliOptions options, CancellationToken cancellationToken) {
-            return BenchmarkEndpointAsync(
-                (domain, recordType, token) => ProbeEndpointAsync(endpoint, domain, recordType, options, token),
-                domains,
-                recordTypes,
-                options,
-                cancellationToken);
-        }
-
-        private static Task<ProbeResult[]> BenchmarkEndpointAsync(DnsResolverEndpoint endpoint, IReadOnlyList<string> domains, IReadOnlyList<DnsRecordType> recordTypes, CliOptions options, CancellationToken cancellationToken) {
-            return BenchmarkEndpointAsync(
-                (domain, recordType, token) => ProbeEndpointAsync(endpoint, domain, recordType, options, token),
-                domains,
-                recordTypes,
-                options,
-                cancellationToken);
-        }
-
-        private static async Task<ProbeResult[]> BenchmarkEndpointAsync(Func<string, DnsRecordType, CancellationToken, Task<ProbeResult>> runner, IReadOnlyList<string> domains, IReadOnlyList<DnsRecordType> recordTypes, CliOptions options, CancellationToken cancellationToken) {
-            int totalQueries = domains.Count * recordTypes.Count * options.BenchmarkAttempts;
-            var tasks = new List<Task<ProbeResult>>(totalQueries);
-            using var semaphore = new SemaphoreSlim(options.BenchmarkConcurrency);
-
-            foreach (string domain in domains) {
-                foreach (DnsRecordType recordType in recordTypes) {
-                    for (int attempt = 0; attempt < options.BenchmarkAttempts; attempt++) {
-                        tasks.Add(RunBenchmarkAttemptAsync(runner, domain, recordType, semaphore, cancellationToken));
-                    }
-                }
-            }
-
-            return await Task.WhenAll(tasks).ConfigureAwait(false);
-        }
-
-        private static async Task<ProbeResult> RunBenchmarkAttemptAsync(Func<string, DnsRecordType, CancellationToken, Task<ProbeResult>> runner, string domain, DnsRecordType recordType, SemaphoreSlim semaphore, CancellationToken cancellationToken) {
-            await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try {
-                return await runner(domain, recordType, cancellationToken).ConfigureAwait(false);
-            } finally {
-                semaphore.Release();
+        private static void WriteBenchmarkResult(ResolverBenchmarkReportResult result) {
+            foreach (string line in ResolverReportTextFormatter.BuildBenchmarkResultLines(result, FormatDuration)) {
+                Console.WriteLine(line);
             }
         }
 
-        private static void WriteBenchmarkResult(BenchmarkResult result) {
-            string status = result.SuccessCount > 0 ? "OK" : "FAIL";
-            Console.WriteLine($"  [{status}] {result.DisplayName}");
-            Console.WriteLine($"      Resolver: {result.Resolver}");
-            Console.WriteLine($"      Transport: {result.Transport}");
-            Console.WriteLine($"      Success rate: {result.SuccessPercent}% ({result.SuccessCount}/{result.TotalQueries})");
-            Console.WriteLine($"      Average: {FormatDuration(result.AverageElapsed)}");
-            Console.WriteLine($"      Min: {FormatDuration(result.MinElapsed)}");
-            Console.WriteLine($"      Max: {FormatDuration(result.MaxElapsed)}");
-            Console.WriteLine($"      Distinct answer sets: {result.DistinctAnswerSets}");
-        }
-
-        private static int WriteBenchmarkSummary(IReadOnlyList<BenchmarkResult> results, CliOptions options) {
-            BenchmarkResult[] ranked = results
-                .OrderByDescending(result => result.SuccessPercent)
-                .ThenBy(result => result.SuccessCount == 0 ? double.MaxValue : result.AverageElapsed.TotalMilliseconds)
-                .ThenBy(result => result.DisplayName, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            BenchmarkResult? best = ranked.FirstOrDefault(result => result.SuccessCount > 0);
-            int successfulCandidates = results.Count(result => result.SuccessCount > 0);
-            int totalQueries = results.Sum(result => result.TotalQueries);
-            int successfulQueries = results.Sum(result => result.SuccessCount);
-            int successPercent = totalQueries == 0
-                ? 0
-                : (int)Math.Round((double)successfulQueries * 100 / totalQueries, MidpointRounding.AwayFromZero);
-            BenchmarkPolicyOutcome policy = EvaluateBenchmarkPolicy(results, options);
+        private static int WriteBenchmarkSummary(ResolverBenchmarkReport report, CliOptions options) {
+            ResolverBenchmarkEvaluation evaluation = report.Evaluation;
 
             Console.WriteLine("Benchmark Summary:");
-            Console.WriteLine($"  Successful candidates: {successfulCandidates}/{results.Count}");
-            Console.WriteLine($"  Successful queries: {successfulQueries}/{totalQueries}");
-            Console.WriteLine($"  Successful query rate: {successPercent}%");
-            for (int i = 0; i < ranked.Length; i++) {
-                BenchmarkResult result = ranked[i];
-                string average = result.SuccessCount == 0 ? "n/a" : FormatDuration(result.AverageElapsed);
-                Console.WriteLine($"  Ranked {i + 1}: {result.DisplayName} avg {average}, success {result.SuccessPercent}% ({result.SuccessCount}/{result.TotalQueries}), resolver {result.Resolver}");
+            Console.WriteLine($"  Successful candidates: {report.Summary.SuccessfulCandidates}/{report.Summary.CandidateCount}");
+            Console.WriteLine($"  Successful queries: {report.Summary.OverallSuccessCount}/{report.Summary.OverallQueryCount}");
+            Console.WriteLine($"  Successful query rate: {report.Summary.OverallSuccessPercent}%");
+            Console.WriteLine($"  Runtime capability hints: {ResolverReportTextFormatter.DescribeBenchmarkRuntimeCapabilities(report.Summary)}");
+            for (int i = 0; i < report.Results.Length; i++) {
+                Console.WriteLine(ResolverReportTextFormatter.BuildBenchmarkRankedLine(report.Results[i], i + 1, FormatDuration));
             }
-            Console.WriteLine($"  Best endpoint: {(best == null ? "none" : $"{best.DisplayName} in {FormatDuration(best.AverageElapsed)} average ({best.SuccessPercent}% success)")}");
-            Console.WriteLine($"  Policy result: {(policy.Passed ? "pass" : $"fail ({policy.Reason})")}");
+            Console.WriteLine($"  Best endpoint: {ResolverReportTextFormatter.DescribeBenchmarkBest(report.Results, report.Summary, FormatDuration)}");
+            Console.WriteLine($"  Policy result: {(evaluation.PolicyPassed ? "pass" : $"fail ({evaluation.PolicyReason})")}");
 
-            int exitCode = policy.ExitCode;
+            int exitCode = GetBenchmarkExitCode(evaluation, options);
             if (options.BenchmarkSummaryLine) {
-                Console.WriteLine(BuildBenchmarkSummaryLine(results, best, policy, options, exitCode));
+                Console.WriteLine(ResolverReportTextFormatter.BuildBenchmarkSummaryLine(report.Summary, exitCode));
+            }
+
+            if (!string.IsNullOrWhiteSpace(options.BenchmarkSavePath)) {
+                SaveResolverScoreSnapshot(options.BenchmarkSavePath!, report.Snapshot);
             }
 
             return exitCode;
         }
 
-        private static BenchmarkPolicyOutcome EvaluateBenchmarkPolicy(IReadOnlyList<BenchmarkResult> results, CliOptions options) {
-            int successfulCandidates = results.Count(result => result.SuccessCount > 0);
-            int totalQueries = results.Sum(result => result.TotalQueries);
-            int successfulQueries = results.Sum(result => result.SuccessCount);
-            int successPercent = totalQueries == 0
-                ? 0
-                : (int)Math.Round((double)successfulQueries * 100 / totalQueries, MidpointRounding.AwayFromZero);
-
-            if (successfulCandidates == 0) {
-                return new BenchmarkPolicyOutcome {
-                    Passed = false,
-                    Reason = "no successful candidates",
-                    ExitCode = 1
-                };
-            }
-
-            if (options.BenchmarkMinSuccessfulCandidates.HasValue &&
-                successfulCandidates < options.BenchmarkMinSuccessfulCandidates.Value) {
-                return new BenchmarkPolicyOutcome {
-                    Passed = false,
-                    Reason = $"successful candidates {successfulCandidates}/{results.Count} below required count {options.BenchmarkMinSuccessfulCandidates.Value}",
-                    ExitCode = 3
-                };
-            }
-
-            if (options.BenchmarkMinSuccessPercent.HasValue &&
-                successPercent < options.BenchmarkMinSuccessPercent.Value) {
-                return new BenchmarkPolicyOutcome {
-                    Passed = false,
-                    Reason = $"success rate {successPercent}% below required {options.BenchmarkMinSuccessPercent.Value}%",
-                    ExitCode = 3
-                };
-            }
-
-            return new BenchmarkPolicyOutcome {
-                Passed = true,
-                ExitCode = 0
+        private static ResolverBenchmarkPolicy CreateBenchmarkPolicy(CliOptions options) {
+            return new ResolverBenchmarkPolicy {
+                MinSuccessPercent = options.BenchmarkMinSuccessPercent,
+                MinSuccessfulCandidates = options.BenchmarkMinSuccessfulCandidates
             };
         }
 
-        private static string BuildBenchmarkSummaryLine(IReadOnlyList<BenchmarkResult> results, BenchmarkResult? best, BenchmarkPolicyOutcome policy, CliOptions options, int exitCode) {
-            int successfulCandidates = results.Count(result => result.SuccessCount > 0);
-            int totalQueries = results.Sum(result => result.TotalQueries);
-            int successfulQueries = results.Sum(result => result.SuccessCount);
-            int successPercent = totalQueries == 0
-                ? 0
-                : (int)Math.Round((double)successfulQueries * 100 / totalQueries, MidpointRounding.AwayFromZero);
+        private static int GetBenchmarkExitCode(ResolverBenchmarkEvaluation evaluation, CliOptions options) {
+            if (evaluation.SuccessfulCandidates == 0) {
+                return 1;
+            }
 
-            return string.Join(" ", new[] {
-                "BENCHMARK_SUMMARY",
-                "summary_version=1",
-                $"result={(policy.Passed ? "pass" : "fail")}",
-                $"exit_code={exitCode}",
-                $"candidates={results.Count}",
-                $"successful_candidates={successfulCandidates}",
-                $"total_queries={totalQueries}",
-                $"successful_queries={successfulQueries}",
-                $"success_percent={successPercent}",
-                $"timeout_ms={options.BenchmarkTimeoutMs}",
-                $"concurrency={options.BenchmarkConcurrency}",
-                $"policy_result={(policy.Passed ? "pass" : "fail")}",
-                $"policy_reason={NormalizeSummaryToken(policy.Passed ? "none" : policy.Reason)}",
-                $"best_target={NormalizeSummaryToken(best?.DisplayName ?? "none")}",
-                $"best_resolver={NormalizeSummaryToken(best?.Resolver ?? "none")}",
-                $"best_transport={NormalizeSummaryToken(best?.Transport ?? "none")}",
-                $"best_avg_ms={(best == null ? 0 : (int)Math.Round(best.AverageElapsed.TotalMilliseconds, MidpointRounding.AwayFromZero))}"
-            });
+            if (options.BenchmarkMinSuccessfulCandidates.HasValue && evaluation.SuccessfulCandidates < options.BenchmarkMinSuccessfulCandidates.Value) {
+                return 3;
+            }
+
+            if (options.BenchmarkMinSuccessPercent.HasValue && evaluation.OverallSuccessPercent < options.BenchmarkMinSuccessPercent.Value) {
+                return 3;
+            }
+
+            return evaluation.PolicyPassed ? 0 : 1;
         }
 
         private static async Task<int> RunProbeAsync(CliOptions options, CancellationToken cancellationToken) {
             string domain = options.Domain!;
-            if (options.ProbeEndpoints.Count > 0) {
-                return await RunCustomProbeAsync(options, domain, cancellationToken).ConfigureAwait(false);
-            }
-
-            DnsEndpoint[] plan = BuildProbePlan(options.Endpoint);
-
-            Console.WriteLine("Probe:");
-            Console.WriteLine($"  Domain: {domain}");
-            Console.WriteLine($"  Endpoint profile: {options.Endpoint}");
-            Console.WriteLine($"  Candidates: {plan.Length}");
-            Console.WriteLine($"  Detail mode: {(options.ProbeSummaryOnly ? "summary-only" : "full")}");
-
-            var results = new List<ProbeResult>(plan.Length);
-            foreach (DnsEndpoint endpoint in plan) {
-                cancellationToken.ThrowIfCancellationRequested();
-                ProbeResult result = await ProbeEndpointAsync(endpoint, domain, options.RecordType, options, cancellationToken).ConfigureAwait(false);
-                results.Add(result);
-                if (!options.ProbeSummaryOnly) {
-                    WriteProbeResult(result);
-                }
-            }
-
-            int successCount = results.Count(result => result.Succeeded);
-            Console.WriteLine("Probe Summary:");
-            Console.WriteLine($"  Successful probes: {successCount}/{results.Count}");
-            Console.WriteLine($"  Failed probes: {results.Count - successCount}");
-            Console.WriteLine($"  Fastest success: {DescribeFastestSuccess(results)}");
-            Console.WriteLine($"  Fastest consensus responder: {DescribeFastestConsensusResponder(results)}");
-            Console.WriteLine($"  Transport coverage: {DescribeTransportCoverage(results)}");
-            Console.WriteLine($"  Answer consensus: {DescribeAnswerConsensus(results)}");
-            Console.WriteLine($"  Mismatched responders: {DescribeMismatchedResponders(results)}");
-            ProbePolicyOutcome policy = EvaluateProbePolicy(results, options);
-            Console.WriteLine($"  Distinct answer sets: {DescribeDistinctAnswerSetCount(results)}");
-            Console.WriteLine($"  Answer variants: {DescribeAnswerVariants(results)}");
-            Console.WriteLine($"  Recommended endpoint: {DescribeRecommendedProbeResult(results, policy, options)}");
-            Console.WriteLine($"  Policy result: {(policy.Passed ? "pass" : $"fail ({policy.Reason})")}");
-            int exitCode = policy.ExitCode;
-            if (options.ProbeSummaryLine) {
-                Console.WriteLine(BuildProbeSummaryLine(results, policy, options, exitCode));
-            }
-
-            return exitCode;
-        }
-
-        private static async Task<int> RunCustomProbeAsync(CliOptions options, string domain, CancellationToken cancellationToken) {
-            DnsResolverEndpoint[] plan = EndpointParser.TryParseMany(options.ProbeEndpoints, out IReadOnlyList<string> errors);
-            if (errors.Count > 0) {
-                foreach (string error in errors) {
-                    Console.Error.WriteLine(error);
-                }
+            ResolverExecutionTargetSource targetSource = CreateProbeTargetSource(options);
+            ResolverExecutionTarget[] targets = await ResolverExecutionTargetResolver.ResolveAsync(targetSource, cancellationToken).ConfigureAwait(false);
+            if (options.HasCustomEndpointInputs && targets.Length == 0) {
+                Console.Error.WriteLine("No custom resolver endpoints were supplied.");
                 return 1;
             }
 
+            return await RunProbeWithTargetsAsync(
+                options,
+                targets,
+                domain,
+                GetProbeEndpointProfile(options),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task<int> RunProbeWithTargetsAsync(
+            CliOptions options,
+            ResolverExecutionTarget[] targets,
+            string domain,
+            string endpointProfile,
+            CancellationToken cancellationToken) {
             Console.WriteLine("Probe:");
             Console.WriteLine($"  Domain: {domain}");
-            Console.WriteLine("  Endpoint profile: custom");
-            Console.WriteLine($"  Candidates: {plan.Length}");
+            Console.WriteLine($"  Endpoint profile: {endpointProfile}");
+            Console.WriteLine($"  Candidates: {targets.Length}");
             Console.WriteLine($"  Detail mode: {(options.ProbeSummaryOnly ? "summary-only" : "full")}");
 
-            var results = new List<ProbeResult>(plan.Length);
-            foreach (DnsResolverEndpoint endpoint in plan) {
-                cancellationToken.ThrowIfCancellationRequested();
-                ProbeResult result = await ProbeEndpointAsync(endpoint, domain, options.RecordType, options, cancellationToken).ConfigureAwait(false);
-                results.Add(result);
-                if (!options.ProbeSummaryOnly) {
+            ResolverProbeReport report = await ExecuteProbeReportAsync(targets, domain, options, cancellationToken).ConfigureAwait(false);
+            if (!options.ProbeSummaryOnly) {
+                foreach (ResolverProbeReportResult result in report.Results) {
                     WriteProbeResult(result);
                 }
             }
 
-            int successCount = results.Count(result => result.Succeeded);
+            return WriteProbeSummary(report, options);
+        }
+
+        private static ResolverQueryRunOptions CreateQueryRunOptions(CliOptions options) {
+            ResolverExecutionClientOptions clientOptions = CreateExecutionClientOptions(options, useBenchmarkTimeout: options.Benchmark);
+            return new ResolverQueryRunOptions {
+                TimeoutMs = options.Benchmark ? options.BenchmarkTimeoutMs : Configuration.DefaultTimeout,
+                RequestDnsSec = options.RequestDnsSec,
+                ValidateDnsSec = options.ValidateDnsSec,
+                MaxRetries = 1,
+                RetryDelayMs = 0,
+                PortOverride = clientOptions.PortOverride,
+                ForceDohWirePost = clientOptions.ForceDohWirePost
+            };
+        }
+
+        private static string[] GetEffectiveBenchmarkDomains(CliOptions options) {
+            if (options.BenchmarkDomains.Count > 0) {
+                return options.BenchmarkDomains.ToArray();
+            }
+
+            return string.IsNullOrWhiteSpace(options.Domain)
+                ? Array.Empty<string>()
+                : new[] { options.Domain! };
+        }
+
+        private static Task<ResolverBenchmarkReport> ExecuteBenchmarkReportAsync(
+            ResolverExecutionTarget[] targets,
+            string[] domains,
+            DnsRecordType[] recordTypes,
+            CliOptions options,
+            CancellationToken cancellationToken) {
+            return ResolverBenchmarkWorkflow.RunAsync(
+                targets,
+                domains,
+                recordTypes,
+                options.BenchmarkAttempts,
+                options.BenchmarkConcurrency,
+                options.BenchmarkTimeoutMs,
+                CreateQueryRunOptions(options),
+                CreateBenchmarkPolicy(options),
+                builtInOverride: CreateBuiltInOverride(),
+                explicitOverride: CreateExplicitOverride(),
+                cancellationToken: cancellationToken);
+        }
+
+        private static ResolverExecutionTargetSource CreateBenchmarkTargetSource(CliOptions options) {
+            if (!string.IsNullOrWhiteSpace(options.ResolverUsePath)) {
+                return new ResolverExecutionTargetSource {
+                    ResolverSelectionPath = options.ResolverUsePath
+                };
+            }
+
+            if (options.HasCustomEndpointInputs) {
+                return new ResolverExecutionTargetSource {
+                    ResolverEndpoints = options.ProbeEndpoints.ToArray(),
+                    ResolverEndpointFiles = options.ProbeEndpointFiles.ToArray(),
+                    ResolverEndpointUrls = options.ProbeEndpointUrls.ToArray()
+                };
+            }
+
+            return new ResolverExecutionTargetSource {
+                BuiltInEndpoints = options.BenchmarkEndpoints.Distinct().ToArray()
+            };
+        }
+
+        private static Task<ResolverProbeReport> ExecuteProbeReportAsync(
+            ResolverExecutionTarget[] targets,
+            string domain,
+            CliOptions options,
+            CancellationToken cancellationToken) {
+            return ResolverProbeWorkflow.RunAsync(
+                targets,
+                domain,
+                options.RecordType,
+                Configuration.DefaultTimeout,
+                CreateQueryRunOptions(options),
+                CreateProbePolicy(options),
+                builtInOverride: CreateBuiltInOverride(),
+                explicitOverride: CreateExplicitOverride(),
+                cancellationToken: cancellationToken);
+        }
+
+        private static ResolverExecutionTargetSource CreateProbeTargetSource(CliOptions options) {
+            if (!string.IsNullOrWhiteSpace(options.ResolverUsePath)) {
+                return new ResolverExecutionTargetSource {
+                    ResolverSelectionPath = options.ResolverUsePath
+                };
+            }
+
+            if (options.HasCustomEndpointInputs) {
+                return new ResolverExecutionTargetSource {
+                    ResolverEndpoints = options.ProbeEndpoints.ToArray(),
+                    ResolverEndpointFiles = options.ProbeEndpointFiles.ToArray(),
+                    ResolverEndpointUrls = options.ProbeEndpointUrls.ToArray()
+                };
+            }
+
+            return new ResolverExecutionTargetSource {
+                ProbeProfile = options.Endpoint
+            };
+        }
+
+        private static string? GetBenchmarkEndpointProfile(CliOptions options) {
+            if (!string.IsNullOrWhiteSpace(options.ResolverUsePath)) {
+                return "selected";
+            }
+
+            return options.HasCustomEndpointInputs ? "custom" : null;
+        }
+
+        private static string GetProbeEndpointProfile(CliOptions options) {
+            if (!string.IsNullOrWhiteSpace(options.ResolverUsePath)) {
+                return "selected";
+            }
+
+            return options.HasCustomEndpointInputs ? "custom" : options.Endpoint.ToString();
+        }
+
+        private static Func<DnsEndpoint, string, DnsRecordType, CancellationToken, Task<ResolverQueryAttemptResult>>? CreateBuiltInOverride() {
+            if (ProbeOverride == null) {
+                return null;
+            }
+
+            return async (endpoint, name, recordType, cancellationToken) => CreateOverrideAttemptResult(
+                endpoint.ToString(),
+                await ProbeOverride(endpoint, name, cancellationToken).ConfigureAwait(false));
+        }
+
+        private static Func<DnsResolverEndpoint, string, DnsRecordType, CancellationToken, Task<ResolverQueryAttemptResult>>? CreateExplicitOverride() {
+            if (ProbeEndpointOverride == null) {
+                return null;
+            }
+
+            return async (endpoint, name, recordType, cancellationToken) => CreateOverrideAttemptResult(
+                ResolverExecutionPlanBuilder.DescribeEndpoint(endpoint),
+                await ProbeEndpointOverride(endpoint, name, cancellationToken).ConfigureAwait(false));
+        }
+
+        private static ResolverQueryAttemptResult CreateOverrideAttemptResult(
+            string target,
+            (DnsResponse Response, TimeSpan Elapsed, string Resolver, DnsRequestFormat RequestFormat) result) {
+            return new ResolverQueryAttemptResult {
+                Target = target,
+                RequestFormat = result.RequestFormat,
+                Resolver = result.Resolver,
+                Response = result.Response,
+                Elapsed = result.Elapsed
+            };
+        }
+
+        private static void WriteProbeResult(ResolverProbeReportResult result) {
+            foreach (string line in ResolverReportTextFormatter.BuildProbeResultLines(result, FormatDuration)) {
+                Console.WriteLine(line);
+            }
+        }
+
+        private static int WriteProbeSummary(ResolverProbeReport report, CliOptions options) {
+            ResolverProbeEvaluation evaluation = report.Evaluation;
+            ResolverProbeReportSummary summary = report.Summary;
+            int successCount = summary.SuccessfulCandidates;
             Console.WriteLine("Probe Summary:");
-            Console.WriteLine($"  Successful probes: {successCount}/{results.Count}");
-            Console.WriteLine($"  Failed probes: {results.Count - successCount}");
-            Console.WriteLine($"  Fastest success: {DescribeFastestSuccess(results)}");
-            Console.WriteLine($"  Fastest consensus responder: {DescribeFastestConsensusResponder(results)}");
-            Console.WriteLine($"  Transport coverage: {DescribeTransportCoverage(results)}");
-            Console.WriteLine($"  Answer consensus: {DescribeAnswerConsensus(results)}");
-            Console.WriteLine($"  Mismatched responders: {DescribeMismatchedResponders(results)}");
-            ProbePolicyOutcome policy = EvaluateProbePolicy(results, options);
-            Console.WriteLine($"  Distinct answer sets: {DescribeDistinctAnswerSetCount(results)}");
-            Console.WriteLine($"  Answer variants: {DescribeAnswerVariants(results)}");
-            Console.WriteLine($"  Recommended endpoint: {DescribeRecommendedProbeResult(results, policy, options)}");
-            Console.WriteLine($"  Policy result: {(policy.Passed ? "pass" : $"fail ({policy.Reason})")}");
-            int exitCode = policy.ExitCode;
+            Console.WriteLine($"  Successful probes: {successCount}/{summary.CandidateCount}");
+            Console.WriteLine($"  Failed probes: {summary.FailedCandidates}");
+            Console.WriteLine($"  Fastest success: {ResolverReportTextFormatter.DescribeProbeFastestSuccess(summary, FormatDuration)}");
+            Console.WriteLine($"  Fastest consensus responder: {ResolverReportTextFormatter.DescribeProbeFastestConsensus(summary, FormatDuration)}");
+            Console.WriteLine($"  Transport coverage: {ResolverReportTextFormatter.DescribeProbeTransportCoverage(summary)}");
+            Console.WriteLine($"  Runtime capability hints: {ResolverReportTextFormatter.DescribeProbeRuntimeCapabilities(summary)}");
+            Console.WriteLine($"  Answer consensus: {ResolverReportTextFormatter.DescribeProbeAnswerConsensus(summary)}");
+            Console.WriteLine($"  Mismatched responders: {ResolverReportTextFormatter.DescribeProbeMismatchedTargets(summary)}");
+            Console.WriteLine($"  Distinct answer sets: {summary.DistinctAnswerSets}");
+            Console.WriteLine($"  Answer variants: {ResolverReportTextFormatter.DescribeProbeAnswerVariants(summary)}");
+            Console.WriteLine($"  Recommended endpoint: {ResolverReportTextFormatter.DescribeProbeRecommended(summary, FormatDuration)}");
+            Console.WriteLine($"  Policy result: {(evaluation.PolicyPassed ? "pass" : $"fail ({evaluation.PolicyReason})")}");
+
+            int exitCode = GetProbeExitCode(evaluation, options);
             if (options.ProbeSummaryLine) {
-                Console.WriteLine(BuildProbeSummaryLine(results, policy, options, exitCode));
+                Console.WriteLine(ResolverReportTextFormatter.BuildProbeSummaryLine(summary, exitCode));
+            }
+
+            if (!string.IsNullOrWhiteSpace(options.ProbeSavePath)) {
+                SaveResolverScoreSnapshot(options.ProbeSavePath!, report.Snapshot);
             }
 
             return exitCode;
         }
 
-        private static DnsEndpoint[] BuildProbePlan(DnsEndpoint endpoint) {
-            return endpoint switch {
-                DnsEndpoint.System or DnsEndpoint.SystemTcp => new[] {
-                    DnsEndpoint.System,
-                    DnsEndpoint.SystemTcp
-                },
-                DnsEndpoint.Cloudflare or
-                DnsEndpoint.CloudflareWireFormat or
-                DnsEndpoint.CloudflareWireFormatPost or
-                DnsEndpoint.CloudflareJsonPost or
-                DnsEndpoint.CloudflareQuic or
-                DnsEndpoint.CloudflareOdoh => new[] {
-                    DnsEndpoint.Cloudflare,
-                    DnsEndpoint.CloudflareWireFormat,
-                    DnsEndpoint.CloudflareWireFormatPost,
-                    DnsEndpoint.CloudflareJsonPost,
-                    DnsEndpoint.CloudflareQuic,
-                    DnsEndpoint.CloudflareOdoh
-                },
-                DnsEndpoint.Google or
-                DnsEndpoint.GoogleWireFormat or
-                DnsEndpoint.GoogleWireFormatPost or
-                DnsEndpoint.GoogleJsonPost or
-                DnsEndpoint.GoogleQuic => new[] {
-                    DnsEndpoint.Google,
-                    DnsEndpoint.GoogleWireFormat,
-                    DnsEndpoint.GoogleWireFormatPost,
-                    DnsEndpoint.GoogleJsonPost,
-                    DnsEndpoint.GoogleQuic
-                },
-                DnsEndpoint.AdGuard or
-                DnsEndpoint.AdGuardFamily or
-                DnsEndpoint.AdGuardNonFiltering => new[] {
-                    DnsEndpoint.AdGuard,
-                    DnsEndpoint.AdGuardFamily,
-                    DnsEndpoint.AdGuardNonFiltering
-                },
-                DnsEndpoint.Quad9 or
-                DnsEndpoint.Quad9ECS or
-                DnsEndpoint.Quad9Unsecure => new[] {
-                    DnsEndpoint.Quad9,
-                    DnsEndpoint.Quad9ECS,
-                    DnsEndpoint.Quad9Unsecure
-                },
-                DnsEndpoint.OpenDNS or
-                DnsEndpoint.OpenDNSFamily => new[] {
-                    DnsEndpoint.OpenDNS,
-                    DnsEndpoint.OpenDNSFamily
-                },
-                DnsEndpoint.DnsCryptCloudflare or
-                DnsEndpoint.DnsCryptQuad9 or
-                DnsEndpoint.DnsCryptRelay => new[] {
-                    DnsEndpoint.DnsCryptCloudflare,
-                    DnsEndpoint.DnsCryptQuad9,
-                    DnsEndpoint.DnsCryptRelay
-                },
-                _ => new[] { endpoint }
+        private static ResolverProbePolicy CreateProbePolicy(CliOptions options) {
+            return new ResolverProbePolicy {
+                MinSuccessCount = options.ProbeMinSuccessCount,
+                MinSuccessPercent = options.ProbeMinSuccessPercent,
+                MinConsensusPercent = options.ProbeMinConsensusPercent,
+                RequireConsensus = options.ProbeRequireConsensus
             };
         }
 
-        private static Task<ProbeResult> ProbeEndpointAsync(DnsEndpoint endpoint, string domain, CliOptions options, CancellationToken cancellationToken) {
-            return ProbeEndpointAsync(endpoint, domain, options.RecordType, options, cancellationToken);
-        }
-
-        private static async Task<ProbeResult> ProbeEndpointAsync(DnsEndpoint endpoint, string domain, DnsRecordType recordType, CliOptions options, CancellationToken cancellationToken) {
-            if (ProbeOverride != null) {
-                var overrideResult = await ProbeOverride(endpoint, domain, cancellationToken).ConfigureAwait(false);
-                return new ProbeResult {
-                    Endpoint = endpoint,
-                    DisplayName = endpoint.ToString(),
-                    RequestFormat = overrideResult.RequestFormat,
-                    Resolver = overrideResult.Resolver,
-                    Response = overrideResult.Response,
-                    Elapsed = overrideResult.Elapsed
-                };
+        private static int GetProbeExitCode(ResolverProbeEvaluation evaluation, CliOptions options) {
+            if (evaluation.SuccessfulCandidates == 0) {
+                return 1;
             }
 
-            await using var client = new ClientX(endpoint);
-            ConfigureClient(client, options);
+            if (options.ProbeMinSuccessCount.HasValue && evaluation.SuccessfulCandidates < options.ProbeMinSuccessCount.Value) {
+                return 3;
+            }
 
-            var stopwatch = Stopwatch.StartNew();
-            try {
-                DnsResponse response = await client.Resolve(
-                    domain,
-                    recordType,
-                    options.RequestDnsSec,
-                    options.ValidateDnsSec,
-                    retryOnTransient: false,
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
-                stopwatch.Stop();
+            if (options.ProbeMinSuccessPercent.HasValue && evaluation.SuccessPercent < options.ProbeMinSuccessPercent.Value) {
+                return 3;
+            }
 
-                return new ProbeResult {
-                    Endpoint = endpoint,
-                    DisplayName = endpoint.ToString(),
-                    RequestFormat = client.EndpointConfiguration.RequestFormat,
-                    Resolver = DescribeResolver(client, response),
-                    Response = response,
-                    Elapsed = response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : stopwatch.Elapsed
-                };
-            } catch (Exception ex) {
-                stopwatch.Stop();
-                return new ProbeResult {
-                    Endpoint = endpoint,
-                    DisplayName = endpoint.ToString(),
-                    RequestFormat = client.EndpointConfiguration.RequestFormat,
-                    Resolver = DescribeConfiguredResolver(client),
-                    Elapsed = stopwatch.Elapsed,
-                    Error = ex.Message
-                };
+            if (options.ProbeRequireConsensus && evaluation.DistinctAnswerSets > 1) {
+                return 2;
+            }
+
+            if (options.ProbeMinConsensusPercent.HasValue && evaluation.ConsensusPercent < options.ProbeMinConsensusPercent.Value) {
+                return 2;
+            }
+
+            return evaluation.PolicyPassed ? 0 : 1;
+        }
+
+        private static void WriteQueryResponse(DnsResponse response, CliOptions options, TimeSpan elapsed) {
+            var presentationOptions = new DnsResponsePresentationOptions {
+                Mode = GetResponsePresentationMode(options),
+                TxtConcat = options.TxtConcatOutput,
+                ShowQuestions = ShouldShowQuestionSection(options, rawDefault: false),
+                ShowAnswers = ShouldShowAnswerSection(options, rawDefault: false),
+                ShowAuthorities = ShouldShowAuthoritySection(options, rawDefault: false),
+                ShowAdditional = ShouldShowAdditionalSection(options, rawDefault: false)
+            };
+
+            if (presentationOptions.Mode == DnsResponsePresentationMode.Raw) {
+                presentationOptions.ShowQuestions = ShouldShowQuestionSection(options, rawDefault: true);
+                presentationOptions.ShowAnswers = ShouldShowAnswerSection(options, rawDefault: true);
+                presentationOptions.ShowAuthorities = ShouldShowAuthoritySection(options, rawDefault: true);
+                presentationOptions.ShowAdditional = ShouldShowAdditionalSection(options, rawDefault: true);
+            }
+
+            foreach (string line in DnsResponseTextFormatter.BuildOutputLines(response, presentationOptions, elapsed, FormatDuration)) {
+                Console.WriteLine(line);
             }
         }
 
-        private static Task<ProbeResult> ProbeEndpointAsync(DnsResolverEndpoint endpoint, string domain, CliOptions options, CancellationToken cancellationToken) {
-            return ProbeEndpointAsync(endpoint, domain, options.RecordType, options, cancellationToken);
+        private static void WriteZoneTransferResponse(RecursiveZoneTransferResult result, CliOptions options) {
+            switch (options.OutputFormat) {
+                case QueryOutputFormat.Json:
+                    Console.WriteLine(DnsClientXJsonSerializer.Serialize(result));
+                    return;
+                default:
+                    WritePrettyZoneTransferResponse(result, options);
+                    return;
+            }
         }
 
-        private static async Task<ProbeResult> ProbeEndpointAsync(DnsResolverEndpoint endpoint, string domain, DnsRecordType recordType, CliOptions options, CancellationToken cancellationToken) {
-            if (ProbeEndpointOverride != null) {
-                var overrideResult = await ProbeEndpointOverride(endpoint, domain, cancellationToken).ConfigureAwait(false);
-                return new ProbeResult {
-                    Endpoint = DnsEndpoint.Custom,
-                    DisplayName = DescribeProbeEndpoint(endpoint),
-                    RequestFormat = overrideResult.RequestFormat,
-                    Resolver = overrideResult.Resolver,
-                    Response = overrideResult.Response,
-                    Elapsed = overrideResult.Elapsed
-                };
+        private static void SaveResolverScoreSnapshot(string path, ResolverScoreSnapshot snapshot) {
+            ResolverScoreStore.Save(path, snapshot);
+        }
+
+        private static void WriteResolverSelection(ResolverSelectionResult selection, CliOptions options) {
+            if (options.OutputFormat == QueryOutputFormat.Json) {
+                Console.WriteLine(DnsClientXJsonSerializer.Serialize(selection));
+                return;
             }
 
-            await using var client = CreateClient(endpoint);
-            ConfigureClient(client, options);
+            Console.WriteLine(selection.Target);
+        }
 
-            var stopwatch = Stopwatch.StartNew();
-            try {
-                client.EndpointConfiguration.TimeOut = Math.Max(1, client.EndpointConfiguration.TimeOut);
-                client.EndpointConfiguration.UseTcpFallback = endpoint.AllowTcpFallback;
-                if (endpoint.EdnsBufferSize.HasValue) {
-                    client.EndpointConfiguration.UdpBufferSize = endpoint.EdnsBufferSize.Value;
+        private static void WritePrettyZoneTransferResponse(RecursiveZoneTransferResult result, CliOptions options) {
+            Console.WriteLine($"Zone Transfer: {result.Zone}");
+            Console.WriteLine($"  Selected authority: {result.SelectedAuthority}");
+            Console.WriteLine($"  Selected server: {result.SelectedServer}:{result.Port}");
+            Console.WriteLine($"  Chunks: {result.RecordSets.Length}");
+
+            if (options.TransferSummary) {
+                Console.WriteLine($"  Authorities discovered: {string.Join(", ", result.Authorities)}");
+                Console.WriteLine($"  Tried servers: {string.Join(", ", result.TriedServers)}");
+            }
+
+            Console.WriteLine("Records:");
+            foreach (ZoneTransferResult recordSet in result.RecordSets) {
+                if (recordSet.IsOpening) {
+                    Console.WriteLine("  ;; opening SOA");
+                } else if (recordSet.IsClosing) {
+                    Console.WriteLine("  ;; closing SOA");
                 }
-                if (endpoint.Timeout.HasValue) {
-                    client.EndpointConfiguration.TimeOut = (int)Math.Max(1, endpoint.Timeout.Value.TotalMilliseconds);
+
+                foreach (DnsAnswer record in recordSet.Records) {
+                    Console.WriteLine($"  {record.Name}\t{record.TTL}\tIN\t{record.Type}\t{record.Data}");
                 }
-                if (endpoint.Transport != Transport.Doh) {
-                    client.EndpointConfiguration.Port = endpoint.Port;
-                }
-
-                DnsResponse response = await client.Resolve(
-                    domain,
-                    recordType,
-                    options.RequestDnsSec || endpoint.DnsSecOk == true,
-                    options.ValidateDnsSec,
-                    retryOnTransient: false,
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
-                stopwatch.Stop();
-
-                return new ProbeResult {
-                    Endpoint = DnsEndpoint.Custom,
-                    DisplayName = DescribeProbeEndpoint(endpoint),
-                    RequestFormat = client.EndpointConfiguration.RequestFormat,
-                    Resolver = DescribeResolver(client, response),
-                    Response = response,
-                    Elapsed = response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : stopwatch.Elapsed
-                };
-            } catch (Exception ex) {
-                stopwatch.Stop();
-                return new ProbeResult {
-                    Endpoint = DnsEndpoint.Custom,
-                    DisplayName = DescribeProbeEndpoint(endpoint),
-                    RequestFormat = MapTransport(endpoint.Transport),
-                    Resolver = DescribeConfiguredResolver(client),
-                    Elapsed = stopwatch.Elapsed,
-                    Error = ex.Message
-                };
             }
         }
 
-        private static void WriteProbeResult(ProbeResult result) {
-            DnsResponse? response = result.Response;
-            string target = result.DisplayName ?? result.Endpoint.ToString();
-            string status = result.Succeeded ? "OK" : "FAIL";
-            string responseStatus = response?.Status.ToString() ?? "NoResponse";
-            string transport = response?.UsedTransport.ToString() ?? "(unknown)";
-            int answers = response?.Answers?.Length ?? 0;
-            string error = !string.IsNullOrWhiteSpace(result.Error)
-                ? result.Error!
-                : !string.IsNullOrWhiteSpace(response?.Error)
-                    ? response!.Error
-                    : response != null && response.ErrorCode != DnsQueryErrorCode.None
-                        ? response.ErrorCode.ToString()
-                        : "none";
-
-            Console.WriteLine($"  [{status}] {target} via {result.RequestFormat}");
-            Console.WriteLine($"      Resolver: {result.Resolver}");
-            Console.WriteLine($"      Status: {responseStatus}");
-            Console.WriteLine($"      Transport: {transport}");
-            Console.WriteLine($"      Elapsed: {FormatDuration(result.Elapsed)}");
-            Console.WriteLine($"      Answers: {answers}");
-            if (!string.Equals(error, "none", StringComparison.OrdinalIgnoreCase)) {
-                Console.WriteLine($"      Error: {error}");
-            }
-        }
-
-        private static ClientX CreateClient(DnsResolverEndpoint endpoint) {
-            if (endpoint.Transport == Transport.Doh) {
-                Uri dohUri = EndpointParser.BuildDohUri(endpoint);
-                return new ClientX(dohUri, MapTransport(endpoint.Transport));
+        private static DnsResponsePresentationMode GetResponsePresentationMode(CliOptions options) {
+            if (options.ShortOutput) {
+                return DnsResponsePresentationMode.Short;
             }
 
-            if (string.IsNullOrWhiteSpace(endpoint.Host)) {
-                throw new ArgumentException("Custom non-DoH probe endpoint requires Host.");
-            }
-
-            var client = new ClientX(endpoint.Host!, MapTransport(endpoint.Transport));
-            client.EndpointConfiguration.Port = endpoint.Port;
-            return client;
-        }
-
-        private static DnsRequestFormat MapTransport(Transport transport) {
-            return transport switch {
-                Transport.Udp => DnsRequestFormat.DnsOverUDP,
-                Transport.Tcp => DnsRequestFormat.DnsOverTCP,
-                Transport.Dot => DnsRequestFormat.DnsOverTLS,
-                Transport.Doh => DnsRequestFormat.DnsOverHttps,
-                Transport.Quic => DnsRequestFormat.DnsOverQuic,
-                Transport.Grpc => DnsRequestFormat.DnsOverGrpc,
-                Transport.Multicast => DnsRequestFormat.Multicast,
-                _ => DnsRequestFormat.DnsOverUDP
+            return options.OutputFormat switch {
+                QueryOutputFormat.Json => DnsResponsePresentationMode.Json,
+                QueryOutputFormat.Raw => DnsResponsePresentationMode.Raw,
+                _ => DnsResponsePresentationMode.Pretty
             };
         }
 
-        private static string DescribeProbeEndpoint(DnsResolverEndpoint endpoint) {
-            string prefix = endpoint.Transport.ToString().ToLowerInvariant();
-            return $"{prefix}@{endpoint}";
+        private static bool ShouldShowQuestionSection(CliOptions options, bool rawDefault) {
+            if (options.HasExplicitSectionSelection) {
+                return options.ShowQuestionSection;
+            }
+
+            return rawDefault;
         }
 
-        private static string DescribeFastestSuccess(IEnumerable<ProbeResult> results) {
-            ProbeResult? fastest = GetFastestSuccessfulProbeResult(results);
-
-            if (fastest == null) {
-                return "none";
+        private static bool ShouldShowAnswerSection(CliOptions options, bool rawDefault) {
+            if (options.HasExplicitSectionSelection) {
+                return options.ShowAnswerSection;
             }
 
-            string target = fastest.DisplayName ?? fastest.Endpoint.ToString();
-            string transport = DescribeProbeTransport(fastest);
-            return $"{target} in {FormatDuration(fastest.Elapsed)} via {transport}";
+            return !rawDefault || options.OutputFormat == QueryOutputFormat.Raw;
         }
 
-        private static string DescribeFastestConsensusResponder(IEnumerable<ProbeResult> results) {
-            ProbeResult? fastest = GetFastestConsensusProbeResult(results);
-            if (fastest == null) {
-                return "none";
+        private static bool ShouldShowAuthoritySection(CliOptions options, bool rawDefault) {
+            if (options.HasExplicitSectionSelection) {
+                return options.ShowAuthoritySection;
             }
 
-            string target = fastest.DisplayName ?? fastest.Endpoint.ToString();
-            string transport = DescribeProbeTransport(fastest);
-            return $"{target} in {FormatDuration(fastest.Elapsed)} via {transport}";
+            return rawDefault;
         }
 
-        private static string DescribeTransportCoverage(IEnumerable<ProbeResult> results) {
-            string[] summary = results
-                .GroupBy(DescribeProbeTransport, StringComparer.OrdinalIgnoreCase)
-                .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
-                .Select(group => $"{group.Key} {group.Count(result => result.Succeeded)}/{group.Count()}")
-                .ToArray();
-
-            return summary.Length == 0 ? "none" : string.Join(" | ", summary);
-        }
-
-        private static string DescribeProbeTransport(ProbeResult result) {
-            if (result.Response != null) {
-                return result.Response.UsedTransport.ToString();
+        private static bool ShouldShowAdditionalSection(CliOptions options, bool rawDefault) {
+            if (options.HasExplicitSectionSelection) {
+                return options.ShowAdditionalSection;
             }
 
-            return MapRequestFormatToTransport(result.RequestFormat).ToString();
-        }
-
-        private static string DescribeAnswerConsensus(IEnumerable<ProbeResult> results) {
-            ProbeResult[] successful = GetSuccessfulProbeResults(results);
-            if (successful.Length == 0) {
-                return "none";
-            }
-
-            ProbeResult[][] groups = GetAnswerGroups(successful);
-
-            return $"{groups[0].Length}/{successful.Length} successful probes agree";
-        }
-
-        private static string DescribeMismatchedResponders(IEnumerable<ProbeResult> results) {
-            ProbeResult[] successful = GetSuccessfulProbeResults(results);
-            if (successful.Length <= 1) {
-                return "none";
-            }
-
-            ProbeResult[][] groups = GetAnswerGroups(successful);
-
-            if (groups.Length <= 1) {
-                return "none";
-            }
-
-            string[] mismatches = groups
-                .Skip(1)
-                .SelectMany(static group => group)
-                .Select(result => result.DisplayName ?? result.Endpoint.ToString())
-                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-
-            return mismatches.Length == 0 ? "none" : string.Join(", ", mismatches);
-        }
-
-        private static string DescribeDistinctAnswerSetCount(IEnumerable<ProbeResult> results) {
-            ProbeResult[] successful = GetSuccessfulProbeResults(results);
-            if (successful.Length == 0) {
-                return "0";
-            }
-
-            return GetAnswerGroups(successful).Length.ToString(CultureInfo.InvariantCulture);
-        }
-
-        private static string DescribeAnswerVariants(IEnumerable<ProbeResult> results) {
-            ProbeResult[] successful = GetSuccessfulProbeResults(results);
-            if (successful.Length == 0) {
-                return "none";
-            }
-
-            ProbeResult[][] groups = GetAnswerGroups(successful);
-
-            string[] variants = groups
-                .Select((group, index) => $"[{index + 1}] {DescribeAnswerSet(group[0])} <- {DescribeProbeTargets(group)}")
-                .ToArray();
-
-            return variants.Length == 0 ? "none" : string.Join(" | ", variants);
-        }
-
-        private static ProbePolicyOutcome EvaluateProbePolicy(IEnumerable<ProbeResult> results, CliOptions options) {
-            ProbeResult[] successful = GetSuccessfulProbeResults(results);
-            ProbeResult[] allResults = results.ToArray();
-            if (successful.Length == 0) {
-                return new ProbePolicyOutcome {
-                    Passed = false,
-                    Reason = "no successful probes",
-                    ExitCode = 1
-                };
-            }
-
-            if (options.ProbeMinSuccessCount.HasValue && successful.Length < options.ProbeMinSuccessCount.Value) {
-                return new ProbePolicyOutcome {
-                    Passed = false,
-                    Reason = $"successful probes {successful.Length}/{allResults.Length} below required count {options.ProbeMinSuccessCount.Value}",
-                    ExitCode = 3
-                };
-            }
-
-            int successPercent = (int)Math.Round((double)successful.Length * 100 / allResults.Length, MidpointRounding.AwayFromZero);
-            if (options.ProbeMinSuccessPercent.HasValue && successPercent < options.ProbeMinSuccessPercent.Value) {
-                return new ProbePolicyOutcome {
-                    Passed = false,
-                    Reason = $"success rate {successPercent}% below required {options.ProbeMinSuccessPercent.Value}%",
-                    ExitCode = 3
-                };
-            }
-
-            ProbeResult[][] groups = GetAnswerGroups(successful);
-            int consensusPercent = (int)Math.Round((double)groups[0].Length * 100 / successful.Length, MidpointRounding.AwayFromZero);
-            if (options.ProbeRequireConsensus && groups.Length > 1) {
-                return new ProbePolicyOutcome {
-                    Passed = false,
-                    Reason = $"consensus required but top answer set reached {consensusPercent}%",
-                    ExitCode = 2
-                };
-            }
-
-            if (options.ProbeMinConsensusPercent.HasValue && consensusPercent < options.ProbeMinConsensusPercent.Value) {
-                return new ProbePolicyOutcome {
-                    Passed = false,
-                    Reason = $"consensus {consensusPercent}% below required {options.ProbeMinConsensusPercent.Value}%",
-                    ExitCode = 2
-                };
-            }
-
-            return new ProbePolicyOutcome {
-                Passed = true,
-                ExitCode = 0
-            };
-        }
-
-        private static string BuildProbeSummaryLine(IEnumerable<ProbeResult> results, ProbePolicyOutcome policy, CliOptions options, int exitCode) {
-            ProbeResult[] allResults = results.ToArray();
-            ProbeResult[] successful = GetSuccessfulProbeResults(allResults);
-            ProbeResult[][] groups = GetAnswerGroups(successful);
-            ProbeResult? fastestSuccess = GetFastestSuccessfulProbeResult(allResults);
-            ProbeResult? fastestConsensus = GetFastestConsensusProbeResult(allResults);
-            ProbeResult? recommended = GetRecommendedProbeResult(allResults, policy, options);
-            string recommendationStatus = GetRecommendationStatus(policy, recommended);
-            string recommendationSource = GetRecommendationSource(allResults, policy, options, recommended);
-            string recommendationReason = GetRecommendationReason(allResults, policy, options, recommended);
-            int successPercent = allResults.Length == 0
-                ? 0
-                : (int)Math.Round((double)successful.Length * 100 / allResults.Length, MidpointRounding.AwayFromZero);
-            int consensusCount = groups.Length == 0 ? 0 : groups[0].Length;
-            int consensusPercent = successful.Length == 0
-                ? 0
-                : (int)Math.Round((double)consensusCount * 100 / successful.Length, MidpointRounding.AwayFromZero);
-            int distinctAnswerSets = groups.Length;
-
-            return string.Join(" ", new[] {
-                "PROBE_SUMMARY",
-                "summary_version=1",
-                $"result={(policy.Passed ? "pass" : "fail")}",
-                $"exit_code={exitCode}",
-                $"successful={successful.Length}",
-                $"total={allResults.Length}",
-                $"success_percent={successPercent}",
-                $"consensus_count={consensusCount}",
-                $"consensus_total={successful.Length}",
-                $"consensus_percent={consensusPercent}",
-                $"distinct_answer_sets={distinctAnswerSets}",
-                $"fastest_success_target={NormalizeSummaryToken(GetProbeTarget(fastestSuccess))}",
-                $"fastest_success_transport={NormalizeSummaryToken(GetProbeTransportName(fastestSuccess))}",
-                $"fastest_success_ms={GetProbeElapsedMilliseconds(fastestSuccess)}",
-                $"fastest_consensus_target={NormalizeSummaryToken(GetProbeTarget(fastestConsensus))}",
-                $"fastest_consensus_transport={NormalizeSummaryToken(GetProbeTransportName(fastestConsensus))}",
-                $"fastest_consensus_ms={GetProbeElapsedMilliseconds(fastestConsensus)}",
-                $"recommended_target={NormalizeSummaryToken(GetProbeTarget(recommended))}",
-                $"recommended_resolver={NormalizeSummaryToken(GetProbeResolver(recommended))}",
-                $"recommended_transport={NormalizeSummaryToken(GetProbeTransportName(recommended))}",
-                $"recommended_ms={GetProbeElapsedMilliseconds(recommended)}",
-                $"recommended_status={NormalizeSummaryToken(recommendationStatus)}",
-                $"recommendation_source={NormalizeSummaryToken(recommendationSource)}",
-                $"why_not_recommended={NormalizeSummaryToken(recommendationReason)}",
-                $"policy_reason={NormalizeSummaryToken(policy.Passed ? "none" : policy.Reason)}"
-            });
-        }
-
-        private static ProbeResult[] GetSuccessfulProbeResults(IEnumerable<ProbeResult> results) {
-            return results.Where(result => result.Succeeded).ToArray();
-        }
-
-        private static ProbeResult? GetFastestSuccessfulProbeResult(IEnumerable<ProbeResult> results) {
-            return results
-                .Where(result => result.Succeeded)
-                .OrderBy(result => result.Elapsed)
-                .FirstOrDefault();
-        }
-
-        private static ProbeResult? GetFastestConsensusProbeResult(IEnumerable<ProbeResult> results) {
-            ProbeResult[] successful = GetSuccessfulProbeResults(results);
-            if (successful.Length == 0) {
-                return null;
-            }
-
-            ProbeResult[][] groups = GetAnswerGroups(successful);
-            return groups[0]
-                .OrderBy(result => result.Elapsed)
-                .FirstOrDefault();
-        }
-
-        private static ProbeResult? GetRecommendedProbeResult(IEnumerable<ProbeResult> results, ProbePolicyOutcome policy, CliOptions options) {
-            if (!policy.Passed) {
-                return null;
-            }
-
-            ProbeResult[] successful = GetSuccessfulProbeResults(results);
-            if (successful.Length == 0) {
-                return null;
-            }
-
-            ProbeResult[][] groups = GetAnswerGroups(successful);
-            if (groups.Length == 0) {
-                return null;
-            }
-
-            if (groups.Length == 1) {
-                return groups[0]
-                    .OrderBy(result => result.Elapsed)
-                    .FirstOrDefault();
-            }
-
-            if (groups[0].Length == groups[1].Length) {
-                return null;
-            }
-
-            bool hasConsensusPolicy = options.ProbeRequireConsensus || options.ProbeMinConsensusPercent.HasValue;
-            if (!hasConsensusPolicy) {
-                return null;
-            }
-
-            return groups[0]
-                .OrderBy(result => result.Elapsed)
-                .FirstOrDefault();
-        }
-
-        private static string GetRecommendationReason(IEnumerable<ProbeResult> results, ProbePolicyOutcome policy, CliOptions options, ProbeResult? recommended) {
-            if (recommended != null) {
-                return "none";
-            }
-
-            if (!policy.Passed) {
-                return "policy failed";
-            }
-
-            ProbeResult[] successful = GetSuccessfulProbeResults(results);
-            if (successful.Length == 0) {
-                return "no successful probes";
-            }
-
-            ProbeResult[][] groups = GetAnswerGroups(successful);
-            if (groups.Length == 0) {
-                return "no answer groups";
-            }
-
-            if (groups.Length == 1) {
-                return "none";
-            }
-
-            if (groups[0].Length == groups[1].Length) {
-                return "top answer sets tied";
-            }
-
-            bool hasConsensusPolicy = options.ProbeRequireConsensus || options.ProbeMinConsensusPercent.HasValue;
-            if (!hasConsensusPolicy) {
-                return "consensus policy not enabled";
-            }
-
-            return "none";
-        }
-
-        private static string GetRecommendationSource(IEnumerable<ProbeResult> results, ProbePolicyOutcome policy, CliOptions options, ProbeResult? recommended) {
-            if (recommended == null) {
-                return "none";
-            }
-
-            ProbeResult[] successful = GetSuccessfulProbeResults(results);
-            if (successful.Length <= 1) {
-                return "single success fallback";
-            }
-
-            ProbeResult[][] groups = GetAnswerGroups(successful);
-            if (groups.Length <= 1) {
-                return "unanimous agreement";
-            }
-
-            bool hasConsensusPolicy = options.ProbeRequireConsensus || options.ProbeMinConsensusPercent.HasValue;
-            if (hasConsensusPolicy) {
-                return "consensus policy majority";
-            }
-
-            return "none";
-        }
-
-        private static string GetRecommendationStatus(ProbePolicyOutcome policy, ProbeResult? recommended) {
-            if (recommended != null) {
-                return "selected";
-            }
-
-            return policy.Passed ? "unavailable" : "blocked by policy";
-        }
-
-        private static ProbeResult[][] GetAnswerGroups(IEnumerable<ProbeResult> successfulResults) {
-            return successfulResults
-                .GroupBy(BuildAnswerSignature, StringComparer.Ordinal)
-                .OrderByDescending(group => group.Count())
-                .ThenBy(group => group.Key, StringComparer.Ordinal)
-                .Select(group => group.ToArray())
-                .ToArray();
-        }
-
-        private static string GetProbeTarget(ProbeResult? result) {
-            if (result == null) {
-                return "none";
-            }
-
-            return result.DisplayName ?? result.Endpoint.ToString();
-        }
-
-        private static string GetProbeResolver(ProbeResult? result) {
-            if (result == null || string.IsNullOrWhiteSpace(result.Resolver)) {
-                return "none";
-            }
-
-            return result.Resolver;
-        }
-
-        private static string GetProbeTransportName(ProbeResult? result) {
-            if (result == null) {
-                return "none";
-            }
-
-            return DescribeProbeTransport(result);
-        }
-
-        private static int GetProbeElapsedMilliseconds(ProbeResult? result) {
-            if (result == null) {
-                return 0;
-            }
-
-            return (int)Math.Round(result.Elapsed.TotalMilliseconds, MidpointRounding.AwayFromZero);
-        }
-
-        private static string DescribeRecommendedProbeResult(IEnumerable<ProbeResult> results, ProbePolicyOutcome policy, CliOptions options) {
-            ProbeResult? recommended = GetRecommendedProbeResult(results, policy, options);
-            if (recommended == null) {
-                return "none";
-            }
-
-            string target = recommended.DisplayName ?? recommended.Endpoint.ToString();
-            string transport = DescribeProbeTransport(recommended);
-            return $"{target} in {FormatDuration(recommended.Elapsed)} via {transport}";
-        }
-
-        private static string NormalizeSummaryToken(string? value) {
-            if (string.IsNullOrWhiteSpace(value)) {
-                return "none";
-            }
-
-            string text = value!;
-            var chars = new char[text.Length];
-            int length = 0;
-            bool previousUnderscore = false;
-
-            foreach (char c in text) {
-                char normalized;
-                if (char.IsLetterOrDigit(c)) {
-                    normalized = char.ToLowerInvariant(c);
-                    previousUnderscore = false;
-                } else {
-                    if (previousUnderscore) {
-                        continue;
-                    }
-                    normalized = '_';
-                    previousUnderscore = true;
-                }
-
-                chars[length++] = normalized;
-            }
-
-            if (length == 0) {
-                return "none";
-            }
-
-            while (length > 0 && chars[length - 1] == '_') {
-                length--;
-            }
-
-            return length == 0 ? "none" : new string(chars, 0, length);
-        }
-
-        private static string BuildAnswerSignature(ProbeResult result) {
-            DnsResponse? response = result.Response;
-            if (response?.Answers == null || response.Answers.Length == 0) {
-                return "(no answers)";
-            }
-
-            string[] values = response.Answers
-                .Select(answer => $"{answer.Name}|{answer.Type}|{answer.Data}")
-                .OrderBy(value => value, StringComparer.Ordinal)
-                .ToArray();
-
-            return string.Join(";", values);
-        }
-
-        private static string DescribeAnswerSet(ProbeResult result) {
-            DnsResponse? response = result.Response;
-            if (response?.Answers == null || response.Answers.Length == 0) {
-                return "(no answers)";
-            }
-
-            string[] values = response.Answers
-                .Select(answer => $"{answer.Name} {answer.Type} {answer.Data}")
-                .OrderBy(value => value, StringComparer.Ordinal)
-                .ToArray();
-
-            return string.Join("; ", values);
-        }
-
-        private static string DescribeProbeTargets(IEnumerable<ProbeResult> results) {
-            string[] targets = results
-                .Select(result => result.DisplayName ?? result.Endpoint.ToString())
-                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-
-            return string.Join(", ", targets);
-        }
-
-        private static Transport MapRequestFormatToTransport(DnsRequestFormat requestFormat) {
-            return requestFormat switch {
-                DnsRequestFormat.DnsOverUDP => Transport.Udp,
-                DnsRequestFormat.DnsOverTCP => Transport.Tcp,
-                DnsRequestFormat.DnsOverTLS => Transport.Dot,
-                DnsRequestFormat.DnsOverQuic => Transport.Quic,
-                DnsRequestFormat.DnsOverGrpc => Transport.Grpc,
-                DnsRequestFormat.Multicast => Transport.Multicast,
-                DnsRequestFormat.DnsOverHttps => Transport.Doh,
-                DnsRequestFormat.DnsOverHttpsJSON => Transport.Doh,
-                DnsRequestFormat.DnsOverHttpsPOST => Transport.Doh,
-                DnsRequestFormat.DnsOverHttpsWirePost => Transport.Doh,
-                DnsRequestFormat.DnsOverHttpsJSONPOST => Transport.Doh,
-                DnsRequestFormat.DnsOverHttp2 => Transport.Doh,
-                DnsRequestFormat.DnsOverHttp3 => Transport.Doh,
-                DnsRequestFormat.ObliviousDnsOverHttps => Transport.Doh,
-                _ => Transport.Udp
-            };
+            return rawDefault;
         }
 
         private static void WriteExplain(
-            ClientX client,
-            DnsResponse response,
-            TimeSpan elapsed,
+            ResolverSingleOperationResult result,
             string operation,
             string target,
             DnsRecordType recordType,
@@ -1682,130 +1477,28 @@ namespace DnsClientX.Cli {
             bool trace,
             string? zone = null,
             int? ttl = null) {
-            Console.WriteLine("Explain:");
-            Console.WriteLine($"  Operation: {operation}");
-            if (!string.IsNullOrWhiteSpace(zone)) {
-                Console.WriteLine($"  Zone: {zone}");
+            foreach (string line in ResolverReportTextFormatter.BuildSingleOperationExplainLines(
+                         result,
+                         operation,
+                         target,
+                         recordType,
+                         requestDnsSec,
+                         validateDnsSec,
+                         FormatDuration,
+                         zone,
+                         ttl)) {
+                Console.WriteLine(line);
             }
-            Console.WriteLine($"  Target: {target}");
-            Console.WriteLine($"  Type: {recordType}");
-            if (ttl.HasValue) {
-                Console.WriteLine($"  TTL: {ttl.Value}");
-            }
-            Console.WriteLine($"  Resolver profile: {client.EndpointConfiguration.SelectionStrategy} via {client.EndpointConfiguration.RequestFormat}");
-            Console.WriteLine($"  Resolver: {DescribeResolver(client, response)}");
-            Console.WriteLine($"  Actual transport: {DescribeUsedTransport(response)}");
-            Console.WriteLine($"  Cache enabled: {client.CacheEnabled}");
-            Console.WriteLine($"  Attempts recorded: {client.AuditTrail.Count}");
-            Console.WriteLine($"  Final source: {DescribeFinalSource(client)}");
-            Console.WriteLine($"  Resolvers tried: {DescribeAttemptResolvers(client)}");
-            Console.WriteLine($"  Retry reasons: {DescribeRetryReasons(client)}");
-            Console.WriteLine($"  DNSSEC requested: {requestDnsSec}");
-            Console.WriteLine($"  DNSSEC validated: {validateDnsSec}");
-            Console.WriteLine($"  Retries: {response.RetryCount}");
-            Console.WriteLine($"  Elapsed: {FormatDuration(response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : elapsed)}");
-            Console.WriteLine($"  Answers: {response.Answers?.Length ?? 0}");
-            Console.WriteLine($"  Authorities: {response.Authorities?.Length ?? 0}");
-            Console.WriteLine($"  Additional: {response.Additional?.Length ?? 0}");
-            Console.WriteLine($"  Truncated: {response.IsTruncated}");
-            Console.WriteLine($"  AuthenticData: {response.AuthenticData}");
-            Console.WriteLine($"  CheckingDisabled: {response.CheckingDisabled}");
 
             if (trace) {
-                WriteTrace(client, response);
+                WriteTrace(result);
             }
         }
 
-        private static void WriteTrace(ClientX client, DnsResponse response) {
-            Console.WriteLine("Trace:");
-            Console.WriteLine($"  Audit entries: {client.AuditTrail.Count}");
-            Console.WriteLine($"  Question count: {response.Questions?.Length ?? 0}");
-            Console.WriteLine($"  Used transport: {DescribeUsedTransport(response)}");
-            Console.WriteLine($"  Error code: {response.ErrorCode}");
-            if (!string.IsNullOrWhiteSpace(response.Error)) {
-                Console.WriteLine($"  Error: {response.Error}");
+        private static void WriteTrace(ResolverSingleOperationResult result) {
+            foreach (string line in ResolverReportTextFormatter.BuildSingleOperationTraceLines(result, FormatDuration)) {
+                Console.WriteLine(line);
             }
-            if (!string.IsNullOrWhiteSpace(response.Comments)) {
-                Console.WriteLine($"  Comments: {response.Comments}");
-            }
-            if (response.ExtendedDnsErrorInfo.Length > 0) {
-                foreach (var ede in response.ExtendedDnsErrorInfo) {
-                    Console.WriteLine($"  Extended DNS error: {ede.Code} {ede.Text}");
-                }
-            }
-            foreach (var question in response.Questions ?? Array.Empty<DnsQuestion>()) {
-                Console.WriteLine($"  Question: {question.Name} {question.Type} via {question.RequestFormat}");
-            }
-            foreach (var entry in client.AuditTrail) {
-                int attempt = entry.AttemptNumber > 0 ? entry.AttemptNumber : 1;
-                string outcome = entry.Response != null ? entry.Response.Status.ToString() : "NoResponse";
-                string exception = entry.Exception?.GetType().Name ?? "None";
-                string resolver = !string.IsNullOrWhiteSpace(entry.ResolverHost)
-                    ? $"{entry.ResolverHost}:{entry.ResolverPort}"
-                    : "(unknown)";
-                string cache = entry.ServedFromCache ? "cache" : "network";
-                string retry = string.IsNullOrWhiteSpace(entry.RetryReason) ? string.Empty : $", retry: {entry.RetryReason}";
-                Console.WriteLine($"  Attempt {attempt}: {entry.Name} {entry.RecordType} via {entry.RequestFormat}/{entry.UsedTransport} to {resolver} => {outcome} in {FormatDuration(entry.Duration)} ({cache}, exception: {exception}{retry})");
-            }
-        }
-
-        private static string DescribeResolver(ClientX client, DnsResponse response) {
-            string? host = response.ServerAddress;
-            if (string.IsNullOrWhiteSpace(host)) {
-                host = client.EndpointConfiguration.BaseUri?.Host ?? client.EndpointConfiguration.Hostname;
-            }
-
-            if (string.IsNullOrWhiteSpace(host)) {
-                host = "(unknown)";
-            }
-
-            int port = client.EndpointConfiguration.BaseUri?.Port ?? client.EndpointConfiguration.Port;
-            return $"{host}:{port}";
-        }
-
-        private static string DescribeConfiguredResolver(ClientX client) {
-            string host = client.EndpointConfiguration.BaseUri?.Host ?? client.EndpointConfiguration.Hostname ?? "(unknown)";
-            int port = client.EndpointConfiguration.BaseUri?.Port ?? client.EndpointConfiguration.Port;
-            return $"{host}:{port}";
-        }
-
-        private static string DescribeUsedTransport(DnsResponse response) {
-            return response.UsedTransport.ToString();
-        }
-
-        private static string DescribeFinalSource(ClientX client) {
-            AuditEntry? last = null;
-            foreach (var entry in client.AuditTrail) {
-                last = entry;
-            }
-
-            if (last == null) {
-                return "unknown";
-            }
-
-            return last.ServedFromCache ? "cache" : "network";
-        }
-
-        private static string DescribeAttemptResolvers(ClientX client) {
-            string[] resolvers = client.AuditTrail
-                .Select(entry => !string.IsNullOrWhiteSpace(entry.ResolverHost)
-                    ? $"{entry.ResolverHost}:{entry.ResolverPort}"
-                    : "(unknown)")
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-
-            return resolvers.Length == 0 ? "none" : string.Join(" -> ", resolvers);
-        }
-
-        private static string DescribeRetryReasons(ClientX client) {
-            string[] reasons = client.AuditTrail
-                .Select(entry => entry.RetryReason)
-                .Where(reason => !string.IsNullOrWhiteSpace(reason))
-                .Select(reason => reason!)
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
-
-            return reasons.Length == 0 ? "none" : string.Join(" | ", reasons);
         }
 
         private static string FormatDuration(TimeSpan duration) {
@@ -1831,6 +1524,16 @@ namespace DnsClientX.Cli {
             Console.WriteLine("      --dnssec             Request DNSSEC records");
             Console.WriteLine("      --validate-dnssec    Validate DNSSEC records");
             Console.WriteLine("      --wire-post          Use DNS over HTTPS wire POST (when supported)");
+            Console.WriteLine("      --format <mode>      Query output format: pretty, json, raw");
+            Console.WriteLine("      --short              Print answer values only");
+            Console.WriteLine("      --txt-concat         Flatten TXT output into a single string");
+            Console.WriteLine("      --question           Show the question section");
+            Console.WriteLine("      --answer             Show the answer section");
+            Console.WriteLine("      --authority          Show the authority section");
+            Console.WriteLine("      --additional         Show the additional section");
+            Console.WriteLine("      --reverse            Force PTR lookup mode");
+            Console.WriteLine("      --axfr               Discover authoritative servers and attempt recursive AXFR");
+            Console.WriteLine("      --transfer-summary   Print discovered authorities and tried transfer targets");
             Console.WriteLine("      --benchmark          Benchmark one or more endpoints across repeated queries");
             Console.WriteLine("      --benchmark-attempts <count>  Repeat each domain/type combination this many times");
             Console.WriteLine("      --benchmark-timeout <ms>  Per-query timeout to apply during benchmark runs");
@@ -1839,14 +1542,21 @@ namespace DnsClientX.Cli {
             Console.WriteLine("      --benchmark-min-successful-candidates <count>  Require this many candidates to return at least one success");
             Console.WriteLine("      --benchmark-summary-only  Suppress per-candidate benchmark rows and print only the header and summary");
             Console.WriteLine("      --benchmark-summary-line  Append one stable BENCHMARK_SUMMARY key=value line for automation");
+            Console.WriteLine("      --benchmark-save <path>  Persist benchmark scoring and recommendation data as JSON");
             Console.WriteLine("      --probe              Probe the selected endpoint profile and related variants");
-            Console.WriteLine("      --probe-endpoint <endpoint>  Probe a custom endpoint such as tcp@1.1.1.1:53 or doh@https://dns.google/dns-query");
+            Console.WriteLine("      --probe-endpoint <endpoint>  Probe a custom endpoint such as tcp@1.1.1.1:53, doq@dns.quad9.net:853, or doh3@https://dns.quad9.net/dns-query");
+            Console.WriteLine("      --resolver-file <path>  Load custom endpoints from a text file for probe or benchmark");
+            Console.WriteLine("      --resolver-url <url>  Load custom endpoints from an HTTP or HTTPS URL for probe or benchmark");
             Console.WriteLine("      --probe-summary-only  Suppress per-endpoint probe lines and print only the header and summary");
             Console.WriteLine("      --probe-summary-line  Append one stable PROBE_SUMMARY key=value line for automation");
+            Console.WriteLine("      --probe-save <path>  Persist probe scoring and health data as JSON");
+            Console.WriteLine("      --resolver-select <path>  Load a saved score snapshot and print the recommended resolver");
+            Console.WriteLine("      --resolver-use <path>  Reuse the recommended resolver from a saved snapshot for query, probe, or benchmark");
             Console.WriteLine("      --probe-require-consensus    Fail when successful probe responders disagree");
             Console.WriteLine("      --probe-min-consensus <percent>  Fail when the top answer set is below the given 1-100 percentage");
             Console.WriteLine("      --probe-min-success <count>  Fail when fewer than the given number of probes succeed");
             Console.WriteLine("      --probe-min-success-percent <percent>  Fail when the probe success rate is below the given 1-100 percentage");
+            Console.WriteLine("      --capabilities       Print the shared transport capability report");
             Console.WriteLine("      --explain            Print resolver and response diagnostics");
             Console.WriteLine("      --trace              Print explain output plus audit details");
             Console.WriteLine("      --update <zone> <name> <type> <data>  Send dynamic update");

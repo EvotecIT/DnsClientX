@@ -106,6 +106,16 @@ namespace DnsClientX {
         [Description("Cloudflare's DNS-over-QUIC endpoint.")]
         CloudflareQuic,
         /// <summary>
+        /// Quad9's DNS-over-HTTP/3 endpoint.
+        /// </summary>
+        [Description("Quad9's DNS-over-HTTP/3 endpoint (available in the core package on .NET 8 and later).")]
+        Quad9Http3,
+        /// <summary>
+        /// Quad9's DNS-over-QUIC endpoint.
+        /// </summary>
+        [Description("Quad9's DNS-over-QUIC endpoint (available in the core package on .NET 8 and later when QUIC is supported).")]
+        Quad9Quic,
+        /// <summary>
         /// Google's DNS-over-QUIC endpoint.
         /// </summary>
         [Description("Google's DNS-over-QUIC endpoint.")]

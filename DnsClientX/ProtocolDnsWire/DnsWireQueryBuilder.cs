@@ -10,7 +10,7 @@ namespace DnsClientX {
                 enableEdns = edns.EnableEdns;
                 udpSize = edns.UdpBufferSize;
                 subnet = edns.Subnet?.Subnet;
-                options = edns.Options;
+                options = edns.GetEffectiveOptions();
             }
             return new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet,
                 cfg.CheckingDisabled, cfg.SigningKey, options);

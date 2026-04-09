@@ -44,5 +44,20 @@ namespace DnsClientX.Tests {
                 Thread.CurrentThread.CurrentCulture = original;
             }
         }
+
+        /// <summary>
+        /// Ensures TXT concatenated output flattens line breaks into a single script-friendly string.
+        /// </summary>
+        [Fact]
+        public void TxtConcatenatedData_FlattensTxtLines() {
+            var answer = new DnsAnswer {
+                Name = "example.com",
+                Type = DnsRecordType.TXT,
+                TTL = 300,
+                DataRaw = "line1\nline2"
+            };
+
+            Assert.Equal("line1line2", answer.TxtConcatenatedData);
+        }
     }
 }

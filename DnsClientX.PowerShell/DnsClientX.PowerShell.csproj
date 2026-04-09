@@ -9,7 +9,8 @@
         </TargetFrameworks>
         <Title>DnsClientX PowerShell Module</Title>
         <Description>PowerShell module for DnsClientX DNS library. Provides cmdlets for DNS queries,
-            service discovery, zone transfers, and DNS updates.</Description>
+            service discovery, zone transfers, DNS updates, and explicit resolver transport selection
+            including modern DoH3 and DoQ flows on .NET 8+.</Description>
         <AssemblyName>DnsClientX.PowerShell</AssemblyName>
         <AssemblyTitle>DnsClientX PowerShell Module</AssemblyTitle>
         <VersionPrefix>1.0.7</VersionPrefix>

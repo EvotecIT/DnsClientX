@@ -36,7 +36,7 @@ namespace DnsClientX {
                 enableEdns = edns.EnableEdns;
                 udpSize = edns.UdpBufferSize;
                 subnet = edns.Subnet?.Subnet;
-                options = edns.Options;
+                options = edns.GetEffectiveOptions();
             }
             var dnsMessage = new DnsMessage(name, type, requestDnsSec, enableEdns, udpSize, subnet, endpointConfiguration.CheckingDisabled, endpointConfiguration.SigningKey, options);
             var base64UrlDnsMessage = dnsMessage.ToBase64Url();

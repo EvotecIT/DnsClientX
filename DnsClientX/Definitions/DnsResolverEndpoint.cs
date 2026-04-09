@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Net.Sockets;
 
 namespace DnsClientX {
@@ -65,9 +66,20 @@ namespace DnsClientX {
             var h = Host;
             string safe = "(unknown)";
             if (!string.IsNullOrWhiteSpace(h)) {
-                safe = h!; // safe due to IsNullOrWhiteSpace check
+                safe = FormatHost(h!);
             }
             return Port > 0 ? $"{safe}:{Port}" : safe;
+        }
+
+        private static string FormatHost(string host) {
+            if (IPAddress.TryParse(host, out IPAddress? address) &&
+                address.AddressFamily == AddressFamily.InterNetworkV6 &&
+                !host.StartsWith("[", StringComparison.Ordinal) &&
+                !host.EndsWith("]", StringComparison.Ordinal)) {
+                return $"[{host}]";
+            }
+
+            return host;
         }
     }
 }
