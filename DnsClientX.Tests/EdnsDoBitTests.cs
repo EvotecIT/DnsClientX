@@ -62,6 +62,14 @@ namespace DnsClientX.Tests {
         }
 
         private static void AssertDoBit(byte[] query, string name) {
+            AssertTtlFlags(query, name, 0x00008000u);
+        }
+
+        private static void AssertDoAndCdBits(byte[] query, string name) {
+            AssertTtlFlags(query, name, 0x00008010u);
+        }
+
+        private static void AssertTtlFlags(byte[] query, string name, uint expectedTtl) {
             int additionalCount = (query[10] << 8) | query[11];
             Assert.Equal(1, additionalCount);
 
@@ -77,7 +85,7 @@ namespace DnsClientX.Tests {
             ushort type = (ushort)((query[offset + 1] << 8) | query[offset + 2]);
             Assert.Equal((ushort)DnsRecordType.OPT, type);
             uint ttl = (uint)((query[offset + 5] << 24) | (query[offset + 6] << 16) | (query[offset + 7] << 8) | query[offset + 8]);
-            Assert.Equal(0x00008000u, ttl);
+            Assert.Equal(expectedTtl, ttl);
         }
 
         private static void AssertNoDoBit(byte[] query, string name) {
@@ -169,6 +177,26 @@ namespace DnsClientX.Tests {
             byte[] query = await tcpTask;
 
             AssertDoBit(query, "example.com");
+        }
+
+        /// <summary>
+        /// Ensures the core client path requests DNSSEC data when validation is enabled.
+        /// </summary>
+        [Fact]
+        public async Task UdpRequest_ShouldIncludeDoBit_WhenValidateDnsSecTrue() {
+            int port = GetFreeUdpPort();
+            var response = CreateDnsHeader();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var udpTask = RunUdpServerAsync(port, response, cts.Token);
+
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP, useTcpFallback: false);
+            client.EndpointConfiguration.Port = port;
+
+            await client.Resolve("example.com", DnsRecordType.A, requestDnsSec: false, validateDnsSec: true, retryOnTransient: false, cancellationToken: cts.Token);
+
+            byte[] query = await udpTask;
+
+            AssertDoAndCdBits(query, "example.com");
         }
 
         /// <summary>
