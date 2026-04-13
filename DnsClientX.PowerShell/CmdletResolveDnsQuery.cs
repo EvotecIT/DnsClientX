@@ -480,7 +480,7 @@ namespace DnsClientX.PowerShell {
                 TimeOutMilliseconds = TimeOut,
                 RetryCount = RetryCount,
                 RetryDelayMs = RetryDelayMs,
-                RequestDnsSec = RequestDnsSec.IsPresent,
+                RequestDnsSec = RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent,
                 ValidateDnsSec = ValidateDnsSec.IsPresent,
                 TypedRecords = TypedRecords.IsPresent,
                 ParseTypedTxtRecords = ParseTypedTxtRecords.IsPresent,

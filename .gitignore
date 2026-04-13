@@ -365,6 +365,9 @@ FodyWeavers.xsd
 .vscode/*
 
 build/*
+!Build/
+!Build/*.ps1
+!Build/*.json
 
 /.idea/
 

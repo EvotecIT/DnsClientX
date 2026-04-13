@@ -528,6 +528,19 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Verifies that DNSSEC validation implies requesting DNSSEC data on reusable requests.
+        /// </summary>
+        [Fact]
+        public void ResolveDnsRequest_ShouldRequestDnsSec_WhenValidateDnsSecIsTrue() {
+            var request = new ResolveDnsRequest {
+                ValidateDnsSec = true
+            };
+
+            Assert.True(request.ShouldRequestDnsSec);
+            Assert.True(request.ShouldValidateDnsSec);
+        }
+
+        /// <summary>
         /// Verifies that malformed EDNS cookie lengths are rejected before request execution.
         /// </summary>
         [Fact]
