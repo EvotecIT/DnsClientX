@@ -132,7 +132,7 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// When DNSSEC validation is requested, the CD bit must also be set.
+        /// When DNSSEC validation is requested, the query should request DNSSEC data and set the CD bit.
         /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldIncludeCdBit_WhenValidateDnsSecTrue() {
@@ -148,7 +148,7 @@ namespace DnsClientX.Tests {
 
             byte[] query = await udpTask;
 
-            AssertCdBit(query, "example.com", 0x10u);
+            AssertCdBit(query, "example.com", 0x00008010u);
         }
 
         /// <summary>
@@ -169,7 +169,7 @@ namespace DnsClientX.Tests {
 
             byte[] query = await udpTask;
 
-            AssertCdBit(query, "example.com", 0x10u);
+            AssertCdBit(query, "example.com", 0x00008010u);
             Assert.True(client.EndpointConfiguration.CheckingDisabled);
         }
 

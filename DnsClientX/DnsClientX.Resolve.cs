@@ -80,6 +80,7 @@ namespace DnsClientX {
             cancellationToken.ThrowIfCancellationRequested();
 
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
+            requestDnsSec = requestDnsSec || validateDnsSec;
 
             var auditEntry = EnableAudit ? new AuditEntry(name, type) { StartedAtUtc = DateTimeOffset.UtcNow } : null;
             var stopwatch = Stopwatch.StartNew();

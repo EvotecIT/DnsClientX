@@ -823,7 +823,10 @@ using var client = new ClientX(DnsEndpoint.Cloudflare);
 var response = await client.Resolve("google.com", DnsRecordType.A,
     requestDnsSec: true,
     validateDnsSec: true);
-Console.WriteLine($"DNSSEC Valid: {response.IsSecure}");
+Console.WriteLine($"Authentic Data (AD): {response.AuthenticData}");
+Console.WriteLine(string.IsNullOrEmpty(response.Error)
+    ? "DNSSEC validation passed."
+    : $"DNSSEC validation failed: {response.Error}");
 ```
 
 #### Pattern-Based Queries
@@ -868,7 +871,10 @@ var domains = new[] { "google.com", "github.com", "microsoft.com" };
 var recordTypes = new[] { DnsRecordType.A, DnsRecordType.AAAA };
 
 await foreach (var response in client.ResolveStream(domains, recordTypes)) {
-    Console.WriteLine($"Resolved: {response.Question.Name} ({response.Question.Type})");
+    var question = response.Questions.Length > 0 ? response.Questions[0] : null;
+    Console.WriteLine(question is null
+        ? "Resolved response"
+        : $"Resolved: {question.Name} ({question.Type})");
     response.DisplayTable();
 }
 ```
@@ -1022,8 +1028,8 @@ try {
     using var client = new ClientX(DnsEndpoint.Cloudflare);
     var response = await client.Resolve("nonexistent.domain", DnsRecordType.A);
 
-    if (response.HasError) {
-        Console.WriteLine($"DNS Error: {response.ErrorMessage}");
+    if (!string.IsNullOrEmpty(response.Error)) {
+        Console.WriteLine($"DNS Error: {response.Error}");
     } else if (!response.Answers.Any()) {
         Console.WriteLine("No records found");
     } else {
@@ -1169,9 +1175,10 @@ $Response.Authorities | Format-Table
 $Response.Additional | Format-Table
 
 # Check response metadata
-Write-Host "Response Time: $($Response.ResponseTime)ms"
-Write-Host "Server: $($Response.Server)"
-Write-Host "DNSSEC: $($Response.IsSecure)"
+Write-Host "Response Time: $([math]::Round($Response.RoundTripTime.TotalMilliseconds, 2))ms"
+Write-Host "Server: $($Response.ServerAddress)"
+Write-Host "Authentic Data (AD): $($Response.AuthenticData)"
+Write-Host "DNSSEC Error: $(if([string]::IsNullOrEmpty($Response.Error)) { 'None' } else { $Response.Error })"
 ```
 
 #### Timeout and Retry Configuration
@@ -1290,8 +1297,8 @@ Invoke-DnsUpdate -Zone 'example.com' -Server '127.0.0.1' -Name 'www' -Type A -Da
 $Servers = @('1.1.1.1', '8.8.8.8', '9.9.9.9')
 foreach ($Server in $Servers) {
     try {
-        $Result = Resolve-Dns -Name 'google.com' -Type A -Server $Server -TimeOut 2000
-        Write-Host "✓ $Server responded in $($Result.ResponseTime)ms" -ForegroundColor Green
+        $Result = Resolve-Dns -Name 'google.com' -Type A -Server $Server -TimeOut 2000 -FullResponse
+        Write-Host "✓ $Server responded in $([math]::Round($Result.RoundTripTime.TotalMilliseconds, 2))ms" -ForegroundColor Green
     } catch {
         Write-Host "✗ $Server failed: $($_.Exception.Message)" -ForegroundColor Red
     }
@@ -1354,7 +1361,11 @@ Write-Host "=== DNS Security Assessment for $Domain ===" -ForegroundColor Cyan
 
 # DNSSEC validation
 $DnssecResult = Resolve-Dns -Name $Domain -Type A -DnsProvider Cloudflare -RequestDnsSec -ValidateDnsSec
-Write-Host "DNSSEC Status: $(if($DnssecResult.IsSecure) { 'SECURE' } else { 'NOT SECURE' })" -ForegroundColor $(if($DnssecResult.IsSecure) { 'Green' } else { 'Red' })
+Write-Host "Authentic Data (AD): $($DnssecResult.AuthenticData)" -ForegroundColor $(if($DnssecResult.AuthenticData) { 'Green' } else { 'Yellow' })
+Write-Host "DNSSEC Validation: $(if([string]::IsNullOrEmpty($DnssecResult.Error)) { 'PASSED' } else { 'FAILED' })" -ForegroundColor $(if([string]::IsNullOrEmpty($DnssecResult.Error)) { 'Green' } else { 'Red' })
+if (-not [string]::IsNullOrEmpty($DnssecResult.Error)) {
+    Write-Host "Validation details: $($DnssecResult.Error)" -ForegroundColor Red
+}
 
 # CAA Records
 Write-Host "`nCAA Records:" -ForegroundColor Yellow
