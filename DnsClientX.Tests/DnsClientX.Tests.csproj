@@ -27,9 +27,9 @@
     <ItemGroup>
         <Reference Include="System.Net.Http" Condition="'$(TargetFramework)' == 'net472'" />
         <PackageReference Include="SemanticComparison" Version="4.1.0" />
-        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.5.0" />
         <PackageReference Include="xunit" Version="2.9.3" />
-        <PackageReference Include="coverlet.collector" Version="8.0.1">
+        <PackageReference Include="coverlet.collector" Version="10.0.0">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
@@ -37,9 +37,9 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="System.Text.Json" Version="10.0.5"
+        <PackageReference Include="System.Text.Json" Version="10.0.7"
             Condition="'$(TargetFramework)' == 'net472'" />
-        <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.5"
+        <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.7"
             Condition="'$(TargetFramework)' == 'net472'" />
     </ItemGroup>
 
