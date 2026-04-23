@@ -55,15 +55,15 @@
     </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)'=='netstandard2.0'">
-        <PackageReference Include="System.Text.Json" Version="10.0.5" />
-        <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.5" />
+        <PackageReference Include="System.Text.Json" Version="10.0.7" />
+        <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.7" />
   </ItemGroup>
 
 
     <ItemGroup Condition="'$(TargetFramework)'=='net472' OR '$(TargetFramework)'=='net48'">
         <Reference Include="System.Net.Http" />
-        <PackageReference Include="System.Text.Json" Version="10.0.5" />
-        <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.5" />
+        <PackageReference Include="System.Text.Json" Version="10.0.7" />
+        <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.7" />
     </ItemGroup>
 
     <ItemGroup>
