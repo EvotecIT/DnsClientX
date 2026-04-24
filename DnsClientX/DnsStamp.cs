@@ -127,6 +127,10 @@ namespace DnsClientX {
                     WriteLengthPrefixed(stream, BuildAddress(endpoint, 53));
                     break;
                 case Transport.Doh:
+                    if (endpoint.RequestFormat == DnsRequestFormat.DnsOverHttp3) {
+                        throw new NotSupportedException("DNS stamps do not support DNS-over-HTTP/3 endpoints.");
+                    }
+
                     stream.WriteByte(0x02);
                     WriteProperties(stream, endpoint);
                     WriteLengthPrefixed(stream, string.Empty);

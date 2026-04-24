@@ -157,6 +157,23 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Ensures DoH3 endpoints are not serialized into ordinary DoH stamps.
+        /// </summary>
+        [Fact]
+        public void DohStamp_CreateRejectsHttp3Endpoint() {
+            var endpoint = new DnsResolverEndpoint {
+                Transport = Transport.Doh,
+                RequestFormat = DnsRequestFormat.DnsOverHttp3,
+                Host = "dns.example.test",
+                Port = 443,
+                DohUrl = new Uri("https://dns.example.test/dns-query")
+            };
+
+            NotSupportedException exception = Assert.Throws<NotSupportedException>(() => DnsStamp.Create(endpoint));
+            Assert.Contains("HTTP/3", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
         /// Ensures explicit empty bootstrap address sets are accepted when parsing external stamps.
         /// </summary>
         [Fact]

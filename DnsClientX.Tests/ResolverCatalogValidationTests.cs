@@ -26,7 +26,11 @@ namespace DnsClientX.Tests {
         }
 
         private static async Task RunStallingHttpServerAsync(int port, ManualResetEventSlim ready, CancellationToken token) {
+#if NET8_0_OR_GREATER
+            using var listener = new TcpListener(IPAddress.Loopback, port);
+#else
             var listener = new TcpListener(IPAddress.Loopback, port);
+#endif
             listener.Start();
             ready.Set();
 
@@ -57,6 +61,7 @@ namespace DnsClientX.Tests {
                     await Task.Delay(Timeout.Infinite, token);
                 }
             } catch (OperationCanceledException) when (token.IsCancellationRequested) {
+                // Expected during test cleanup after the client-side cancellation path is verified.
             } finally {
                 listener.Stop();
             }
