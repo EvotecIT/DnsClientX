@@ -137,6 +137,26 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Ensures generated DoH stamps keep IPv6 host brackets when a custom port is present.
+        /// </summary>
+        [Fact]
+        public void DohStamp_RoundTripsIpv6AddressAndCustomPort() {
+            var endpoint = new DnsResolverEndpoint {
+                Transport = Transport.Doh,
+                RequestFormat = DnsRequestFormat.DnsOverHttps,
+                Host = "2606:4700:4700::1111",
+                Port = 8443,
+                DohUrl = new Uri("https://[2606:4700:4700::1111]:8443/dns-query")
+            };
+
+            DnsResolverEndpoint parsed = DnsStamp.Parse(DnsStamp.Create(endpoint));
+
+            Assert.Equal("2606:4700:4700::1111", parsed.Host);
+            Assert.Equal(8443, parsed.Port);
+            Assert.Equal(new Uri("https://[2606:4700:4700::1111]:8443/dns-query"), parsed.DohUrl);
+        }
+
+        /// <summary>
         /// Ensures explicit empty bootstrap address sets are accepted when parsing external stamps.
         /// </summary>
         [Fact]

@@ -368,9 +368,10 @@ namespace DnsClientX {
 
         private static void WriteDohHostAndPath(Stream stream, DnsResolverEndpoint endpoint) {
             Uri uri = EndpointParser.BuildDohUri(endpoint);
+            string formattedHost = FormatHost(uri.Host);
             string host = uri.IsDefaultPort || uri.Port == 443
-                ? uri.Host
-                : $"{uri.Host}:{uri.Port}";
+                ? formattedHost
+                : $"{formattedHost}:{uri.Port}";
             string path = string.IsNullOrEmpty(uri.PathAndQuery) ? "/dns-query" : uri.PathAndQuery;
             WriteLengthPrefixed(stream, host);
             WriteLengthPrefixed(stream, path);

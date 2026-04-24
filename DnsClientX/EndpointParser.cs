@@ -204,6 +204,8 @@ namespace DnsClientX {
 
                         string content = await ReadContentWithLimitAsync(response, cancellationToken).ConfigureAwait(false);
                         results.AddRange(ValidateImportedContent(content, urlEntry));
+                    } catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested) {
+                        throw;
                     } catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is InvalidOperationException) {
                         results.Add(new ResolverEndpointValidationResult {
                             Source = urlEntry,

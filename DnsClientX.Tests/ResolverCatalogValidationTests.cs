@@ -1,7 +1,11 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Reflection;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -19,6 +23,43 @@ namespace DnsClientX.Tests {
             MethodInfo main = programType.GetMethod("Main", BindingFlags.NonPublic | BindingFlags.Static)!;
             Task<int> task = (Task<int>)main.Invoke(null, new object[] { args })!;
             return await task;
+        }
+
+        private static async Task RunStallingHttpServerAsync(int port, ManualResetEventSlim ready, CancellationToken token) {
+            var listener = new TcpListener(IPAddress.Loopback, port);
+            listener.Start();
+            ready.Set();
+
+            try {
+                TcpClient client;
+#if NET8_0_OR_GREATER
+                client = await listener.AcceptTcpClientAsync(token);
+#else
+                Task<TcpClient> acceptTask = listener.AcceptTcpClientAsync();
+                Task completed = await Task.WhenAny(acceptTask, Task.Delay(Timeout.Infinite, token));
+                if (completed != acceptTask) {
+                    throw new OperationCanceledException(token);
+                }
+
+                client = acceptTask.Result;
+#endif
+
+                using (client)
+                using (NetworkStream stream = client.GetStream())
+                using (var reader = new StreamReader(stream, Encoding.ASCII, false, 1024, true)) {
+                    while (!token.IsCancellationRequested) {
+                        string? line = await reader.ReadLineAsync();
+                        if (line is null || line.Length == 0) {
+                            break;
+                        }
+                    }
+
+                    await Task.Delay(Timeout.Infinite, token);
+                }
+            } catch (OperationCanceledException) when (token.IsCancellationRequested) {
+            } finally {
+                listener.Stop();
+            }
         }
 
         /// <summary>
@@ -44,6 +85,29 @@ namespace DnsClientX.Tests {
                 Assert.Equal(Transport.Doh, results[2].Endpoint!.Transport);
             } finally {
                 File.Delete(resolverFile);
+            }
+        }
+
+        /// <summary>
+        /// Ensures caller cancellation is not reported as a URL validation error.
+        /// </summary>
+        [Fact]
+        public async Task ValidateManyAsync_UrlImport_PropagatesCancellation() {
+            int port = TestUtilities.GetFreeTcpPort();
+            using var ready = new ManualResetEventSlim(false);
+            using var serverCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            Task serverTask = RunStallingHttpServerAsync(port, ready, serverCts.Token);
+            Assert.True(ready.Wait(TimeSpan.FromSeconds(2)));
+
+            using var clientCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+            try {
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => EndpointParser.ValidateManyAsync(
+                    urls: new[] { $"http://127.0.0.1:{port}/resolvers.txt" },
+                    cancellationToken: clientCts.Token));
+            } finally {
+                serverCts.Cancel();
+                await serverTask;
             }
         }
 
