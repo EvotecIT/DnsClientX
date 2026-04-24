@@ -119,6 +119,8 @@ namespace DnsClientX {
                 throw new ArgumentNullException(nameof(endpoint));
             }
 
+            ValidateEndpointPort(endpoint);
+
             using var stream = new MemoryStream();
             switch (endpoint.Transport) {
                 case Transport.Udp:
@@ -346,6 +348,12 @@ namespace DnsClientX {
             return endpoint.Port > 0 && endpoint.Port != defaultPort
                 ? $"{host}:{endpoint.Port}"
                 : host;
+        }
+
+        private static void ValidateEndpointPort(DnsResolverEndpoint endpoint) {
+            if (endpoint.Port < 0 || endpoint.Port > 65535) {
+                throw new ArgumentOutOfRangeException(nameof(endpoint), endpoint.Port, "DNS stamp endpoint port must be between 0 and 65535.");
+            }
         }
 
         private static string BuildHostWithPort(DnsResolverEndpoint endpoint, int defaultPort) {

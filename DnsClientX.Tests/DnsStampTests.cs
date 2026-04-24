@@ -174,6 +174,22 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Ensures invalid endpoint ports are rejected before non-round-trippable stamps are emitted.
+        /// </summary>
+        [Fact]
+        public void StampCreate_InvalidPort_Throws() {
+            var endpoint = new DnsResolverEndpoint {
+                Transport = Transport.Dot,
+                RequestFormat = DnsRequestFormat.DnsOverTLS,
+                Host = "dns.example.test",
+                Port = 70000
+            };
+
+            ArgumentOutOfRangeException exception = Assert.Throws<ArgumentOutOfRangeException>(() => DnsStamp.Create(endpoint));
+            Assert.Contains("port", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
         /// Ensures explicit empty bootstrap address sets are accepted when parsing external stamps.
         /// </summary>
         [Fact]

@@ -139,7 +139,19 @@ namespace DnsClientX {
                     continue;
                 }
 
-                string fullPath = Path.GetFullPath(filePath);
+                string fullPath;
+                try {
+                    fullPath = Path.GetFullPath(filePath);
+                } catch (Exception ex) when (ex is ArgumentException || ex is NotSupportedException || ex is PathTooLongException || ex is IOException) {
+                    results.Add(new ResolverEndpointValidationResult {
+                        Source = fileEntry ?? string.Empty,
+                        Entry = fileEntry ?? string.Empty,
+                        IsValid = false,
+                        Error = ex.Message
+                    });
+                    continue;
+                }
+
                 if (!File.Exists(fullPath)) {
                     results.Add(new ResolverEndpointValidationResult {
                         Source = fileEntry ?? string.Empty,

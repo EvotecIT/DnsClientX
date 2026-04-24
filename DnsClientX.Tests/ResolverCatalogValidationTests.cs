@@ -117,6 +117,30 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Ensures malformed resolver file paths are reported per source and do not abort validation.
+        /// </summary>
+        [Fact]
+        public async Task ValidateManyAsync_InvalidFilePath_ReturnsInvalidResultAndContinues() {
+            const string invalidPath = "bad\0path";
+            string resolverFile = Path.GetTempFileName();
+            File.WriteAllText(resolverFile, "udp@1.1.1.1:53\r\n");
+
+            try {
+                ResolverEndpointValidationResult[] results = await EndpointParser.ValidateManyAsync(files: new[] { invalidPath, resolverFile });
+
+                Assert.Equal(2, results.Length);
+                Assert.False(results[0].IsValid);
+                Assert.Equal(invalidPath, results[0].Source);
+                Assert.Equal(invalidPath, results[0].Entry);
+                Assert.False(string.IsNullOrWhiteSpace(results[0].Error));
+                Assert.True(results[1].IsValid);
+                Assert.Equal(resolverFile, results[1].Source);
+            } finally {
+                File.Delete(resolverFile);
+            }
+        }
+
+        /// <summary>
         /// Ensures caller cancellation is not reported as a URL validation error.
         /// </summary>
         [Fact]
