@@ -77,8 +77,7 @@ namespace DnsClientX.Tests {
             string manifest = File.ReadAllText(CombineRelative(root, "Module", "DnsClientX.psd1"));
             string[] sourceFiles = Directory.GetFiles(CombineRelative(root, "DnsClientX.PowerShell"), "*.cs");
 
-            foreach (string sourceFile in sourceFiles) {
-                string source = File.ReadAllText(sourceFile);
+            foreach (string source in sourceFiles.Select(File.ReadAllText)) {
                 Match match = Regex.Match(source, @"\[Cmdlet\([^,]+,\s*""(?<noun>[^""]+)""", RegexOptions.CultureInvariant);
                 if (!match.Success) {
                     continue;
@@ -119,10 +118,17 @@ namespace DnsClientX.Tests {
                     throw new ArgumentException($"Path segment must be relative: {segment}", nameof(segments));
                 }
 
-                current = Path.Combine(current, segment);
+                current = JoinPath(current, segment);
             }
 
             return current;
+        }
+
+        private static string JoinPath(string left, string right) {
+            return left.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal) ||
+                   left.EndsWith(Path.AltDirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+                ? left + right
+                : left + Path.DirectorySeparatorChar + right;
         }
 
         private static string ReadProjectProperty(string path, string propertyName) {
@@ -159,7 +165,7 @@ namespace DnsClientX.Tests {
         private static string FindRepositoryRoot() {
             DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
             while (directory != null) {
-                if (File.Exists(Path.Combine(directory.FullName, "DnsClientX.sln"))) {
+                if (File.Exists(CombineRelative(directory.FullName, "DnsClientX.sln"))) {
                     return directory.FullName;
                 }
 

@@ -126,8 +126,7 @@ namespace DnsClientX {
             CancellationToken cancellationToken = default) {
             var results = new List<ResolverEndpointValidationResult>();
 
-            foreach (string? input in inputs ?? Array.Empty<string>()) {
-                string trimmed = input?.Trim() ?? string.Empty;
+            foreach (string trimmed in (inputs ?? Array.Empty<string>()).Select(static input => input?.Trim() ?? string.Empty)) {
                 if (!string.IsNullOrWhiteSpace(trimmed)) {
                     results.Add(ValidateEntry(trimmed, "inline", null));
                 }
@@ -265,8 +264,7 @@ namespace DnsClientX {
                     continue;
                 }
 
-                foreach (string entry in trimmed.Split(',')) {
-                    string value = entry.Trim();
+                foreach (string value in trimmed.Split(',').Select(static entry => entry.Trim())) {
                     if (!string.IsNullOrWhiteSpace(value)) {
                         yield return ValidateEntry(value, source, lineNumber);
                     }

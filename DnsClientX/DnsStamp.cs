@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Buffers.Binary;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -405,10 +406,8 @@ namespace DnsClientX {
             }
 
             internal void ReadHashes() {
-                foreach (byte[] hash in ReadVariableLengthSet("certificate hash")) {
-                    if (hash.Length != 0 && hash.Length != 32) {
-                        throw new FormatException("Certificate hashes in DNS stamps must be 32 bytes.");
-                    }
+                foreach (byte[] hash in ReadVariableLengthSet("certificate hash").Where(static hash => hash.Length != 0 && hash.Length != 32)) {
+                    throw new FormatException("Certificate hashes in DNS stamps must be 32 bytes.");
                 }
             }
 
