@@ -39,16 +39,17 @@ namespace DnsClientX.Tests {
         }
 
         private static async Task<bool> HasOpenTcpConnectionAsync(int port) {
-            if (IsWindows()) {
-                try {
-                    var connTask = Task.Run(() => IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpConnections());
-                    if (await Task.WhenAny(connTask, Task.Delay(2000)) == connTask) {
-                        var connections = connTask.Result;
-                        return connections.Any(c => (c.LocalEndPoint.Port == port || c.RemoteEndPoint.Port == port) && c.State != TcpState.TimeWait && c.State != TcpState.Closed);
-                    }
-                } catch {
-                    // fall back to netstat
+            try {
+                var connTask = Task.Run(() => IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpConnections());
+                if (await Task.WhenAny(connTask, Task.Delay(2000)) == connTask) {
+                    var connections = connTask.Result;
+                    return connections.Any(c =>
+                        (c.LocalEndPoint.Port == port || c.RemoteEndPoint.Port == port) &&
+                        c.State != TcpState.TimeWait &&
+                        c.State != TcpState.Closed);
                 }
+            } catch {
+                // fall back to netstat
             }
 
             try {
@@ -67,7 +68,12 @@ namespace DnsClientX.Tests {
                     if (!proc.HasExited) {
                         try { proc.Kill(); } catch { }
                     }
-                    return output.Contains($":{port}");
+
+                    return output
+                        .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Any(line =>
+                            line.Contains($":{port}") &&
+                            !line.Contains("TIME_WAIT", StringComparison.OrdinalIgnoreCase));
                 } else {
                     try { proc.Kill(); } catch { }
                 }
