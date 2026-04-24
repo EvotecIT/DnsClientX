@@ -1,5 +1,7 @@
 using System;
+using System.IO;
 using System.Linq;
+using System.Text;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -155,6 +157,38 @@ namespace DnsClientX.Tests {
             Assert.Equal(new Uri("https://dns.example.test/dns-query"), parsed.DohUrl);
         }
 
+        /// <summary>
+        /// Ensures DoH stamps preserve a non-default address port when hostname carries certificate name only.
+        /// </summary>
+        [Fact]
+        public void DohStamp_UsesAddressPortWhenHostnameHasNoPort() {
+            string stamp = CreateDohStamp("1.1.1.1:8443", "dns.example.test", "/dns-query");
+
+            DnsResolverEndpoint parsed = DnsStamp.Parse(stamp);
+
+            Assert.Equal(Transport.Doh, parsed.Transport);
+            Assert.Equal("dns.example.test", parsed.Host);
+            Assert.Equal(8443, parsed.Port);
+            Assert.Equal(new Uri("https://dns.example.test:8443/dns-query"), parsed.DohUrl);
+        }
+
+        /// <summary>
+        /// Ensures DoT and DoQ stamps preserve a non-default address port when hostname carries certificate name only.
+        /// </summary>
+        [Theory]
+        [InlineData(0x03, Transport.Dot, DnsRequestFormat.DnsOverTLS)]
+        [InlineData(0x04, Transport.Quic, DnsRequestFormat.DnsOverQuic)]
+        public void TlsLikeStamp_UsesAddressPortWhenHostnameHasNoPort(byte protocol, Transport transport, DnsRequestFormat requestFormat) {
+            string stamp = CreateTlsLikeStamp(protocol, "9.9.9.9:8853", "dns.example.test");
+
+            DnsResolverEndpoint parsed = DnsStamp.Parse(stamp);
+
+            Assert.Equal(transport, parsed.Transport);
+            Assert.Equal(requestFormat, parsed.RequestFormat);
+            Assert.Equal("dns.example.test", parsed.Host);
+            Assert.Equal(8853, parsed.Port);
+        }
+
         private static string AppendPayloadByte(string stamp, byte value) {
             const string scheme = "sdns://";
             string encoded = stamp.Substring(scheme.Length);
@@ -163,6 +197,49 @@ namespace DnsClientX.Tests {
             byte[] payload = Convert.FromBase64String(base64);
             byte[] updated = payload.Concat(new[] { value }).ToArray();
             return scheme + Convert.ToBase64String(updated)
+                .TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
+        }
+
+        private static string CreateDohStamp(string address, string host, string path) {
+            using var stream = new MemoryStream();
+            stream.WriteByte(0x02);
+            WriteProperties(stream);
+            WriteLengthPrefixed(stream, address);
+            WriteEmptyVariableLengthSet(stream);
+            WriteLengthPrefixed(stream, host);
+            WriteLengthPrefixed(stream, path);
+            return EncodePayload(stream.ToArray());
+        }
+
+        private static string CreateTlsLikeStamp(byte protocol, string address, string host) {
+            using var stream = new MemoryStream();
+            stream.WriteByte(protocol);
+            WriteProperties(stream);
+            WriteLengthPrefixed(stream, address);
+            WriteEmptyVariableLengthSet(stream);
+            WriteLengthPrefixed(stream, host);
+            return EncodePayload(stream.ToArray());
+        }
+
+        private static void WriteProperties(Stream stream) {
+            stream.Write(new byte[8], 0, 8);
+        }
+
+        private static void WriteLengthPrefixed(Stream stream, string value) {
+            byte[] bytes = Encoding.UTF8.GetBytes(value);
+            stream.WriteByte((byte)bytes.Length);
+            stream.Write(bytes, 0, bytes.Length);
+        }
+
+        private static void WriteEmptyVariableLengthSet(Stream stream) {
+            stream.WriteByte(0);
+        }
+
+        private static string EncodePayload(byte[] payload) {
+            const string scheme = "sdns://";
+            return scheme + Convert.ToBase64String(payload)
                 .TrimEnd('=')
                 .Replace('+', '-')
                 .Replace('/', '_');

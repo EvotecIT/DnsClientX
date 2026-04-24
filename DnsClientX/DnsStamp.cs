@@ -191,6 +191,10 @@ namespace DnsClientX {
             }
 
             (string hostName, int port, AddressFamily? family) = SplitHostPort(host, 443);
+            if (!HasExplicitPort(host) && TryGetExplicitPort(address, out int addressPort)) {
+                port = addressPort;
+            }
+
             Uri dohUrl = BuildDohUri(hostName, port, path);
             return new DnsResolverEndpoint {
                 Transport = Transport.Doh,
@@ -221,16 +225,21 @@ namespace DnsClientX {
                 throw new FormatException("DNS stamp hostname or address is required.");
             }
 
-            return EndpointFromAddress(endpointValue, transport, requestFormat, defaultPort, properties);
+            int? portOverride = !string.IsNullOrWhiteSpace(host) &&
+                                !HasExplicitPort(host) &&
+                                TryGetExplicitPort(address, out int addressPort)
+                ? addressPort
+                : null;
+            return EndpointFromAddress(endpointValue, transport, requestFormat, defaultPort, properties, portOverride);
         }
 
-        private static DnsResolverEndpoint EndpointFromAddress(string value, Transport transport, DnsRequestFormat requestFormat, int defaultPort, ulong properties) {
+        private static DnsResolverEndpoint EndpointFromAddress(string value, Transport transport, DnsRequestFormat requestFormat, int defaultPort, ulong properties, int? portOverride = null) {
             (string host, int port, AddressFamily? family) = SplitHostPort(value, defaultPort);
             return new DnsResolverEndpoint {
                 Transport = transport,
                 RequestFormat = requestFormat,
                 Host = host,
-                Port = port,
+                Port = portOverride ?? port,
                 Family = family,
                 DnsSecOk = HasDnsSec(properties) ? true : null
             };
@@ -278,6 +287,33 @@ namespace DnsClientX {
             }
 
             return (host, port, family);
+        }
+
+        private static bool HasExplicitPort(string value) => TryGetExplicitPort(value, out _);
+
+        private static bool TryGetExplicitPort(string value, out int port) {
+            port = 0;
+            if (string.IsNullOrWhiteSpace(value)) {
+                return false;
+            }
+
+            string trimmed = value.Trim();
+            if (trimmed.StartsWith("[", StringComparison.Ordinal)) {
+                int end = trimmed.IndexOf(']');
+                return end > 1 &&
+                       trimmed.Length > end + 1 &&
+                       trimmed[end + 1] == ':' &&
+                       int.TryParse(trimmed.Substring(end + 2), out port) &&
+                       port >= 1 &&
+                       port <= 65535;
+            }
+
+            int separator = trimmed.LastIndexOf(':');
+            return separator > 0 &&
+                   trimmed.IndexOf(':') == separator &&
+                   int.TryParse(trimmed.Substring(separator + 1), out port) &&
+                   port >= 1 &&
+                   port <= 65535;
         }
 
         private static Uri BuildDohUri(string host, int port, string pathAndQuery) {
@@ -406,7 +442,7 @@ namespace DnsClientX {
             }
 
             internal void ReadHashes() {
-                foreach (byte[] hash in ReadVariableLengthSet("certificate hash").Where(static hash => hash.Length != 0 && hash.Length != 32)) {
+                if (ReadVariableLengthSet("certificate hash").Any(static hash => hash.Length != 0 && hash.Length != 32)) {
                     throw new FormatException("Certificate hashes in DNS stamps must be 32 bytes.");
                 }
             }
