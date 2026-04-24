@@ -176,13 +176,15 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures invalid endpoint ports are rejected before non-round-trippable stamps are emitted.
         /// </summary>
-        [Fact]
-        public void StampCreate_InvalidPort_Throws() {
+        [Theory]
+        [InlineData(0)]
+        [InlineData(70000)]
+        public void StampCreate_InvalidPort_Throws(int port) {
             var endpoint = new DnsResolverEndpoint {
                 Transport = Transport.Dot,
                 RequestFormat = DnsRequestFormat.DnsOverTLS,
                 Host = "dns.example.test",
-                Port = 70000
+                Port = port
             };
 
             ArgumentOutOfRangeException exception = Assert.Throws<ArgumentOutOfRangeException>(() => DnsStamp.Create(endpoint));
@@ -208,6 +210,29 @@ namespace DnsClientX.Tests {
             Assert.Equal(Transport.Doh, parsed.Transport);
             Assert.Equal("dns.example.test", parsed.Host);
             Assert.Equal(new Uri("https://dns.example.test/dns-query"), parsed.DohUrl);
+        }
+
+        /// <summary>
+        /// Ensures bootstrap-address stamps are rejected instead of silently dropping routing data.
+        /// </summary>
+        [Fact]
+        public void DohStamp_WithBootstrapAddress_IsUnsupported() {
+            var endpoint = new DnsResolverEndpoint {
+                Transport = Transport.Doh,
+                RequestFormat = DnsRequestFormat.DnsOverHttps,
+                Host = "dns.example.test",
+                Port = 443,
+                DohUrl = new Uri("https://dns.example.test/dns-query")
+            };
+
+            string stamp = AppendPayloadValue(DnsStamp.Create(endpoint), "9.9.9.9");
+
+            bool parsed = DnsStamp.TryParse(stamp, out DnsResolverEndpoint? parsedEndpoint, out string? error);
+
+            Assert.False(parsed);
+            Assert.Null(parsedEndpoint);
+            Assert.Contains("Bootstrap addresses", error, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("not supported", error, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -269,6 +294,17 @@ namespace DnsClientX.Tests {
                 .TrimEnd('=')
                 .Replace('+', '-')
                 .Replace('/', '_');
+        }
+
+        private static string AppendPayloadValue(string stamp, string value) {
+            const string scheme = "sdns://";
+            string encoded = stamp.Substring(scheme.Length);
+            string base64 = encoded.Replace('-', '+').Replace('_', '/');
+            base64 = base64.PadRight(base64.Length + (4 - base64.Length % 4) % 4, '=');
+            byte[] payload = Convert.FromBase64String(base64);
+            byte[] valueBytes = Encoding.UTF8.GetBytes(value);
+            byte[] updated = payload.Concat(new[] { (byte)valueBytes.Length }).Concat(valueBytes).ToArray();
+            return EncodePayload(updated);
         }
 
         private static string CreateDohStamp(string address, string host, string path, byte[]? certificateHash = null) {

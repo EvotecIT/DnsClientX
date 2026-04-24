@@ -351,8 +351,8 @@ namespace DnsClientX {
         }
 
         private static void ValidateEndpointPort(DnsResolverEndpoint endpoint) {
-            if (endpoint.Port < 0 || endpoint.Port > 65535) {
-                throw new ArgumentOutOfRangeException(nameof(endpoint), endpoint.Port, "DNS stamp endpoint port must be between 0 and 65535.");
+            if (endpoint.Port < 1 || endpoint.Port > 65535) {
+                throw new ArgumentOutOfRangeException(nameof(endpoint), endpoint.Port, "DNS stamp endpoint port must be between 1 and 65535.");
             }
         }
 
@@ -461,13 +461,8 @@ namespace DnsClientX {
             }
 
             internal void ReadBootstrapAddresses() {
-                foreach (byte[] value in ReadVariableLengthSet("bootstrap address")) {
-                    if (value.Length == 0) {
-                        continue;
-                    }
-
-                    string address = Encoding.UTF8.GetString(value, 0, value.Length);
-                    EnsureAddress(address, allowEmpty: false);
+                if (ReadVariableLengthSet("bootstrap address").Any(static value => value.Length != 0)) {
+                    throw new NotSupportedException("Bootstrap addresses in DNS stamps are not supported by the core resolver endpoint model.");
                 }
             }
 

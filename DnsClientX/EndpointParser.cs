@@ -162,18 +162,18 @@ namespace DnsClientX {
                     continue;
                 }
 
-                FileInfo fileInfo = new FileInfo(fullPath);
-                if (fileInfo.Length > MaxImportedContentBytes) {
-                    results.Add(new ResolverEndpointValidationResult {
-                        Source = fullPath,
-                        Entry = fileEntry ?? string.Empty,
-                        IsValid = false,
-                        Error = $"Resolver file exceeds the {MaxImportedContentBytes} byte import limit: {fileEntry}"
-                    });
-                    continue;
-                }
-
                 try {
+                    FileInfo fileInfo = new FileInfo(fullPath);
+                    if (fileInfo.Length > MaxImportedContentBytes) {
+                        results.Add(new ResolverEndpointValidationResult {
+                            Source = fullPath,
+                            Entry = fileEntry ?? string.Empty,
+                            IsValid = false,
+                            Error = $"Resolver file exceeds the {MaxImportedContentBytes} byte import limit: {fileEntry}"
+                        });
+                        continue;
+                    }
+
                     using var reader = File.OpenText(fullPath);
                     string content = await reader.ReadToEndAsync().ConfigureAwait(false);
                     results.AddRange(ValidateImportedContent(content, fullPath));
