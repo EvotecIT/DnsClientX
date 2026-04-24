@@ -94,6 +94,29 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Ensures unreadable resolver files are reported as invalid sources.
+        /// </summary>
+        [Fact]
+        public async Task ValidateManyAsync_UnreadableFile_ReturnsInvalidResult() {
+            string resolverFile = Path.GetTempFileName();
+            File.WriteAllText(resolverFile, "udp@1.1.1.1:53\r\n");
+
+            try {
+                using var locked = new FileStream(resolverFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+
+                ResolverEndpointValidationResult[] results = await EndpointParser.ValidateManyAsync(files: new[] { resolverFile });
+
+                ResolverEndpointValidationResult result = Assert.Single(results);
+                Assert.False(result.IsValid);
+                Assert.Equal(resolverFile, result.Source);
+                Assert.Equal(resolverFile, result.Entry);
+                Assert.False(string.IsNullOrWhiteSpace(result.Error));
+            } finally {
+                File.Delete(resolverFile);
+            }
+        }
+
+        /// <summary>
         /// Ensures caller cancellation is not reported as a URL validation error.
         /// </summary>
         [Fact]

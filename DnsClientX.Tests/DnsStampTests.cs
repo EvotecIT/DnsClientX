@@ -195,6 +195,22 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Ensures certificate-pinned stamps are rejected instead of silently dropping the pins.
+        /// </summary>
+        [Fact]
+        public void DohStamp_WithCertificateHash_IsUnsupported() {
+            byte[] certificateHash = Enumerable.Repeat((byte)0xAB, 32).ToArray();
+            string stamp = CreateDohStamp("1.1.1.1", "dns.example.test", "/dns-query", certificateHash);
+
+            bool parsed = DnsStamp.TryParse(stamp, out DnsResolverEndpoint? endpoint, out string? error);
+
+            Assert.False(parsed);
+            Assert.Null(endpoint);
+            Assert.Contains("Certificate hashes", error, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("not supported", error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
         /// Ensures DoH stamps preserve a non-default address port when hostname carries certificate name only.
         /// </summary>
         [Fact]
@@ -239,12 +255,17 @@ namespace DnsClientX.Tests {
                 .Replace('/', '_');
         }
 
-        private static string CreateDohStamp(string address, string host, string path) {
+        private static string CreateDohStamp(string address, string host, string path, byte[]? certificateHash = null) {
             using var stream = new MemoryStream();
             stream.WriteByte(0x02);
             WriteProperties(stream);
             WriteLengthPrefixed(stream, address);
-            WriteEmptyVariableLengthSet(stream);
+            if (certificateHash == null) {
+                WriteEmptyVariableLengthSet(stream);
+            } else {
+                WriteSingleVariableLengthSet(stream, certificateHash);
+            }
+
             WriteLengthPrefixed(stream, host);
             WriteLengthPrefixed(stream, path);
             return EncodePayload(stream.ToArray());
@@ -272,6 +293,15 @@ namespace DnsClientX.Tests {
 
         private static void WriteEmptyVariableLengthSet(Stream stream) {
             stream.WriteByte(0);
+        }
+
+        private static void WriteSingleVariableLengthSet(Stream stream, byte[] value) {
+            if (value.Length > 127) {
+                throw new ArgumentOutOfRangeException(nameof(value));
+            }
+
+            stream.WriteByte((byte)value.Length);
+            stream.Write(value, 0, value.Length);
         }
 
         private static string EncodePayload(byte[] payload) {

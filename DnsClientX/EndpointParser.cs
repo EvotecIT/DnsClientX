@@ -161,9 +161,18 @@ namespace DnsClientX {
                     continue;
                 }
 
-                using var reader = File.OpenText(fullPath);
-                string content = await reader.ReadToEndAsync().ConfigureAwait(false);
-                results.AddRange(ValidateImportedContent(content, fullPath));
+                try {
+                    using var reader = File.OpenText(fullPath);
+                    string content = await reader.ReadToEndAsync().ConfigureAwait(false);
+                    results.AddRange(ValidateImportedContent(content, fullPath));
+                } catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) {
+                    results.Add(new ResolverEndpointValidationResult {
+                        Source = fullPath,
+                        Entry = fileEntry ?? string.Empty,
+                        IsValid = false,
+                        Error = ex.Message
+                    });
+                }
             }
 
             string[] urlEntries = (urls ?? Array.Empty<string>())

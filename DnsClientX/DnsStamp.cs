@@ -447,8 +447,8 @@ namespace DnsClientX {
             }
 
             internal void ReadHashes() {
-                if (ReadVariableLengthSet("certificate hash").Any(static hash => hash.Length != 0 && hash.Length != 32)) {
-                    throw new FormatException("Certificate hashes in DNS stamps must be 32 bytes.");
+                if (ReadVariableLengthSet("certificate hash").Any(static hash => hash.Length != 0)) {
+                    throw new NotSupportedException("Certificate hashes in DNS stamps are not supported by the core resolver endpoint model.");
                 }
             }
 
