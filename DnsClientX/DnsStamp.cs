@@ -62,14 +62,15 @@ namespace DnsClientX {
                 return false;
             }
 
-            if (!stamp.StartsWith(Scheme, StringComparison.OrdinalIgnoreCase)) {
+            string value = stamp!;
+            if (!value.StartsWith(Scheme, StringComparison.OrdinalIgnoreCase)) {
                 error = "DNS stamp must start with sdns://.";
                 return false;
             }
 
             byte[] payload;
             try {
-                payload = DecodeBase64Url(stamp.Substring(Scheme.Length));
+                payload = DecodeBase64Url(value.Substring(Scheme.Length));
             } catch (FormatException ex) {
                 error = $"DNS stamp payload is not valid base64url: {ex.Message}";
                 return false;
@@ -189,14 +190,14 @@ namespace DnsClientX {
             }
 
             (string hostName, int port, AddressFamily? family) = SplitHostPort(host, 443);
-            var builder = new UriBuilder(Uri.UriSchemeHttps, hostName, port, path);
+            Uri dohUrl = BuildDohUri(hostName, port, path);
             return new DnsResolverEndpoint {
                 Transport = Transport.Doh,
                 RequestFormat = DnsRequestFormat.DnsOverHttps,
                 Host = hostName,
                 Port = port,
                 Family = family,
-                DohUrl = builder.Uri,
+                DohUrl = dohUrl,
                 DnsSecOk = HasDnsSec(properties) ? true : null
             };
         }
@@ -250,10 +251,9 @@ namespace DnsClientX {
                 }
 
                 host = trimmed.Substring(1, end - 1);
-                if (trimmed.Length > end + 1) {
-                    if (trimmed[end + 1] != ':' || !int.TryParse(trimmed.Substring(end + 2), out port)) {
-                        throw new FormatException($"Invalid port in endpoint: {value}");
-                    }
+                if (trimmed.Length > end + 1 &&
+                    (trimmed[end + 1] != ':' || !int.TryParse(trimmed.Substring(end + 2), out port))) {
+                    throw new FormatException($"Invalid port in endpoint: {value}");
                 }
             } else {
                 int separator = trimmed.LastIndexOf(':');
@@ -277,6 +277,18 @@ namespace DnsClientX {
             }
 
             return (host, port, family);
+        }
+
+        private static Uri BuildDohUri(string host, int port, string pathAndQuery) {
+            int queryIndex = pathAndQuery.IndexOf('?');
+            string path = queryIndex >= 0 ? pathAndQuery.Substring(0, queryIndex) : pathAndQuery;
+            string? query = queryIndex >= 0 ? pathAndQuery.Substring(queryIndex + 1) : null;
+            var builder = new UriBuilder(Uri.UriSchemeHttps, host, port, path);
+            if (query != null) {
+                builder.Query = query;
+            }
+
+            return builder.Uri;
         }
 
         private static string BuildAddress(DnsResolverEndpoint endpoint, int defaultPort) {
@@ -402,6 +414,10 @@ namespace DnsClientX {
 
             internal void ReadBootstrapAddresses() {
                 foreach (byte[] value in ReadVariableLengthSet("bootstrap address")) {
+                    if (value.Length == 0) {
+                        continue;
+                    }
+
                     string address = Encoding.UTF8.GetString(value, 0, value.Length);
                     EnsureAddress(address, allowEmpty: false);
                 }

@@ -40,17 +40,17 @@ namespace DnsClientX.Tests {
         [Fact]
         public void ReleaseVersions_ShouldStayAligned() {
             string root = FindRepositoryRoot();
-            string coreVersion = ReadProjectProperty(Path.Combine(root, "DnsClientX", "DnsClientX.csproj"), "VersionPrefix");
+            string coreVersion = ReadProjectProperty(CombineRelative(root, "DnsClientX", "DnsClientX.csproj"), "VersionPrefix");
 
-            Assert.Equal(coreVersion, ReadProjectProperty(Path.Combine(root, "DnsClientX.Cli", "DnsClientX.Cli.csproj"), "VersionPrefix"));
-            Assert.Equal(coreVersion, ReadProjectProperty(Path.Combine(root, "DnsClientX.Cli", "DnsClientX.Cli.csproj"), "AssemblyVersion"));
-            Assert.Equal(coreVersion, ReadProjectProperty(Path.Combine(root, "DnsClientX.Cli", "DnsClientX.Cli.csproj"), "FileVersion"));
+            Assert.Equal(coreVersion, ReadProjectProperty(CombineRelative(root, "DnsClientX.Cli", "DnsClientX.Cli.csproj"), "VersionPrefix"));
+            Assert.Equal(coreVersion, ReadProjectProperty(CombineRelative(root, "DnsClientX.Cli", "DnsClientX.Cli.csproj"), "AssemblyVersion"));
+            Assert.Equal(coreVersion, ReadProjectProperty(CombineRelative(root, "DnsClientX.Cli", "DnsClientX.Cli.csproj"), "FileVersion"));
 
-            Assert.Equal(coreVersion, ReadProjectProperty(Path.Combine(root, "DnsClientX.PowerShell", "DnsClientX.PowerShell.csproj"), "VersionPrefix"));
-            Assert.Equal(coreVersion, ReadProjectProperty(Path.Combine(root, "DnsClientX.PowerShell", "DnsClientX.PowerShell.csproj"), "AssemblyVersion"));
-            Assert.Equal(coreVersion, ReadProjectProperty(Path.Combine(root, "DnsClientX.PowerShell", "DnsClientX.PowerShell.csproj"), "FileVersion"));
+            Assert.Equal(coreVersion, ReadProjectProperty(CombineRelative(root, "DnsClientX.PowerShell", "DnsClientX.PowerShell.csproj"), "VersionPrefix"));
+            Assert.Equal(coreVersion, ReadProjectProperty(CombineRelative(root, "DnsClientX.PowerShell", "DnsClientX.PowerShell.csproj"), "AssemblyVersion"));
+            Assert.Equal(coreVersion, ReadProjectProperty(CombineRelative(root, "DnsClientX.PowerShell", "DnsClientX.PowerShell.csproj"), "FileVersion"));
 
-            Assert.Equal(coreVersion, ReadPowerShellManifestVersion(Path.Combine(root, "Module", "DnsClientX.psd1")));
+            Assert.Equal(coreVersion, ReadPowerShellManifestVersion(CombineRelative(root, "Module", "DnsClientX.psd1")));
         }
 
         /// <summary>
@@ -59,7 +59,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public async Task CliHelpAndReadme_ShouldDocumentKeyOperatorSwitches() {
             string root = FindRepositoryRoot();
-            string readme = File.ReadAllText(Path.Combine(root, "README.md"));
+            string readme = File.ReadAllText(CombineRelative(root, "README.md"));
             string help = await GetCliHelpAsync();
 
             foreach (string cliSwitch in CliOperatorSwitches) {
@@ -74,8 +74,8 @@ namespace DnsClientX.Tests {
         [Fact]
         public void PowerShellManifest_ShouldExportBinaryCmdlets() {
             string root = FindRepositoryRoot();
-            string manifest = File.ReadAllText(Path.Combine(root, "Module", "DnsClientX.psd1"));
-            string[] sourceFiles = Directory.GetFiles(Path.Combine(root, "DnsClientX.PowerShell"), "*.cs");
+            string manifest = File.ReadAllText(CombineRelative(root, "Module", "DnsClientX.psd1"));
+            string[] sourceFiles = Directory.GetFiles(CombineRelative(root, "DnsClientX.PowerShell"), "*.cs");
 
             foreach (string sourceFile in sourceFiles) {
                 string source = File.ReadAllText(sourceFile);
@@ -106,6 +106,23 @@ namespace DnsClientX.Tests {
             } finally {
                 Console.SetOut(originalOut);
             }
+        }
+
+        private static string CombineRelative(string basePath, params string[] segments) {
+            string current = basePath;
+            foreach (string segment in segments) {
+                if (string.IsNullOrWhiteSpace(segment)) {
+                    throw new ArgumentException("Path segment cannot be empty.", nameof(segments));
+                }
+
+                if (Path.IsPathRooted(segment)) {
+                    throw new ArgumentException($"Path segment must be relative: {segment}", nameof(segments));
+                }
+
+                current = Path.Combine(current, segment);
+            }
+
+            return current;
         }
 
         private static string ReadProjectProperty(string path, string propertyName) {

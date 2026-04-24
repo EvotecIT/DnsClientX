@@ -115,23 +115,57 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Ensures generated DoH stamps preserve resolver paths.
+        /// Ensures generated DoH stamps preserve resolver paths and query strings.
         /// </summary>
         [Fact]
-        public void DohStamp_RoundTripsPath() {
+        public void DohStamp_RoundTripsPathAndQuery() {
             var endpoint = new DnsResolverEndpoint {
                 Transport = Transport.Doh,
                 RequestFormat = DnsRequestFormat.DnsOverHttps,
                 Host = "dns.example.test",
                 Port = 8443,
-                DohUrl = new Uri("https://dns.example.test:8443/custom-query")
+                DohUrl = new Uri("https://dns.example.test:8443/custom-query?token=abc")
             };
 
             DnsResolverEndpoint parsed = DnsStamp.Parse(DnsStamp.Create(endpoint));
 
             Assert.Equal("dns.example.test", parsed.Host);
             Assert.Equal(8443, parsed.Port);
-            Assert.Equal(new Uri("https://dns.example.test:8443/custom-query"), parsed.DohUrl);
+            Assert.Equal(new Uri("https://dns.example.test:8443/custom-query?token=abc"), parsed.DohUrl);
+        }
+
+        /// <summary>
+        /// Ensures explicit empty bootstrap address sets are accepted when parsing external stamps.
+        /// </summary>
+        [Fact]
+        public void DohStamp_WithExplicitEmptyBootstrapSet_Parses() {
+            var endpoint = new DnsResolverEndpoint {
+                Transport = Transport.Doh,
+                RequestFormat = DnsRequestFormat.DnsOverHttps,
+                Host = "dns.example.test",
+                Port = 443,
+                DohUrl = new Uri("https://dns.example.test/dns-query")
+            };
+
+            string stamp = AppendPayloadByte(DnsStamp.Create(endpoint), 0);
+            DnsResolverEndpoint parsed = DnsStamp.Parse(stamp);
+
+            Assert.Equal(Transport.Doh, parsed.Transport);
+            Assert.Equal("dns.example.test", parsed.Host);
+            Assert.Equal(new Uri("https://dns.example.test/dns-query"), parsed.DohUrl);
+        }
+
+        private static string AppendPayloadByte(string stamp, byte value) {
+            const string scheme = "sdns://";
+            string encoded = stamp.Substring(scheme.Length);
+            string base64 = encoded.Replace('-', '+').Replace('_', '/');
+            base64 = base64.PadRight(base64.Length + (4 - base64.Length % 4) % 4, '=');
+            byte[] payload = Convert.FromBase64String(base64);
+            byte[] updated = payload.Concat(new[] { value }).ToArray();
+            return scheme + Convert.ToBase64String(updated)
+                .TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
         }
     }
 }
