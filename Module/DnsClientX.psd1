@@ -1,7 +1,7 @@
 ﻿@{
     AliasesToExport      = @('Get-DnsZoneTransfer', 'Resolve-DnsQuery')
     Author               = 'Przemyslaw Klys'
-    CmdletsToExport      = @('Clear-DnsMultiResolverCache', 'Get-DnsService', 'Invoke-DnsUpdate', 'Get-DnsZone', 'Find-DnsService', 'Resolve-Dns', 'Test-DnsBenchmark')
+    CmdletsToExport      = @('Clear-DnsMultiResolverCache', 'ConvertFrom-DnsStamp', 'Find-DnsService', 'Get-DnsResolverSelection', 'Get-DnsService', 'Get-DnsTransportCapability', 'Get-DnsZone', 'Invoke-DnsUpdate', 'Resolve-Dns', 'Test-DnsBenchmark', 'Test-DnsProbe', 'Test-DnsResolverCatalog')
     CompanyName          = 'Evotec'
     CompatiblePSEditions = @('Desktop', 'Core')
     Copyright            = '(c) 2011 - 2026 Przemyslaw Klys @ Evotec. All rights reserved.'
@@ -9,7 +9,7 @@
     FunctionsToExport    = @()
     GUID                 = '77fa806c-70b7-48d9-8b88-942ed73f24ed'
     HelpInfoURI          = 'https://github.com/EvotecIT/DnsClientX/blob/master/README.md'
-    ModuleVersion        = '1.0.5'
+    ModuleVersion        = '1.0.8'
     PowerShellVersion    = '5.1'
     PrivateData          = @{
         PSData = @{

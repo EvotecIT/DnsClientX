@@ -1,6 +1,4 @@
 using System.Threading.Tasks;
-using Xunit;
-
 namespace DnsClientX.Tests {
     /// <summary>
     /// Integration tests targeting the NextDNS public resolver.
@@ -9,7 +7,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Verifies that records can be resolved against NextDNS.
         /// </summary>
-        [Fact]
+        [RealDnsFact]
         public async Task ResolveUsingNextDns() {
             using var client = new ClientX(DnsEndpoint.NextDNS) { Debug = false };
             var response = await client.Resolve("github.com", DnsRecordType.A);

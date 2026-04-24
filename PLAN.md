@@ -2,175 +2,175 @@
 
 ## Purpose
 
-This plan turns the current assessment into a library-aligned roadmap.
+This roadmap tracks the next library-aligned work for DnsClientX after the recent cleanup wave.
 
-It is written to support the current identity of the project:
+The project identity remains:
 
 - library first
 - cross-platform core
-- minimal dependencies in the main package
-- strong CLI and PowerShell surfaces built on the same engine
-- advanced DNS features without drifting into unrelated network product areas
+- dependency-light main package
+- CLI and PowerShell surfaces built on the same engine
+- advanced DNS protocol features without drifting into unrelated network product areas
 
 ## Principles
 
-### Keep the core focused
+### Keep The Core Focused
 
-The main package should remain centered on DNS resolution, DNS transport handling, DNS diagnostics, DNSSEC, updates, and related protocol features.
+The main package should stay centered on DNS resolution, DNS transport handling, diagnostics, DNSSEC, updates, zone transfer workflows, resolver selection, and protocol parsing.
 
-### Prefer additive features over product sprawl
+### Prefer Additive Depth Over Product Sprawl
 
-The best next features are the ones that deepen the resolver, parser, diagnostics, CLI, and automation story without turning the project into a proxy, desktop security suite, or operating system management tool.
+The best next features deepen the resolver, parser, diagnostics, CLI, and automation story. Avoid turning the main package into a proxy, desktop security suite, operating system manager, or broad network-control product.
 
-### Protect the no-dependency baseline
+### Protect The No-Dependency Baseline
 
-For modern targets, the main package should stay dependency-free where practical. If a feature is valuable but pushes the core too far, it should move into an optional package instead of reshaping the main library.
+Modern targets should remain dependency-free where practical. If a feature needs specialized dependencies, unusual crypto, a different support contract, or a much larger maintenance surface, it should move into an optional package.
 
-### Keep runtime-native modern transports in core
+### Keep Runtime-Native Modern Transports In Core
 
-If a transport can be implemented with no additional NuGet dependency on the modern target line, it belongs in the main package even if older targets cannot support it fully.
+DoH3 and DoQ belong in the core package when the runtime provides the transport support without extra package weight. Older targets should report clear unsupported behavior instead of pulling in compatibility stacks.
 
-That means:
+### Build Through Existing Surfaces
 
-- modern runtime-native transports should live in the core package for `net8+`
-- older targets may degrade gracefully instead of matching feature parity
-- optional packages should be reserved for features that genuinely add dependency graph weight or separate maintenance burden
+New capabilities should use the current architecture:
 
-### Build through existing surfaces
-
-New capabilities should be aligned with the current architecture:
-
-- core library for protocol and parsing features
-- CLI for diagnostics, scripting, and operator workflows
+- core library for protocol, parsing, resolver, and diagnostics behavior
+- CLI for operator workflows and scripting
 - PowerShell for automation and administration
 
-## Proposed Structure
+## Completed Cleanup Wave
 
-The roadmap is organized into four layers:
+The previous roadmap items below are now implemented and should be treated as maintained surfaces rather than future work:
 
-1. Core Enhancements
-2. CLI and PowerShell Experience
-3. Advanced Policy and Resolver Workflows
-4. Optional Package Candidates
-
-This structure keeps the project aligned with what it already does well and makes it easier to phase work without creating architectural debt.
+- CLI query output modes: `pretty`, `json`, `raw`, and `short`
+- CLI section toggles for question, answer, authority, and additional output
+- reverse lookup shortcut support in the CLI
+- TXT concatenation output support
+- EDNS padding and cookie option support
+- recursive AXFR convenience flow in the CLI
+- explicit resolver endpoint syntax shared by library, CLI, and PowerShell workflows
+- resolver import from files and URLs for probe and benchmark workflows
+- persisted probe and benchmark score snapshots
+- resolver selection and resolver reuse from saved score snapshots
+- runtime transport capability reporting
+- DNS stamp parsing and generation for plain DNS, DoH, DoT, and DoQ endpoint models
+- no-network DNS stamp inspection in the CLI and PowerShell
+- no-network resolver catalog validation in the CLI and PowerShell
+- resolver score snapshot schema versioning and future-version compatibility checks
+- release sanity coverage for version alignment and CLI help/README parity
 
 ## Current Direction
 
-The project already has a strong foundation:
+The project already has strong foundations:
 
-- broad transport support
-- DNSSEC support
+- broad DNS transport support
+- DNSSEC and root validation work
 - typed records
-- AXFR and updates
+- AXFR and dynamic updates
 - multi-resolver strategies
-- benchmark and probe workflows
-- cross-platform support
+- probe, benchmark, scoring, and resolver reuse workflows
+- cross-platform targeting
 
-Because of that, the next phase should not be about reinventing the resolver. It should be about making the existing engine more complete, more diagnosable, and easier to use in automation.
-
-## What To Add First
-
-The best first additions are the ones that are:
-
-- high value
-- low to medium implementation risk
-- aligned with the current library architecture
-- realistic without adding dependencies
-
-### First Wave
-
-- richer CLI output modes: `json`, `raw`, `short`, and section toggles
-- reverse lookup shortcut support in the CLI
-- TXT concatenation as an output or parsing option
-- EDNS padding support
-- EDNS cookie support
-- NSID-focused convenience modes
-- recursive AXFR helpers in CLI and PowerShell
-- resolver import from files and URLs for benchmark and probe workflows
-
-These are the most natural next steps because they improve usability, scripting, and protocol completeness without requiring a major redesign.
+The next phase should focus on protocol completeness, sharper resolver operations, and a small DNS-only policy model.
 
 ## Roadmap
 
-## Phase 1: Strengthen Existing Surfaces
+## Phase 1: Protocol Completeness
 
-Goal: improve the value of the existing library, CLI, and PowerShell surfaces without changing the project's architectural identity.
+Goal: improve protocol coverage in the core package without adding dependency pressure.
 
-### Core
+### Scope
 
-- add EDNS padding support
-- add EDNS cookie support
-- expose a cleaner NSID request path for reusable request models
-- add stamp parsing for standard endpoint formats that map naturally onto existing transports
+- cleaner NSID request and response convenience paths
+- stronger validation for EDNS option combinations and public request models
+- more focused tests around fully-qualified names, root labels, and wire serialization edge cases
 
-### CLI
+### Primary File Areas
 
-- add `json` output
-- add `raw` output
-- add `short` output
-- add question, authority, and additional section toggles
-- add human-friendly TTL formatting
-- add reverse lookup shortcut support
-- add TXT concatenation support
-- add recursive AXFR convenience commands
+- `DnsClientX/Edns/*`
+- `DnsClientX/EdnsOptions.cs`
+- `DnsClientX/DnsMessageOptions.cs`
+- `DnsClientX/ResolveDnsRequest.cs`
+- `DnsClientX/EndpointParser.cs`
+- `DnsClientX/ProtocolDnsWire/DnsMessage.cs`
+- `DnsClientX.Tests/*Edns*`
+- `DnsClientX.Tests/*EndpointParser*`
 
-### PowerShell
+### Acceptance Criteria
 
-- expose the same recursive AXFR convenience surface
-- support resolver import for benchmark and probe scenarios
-- keep parameter names aligned with existing request models
+- supported DNS stamps remain round-trippable through the same `DnsResolverEndpoint` model as explicit endpoint syntax
+- NSID can be requested through reusable request models without hand-building EDNS options
+- wire-format tests cover trailing-dot and root-label edge cases
 
-### Why This Comes First
+## Phase 2: Resolver Operations
 
-- strong user value
-- low architectural risk
-- no need to widen the dependency surface
-- direct alignment with the current strengths of the library
+Goal: make resolver selection workflows more repeatable and operator-friendly.
 
-## Phase 2: Improve Resolver Operations
+### Scope
 
-Goal: build better operator workflows on top of the existing resolver and benchmark engine.
+- bootstrap resolver control for hostname-based DoH, DoT, DoH3, DoQ, and gRPC endpoints
+- resolver catalog import as a first-class library API, not only CLI plumbing
+- score snapshot migration guardrails for any future schema changes
+- optional resolver health profile files for repeated probe and benchmark runs
+- richer explain output for why a resolver was selected or rejected
 
-### Additions
+### Primary File Areas
 
-- bootstrap resolver control for hostname-based transports
-- import resolver catalogs from local files
-- import resolver catalogs from remote URLs
-- persist resolver scoring and health summaries from benchmark and probe runs
-- add a simple working-resolver selection workflow built on existing benchmark and probe logic
+- `DnsClientX/EndpointParser.cs`
+- `DnsClientX/ResolverExecutionTargetResolver.cs`
+- `DnsClientX/ResolverScoreStore.cs`
+- `DnsClientX/ResolverProbe*`
+- `DnsClientX/ResolverBenchmark*`
+- `DnsClientX.Cli/Program.cs`
+- `DnsClientX.PowerShell/*Benchmark*`
+- `DnsClientX.PowerShell/*Probe*`
 
-### Why This Matters
+### Acceptance Criteria
 
-The project already knows how to resolve, benchmark, and probe. The next useful step is to make those results reusable, so the CLI and automation layers can evolve from one-off checks into repeatable resolver selection workflows.
+- hostname-based transports can use an explicit bootstrap path when needed
+- resolver catalog loading and validation are reusable from library, CLI, and PowerShell
+- future score snapshot schema changes have migration or compatibility guardrails
+- explain output names policy, score, health, and capability factors
 
-## Phase 3: Add a DNS-Only Policy Layer
+## Phase 3: DNS-Only Policy Layer
 
-Goal: introduce domain-aware policy without drifting into unrelated product areas.
+Goal: add domain-aware behavior while staying inside the DNS domain.
 
 ### Initial Scope
 
 - block by domain
-- static override by domain
+- static answer override by domain
 - custom resolver selection by domain
-- rule explain and diagnostics output
+- rule explain output
+- testable policy decisions independent from network calls
 
 ### Scope Guardrails
 
-This layer should remain DNS-focused. It should not include:
+This layer should not include:
 
 - proxy orchestration
 - packet fragmentation
 - SNI rewriting
 - browser or system traffic manipulation
+- OS startup management
 
-### Why This Phase Is Valuable
+### Primary File Areas
 
-A DNS-only policy layer would be one of the strongest differentiators for the library, but it is large enough that it should arrive only after the transport, parser, CLI, and resolver workflow improvements are stable.
+- new policy-focused files under `DnsClientX/`
+- `DnsClientX.QueryDnsRequest.cs`
+- `DnsClientX.Cli/Program.cs`
+- `DnsClientX.PowerShell/*`
+- dedicated policy tests under `DnsClientX.Tests/`
+
+### Acceptance Criteria
+
+- policy decisions are deterministic and explainable
+- rules can be evaluated without performing network I/O
+- public APIs stay DNS-focused and do not imply system-wide traffic control
 
 ## Phase 4: Optional Packages
 
-Goal: keep the main library lean while still leaving room for higher-complexity protocol features.
+Goal: leave room for valuable higher-complexity protocols without weighing down the main package.
 
 ### Best Candidates
 
@@ -179,320 +179,90 @@ Goal: keep the main library lean while still leaving room for higher-complexity 
 - `DnsClientX.Rules`
 - `DnsClientX.Server`
 
-### Rationale
-
-These features may be valuable, but they should not force the main package to absorb significant complexity, new dependencies, or a broader maintenance burden than the core library needs.
-
 ### Packaging Policy
 
-- keep `DoH3` in the core package when it remains dependency-free on modern targets
-- keep `DoQ` in the core package when it remains dependency-free on modern targets
-- do not add compatibility dependencies just to backport `DoH3` or `DoQ` to older targets
-- return clear non-support behavior on older frameworks when the runtime cannot provide the transport
-- create optional packages only when a protocol requires external dependencies, specialized crypto, or a materially different support contract
-
-## Difficulty And Fit
-
-### High-fit, low-to-medium complexity
-
-- CLI output improvements
-- reverse lookup CLI support
-- TXT concatenation support
-- EDNS padding
-- EDNS cookie
-- NSID convenience support
-- recursive AXFR helper workflows
-- resolver import from file or URL
-
-These should be prioritized first.
-
-### High-fit, medium-to-high complexity
-
-- stamp parsing and generation
-- bootstrap resolver control
-- persisted resolver scoring
-- DNS-only policy rules
-
-These are worth doing, but they should follow the first wave.
-
-### Valuable, but better outside the main package
-
-- full DNSCrypt implementation
-- full ODoH implementation
-- local DNS or DoH server stacks if they grow large
-- any feature that requires broad protocol-specific dependencies or native helpers
-
-## Explicit Non-Goals For The Main Package
-
-The main library should avoid absorbing features that move it into a different product category.
-
-That includes:
-
-- DPI bypass workflows
-- packet fragmentation features
-- fake SNI workflows
-- proxy server product features
-- operating system startup management
-- large Windows-only orchestration features
-
-These may be useful in other tools, but they are not the right center of gravity for this library.
-
-## Recommended Execution Order
-
-1. CLI output modes and section controls
-2. EDNS padding and cookie support
-3. reverse lookup and TXT convenience features
-4. recursive AXFR convenience flows
-5. resolver import from file and URL
-6. bootstrap resolver control
-7. persisted resolver scoring
-8. DNS-only policy layer
-9. optional packages for higher-complexity protocols
-
-## Success Criteria
-
-The plan is succeeding if:
-
-- the main package remains dependency-light
-- new features build on existing abstractions instead of bypassing them
-- CLI and PowerShell become more useful for diagnostics and automation
-- the library becomes more complete at the DNS protocol layer
-- policy features remain DNS-focused
-- higher-complexity protocol work is isolated into optional packages when needed
+- keep dependency-free DoH3 and DoQ support in the core package on modern targets
+- do not add compatibility dependencies just to backport modern transports to older targets
+- create optional packages when a feature needs specialized dependencies, crypto, server hosting, or a materially different maintenance contract
 
 ## Concrete Backlog
 
-### Core backlog
+### Core
 
-- add EDNS padding option type and wire serialization support
-- add EDNS cookie option type and wire serialization support
-- extend reusable request models to express padding, cookie, and richer EDNS intent
-- add endpoint stamp parsing for supported built-in transport types
-- add bootstrap resolver configuration for hostname-based transports
-- add resolver import primitives from file and URL sources
-- add persisted resolver score model for benchmark and probe outputs
-- design a DNS-only rule model for block, override, and custom resolver selection
+- expose NSID convenience options through `ResolveDnsRequest`
+- add bootstrap resolver configuration to request and endpoint models
+- add migration guardrails when score snapshot schemas change
+- design a DNS-only rule model for block, override, and resolver selection
 
-### CLI backlog
+### CLI
 
-- add `--format json`
-- add `--format raw`
-- add `--short`
-- add section switches for question, answer, authority, and additional
-- add pretty TTL formatting options
-- add reverse lookup shortcut
-- add TXT concatenation option
-- add recursive AXFR mode
-- add resolver import input options
-- add stable machine-readable summary output for imported-resolver workflows
+- expose bootstrap resolver controls for explicit endpoints
+- add explain output for resolver score and policy decisions
+- keep help text and README feature lists aligned
 
-### PowerShell backlog
+### PowerShell
 
-- add recursive AXFR convenience cmdlet surface or parameter set
-- add resolver import support for benchmark and probe commands
-- add parameter coverage for richer EDNS controls
-- add rule explain support once a policy layer exists
+- expose bootstrap resolver controls
+- add parameter coverage for NSID and stamp workflows
+- add rule explain support once the policy model exists
 
-### Diagnostics and testing backlog
+### Diagnostics And Testing
 
-- add unit tests for EDNS padding and cookie serialization
-- add parser tests for stamp parsing
-- add CLI tests for new output modes and flags
-- add probe and benchmark tests for imported resolver sources
-- add tests for persisted resolver score read and write behavior
-- add rule engine tests before any public policy API is finalized
+- maintain release sanity tests for version alignment
+- maintain CLI help and README parity checks for documented switches
+- add parser tests for supported and unsupported stamps
+- maintain snapshot schema compatibility tests
+- add policy engine tests before public policy APIs are finalized
 
-## Milestones
+## Recommended Next 3 PRs
 
-### Milestone 1: Protocol Completeness
-
-Outcome:
-
-- richer EDNS support
-- cleaner NSID path
-- stamp parsing for supported transport types
-
-Scope:
-
-- EDNS padding
-- EDNS cookie
-- request-model support for richer EDNS options
-- tests for wire generation and parser behavior
-
-Primary file areas:
-
-- `DnsClientX/Edns/*`
-- `DnsClientX/EdnsOptions.cs`
-- `DnsClientX/DnsMessageOptions.cs`
-- `DnsClientX/ResolveDnsRequest.cs`
-- `DnsClientX/ProtocolDnsWire/DnsMessage.cs`
-- `DnsClientX.Tests/*Edns*`
-
-### Milestone 2: CLI Diagnostics Upgrade
-
-Outcome:
-
-- much stronger operator and scripting UX
-
-Scope:
-
-- `json`, `raw`, and `short` output modes
-- section toggles
-- reverse lookup shortcut
-- TXT concatenation
-
-Primary file areas:
-
-- `DnsClientX.Cli/Program.cs`
-- `DnsClientX.Tests/Cli*`
-- `DnsClientX.Tests/*Query*`
-
-### Milestone 3: AXFR and Resolver Workflow Improvements
-
-Outcome:
-
-- better operational workflows for large-scale resolver handling
-
-Scope:
-
-- recursive AXFR convenience
-- resolver import from file and URL
-- benchmark and probe integration for imported resolvers
-
-Primary file areas:
-
-- `DnsClientX.Cli/Program.cs`
-- `DnsClientX.PowerShell/*`
-- `DnsClientX/EndpointParser.cs`
-- `DnsClientX/Definitions/*`
-- `DnsClientX.Tests/*Benchmark*`
-- `DnsClientX.Tests/*Probe*`
-
-### Milestone 4: Resolver State and Selection
-
-Outcome:
-
-- reusable resolver quality data and better repeatable operator workflows
-
-Scope:
-
-- persisted resolver scoring
-- score reuse in benchmark and probe-driven selection flows
-- optional cache or profile model for resolver health snapshots
-
-Primary file areas:
-
-- `DnsClientX.Cli/Program.cs`
-- `DnsClientX.PowerShell/CmdletTestDnsBenchmark.cs`
-- `DnsClientX/Definitions/*`
-- `DnsClientX.Tests/*Benchmark*`
-
-### Milestone 5: DNS-Only Policy Layer
-
-Outcome:
-
-- domain-aware behavior without leaving the DNS domain
-
-Scope:
-
-- domain block rules
-- static answer override rules
-- per-domain custom resolver rules
-- explain output for rule decisions
-
-Primary file areas:
-
-- new policy-focused files under `DnsClientX/`
-- `DnsClientX.QueryDnsRequest.cs`
-- `DnsClientX.Cli/Program.cs`
-- `DnsClientX.PowerShell/*`
-- dedicated policy tests under `DnsClientX.Tests/`
-
-## Next 3 PRs
-
-### PR 1: Richer EDNS Support
+### PR 1: Bootstrap Resolver Control
 
 Goal:
 
-- add EDNS padding and cookie support in the core library, including reusable request-model support and tests
+- let hostname-based transports use explicit bootstrap resolver behavior where needed
 
-Why first:
+Acceptance criteria:
 
-- strong protocol value
-- contained scope
-- no dependency pressure
-- unlocks later CLI and automation work
+- bootstrap settings are available from reusable request models
+- CLI and PowerShell expose consistent parameter names
+- explain output shows when bootstrap behavior was used
 
-Suggested file targets:
-
-- `DnsClientX/Edns/`
-- `DnsClientX/EdnsOptions.cs`
-- `DnsClientX/DnsMessageOptions.cs`
-- `DnsClientX/ResolveDnsRequest.cs`
-- `DnsClientX/ProtocolDnsWire/DnsMessage.cs`
-- `DnsClientX.Tests/EdnsOptionsTests.cs`
-- new focused EDNS tests if needed
-
-Suggested acceptance criteria:
-
-- padding and cookie options can be expressed through public request paths
-- wire serialization includes the new EDNS options correctly
-- existing EDNS behavior remains unchanged when the new options are unused
-
-### PR 2: CLI Output Expansion
+### PR 2: NSID Request Convenience
 
 Goal:
 
-- add `json`, `raw`, and `short` output modes plus section toggles
+- expose NSID as a first-class request option instead of requiring hand-built EDNS options
 
-Why second:
+Acceptance criteria:
 
-- immediate user-visible value
-- builds on existing response structures
-- keeps work centered in the CLI layer
+- reusable request models can ask for NSID
+- CLI and PowerShell expose matching NSID switches or parameters
+- response parsing and output surfaces include returned NSID data when present
 
-Suggested file targets:
-
-- `DnsClientX.Cli/Program.cs`
-- `DnsClientX.Tests/CliIntegrationTests.cs`
-- `DnsClientX.Tests/CliExplainTraceTests.cs`
-- new CLI output tests if needed
-
-Suggested acceptance criteria:
-
-- CLI can render structured JSON output
-- CLI can render raw DNS-style output
-- CLI can emit short answer-only output
-- section flags correctly show or hide question, authority, and additional data
-
-### PR 3: Resolver Import Workflow
+### PR 3: Resolver Health Profiles
 
 Goal:
 
-- support importing resolver inputs from files and URLs for benchmark and probe flows
+- make repeated probe and benchmark runs easier to configure and compare
 
-Why third:
+Acceptance criteria:
 
-- high operational value
-- aligns with existing benchmark and probe investment
-- opens the door to persisted resolver scoring later
+- profile files can define resolver catalogs, domains, record types, and policy thresholds
+- CLI and PowerShell can load a profile and still override selected fields
+- reports include enough profile metadata to compare runs over time
 
-Suggested file targets:
+## Success Criteria
 
-- `DnsClientX.Cli/Program.cs`
-- `DnsClientX.PowerShell/*`
-- `DnsClientX/EndpointParser.cs`
-- `DnsClientX.Tests/*Benchmark*`
-- `DnsClientX.Tests/*Probe*`
+The roadmap is succeeding if:
 
-Suggested acceptance criteria:
-
-- benchmark and probe commands can consume resolver lists from file inputs
-- remote resolver list import is supported with validation
-- imported resolvers reuse the same parsing and endpoint validation path as direct inputs
+- the main package remains dependency-light
+- new features build on existing abstractions
+- CLI and PowerShell stay useful for diagnostics and automation
+- protocol coverage improves without product sprawl
+- policy features remain DNS-focused
+- optional packages absorb higher-complexity protocols when needed
 
 ## Summary
 
-The project should deepen along its current axis rather than widen into unrelated areas.
-
-The right next step is to improve protocol completeness, diagnostics, CLI output, resolver workflows, and eventually DNS-only policy support. The wrong next step is to grow the main package into a broader network-control product.
+DnsClientX should deepen along its current axis: protocol completeness, diagnostics, resolver workflows, and eventually DNS-only policy. The main package should avoid becoming a broader network-control product.

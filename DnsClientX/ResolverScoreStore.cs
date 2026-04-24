@@ -25,6 +25,10 @@ namespace DnsClientX {
                 throw new InvalidOperationException($"Resolver score snapshot could not be read: {path}");
             }
 
+            if (!ResolverScoreSnapshot.TryValidateCompatibility(snapshot, out string? compatibilityError)) {
+                throw new InvalidOperationException(compatibilityError);
+            }
+
             return snapshot;
         }
 
@@ -38,6 +42,10 @@ namespace DnsClientX {
 
             if (snapshot == null) {
                 throw new ArgumentNullException(nameof(snapshot));
+            }
+
+            if (!ResolverScoreSnapshot.TryValidateCompatibility(snapshot, out string? compatibilityError)) {
+                throw new InvalidOperationException(compatibilityError);
             }
 
             string fullPath = Path.GetFullPath(path);

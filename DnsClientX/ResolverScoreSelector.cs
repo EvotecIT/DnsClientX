@@ -18,6 +18,10 @@ namespace DnsClientX {
                 return false;
             }
 
+            if (!ResolverScoreSnapshot.TryValidateCompatibility(snapshot, out error)) {
+                return false;
+            }
+
             ResolverScoreSummary? summary = snapshot.Summary;
             if (summary == null) {
                 error = "Resolver score snapshot summary is required.";
