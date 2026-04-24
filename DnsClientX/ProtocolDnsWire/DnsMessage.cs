@@ -123,7 +123,7 @@ namespace DnsClientX {
             stream.Write(buffer.ToArray(), 0, buffer.Length);
 
             // Write the question name
-            foreach (var label in _name.Split('.')) {
+            foreach (var label in GetWireLabels(_name)) {
                 var labelBytes = Encoding.ASCII.GetBytes(label);
                 stream.WriteByte((byte)labelBytes.Length); // Write the length of the label
                 stream.Write(labelBytes, 0, labelBytes.Length);
@@ -247,7 +247,7 @@ namespace DnsClientX {
                 ms.Write(bytes, 0, bytes.Length);
 
                 // Queries
-                foreach (var part in _name.Split('.')) {
+                foreach (var part in GetWireLabels(_name)) {
                     ms.WriteByte((byte)part.Length);
                     var partBytes = Encoding.ASCII.GetBytes(part);
                     ms.Write(partBytes, 0, partBytes.Length);
@@ -332,6 +332,13 @@ namespace DnsClientX {
             }
 
             return ms.ToArray();
+        }
+
+        private static string[] GetWireLabels(string name) {
+            string normalizedName = name.TrimEnd('.');
+            return normalizedName.Length == 0
+                ? Array.Empty<string>()
+                : normalizedName.Split('.');
         }
     }
 }

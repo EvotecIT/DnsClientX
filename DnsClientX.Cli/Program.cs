@@ -64,6 +64,8 @@ namespace DnsClientX.Cli {
             public bool Explain { get; set; }
             public bool Trace { get; set; }
             public bool ShowCapabilities { get; set; }
+            public string? StampInfo { get; set; }
+            public bool ResolverValidate { get; set; }
             public bool DoUpdate { get; set; }
             public string? Zone { get; set; }
             public string? UpdateName { get; set; }
@@ -122,6 +124,14 @@ namespace DnsClientX.Cli {
 
                 if (parsedOptions.ShowCapabilities) {
                     return WriteCapabilities(parsedOptions);
+                }
+
+                if (!string.IsNullOrWhiteSpace(parsedOptions.StampInfo)) {
+                    return WriteStampInfo(parsedOptions);
+                }
+
+                if (parsedOptions.ResolverValidate) {
+                    return await RunResolverValidationAsync(parsedOptions, cts.Token).ConfigureAwait(false);
                 }
 
                 if (parsedOptions.Probe) {
@@ -365,6 +375,9 @@ namespace DnsClientX.Cli {
                         }
                         AddOptionValues(options.ProbeEndpointUrls, resolverUrl);
                         break;
+                    case var opt when opt.Equals("--resolver-validate", StringComparison.OrdinalIgnoreCase):
+                        options.ResolverValidate = true;
+                        break;
                     case var opt when opt.Equals("--probe-summary-only", StringComparison.OrdinalIgnoreCase):
                         options.Probe = true;
                         options.ProbeSummaryOnly = true;
@@ -463,6 +476,14 @@ namespace DnsClientX.Cli {
                     case var opt when opt.Equals("--capabilities", StringComparison.OrdinalIgnoreCase):
                         options.ShowCapabilities = true;
                         break;
+                    case var opt when opt.Equals("--stamp-info", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--stamp-info", out string? stampInfo, out errorMessage)) {
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        options.StampInfo = stampInfo;
+                        break;
                     case var opt when opt.Equals("--update", StringComparison.OrdinalIgnoreCase):
                         if (!TryReadNext(args, ref i, "--update", out string? zone, out errorMessage) ||
                             !TryReadNext(args, ref i, "--update", out string? updateName, out errorMessage) ||
@@ -516,14 +537,34 @@ namespace DnsClientX.Cli {
                 return false;
             }
 
-            if (options.HasCustomEndpointInputs && !options.Benchmark) {
+            if (options.HasCustomEndpointInputs && !options.Benchmark && !options.ResolverValidate) {
                 options.Probe = true;
             }
 
             if (options.ShowCapabilities &&
                 (options.Probe || options.Benchmark || options.DoUpdate || options.ZoneTransfer ||
+                 !string.IsNullOrWhiteSpace(options.ResolverSelectPath) || !string.IsNullOrWhiteSpace(options.ResolverUsePath) ||
+                 !string.IsNullOrWhiteSpace(options.StampInfo) || options.ResolverValidate)) {
+                errorMessage = "--capabilities cannot be combined with query, probe, benchmark, update, axfr, resolver selection, or stamp modes.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(options.StampInfo) &&
+                (options.Probe || options.Benchmark || options.DoUpdate || options.ZoneTransfer ||
+                 !string.IsNullOrWhiteSpace(options.ResolverSelectPath) || !string.IsNullOrWhiteSpace(options.ResolverUsePath) ||
+                 options.ResolverValidate)) {
+                errorMessage = "--stamp-info cannot be combined with query, probe, benchmark, update, axfr, or resolver selection modes.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (options.ResolverValidate &&
+                (options.Probe || options.Benchmark || options.DoUpdate || options.ZoneTransfer ||
                  !string.IsNullOrWhiteSpace(options.ResolverSelectPath) || !string.IsNullOrWhiteSpace(options.ResolverUsePath))) {
-                errorMessage = "--capabilities cannot be combined with query, probe, benchmark, update, axfr, or resolver selection modes.";
+                errorMessage = "--resolver-validate cannot be combined with query, probe, benchmark, update, axfr, or resolver selection modes.";
                 invalidSwitches = null;
                 options = null;
                 return false;
@@ -615,6 +656,26 @@ namespace DnsClientX.Cli {
                 return false;
             }
 
+            if (!string.IsNullOrWhiteSpace(options.StampInfo) &&
+                (options.ShortOutput || options.TxtConcatOutput || options.HasExplicitSectionSelection || options.TransferSummary || options.OutputFormat == QueryOutputFormat.Raw ||
+                 options.ReverseLookup || options.RecordTypeSpecified || options.RequestDnsSec || options.ValidateDnsSec || options.WirePost ||
+                 !string.IsNullOrWhiteSpace(options.Domain))) {
+                errorMessage = "Stamp mode supports only --stamp-info and optional --format json.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (options.ResolverValidate &&
+                (options.ShortOutput || options.TxtConcatOutput || options.HasExplicitSectionSelection || options.TransferSummary || options.OutputFormat == QueryOutputFormat.Raw ||
+                 options.ReverseLookup || options.RecordTypeSpecified || options.RequestDnsSec || options.ValidateDnsSec || options.WirePost ||
+                 !string.IsNullOrWhiteSpace(options.Domain) || !options.HasCustomEndpointInputs)) {
+                errorMessage = "Resolver validation mode requires --resolver-validate with --probe-endpoint, --resolver-file, or --resolver-url, and supports optional --format json.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
             if ((options.Benchmark || options.Probe || options.DoUpdate) &&
                 (options.ShortOutput || options.TxtConcatOutput || options.OutputFormat != QueryOutputFormat.Pretty || options.HasExplicitSectionSelection || options.TransferSummary)) {
                 errorMessage = "Query output switches (--format, --short, --txt-concat, --question, --answer, --authority, --additional) apply only to standard query mode.";
@@ -678,6 +739,10 @@ namespace DnsClientX.Cli {
                 }
             } else if (options.ShowCapabilities) {
                 // Capability mode does not require a domain.
+            } else if (!string.IsNullOrWhiteSpace(options.StampInfo)) {
+                // Stamp mode requires only the stamp input.
+            } else if (options.ResolverValidate) {
+                // Resolver validation mode requires only resolver inputs.
             } else if (!string.IsNullOrWhiteSpace(options.ResolverSelectPath)) {
                 // Selection mode requires only the saved snapshot path.
             } else if (options.ZoneTransfer && string.IsNullOrWhiteSpace(options.Domain)) {
@@ -980,6 +1045,67 @@ namespace DnsClientX.Cli {
             }
 
             return 0;
+        }
+
+        private static int WriteStampInfo(CliOptions options) {
+            DnsStampInfo info = DnsStamp.Describe(options.StampInfo!);
+            if (options.OutputFormat == QueryOutputFormat.Json) {
+                Console.WriteLine(DnsClientXJsonSerializer.Serialize(info));
+                return 0;
+            }
+
+            Console.WriteLine("DNS Stamp:");
+            Console.WriteLine($"  Transport: {info.Transport}");
+            Console.WriteLine($"  Request format: {info.RequestFormat}");
+            Console.WriteLine($"  Host: {info.Host}");
+            Console.WriteLine($"  Port: {info.Port}");
+            if (info.DohUrl != null) {
+                Console.WriteLine($"  DoH URL: {info.DohUrl}");
+            }
+            Console.WriteLine($"  DNSSEC property: {(info.DnsSecOk ? "yes" : "no")}");
+            Console.WriteLine($"  Endpoint: {info.Endpoint}");
+            Console.WriteLine($"  Normalized stamp: {info.NormalizedStamp}");
+            return 0;
+        }
+
+        private static async Task<int> RunResolverValidationAsync(CliOptions options, CancellationToken cancellationToken) {
+            ResolverEndpointValidationResult[] results = await EndpointParser.ValidateManyAsync(
+                options.ProbeEndpoints,
+                options.ProbeEndpointFiles,
+                options.ProbeEndpointUrls,
+                cancellationToken).ConfigureAwait(false);
+
+            if (options.OutputFormat == QueryOutputFormat.Json) {
+                Console.WriteLine(DnsClientXJsonSerializer.Serialize(results));
+            } else {
+                WriteResolverValidationResults(results);
+            }
+
+            return results.Any(result => !result.IsValid) ? 1 : 0;
+        }
+
+        private static void WriteResolverValidationResults(ResolverEndpointValidationResult[] results) {
+            int valid = results.Count(result => result.IsValid);
+            int invalid = results.Length - valid;
+
+            Console.WriteLine("Resolver Validation:");
+            Console.WriteLine($"  Entries: {results.Length}");
+            Console.WriteLine($"  Valid: {valid}");
+            Console.WriteLine($"  Invalid: {invalid}");
+
+            foreach (ResolverEndpointValidationResult result in results) {
+                string location = string.IsNullOrWhiteSpace(result.Source)
+                    ? "unknown"
+                    : result.LineNumber.HasValue
+                        ? $"{result.Source}:{result.LineNumber.Value}"
+                        : result.Source;
+
+                if (result.IsValid) {
+                    Console.WriteLine($"  valid   {location}  {result.Entry} -> {result.Endpoint}");
+                } else {
+                    Console.WriteLine($"  invalid {location}  {result.Entry} ({result.Error})");
+                }
+            }
         }
 
         private static async Task<int> RunBenchmarkAsync(CliOptions options, CancellationToken cancellationToken) {
@@ -1547,6 +1673,7 @@ namespace DnsClientX.Cli {
             Console.WriteLine("      --probe-endpoint <endpoint>  Probe a custom endpoint such as tcp@1.1.1.1:53, doq@dns.quad9.net:853, or doh3@https://dns.quad9.net/dns-query");
             Console.WriteLine("      --resolver-file <path>  Load custom endpoints from a text file for probe or benchmark");
             Console.WriteLine("      --resolver-url <url>  Load custom endpoints from an HTTP or HTTPS URL for probe or benchmark");
+            Console.WriteLine("      --resolver-validate  Validate resolver endpoint inputs without querying DNS");
             Console.WriteLine("      --probe-summary-only  Suppress per-endpoint probe lines and print only the header and summary");
             Console.WriteLine("      --probe-summary-line  Append one stable PROBE_SUMMARY key=value line for automation");
             Console.WriteLine("      --probe-save <path>  Persist probe scoring and health data as JSON");
@@ -1557,6 +1684,7 @@ namespace DnsClientX.Cli {
             Console.WriteLine("      --probe-min-success <count>  Fail when fewer than the given number of probes succeed");
             Console.WriteLine("      --probe-min-success-percent <percent>  Fail when the probe success rate is below the given 1-100 percentage");
             Console.WriteLine("      --capabilities       Print the shared transport capability report");
+            Console.WriteLine("      --stamp-info <stamp> Print parsed DNS stamp details without querying DNS");
             Console.WriteLine("      --explain            Print resolver and response diagnostics");
             Console.WriteLine("      --trace              Print explain output plus audit details");
             Console.WriteLine("      --update <zone> <name> <type> <data>  Send dynamic update");

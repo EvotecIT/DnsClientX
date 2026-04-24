@@ -1,0 +1,137 @@
+using System;
+using System.Linq;
+using Xunit;
+
+namespace DnsClientX.Tests {
+    /// <summary>
+    /// Tests DNS stamp parsing and generation.
+    /// </summary>
+    public class DnsStampTests {
+        /// <summary>
+        /// Ensures plain DNS stamps round-trip through the endpoint model.
+        /// </summary>
+        [Fact]
+        public void PlainDnsStamp_RoundTripsEndpoint() {
+            var endpoint = new DnsResolverEndpoint {
+                Host = "1.1.1.1",
+                Port = 53,
+                Transport = Transport.Udp,
+                RequestFormat = DnsRequestFormat.DnsOverUDP,
+                DnsSecOk = true
+            };
+
+            string stamp = DnsStamp.Create(endpoint);
+            DnsResolverEndpoint parsed = DnsStamp.Parse(stamp);
+
+            Assert.Equal(Transport.Udp, parsed.Transport);
+            Assert.Equal(DnsRequestFormat.DnsOverUDP, parsed.RequestFormat);
+            Assert.Equal("1.1.1.1", parsed.Host);
+            Assert.Equal(53, parsed.Port);
+            Assert.True(parsed.DnsSecOk);
+        }
+
+        /// <summary>
+        /// Ensures known DoH stamps parse into HTTPS resolver endpoints.
+        /// </summary>
+        [Fact]
+        public void DohStamp_ParsesKnownCloudflareExample() {
+            const string stamp = "sdns://AgUAAAAAAAAABzEuMS4xLjEAGm1vemlsbGEuY2xvdWRmbGFyZS1kbnMuY29tCi9kbnMtcXVlcnk";
+
+            DnsResolverEndpoint endpoint = DnsStamp.Parse(stamp);
+
+            Assert.Equal(Transport.Doh, endpoint.Transport);
+            Assert.Equal(DnsRequestFormat.DnsOverHttps, endpoint.RequestFormat);
+            Assert.Equal("mozilla.cloudflare-dns.com", endpoint.Host);
+            Assert.Equal(443, endpoint.Port);
+            Assert.Equal(new Uri("https://mozilla.cloudflare-dns.com/dns-query"), endpoint.DohUrl);
+            Assert.True(endpoint.DnsSecOk);
+        }
+
+        /// <summary>
+        /// Ensures DoT and DoQ stamps round-trip with non-default ports.
+        /// </summary>
+        [Theory]
+        [InlineData(Transport.Dot, DnsRequestFormat.DnsOverTLS, 853)]
+        [InlineData(Transport.Quic, DnsRequestFormat.DnsOverQuic, 8853)]
+        public void SecureTransportStamp_RoundTripsEndpoint(Transport transport, DnsRequestFormat requestFormat, int port) {
+            var endpoint = new DnsResolverEndpoint {
+                Host = "dns.example.test",
+                Port = port,
+                Transport = transport,
+                RequestFormat = requestFormat
+            };
+
+            DnsResolverEndpoint parsed = DnsStamp.Parse(DnsStamp.Create(endpoint));
+
+            Assert.Equal(transport, parsed.Transport);
+            Assert.Equal(requestFormat, parsed.RequestFormat);
+            Assert.Equal("dns.example.test", parsed.Host);
+            Assert.Equal(port, parsed.Port);
+        }
+
+        /// <summary>
+        /// Ensures endpoint parser accepts DNS stamps as resolver inputs.
+        /// </summary>
+        [Fact]
+        public void EndpointParser_AcceptsDnsStampInput() {
+            var endpoint = new DnsResolverEndpoint {
+                Host = "9.9.9.9",
+                Port = 53,
+                Transport = Transport.Udp,
+                RequestFormat = DnsRequestFormat.DnsOverUDP
+            };
+
+            DnsResolverEndpoint[] endpoints = EndpointParser.TryParseMany(new[] { DnsStamp.Create(endpoint) }, out var errors);
+
+            Assert.Empty(errors);
+            DnsResolverEndpoint parsed = Assert.Single(endpoints);
+            Assert.Equal("9.9.9.9", parsed.Host);
+            Assert.Equal(Transport.Udp, parsed.Transport);
+        }
+
+        /// <summary>
+        /// Ensures unsupported stamp protocols fail with a descriptive error.
+        /// </summary>
+        [Fact]
+        public void TryParse_UnsupportedDnsCryptStamp_ReturnsError() {
+            const string dnsCryptPayload = "AQAAAAAAAAAAAQAAAAEAAAA";
+            bool parsed = DnsStamp.TryParse("sdns://" + dnsCryptPayload, out DnsResolverEndpoint? endpoint, out string? error);
+
+            Assert.False(parsed);
+            Assert.Null(endpoint);
+            Assert.Contains("DNSCrypt", error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Ensures invalid stamps are surfaced as endpoint parser errors.
+        /// </summary>
+        [Fact]
+        public void EndpointParser_InvalidDnsStampReportsError() {
+            DnsResolverEndpoint[] endpoints = EndpointParser.TryParseMany(new[] { "sdns://not-valid" }, out var errors);
+
+            Assert.Empty(endpoints);
+            string error = Assert.Single(errors);
+            Assert.Contains("Invalid DNS stamp", error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Ensures generated DoH stamps preserve resolver paths.
+        /// </summary>
+        [Fact]
+        public void DohStamp_RoundTripsPath() {
+            var endpoint = new DnsResolverEndpoint {
+                Transport = Transport.Doh,
+                RequestFormat = DnsRequestFormat.DnsOverHttps,
+                Host = "dns.example.test",
+                Port = 8443,
+                DohUrl = new Uri("https://dns.example.test:8443/custom-query")
+            };
+
+            DnsResolverEndpoint parsed = DnsStamp.Parse(DnsStamp.Create(endpoint));
+
+            Assert.Equal("dns.example.test", parsed.Host);
+            Assert.Equal(8443, parsed.Port);
+            Assert.Equal(new Uri("https://dns.example.test:8443/custom-query"), parsed.DohUrl);
+        }
+    }
+}

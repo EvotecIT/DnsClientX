@@ -195,6 +195,7 @@ DnsClientX.Cli --capabilities --format json
 ```
 
 Saved probe and benchmark snapshots also persist runtime capability hints, so recommendation files can distinguish unsupported modern transports from ordinary resolver failures.
+Snapshots include a schema version, and resolver selection rejects snapshots from newer unsupported schemas before attempting reuse.
 
 ## Explicit Endpoint Syntax
 
@@ -206,6 +207,7 @@ Custom resolver inputs share one endpoint parser across the library, CLI, and Po
 - DoH: `doh@https://dns.google/dns-query`
 - DoH3: `doh3@https://dns.quad9.net/dns-query`
 - DoQ: `doq@dns.quad9.net:853`
+- DNS stamp: `sdns://AgUAAAAAAAAABzEuMS4xLjEAGm1vemlsbGEuY2xvdWRmbGFyZS1kbnMuY29tCi9kbnMtcXVlcnk`
 
 The same syntax works in:
 
@@ -213,6 +215,49 @@ The same syntax works in:
 - `Test-DnsProbe -ResolverEndpoint ...`
 - `Test-DnsBenchmark -ResolverEndpoint ...`
 - CLI probe and benchmark endpoint inputs
+
+DNS stamps currently map into the core endpoint model for plain DNS, DoH, DoT, and DoQ. DNSCrypt and ODoH stamp protocols are detected and rejected with clear unsupported-protocol errors.
+
+## CLI Diagnostics and Resolver Workflows
+
+The CLI is intended for quick diagnostics and automation-friendly resolver checks.
+
+Standard query output:
+
+```powershell
+DnsClientX.Cli --format json example.com
+DnsClientX.Cli --format raw --question --answer --authority --additional example.com
+DnsClientX.Cli --short example.com
+DnsClientX.Cli --txt-concat --type TXT example.com
+DnsClientX.Cli --reverse 1.1.1.1
+```
+
+Zone transfer convenience:
+
+```powershell
+DnsClientX.Cli --axfr --transfer-summary example.com
+DnsClientX.Cli --axfr --format json example.com
+```
+
+Resolver import, probe, benchmark, and score reuse:
+
+```powershell
+DnsClientX.Cli --resolver-validate --resolver-file .\resolvers.txt
+DnsClientX.Cli --resolver-validate --resolver-file .\resolvers.txt --format json
+Test-DnsResolverCatalog -ResolverEndpointFile .\resolvers.txt
+DnsClientX.Cli --probe --resolver-file .\resolvers.txt --probe-save .\probe.json
+DnsClientX.Cli --benchmark --resolver-url https://example.com/resolvers.txt --benchmark-save .\benchmark.json
+DnsClientX.Cli --resolver-select .\probe.json
+DnsClientX.Cli --resolver-use .\probe.json --short example.com
+```
+
+DNS stamp inspection without querying DNS:
+
+```powershell
+DnsClientX.Cli --stamp-info 'sdns://AgUAAAAAAAAABzEuMS4xLjEAGm1vemlsbGEuY2xvdWRmbGFyZS1kbnMuY29tCi9kbnMtcXVlcnk'
+DnsClientX.Cli --stamp-info 'sdns://AgUAAAAAAAAABzEuMS4xLjEAGm1vemlsbGEuY2xvdWRmbGFyZS1kbnMuY29tCi9kbnMtcXVlcnk' --format json
+ConvertFrom-DnsStamp -Stamp 'sdns://AgUAAAAAAAAABzEuMS4xLjEAGm1vemlsbGEuY2xvdWRmbGFyZS1kbnMuY29tCi9kbnMtcXVlcnk'
+```
 
 ## Opt-In Real Modern Transport Checks
 

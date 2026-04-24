@@ -13,9 +13,9 @@
             including modern DoH3 and DoQ flows on .NET 8+.</Description>
         <AssemblyName>DnsClientX.PowerShell</AssemblyName>
         <AssemblyTitle>DnsClientX PowerShell Module</AssemblyTitle>
-        <VersionPrefix>1.0.7</VersionPrefix>
-        <AssemblyVersion>1.0.7</AssemblyVersion>
-        <FileVersion>1.0.7</FileVersion>
+        <VersionPrefix>1.0.8</VersionPrefix>
+        <AssemblyVersion>1.0.8</AssemblyVersion>
+        <FileVersion>1.0.8</FileVersion>
         <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
         <Company>Evotec</Company>
         <Authors>Przemyslaw Klys</Authors>

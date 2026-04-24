@@ -112,6 +112,114 @@ namespace DnsClientX {
         }
 
         /// <summary>
+        /// Validates resolver endpoint inputs from inline entries, files, and URLs while preserving source context.
+        /// </summary>
+        /// <param name="inputs">Inline resolver endpoint values.</param>
+        /// <param name="files">Text files containing resolver endpoint entries.</param>
+        /// <param name="urls">HTTP or HTTPS URLs containing resolver endpoint entries.</param>
+        /// <param name="cancellationToken">Cancellation token used for file and network loading.</param>
+        /// <returns>Validation results for every discovered entry.</returns>
+        public static async Task<ResolverEndpointValidationResult[]> ValidateManyAsync(
+            IEnumerable<string>? inputs = null,
+            IEnumerable<string>? files = null,
+            IEnumerable<string>? urls = null,
+            CancellationToken cancellationToken = default) {
+            var results = new List<ResolverEndpointValidationResult>();
+
+            foreach (string? input in inputs ?? Array.Empty<string>()) {
+                string trimmed = input?.Trim() ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(trimmed)) {
+                    results.Add(ValidateEntry(trimmed, "inline", null));
+                }
+            }
+
+            foreach (string? fileEntry in files ?? Array.Empty<string>()) {
+                cancellationToken.ThrowIfCancellationRequested();
+                string filePath = fileEntry?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(filePath)) {
+                    continue;
+                }
+
+                string fullPath = Path.GetFullPath(filePath);
+                if (!File.Exists(fullPath)) {
+                    results.Add(new ResolverEndpointValidationResult {
+                        Source = fileEntry ?? string.Empty,
+                        Entry = fileEntry ?? string.Empty,
+                        IsValid = false,
+                        Error = $"Resolver file not found: {fileEntry}"
+                    });
+                    continue;
+                }
+
+                FileInfo fileInfo = new FileInfo(fullPath);
+                if (fileInfo.Length > MaxImportedContentBytes) {
+                    results.Add(new ResolverEndpointValidationResult {
+                        Source = fullPath,
+                        Entry = fileEntry ?? string.Empty,
+                        IsValid = false,
+                        Error = $"Resolver file exceeds the {MaxImportedContentBytes} byte import limit: {fileEntry}"
+                    });
+                    continue;
+                }
+
+                using var reader = File.OpenText(fullPath);
+                string content = await reader.ReadToEndAsync().ConfigureAwait(false);
+                results.AddRange(ValidateImportedContent(content, fullPath));
+            }
+
+            string[] urlEntries = (urls ?? Array.Empty<string>())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value.Trim())
+                .ToArray();
+
+            if (urlEntries.Length > 0) {
+                using var httpClient = new HttpClient {
+                    Timeout = ImportHttpTimeout
+                };
+
+                foreach (string urlEntry in urlEntries) {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    if (!Uri.TryCreate(urlEntry, UriKind.Absolute, out Uri? uri) ||
+                        (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)) {
+                        results.Add(new ResolverEndpointValidationResult {
+                            Source = urlEntry,
+                            Entry = urlEntry,
+                            IsValid = false,
+                            Error = $"Invalid resolver URL: {urlEntry}"
+                        });
+                        continue;
+                    }
+
+                    try {
+                        using HttpResponseMessage response = await httpClient.GetAsync(uri, cancellationToken).ConfigureAwait(false);
+                        if (!response.IsSuccessStatusCode) {
+                            results.Add(new ResolverEndpointValidationResult {
+                                Source = urlEntry,
+                                Entry = urlEntry,
+                                IsValid = false,
+                                Error = $"Resolver URL returned HTTP {(int)response.StatusCode}: {urlEntry}"
+                            });
+                            continue;
+                        }
+
+                        string content = await ReadContentWithLimitAsync(response, cancellationToken).ConfigureAwait(false);
+                        results.AddRange(ValidateImportedContent(content, urlEntry));
+                    } catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is InvalidOperationException) {
+                        results.Add(new ResolverEndpointValidationResult {
+                            Source = urlEntry,
+                            Entry = urlEntry,
+                            IsValid = false,
+                            Error = ex.Message
+                        });
+                    }
+                }
+            }
+
+            return results.ToArray();
+        }
+
+        /// <summary>
         /// Parses imported resolver endpoint content, skipping blank lines and full-line comments.
         /// </summary>
         /// <param name="content">Imported text content.</param>
@@ -140,6 +248,53 @@ namespace DnsClientX {
             }
         }
 
+        private static IEnumerable<ResolverEndpointValidationResult> ValidateImportedContent(string? content, string source) {
+            if (string.IsNullOrWhiteSpace(content)) {
+                yield break;
+            }
+
+            using var reader = new StringReader(content);
+            int lineNumber = 0;
+            while (reader.ReadLine() is string line) {
+                lineNumber++;
+                string trimmed = line.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed) ||
+                    trimmed.StartsWith("#", StringComparison.Ordinal) ||
+                    trimmed.StartsWith(";", StringComparison.Ordinal) ||
+                    trimmed.StartsWith("//", StringComparison.Ordinal)) {
+                    continue;
+                }
+
+                foreach (string entry in trimmed.Split(',')) {
+                    string value = entry.Trim();
+                    if (!string.IsNullOrWhiteSpace(value)) {
+                        yield return ValidateEntry(value, source, lineNumber);
+                    }
+                }
+            }
+        }
+
+        private static ResolverEndpointValidationResult ValidateEntry(string value, string source, int? lineNumber) {
+            DnsResolverEndpoint[] endpoints = TryParseMany(new[] { value }, out IReadOnlyList<string> errors);
+            if (endpoints.Length == 1 && errors.Count == 0) {
+                return new ResolverEndpointValidationResult {
+                    Source = source,
+                    LineNumber = lineNumber,
+                    Entry = value,
+                    IsValid = true,
+                    Endpoint = endpoints[0]
+                };
+            }
+
+            return new ResolverEndpointValidationResult {
+                Source = source,
+                LineNumber = lineNumber,
+                Entry = value,
+                IsValid = false,
+                Error = errors.Count == 0 ? "Endpoint could not be parsed." : string.Join("; ", errors)
+            };
+        }
+
         /// <summary>
         /// Tries to parse multiple endpoint input strings.
         /// Accepted formats:
@@ -165,6 +320,16 @@ namespace DnsClientX {
                 }
                 if (raw.Any(char.IsWhiteSpace)) {
                     errs.Add($"Endpoint contains whitespace: {rawIn}");
+                    continue;
+                }
+
+                if (DnsStamp.IsStamp(raw)) {
+                    if (DnsStamp.TryParse(raw, out DnsResolverEndpoint? stampEndpoint, out string? stampError)) {
+                        list.Add(stampEndpoint!);
+                    } else {
+                        errs.Add($"Invalid DNS stamp: {stampError}");
+                    }
+
                     continue;
                 }
 
