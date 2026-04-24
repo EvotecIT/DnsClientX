@@ -111,7 +111,7 @@ namespace DnsClientX.Tests {
                 var calls = new ConcurrentDictionary<string,int>();
                 DnsMultiResolver.ResolveOverride = async (ep, name, type, ct) => {
                     calls.AddOrUpdate(ep.Host ?? string.Empty, 1, (_, v) => v + 1);
-                    if (ep.Host == "slow") await Task.Delay(80, ct); else await Task.Delay(10, ct);
+                    if (ep.Host == "slow") await Task.Delay(500, ct); else await Task.Delay(1, ct);
                     return Ok(name, type);
                 };
                 var mr = new DnsMultiResolver(eps, opts);
