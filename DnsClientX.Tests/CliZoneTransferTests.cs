@@ -160,8 +160,9 @@ namespace DnsClientX.Tests {
             return IPAddress.Parse(ipAddress).GetAddressBytes();
         }
 
-        private static async Task RunDiscoveryServerAsync(int port, Func<byte[], byte[]> buildResponse, CancellationToken token) {
+        private static async Task RunDiscoveryServerAsync(int port, Func<byte[], byte[]> buildResponse, TaskCompletionSource<object?> ready, CancellationToken token) {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
+            ready.TrySetResult(null);
 #if NET5_0_OR_GREATER
             UdpReceiveResult result = await udp.ReceiveAsync(token);
             byte[] response = buildResponse(result.Buffer);
@@ -179,9 +180,10 @@ namespace DnsClientX.Tests {
 #endif
         }
 
-        private static async Task RunAxfrServerAsync(int port, byte[][] responses, CancellationToken token) {
+        private static async Task RunAxfrServerAsync(int port, byte[][] responses, TaskCompletionSource<object?> ready, CancellationToken token) {
             var listener = new TcpListener(IPAddress.Loopback, port);
             listener.Start();
+            ready.TrySetResult(null);
 
             try {
 #if NETFRAMEWORK
@@ -231,13 +233,16 @@ namespace DnsClientX.Tests {
             byte[] closing = BuildAxfrMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var discoveryReady = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var axfrReady = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task discoveryTask = RunDiscoveryServerAsync(port, buffer => {
                 (ushort id, string questionName, DnsRecordType questionType) = ParseQuestion(buffer);
                 Assert.Equal("example.com", questionName);
                 Assert.Equal(DnsRecordType.NS, questionType);
                 return BuildNsResponse(id, questionName, ("ns1.example.com", "127.0.0.1"));
-            }, cts.Token);
-            Task axfrTask = RunAxfrServerAsync(port, new[] { opening, record, closing }, cts.Token);
+            }, discoveryReady, cts.Token);
+            Task axfrTask = RunAxfrServerAsync(port, new[] { opening, record, closing }, axfrReady, cts.Token);
+            await Task.WhenAll(discoveryReady.Task, axfrReady.Task);
 
             using var output = new StringWriter();
             TextWriter originalOut = Console.Out;
@@ -278,13 +283,16 @@ namespace DnsClientX.Tests {
             byte[] closing = BuildAxfrMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var discoveryReady = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var axfrReady = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task discoveryTask = RunDiscoveryServerAsync(port, buffer => {
                 (ushort id, string questionName, DnsRecordType questionType) = ParseQuestion(buffer);
                 Assert.Equal("example.com", questionName);
                 Assert.Equal(DnsRecordType.NS, questionType);
                 return BuildNsResponse(id, questionName, ("ns1.example.com", "127.0.0.1"));
-            }, cts.Token);
-            Task axfrTask = RunAxfrServerAsync(port, new[] { opening, record, closing }, cts.Token);
+            }, discoveryReady, cts.Token);
+            Task axfrTask = RunAxfrServerAsync(port, new[] { opening, record, closing }, axfrReady, cts.Token);
+            await Task.WhenAll(discoveryReady.Task, axfrReady.Task);
 
             using var output = new StringWriter();
             TextWriter originalOut = Console.Out;
