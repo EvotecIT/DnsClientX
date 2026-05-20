@@ -37,7 +37,7 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="System.Text.Json" Version="10.0.7"
+        <PackageReference Include="System.Text.Json" Version="10.0.8"
             Condition="'$(TargetFramework)' == 'net472'" />
         <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.8"
             Condition="'$(TargetFramework)' == 'net472'" />
