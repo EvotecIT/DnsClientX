@@ -9,24 +9,26 @@ using System.Threading.Tasks;
 
 namespace DnsClientX {
     /// <summary>
-    /// Multi-endpoint resolver supporting FirstSuccess, FastestWins, and SequentialAll strategies.
+    /// Multi-endpoint resolver supporting racing, sequential fallback, round-robin, and random strategies.
     /// </summary>
     public sealed class DnsMultiResolver : IDnsMultiResolver, IDisposable {
         internal static Func<DnsResolverEndpoint, string, DnsRecordType, CancellationToken, Task<DnsResponse>>? ResolveOverride;
+        internal static Func<int, int>? RandomIndexOverride;
         private readonly DnsResolverEndpoint[] _endpoints;
         private readonly MultiResolverOptions _options;
 
         private const int DefaultPerQueryTimeoutMs = Configuration.DefaultTimeout; // fallback when endpoint timeout not specified
         private int _roundRobinIndex = -1;
         private readonly ConcurrentDictionary<string, SemaphoreSlim> _endpointLimiters = new();
+        private readonly ConcurrentDictionary<string, Lazy<ClientX>> _clients = new();
+        private readonly SemaphoreSlim _globalLimiter;
         private readonly string _endpointSetKey;
-
-        // Simple metrics
-        private static readonly ConcurrentDictionary<string, EndpointMetrics> Metrics = new();
 
         // Cache for FastestWins strategy
         private static readonly ConcurrentDictionary<string, FastestCacheEntry> FastestCache = new();
-        private static readonly ConcurrentDictionary<DnsResolverEndpoint, string> EndpointKeyCache = new();
+        private static readonly object FastestCacheGate = new();
+        private const int FastestCacheCapacity = 256;
+        private int _disposed;
 
         private readonly struct FastestCacheEntry {
             public FastestCacheEntry(string key, DateTime expiresAt) {
@@ -34,12 +36,6 @@ namespace DnsClientX {
             }
             public string Key { get; }
             public DateTime ExpiresAt { get; }
-        }
-
-        private sealed class EndpointMetrics {
-            public long SuccessCount;
-            public long FailureCount;
-            public TimeSpan LastRtt;
         }
 
         /// <summary>
@@ -50,7 +46,8 @@ namespace DnsClientX {
         public DnsMultiResolver(IEnumerable<DnsResolverEndpoint> endpoints, MultiResolverOptions? options = null) {
             _endpoints = (endpoints ?? Array.Empty<DnsResolverEndpoint>()).ToArray();
             if (_endpoints.Length == 0) throw new ArgumentException("No endpoints provided", nameof(endpoints));
-            _options = options ?? new MultiResolverOptions();
+            _options = (options ?? new MultiResolverOptions()).Clone();
+            _globalLimiter = new SemaphoreSlim(_options.MaxParallelism, _options.MaxParallelism);
             _endpointSetKey = ComputeSetKey(_endpoints);
 
             // Validate endpoints early to fail-fast on obvious misconfiguration
@@ -82,39 +79,66 @@ namespace DnsClientX {
         /// Queries a single name for the specified record type according to the configured strategy.
         /// </summary>
         public Task<DnsResponse> QueryAsync(string name, DnsRecordType type, CancellationToken ct = default) {
+            ThrowIfDisposed();
             return _options.Strategy switch {
                 MultiResolverStrategy.FirstSuccess => QueryFirstSuccessAsync(name, type, ct),
                 MultiResolverStrategy.FastestWins => QueryFastestWinsAsync(name, type, ct),
-                MultiResolverStrategy.SequentialAll => QuerySequentialAsync(name, type, ct),
+                MultiResolverStrategy.SequentialFallback => QuerySequentialAsync(name, type, ct),
                 MultiResolverStrategy.RoundRobin => QueryRoundRobinAsync(name, type, ct),
+                MultiResolverStrategy.Random => QueryRandomAsync(name, type, ct),
                 _ => QueryFirstSuccessAsync(name, type, ct)
             };
+        }
+
+        /// <summary>
+        /// Queries every configured endpoint, preserving endpoint order and the configured global concurrency bound.
+        /// Transport failures are represented as error responses so one unavailable endpoint does not discard the others.
+        /// </summary>
+        public async Task<DnsResponse[]> QueryAllAsync(string name, DnsRecordType type, CancellationToken ct = default) {
+            ThrowIfDisposed();
+            var results = new DnsResponse[_endpoints.Length];
+            int nextIndex = -1;
+            int workerCount = Math.Min(_endpoints.Length, Math.Max(1, _options.MaxParallelism));
+
+            async Task RunWorkerAsync() {
+                while (true) {
+                    int idx = Interlocked.Increment(ref nextIndex);
+                    if (idx >= _endpoints.Length) return;
+                    (results[idx], _) = await InvokeEndpoint(_endpoints[idx], name, type, ct).ConfigureAwait(false);
+                }
+            }
+
+            var workers = new Task[workerCount];
+            for (int i = 0; i < workerCount; i++) {
+                workers[i] = RunWorkerAsync();
+            }
+            await Task.WhenAll(workers).ConfigureAwait(false);
+            return results;
         }
 
         /// <summary>
         /// Queries multiple names of the same record type, preserving input order, and isolating failures per-element.
         /// </summary>
         public async Task<DnsResponse[]> QueryBatchAsync(string[] names, DnsRecordType type, CancellationToken ct = default) {
+            ThrowIfDisposed();
             if (names == null || names.Length == 0) return Array.Empty<DnsResponse>();
             var results = new DnsResponse[names.Length];
-            int maxPar = Math.Max(1, _options.MaxParallelism);
-            using var sem = new SemaphoreSlim(maxPar, maxPar);
-            var tasks = new List<Task>();
+            int nextIndex = -1;
+            int workerCount = Math.Min(names.Length, Math.Max(1, _options.MaxParallelism));
 
-            async Task RunOneAsync(int idx) {
-                await sem.WaitAsync(ct).ConfigureAwait(false);
-                try {
+            async Task RunWorkerAsync() {
+                while (true) {
+                    int idx = Interlocked.Increment(ref nextIndex);
+                    if (idx >= names.Length) return;
                     results[idx] = await QueryAsync(names[idx], type, ct).ConfigureAwait(false);
-                } finally {
-                    sem.Release();
                 }
             }
 
-            for (int i = 0; i < names.Length; i++) {
-                int idx = i;
-                tasks.Add(RunOneAsync(idx));
+            var workers = new Task[workerCount];
+            for (int i = 0; i < workerCount; i++) {
+                workers[i] = RunWorkerAsync();
             }
-            await Task.WhenAll(tasks).ConfigureAwait(false);
+            await Task.WhenAll(workers).ConfigureAwait(false);
             return results;
         }
 
@@ -137,8 +161,9 @@ namespace DnsClientX {
                 var finished = await Task.WhenAny(current).ConfigureAwait(false);
                 current.Remove(finished);
                 (DnsResponse resp, DnsResolverEndpoint ep) = await finished.ConfigureAwait(false);
-                if (IsSuccess(resp)) {
+                if (IsTerminal(resp)) {
                     globalCts.Cancel(); // cancel remaining tasks
+                    _ = ObserveAsync(current);
                     return resp;
                 }
 
@@ -158,7 +183,7 @@ namespace DnsClientX {
             foreach (var ep in _endpoints) {
                 ct.ThrowIfCancellationRequested();
                 var (resp, _) = await InvokeEndpoint(ep, name, type, ct).ConfigureAwait(false);
-                if (IsSuccess(resp)) return resp;
+                if (IsTerminal(resp)) return resp;
                 bestError = ChooseBetterError(bestError, resp);
             }
             return bestError ?? MakeError(name, type, DnsQueryErrorCode.ServFail, "All endpoints failed");
@@ -171,12 +196,12 @@ namespace DnsClientX {
                 var ep = _endpoints.FirstOrDefault(e => EndpointKey(e) == cached.Key);
                 if (ep != null) {
                     var (resp, _) = await InvokeEndpoint(ep, name, type, ct).ConfigureAwait(false);
-                    if (IsSuccess(resp)) return resp;
+                    if (IsTerminal(resp)) return resp;
                     // fallback to warm all below if cached failed
                 }
             }
 
-            // Warm all endpoints (bounded by parallelism) and pick the fastest success
+            // Race endpoints in a bounded window. The first terminal DNS response is the fastest winner.
             int batch = Math.Max(1, _options.MaxParallelism);
             var queue = new Queue<DnsResolverEndpoint>(_endpoints);
             using var globalCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -188,17 +213,21 @@ namespace DnsClientX {
                 inflight.Add(InvokeEndpointTimed(ep, name, type, globalCts.Token));
             }
 
-            DnsResponse? best = null;
-            DnsResolverEndpoint? bestEp = null;
-            TimeSpan bestRtt = TimeSpan.MaxValue;
             DnsResponse? bestError = null;
 
             while (inflight.Count > 0) {
                 var finished = await Task.WhenAny(inflight).ConfigureAwait(false);
                 inflight.Remove(finished);
                 var (resp, ep, rtt) = await finished.ConfigureAwait(false);
-                if (IsSuccess(resp)) {
-                    if (rtt < bestRtt) { best = resp; bestEp = ep; bestRtt = rtt; }
+                if (IsTerminal(resp)) {
+                    if (_options.EnableFastestCache) {
+                        string endpointKey = EndpointKey(ep);
+                        DateTime expires = DateTime.UtcNow.Add(_options.FastestCacheDuration);
+                        StoreFastest(key, new FastestCacheEntry(endpointKey, expires));
+                    }
+                    globalCts.Cancel();
+                    _ = ObserveAsync(inflight);
+                    return resp;
                 } else {
                     bestError = ChooseBetterError(bestError, resp);
                 }
@@ -210,31 +239,21 @@ namespace DnsClientX {
                 }
             }
 
-            if (best != null && bestEp != null) {
-                string ek = EndpointKey(bestEp);
-                if (_options.EnableFastestCache) {
-                    var expires = DateTime.UtcNow.Add(_options.FastestCacheDuration);
-                    FastestCache.AddOrUpdate(key, _ => new FastestCacheEntry(ek, expires), (_, __) => new FastestCacheEntry(ek, expires));
-                }
-                return best;
-            }
-
             return bestError ?? MakeError(name, type, DnsQueryErrorCode.ServFail, "All endpoints failed");
         }
 
         private async Task<DnsResponse> QueryRoundRobinAsync(string name, DnsRecordType type, CancellationToken ct) {
             // Pick assigned endpoint by round-robin
-            int idx = (System.Threading.Interlocked.Increment(ref _roundRobinIndex)) % _endpoints.Length;
-            if (idx < 0) idx = -idx; // ensure non-negative
+            int idx = (int)((uint)Interlocked.Increment(ref _roundRobinIndex) % (uint)_endpoints.Length);
             var assigned = _endpoints[idx];
             var (resp, _) = await InvokeEndpoint(assigned, name, type, ct).ConfigureAwait(false);
-            if (IsSuccess(resp)) return resp;
+            if (IsTerminal(resp)) return resp;
 
             // Fallback to first endpoint if different
             var first = _endpoints[0];
             if (!ReferenceEquals(first, assigned)) {
                 var (fallback, _) = await InvokeEndpoint(first, name, type, ct).ConfigureAwait(false);
-                if (IsSuccess(fallback)) return fallback;
+                if (IsTerminal(fallback)) return fallback;
                 return ChooseBetterError(resp, fallback);
             }
 
@@ -242,15 +261,38 @@ namespace DnsClientX {
             if (_endpoints.Length > 1) {
                 var second = _endpoints[1];
                 var (fallback2, _) = await InvokeEndpoint(second, name, type, ct).ConfigureAwait(false);
-                if (IsSuccess(fallback2)) return fallback2;
+                if (IsTerminal(fallback2)) return fallback2;
                 return ChooseBetterError(resp, fallback2);
             }
 
             return resp;
         }
 
-        private static bool IsSuccess(DnsResponse resp) {
-            return resp != null && resp.Status == DnsResponseCode.NoError && string.IsNullOrEmpty(resp.Error);
+        private async Task<DnsResponse> QueryRandomAsync(string name, DnsRecordType type, CancellationToken ct) {
+            int start = NextRandom(_endpoints.Length);
+            DnsResponse? bestError = null;
+            for (int offset = 0; offset < _endpoints.Length; offset++) {
+                ct.ThrowIfCancellationRequested();
+                DnsResolverEndpoint endpoint = _endpoints[(start + offset) % _endpoints.Length];
+                var (response, _) = await InvokeEndpoint(endpoint, name, type, ct).ConfigureAwait(false);
+                if (IsTerminal(response)) return response;
+                bestError = ChooseBetterError(bestError, response);
+            }
+            return bestError ?? MakeError(name, type, DnsQueryErrorCode.ServFail, "All endpoints failed");
+        }
+
+        private static bool IsTerminal(DnsResponse resp) {
+            return resp != null &&
+                   (resp.Status == DnsResponseCode.NoError || resp.Status == DnsResponseCode.NXDomain) &&
+                   string.IsNullOrEmpty(resp.Error);
+        }
+
+        private static async Task ObserveAsync<T>(IEnumerable<Task<T>> tasks) {
+            try {
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+            } catch {
+                // Losing requests are canceled intentionally; observing prevents unhandled task exceptions.
+            }
         }
 
         private async Task<(DnsResponse resp, DnsResolverEndpoint ep)> InvokeEndpoint(DnsResolverEndpoint ep, string name, DnsRecordType type, CancellationToken ct) {
@@ -268,6 +310,8 @@ namespace DnsClientX {
             var sw = Stopwatch.StartNew();
             DnsResponse response;
             try {
+                await _globalLimiter.WaitAsync(cts.Token).ConfigureAwait(false);
+                try {
                 SemaphoreSlim? limiter = GetLimiter(ep);
                 if (limiter != null) await limiter.WaitAsync(cts.Token).ConfigureAwait(false);
                 try {
@@ -279,6 +323,9 @@ namespace DnsClientX {
                     }
                 } finally {
                     if (limiter != null) limiter.Release();
+                }
+                } finally {
+                    _globalLimiter.Release();
                 }
             } catch (OperationCanceledException oce) when (!ct.IsCancellationRequested) {
                 response = MakeError(ep, name, type, DnsQueryErrorCode.Timeout, oce.Message, oce);
@@ -292,7 +339,6 @@ namespace DnsClientX {
             sw.Stop();
 
             StampResponse(ep, response, sw.Elapsed);
-            RecordMetrics(ep, response, sw.Elapsed);
             return (response, ep, sw.Elapsed);
         }
 
@@ -312,19 +358,13 @@ namespace DnsClientX {
             response.ComputeTtlMetrics();
         }
 
-        private void RecordMetrics(DnsResolverEndpoint ep, DnsResponse response, TimeSpan rtt) {
-            var m = Metrics.GetOrAdd(EndpointKey(ep), _ => new EndpointMetrics());
-            if (IsSuccess(response)) System.Threading.Interlocked.Increment(ref m.SuccessCount); else System.Threading.Interlocked.Increment(ref m.FailureCount);
-            m.LastRtt = rtt;
-        }
-
         private static string ComputeSetKey(IEnumerable<DnsResolverEndpoint> endpoints) {
             var keys = endpoints.Select(EndpointKey).OrderBy(k => k, StringComparer.Ordinal);
             return string.Join("|", keys);
         }
-        private static string EndpointKey(DnsResolverEndpoint ep) => EndpointKeyCache.GetOrAdd(
-            ep,
-            e => $"{e.Transport}:{(e.RequestFormat ?? MapTransport(e.Transport))}:{(e.DohUrl?.ToString() ?? (e.Host ?? string.Empty))}:{e.Port}");
+        private static string EndpointKey(DnsResolverEndpoint ep) =>
+            $"{ep.Transport}:{(ep.RequestFormat ?? MapTransport(ep.Transport))}:{(ep.DohUrl?.ToString() ?? (ep.Host ?? string.Empty))}:{ep.Port}:" +
+            $"{ep.Family}:{ep.TlsServerName}:{ep.AllowTcpFallback}:{ep.EdnsBufferSize}:{ep.DnsSecOk}:{ep.Timeout?.Ticks}";
 
         private static DnsResponse ChooseBetterError(DnsResponse? current, DnsResponse candidate) {
             if (current == null) return candidate;
@@ -379,15 +419,69 @@ namespace DnsClientX {
         };
 
         private async Task<DnsResponse> PerformQuery(DnsResolverEndpoint ep, string name, DnsRecordType type, CancellationToken ct) {
-            // Configure ClientX according to endpoint
+            ClientX client = _clients.GetOrAdd(EndpointKey(ep), _ =>
+                new Lazy<ClientX>(() => CreateClient(ep), LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+            bool requestDnsSec = _options.RequestDnsSec || _options.ValidateDnsSec || ep.DnsSecOk == true;
+            return await client.Resolve(
+                name,
+                type,
+                requestDnsSec: requestDnsSec,
+                validateDnsSec: _options.ValidateDnsSec,
+                returnAllTypes: false,
+                retryOnTransient: false,
+                typedRecords: _options.TypedRecords,
+                parseTypedTxtRecords: _options.ParseTypedTxtRecords,
+                cancellationToken: ct).ConfigureAwait(false);
+        }
+
+        private static void StoreFastest(string key, FastestCacheEntry entry) {
+            lock (FastestCacheGate) {
+                DateTime now = DateTime.UtcNow;
+                foreach (KeyValuePair<string, FastestCacheEntry> item in FastestCache) {
+                    if (item.Value.ExpiresAt <= now) FastestCache.TryRemove(item.Key, out _);
+                }
+                while (FastestCache.Count >= FastestCacheCapacity) {
+                    KeyValuePair<string, FastestCacheEntry> oldest = FastestCache
+                        .OrderBy(item => item.Value.ExpiresAt)
+                        .FirstOrDefault();
+                    if (oldest.Key == null || !FastestCache.TryRemove(oldest.Key, out _)) break;
+                }
+                FastestCache[key] = entry;
+            }
+        }
+
+        private static int NextRandom(int maximum) {
+            Func<int, int>? randomOverride = RandomIndexOverride;
+            if (randomOverride != null) return (int)((uint)randomOverride(maximum) % (uint)maximum);
+#if NET6_0_OR_GREATER
+            return Random.Shared.Next(maximum);
+#else
+            lock (RandomLock) return RandomGenerator.Next(maximum);
+#endif
+        }
+
+        internal static int FastestCacheCount => FastestCache.Count;
+
+#if !NET6_0_OR_GREATER
+        private static readonly object RandomLock = new();
+        private static readonly Random RandomGenerator = new();
+#endif
+
+        private ClientX CreateClient(DnsResolverEndpoint ep) {
             ClientX client;
             DnsRequestFormat requestFormat = ep.RequestFormat ?? MapTransport(ep.Transport);
+            TimeSpan effectiveTimeout = (_options.RespectEndpointTimeout && ep.Timeout.HasValue)
+                ? ep.Timeout.Value
+                : (_options.DefaultTimeout ?? TimeSpan.FromMilliseconds(DefaultPerQueryTimeoutMs));
+            int effectiveTimeoutMilliseconds = effectiveTimeout <= TimeSpan.Zero
+                ? int.MaxValue
+                : (int)Math.Min(int.MaxValue, Math.Max(1, effectiveTimeout.TotalMilliseconds));
             if (ep.Transport == Transport.Doh) {
                 var dohUri = ep.DohUrl ?? new Uri($"https://{ep.Host}/dns-query");
                 client = new ClientX(
                     baseUri: dohUri,
                     requestFormat: requestFormat,
-                    timeOutMilliseconds: DefaultPerQueryTimeoutMs,
+                    timeOutMilliseconds: effectiveTimeoutMilliseconds,
                     userAgent: _options.UserAgent,
                     httpVersion: _options.HttpVersion,
                     ignoreCertificateErrors: _options.IgnoreCertificateErrors,
@@ -400,7 +494,7 @@ namespace DnsClientX {
                 client = new ClientX(
                     hostname: ep.Host!,
                     requestFormat: requestFormat,
-                    timeOutMilliseconds: DefaultPerQueryTimeoutMs,
+                    timeOutMilliseconds: effectiveTimeoutMilliseconds,
                     userAgent: _options.UserAgent,
                     httpVersion: _options.HttpVersion,
                     ignoreCertificateErrors: _options.IgnoreCertificateErrors,
@@ -410,51 +504,41 @@ namespace DnsClientX {
                     maxConnectionsPerServer: _options.MaxConnectionsPerServer > 0 ? _options.MaxConnectionsPerServer : Configuration.DefaultMaxConnectionsPerServer);
             }
 
-            using (client) {
-
-                // Fine-tune endpoint configuration
-                if (ep.Transport != Transport.Doh) {
-                    client.EndpointConfiguration.Port = ep.Port > 0 ? ep.Port : (ep.Transport == Transport.Dot ? 853 : 53);
-                } else {
-                    // DoH: keep 443 or URL port
-                    client.EndpointConfiguration.Port = (ep.DohUrl?.IsDefaultPort ?? true) ? 443 : ep.DohUrl!.Port;
-                }
-                client.EndpointConfiguration.UseTcpFallback = _options.UseTcpFallback && ep.AllowTcpFallback;
-                client.EndpointConfiguration.MaxConcurrency = _options.MaxConcurrency;
-                if (ep.EdnsBufferSize.HasValue) client.EndpointConfiguration.UdpBufferSize = ep.EdnsBufferSize.Value;
-                if (ep.Timeout.HasValue) client.EndpointConfiguration.TimeOut = (int)Math.Max(1, ep.Timeout.Value.TotalMilliseconds);
-                client.EndpointConfiguration.CheckingDisabled = _options.CheckingDisabled;
-                if (_options.EdnsOptions != null) client.EndpointConfiguration.EdnsOptions = _options.EdnsOptions;
-
-                // Configure caching bounds when enabled
-                if (_options.EnableResponseCache) {
-                    if (_options.CacheExpiration.HasValue) client.CacheExpiration = _options.CacheExpiration.Value;
-                    if (_options.MinCacheTtl.HasValue) client.MinCacheTtl = _options.MinCacheTtl.Value;
-                    if (_options.MaxCacheTtl.HasValue) client.MaxCacheTtl = _options.MaxCacheTtl.Value;
-                }
-
-                // A single query; retries disabled, we rely on strategy behavior
-                bool requestDnsSec = _options.RequestDnsSec || _options.ValidateDnsSec || ep.DnsSecOk == true;
-                return await client.Resolve(
-                    name,
-                    type,
-                    requestDnsSec: requestDnsSec,
-                    validateDnsSec: _options.ValidateDnsSec,
-                    returnAllTypes: false,
-                    retryOnTransient: false,
-                    typedRecords: _options.TypedRecords,
-                    parseTypedTxtRecords: _options.ParseTypedTxtRecords,
-                    cancellationToken: ct).ConfigureAwait(false);
+            if (ep.Transport != Transport.Doh) {
+                client.EndpointConfiguration.Port = ep.Port > 0 ? ep.Port : (ep.Transport == Transport.Dot ? 853 : 53);
+            } else {
+                client.EndpointConfiguration.Port = (ep.DohUrl?.IsDefaultPort ?? true) ? 443 : ep.DohUrl!.Port;
             }
+            client.EndpointConfiguration.UseTcpFallback = _options.UseTcpFallback && ep.AllowTcpFallback;
+            client.EndpointConfiguration.PreferredAddressFamily = ep.Family ??
+                (_options.PreferIpv6 ? AddressFamily.InterNetworkV6 : (AddressFamily?)null);
+            client.EndpointConfiguration.TlsServerName = ep.TlsServerName;
+            client.EndpointConfiguration.MaxConcurrency = _options.MaxConcurrency;
+            if (ep.EdnsBufferSize.HasValue) client.EndpointConfiguration.UdpBufferSize = ep.EdnsBufferSize.Value;
+            client.EndpointConfiguration.CheckingDisabled = _options.CheckingDisabled;
+            if (_options.EdnsOptions != null) client.EndpointConfiguration.EdnsOptions = _options.EdnsOptions;
+            if (_options.EnableResponseCache && _options.MaxCacheTtl.HasValue) client.MaxCacheTtl = _options.MaxCacheTtl.Value;
+            return client;
         }
         /// <summary>
-        /// Disposes internal per-endpoint <see cref="SemaphoreSlim"/> limiters and clears references.
+        /// Disposes pooled endpoint clients and prevents new queries.
+        /// Concurrent calls to <see cref="Dispose"/> and query methods are not supported.
         /// </summary>
         public void Dispose() {
-            foreach (var kv in _endpointLimiters) {
-                kv.Value.Dispose();
-            }
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _endpointLimiters.Clear();
+            foreach (Lazy<ClientX> client in _clients.Values) {
+                if (client.IsValueCreated) client.Value.Dispose();
+            }
+            _clients.Clear();
+            // SemaphoreSlim allocates no native resource unless AvailableWaitHandle is used.
+            // Leaving the limiters undisposed avoids racing Release() in an already-running query.
+        }
+
+        private void ThrowIfDisposed() {
+            if (Volatile.Read(ref _disposed) != 0) {
+                throw new ObjectDisposedException(nameof(DnsMultiResolver));
+            }
         }
     }
 }

@@ -15,6 +15,10 @@ namespace DnsClientX.PowerShell;
 ///   <para>Delete an existing record</para>
 ///   <code>Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Delete</code>
 /// </example>
+/// <example>
+///   <para>Delete one value while preserving the rest of the RRset</para>
+///   <code>Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Data 192.0.2.10 -DeleteValue</code>
+/// </example>
 /// </summary>
 [Cmdlet(VerbsLifecycle.Invoke, "DnsUpdate")]
 public sealed class CmdletDnsUpdate : AsyncPSCmdlet {
@@ -45,15 +49,30 @@ public sealed class CmdletDnsUpdate : AsyncPSCmdlet {
 
     /// <summary>TTL for the new record. Defaults to 300 seconds.</summary>
     [Parameter]
-    [ValidateRange(1, int.MaxValue)]
+    [ValidateRange(0, int.MaxValue)]
     public int Ttl { get; set; } = 300;
 
     /// <summary>If specified, the record is removed instead of added.</summary>
     [Parameter]
     public SwitchParameter Delete;
 
+    /// <summary>If specified, only the exact value supplied through <see cref="Data"/> is removed.</summary>
+    [Parameter]
+    public SwitchParameter DeleteValue;
+
+    /// <summary>Optional typed TSIG key used to authenticate the update and its response.</summary>
+    [Parameter]
+    public TsigKey? TsigKey { get; set; }
+
     /// <inheritdoc />
     protected override async Task ProcessRecordAsync() {
+        if (Delete.IsPresent && DeleteValue.IsPresent) {
+            throw new PSArgumentException("-Delete and -DeleteValue cannot be used together.");
+        }
+        if (DeleteValue.IsPresent && string.IsNullOrWhiteSpace(Data)) {
+            throw new PSArgumentException("-DeleteValue requires -Data with the exact record value to remove.");
+        }
+
         var target = new ResolverExecutionTarget {
             DisplayName = $"tcp@{Server}:{Port}",
             ExplicitEndpoint = new DnsResolverEndpoint {
@@ -63,9 +82,13 @@ public sealed class CmdletDnsUpdate : AsyncPSCmdlet {
             }
         };
 
+        var options = new ResolverExecutionClientOptions { TsigKey = TsigKey };
+
         DnsResponse result = Delete.IsPresent
-            ? await ResolverUpdateWorkflow.DeleteAsync(target, Zone, Name, Type, cancellationToken: CancelToken).ConfigureAwait(false)
-            : await ResolverUpdateWorkflow.UpdateAsync(target, Zone, Name, Type, Data, Ttl, cancellationToken: CancelToken).ConfigureAwait(false);
+            ? await ResolverUpdateWorkflow.DeleteAsync(target, Zone, Name, Type, options, CancelToken).ConfigureAwait(false)
+            : DeleteValue.IsPresent
+                ? await ResolverUpdateWorkflow.DeleteValueAsync(target, Zone, Name, Type, Data, options, CancelToken).ConfigureAwait(false)
+                : await ResolverUpdateWorkflow.UpdateAsync(target, Zone, Name, Type, Data, Ttl, options, CancelToken).ConfigureAwait(false);
         WriteObject(result);
     }
 }

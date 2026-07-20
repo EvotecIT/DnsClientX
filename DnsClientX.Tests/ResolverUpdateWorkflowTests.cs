@@ -37,23 +37,7 @@ namespace DnsClientX.Tests {
             return ms.ToArray();
         }
 
-        private static byte[] BuildResponse(DnsResponseCode code) {
-            using var ms = new System.IO.MemoryStream();
-            WriteUInt16(ms, 1);
-            ushort flags = (ushort)(0x8000 | (ushort)code);
-            WriteUInt16(ms, flags);
-            WriteUInt16(ms, 1);
-            WriteUInt16(ms, 0);
-            WriteUInt16(ms, 0);
-            WriteUInt16(ms, 0);
-            byte[] zone = EncodeName("example.com");
-            ms.Write(zone, 0, zone.Length);
-            WriteUInt16(ms, (ushort)DnsRecordType.SOA);
-            WriteUInt16(ms, 1);
-            return ms.ToArray();
-        }
-
-        private static UpdateServer RunServerAsync(byte[] response, CancellationToken token) {
+        private static UpdateServer RunServerAsync(DnsResponseCode code, CancellationToken token) {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -74,6 +58,7 @@ namespace DnsClientX.Tests {
                 int queryLength = BitConverter.ToUInt16(len, 0);
                 byte[] query = new byte[queryLength];
                 await TestUtilities.ReadExactlyAsync(stream, query, queryLength, token).ConfigureAwait(false);
+                byte[] response = TestUtilities.CreateResponseFromQuery(query, (ushort)(0xA800 | (ushort)code));
 
                 byte[] prefix = BitConverter.GetBytes((ushort)response.Length);
                 if (BitConverter.IsLittleEndian) {
@@ -93,9 +78,8 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task UpdateAsync_ExecutesAgainstExplicitTarget() {
-            byte[] response = BuildResponse(DnsResponseCode.NoError);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            UpdateServer server = RunServerAsync(response, cts.Token);
+            UpdateServer server = RunServerAsync(DnsResponseCode.NoError, cts.Token);
 
             DnsResponse result = await ResolverUpdateWorkflow.UpdateAsync(
                 new ResolverExecutionTarget {
@@ -114,6 +98,31 @@ namespace DnsClientX.Tests {
 
             await server.Task;
             Assert.Equal(DnsResponseCode.NoError, result.Status);
+        }
+
+        /// <summary>
+        /// Ensures a TSIG-authenticated update rejects an unsigned response rather than
+        /// reporting success based only on the DNS response code.
+        /// </summary>
+        [Fact]
+        public async Task UpdateAsync_WithTsig_RejectsUnsignedResponse() {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            UpdateServer server = RunServerAsync(DnsResponseCode.NoError, cts.Token);
+            var key = new TsigKey("update-key.example.com", new byte[] { 1, 2, 3, 4 });
+            var target = new ResolverExecutionTarget {
+                DisplayName = $"tcp@127.0.0.1:{server.Port}",
+                ExplicitEndpoint = new DnsResolverEndpoint {
+                    Transport = Transport.Tcp,
+                    Host = "127.0.0.1",
+                    Port = server.Port
+                }
+            };
+
+            await Assert.ThrowsAsync<DnsClientException>(() => ResolverUpdateWorkflow.UpdateAsync(
+                target, "example.com", "www.example.com", DnsRecordType.A, "1.2.3.4", 300,
+                new ResolverExecutionClientOptions { TsigKey = key }, cts.Token));
+
+            await server.Task;
         }
     }
 }

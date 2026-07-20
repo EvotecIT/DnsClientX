@@ -9,7 +9,10 @@ namespace DnsClientX.Examples {
         /// Demonstrates adding a record to a zone.
         /// </summary>
         public static async Task ExampleAdd() {
-            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP);
+            var configuration = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTCP) {
+                TsigKey = TsigKey.FromBase64("update-key.example.com", "AQIDBAUGBwg=")
+            };
+            using var client = new ClientX(configuration);
             await client.UpdateRecordAsync("example.com", "www.example.com", DnsRecordType.A, "1.2.3.4");
         }
 

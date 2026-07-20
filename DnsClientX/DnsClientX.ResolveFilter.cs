@@ -51,9 +51,8 @@ namespace DnsClientX {
             int total = names.Length;
             DnsResponse[] allResponses;
             if (EndpointConfiguration.MaxConcurrency is null || EndpointConfiguration.MaxConcurrency <= 0 || EndpointConfiguration.MaxConcurrency >= total) {
-                var tasksUnbounded = names.Select(name => Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken)).ToList();
-                await Task.WhenAll(tasksUnbounded).ConfigureAwait(false);
-                allResponses = tasksUnbounded.Select(t => t.Result).ToArray();
+                var tasksUnbounded = names.Select(name => Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken)).ToArray();
+                allResponses = await Task.WhenAll(tasksUnbounded).ConfigureAwait(false);
             } else {
                 allResponses = new DnsResponse[total];
                 using var semaphore = new System.Threading.SemaphoreSlim(EndpointConfiguration.MaxConcurrency.Value);
@@ -123,9 +122,8 @@ namespace DnsClientX {
             int total = names.Length;
             DnsResponse[] allResponses;
             if (EndpointConfiguration.MaxConcurrency is null || EndpointConfiguration.MaxConcurrency <= 0 || EndpointConfiguration.MaxConcurrency >= total) {
-                var tasksUnbounded = names.Select(name => Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken)).ToList();
-                await Task.WhenAll(tasksUnbounded).ConfigureAwait(false);
-                allResponses = tasksUnbounded.Select(t => t.Result).ToArray();
+                var tasksUnbounded = names.Select(name => Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken)).ToArray();
+                allResponses = await Task.WhenAll(tasksUnbounded).ConfigureAwait(false);
             } else {
                 allResponses = new DnsResponse[total];
                 using var semaphore = new System.Threading.SemaphoreSlim(EndpointConfiguration.MaxConcurrency.Value);

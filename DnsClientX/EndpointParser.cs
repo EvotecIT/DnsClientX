@@ -398,7 +398,7 @@ namespace DnsClientX {
                 }
 
                 // IPv6 in brackets
-                if (raw.StartsWith("[")) {
+                if (raw.StartsWith("[", StringComparison.Ordinal)) {
                     int end = raw.IndexOf(']');
                     if (end > 1) {
                         string ip = raw.Substring(1, end - 1);

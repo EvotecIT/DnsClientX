@@ -46,7 +46,7 @@ namespace DnsClientX {
                     var responseParsed = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
                     responseParsed.AddServerDetails(endpointConfiguration);
                     return responseParsed;
-                } catch (OperationCanceledException) {
+                } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
                     throw new TimeoutException("The UDP multicast query timed out.");
                 }
 #else
@@ -59,8 +59,11 @@ namespace DnsClientX {
                     return responseParsed;
                 }
                 ObserveFault(responseTask);
+                cancellationToken.ThrowIfCancellationRequested();
                 throw new TimeoutException("The UDP multicast query timed out.");
 #endif
+            } catch (OperationCanceledException) {
+                throw;
             } catch (Exception ex) {
                 DnsResponseCode responseCode = ex is TimeoutException ? DnsResponseCode.ServerFailure : DnsResponseCode.Refused;
                 DnsResponse response = new DnsResponse {

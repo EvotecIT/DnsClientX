@@ -27,7 +27,8 @@ namespace DnsClientX {
             bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
-            var query = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration);
+            var query = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration,
+                checkingDisabled: endpointConfiguration.CheckingDisabled || validateDnsSec);
             var queryBytes = query.SerializeDnsWireFormat();
 
             if (debug) {
@@ -49,7 +50,7 @@ namespace DnsClientX {
                 using var responseMsg = await SendAsync(client, request, timeoutCts.Token).ConfigureAwait(false);
                 byte[] responseBytes = await responseMsg.Content.ReadAsByteArrayAsync(timeoutCts.Token).ConfigureAwait(false);
                 var payload = ParseGrpcPayload(responseBytes);
-                var response = await DnsWire.DeserializeDnsWireFormat(null, debug, payload).ConfigureAwait(false);
+                var response = await DnsWire.DeserializeDnsWireResponse(null, debug, payload, query).ConfigureAwait(false);
                 response.AddServerDetails(endpointConfiguration);
                 return response;
             } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
@@ -61,6 +62,8 @@ namespace DnsClientX {
                 timeoutResponse.AddServerDetails(endpointConfiguration);
                 timeoutResponse.Error = $"Failed to query type {type} of \"{name}\" => The gRPC request timed out after {endpointConfiguration.TimeOut} milliseconds.";
                 return timeoutResponse;
+            } catch (OperationCanceledException) {
+                throw;
             } catch (Exception ex) {
                 var response = new DnsResponse {
                     Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverGrpc, Type = type, OriginalName = name } ],

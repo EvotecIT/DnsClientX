@@ -17,7 +17,7 @@ namespace DnsClientX.Tests {
         public async Task Error_Network_Sets_ErrorCode_Network() {
             try {
                 var eps = new[] { new DnsResolverEndpoint { Host="n1", Port = 53, Transport = Transport.Udp } };
-                var opts = new MultiResolverOptions { Strategy = MultiResolverStrategy.SequentialAll };
+                var opts = new MultiResolverOptions { Strategy = MultiResolverStrategy.SequentialFallback };
                 DnsMultiResolver.ResolveOverride = (ep, name, type, ct) => throw new SocketException((int)SocketError.NetworkUnreachable);
                 var mr = new DnsMultiResolver(eps, opts);
                 var res = await mr.QueryAsync("x.com", DnsRecordType.A);
@@ -32,7 +32,7 @@ namespace DnsClientX.Tests {
         public async Task Error_InvalidResponse_Sets_ErrorCode_InvalidResponse() {
             try {
                 var eps = new[] { new DnsResolverEndpoint { Host="n1", Port=53, Transport=Transport.Udp } };
-                var opts = new MultiResolverOptions { Strategy = MultiResolverStrategy.SequentialAll };
+                var opts = new MultiResolverOptions { Strategy = MultiResolverStrategy.SequentialFallback };
                 DnsMultiResolver.ResolveOverride = (ep, name, type, ct) => throw new DnsClientException("bad response");
                 var mr = new DnsMultiResolver(eps, opts);
                 var res = await mr.QueryAsync("x.com", DnsRecordType.A);

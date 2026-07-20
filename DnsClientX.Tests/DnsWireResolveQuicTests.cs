@@ -17,6 +17,7 @@ namespace DnsClientX.Tests {
     [SupportedOSPlatform("windows")]
     [SupportedOSPlatform("linux")]
     [SupportedOSPlatform("macos")]
+    [Collection("NoParallel")]
     public class DnsWireResolveQuicTests {
         /// <summary>
         /// Ensures server failure is returned when the host has no addresses.
@@ -133,6 +134,59 @@ namespace DnsClientX.Tests {
             } finally {
                 DnsWireResolveQuic.QuicConnectionFactory = previousFactory;
                 DnsWireResolveQuic.HostEntryResolver = previousResolver;
+            }
+        }
+
+        /// <summary>
+        /// Ensures DoQ uses RFC error code zero and the configured DNS identity for TLS SNI.
+        /// </summary>
+        [Fact]
+        public async Task ResolveWireFormatQuic_ConfiguresRfcCloseCodesAndTlsIdentity() {
+            var previousFactory = DnsWireResolveQuic.QuicConnectionFactory;
+            var previousResolver = DnsWireResolveQuic.HostEntryResolver;
+            QuicClientConnectionOptions? captured = null;
+            try {
+                DnsWireResolveQuic.HostEntryResolver = _ => new IPHostEntry { AddressList = [IPAddress.Loopback] };
+                DnsWireResolveQuic.QuicConnectionFactory = (options, _) => {
+                    captured = options;
+                    return ValueTask.FromException<QuicConnection>(new PlatformNotSupportedException("capture only"));
+                };
+                var config = new Configuration("192.0.2.1", DnsRequestFormat.DnsOverQuic) {
+                    TlsServerName = "resolver.example"
+                };
+
+                await DnsWireResolveQuic.ResolveWireFormatQuic("resolver.example", 853, "example.com",
+                    DnsRecordType.A, false, false, false, config, CancellationToken.None);
+
+                Assert.NotNull(captured);
+                Assert.Equal(0, captured!.DefaultCloseErrorCode);
+                Assert.Equal(0, captured.DefaultStreamErrorCode);
+                Assert.Equal("resolver.example", captured.ClientAuthenticationOptions.TargetHost);
+                Assert.Contains(captured.ClientAuthenticationOptions.ApplicationProtocols!,
+                    protocol => protocol.Protocol.Span.SequenceEqual("doq"u8));
+            } finally {
+                DnsWireResolveQuic.QuicConnectionFactory = previousFactory;
+                DnsWireResolveQuic.HostEntryResolver = previousResolver;
+            }
+        }
+
+        /// <summary>Malformed DoQ payloads close the connection with DOQ_PROTOCOL_ERROR.</summary>
+        [Fact]
+        public async Task ProtocolViolationUsesRfcErrorCodeTwo() {
+            var previousCloser = DnsWireResolveQuic.ConnectionCloser;
+            long? captured = null;
+            try {
+                DnsWireResolveQuic.ConnectionCloser = (_, errorCode, _) => {
+                    captured = errorCode;
+                    return ValueTask.CompletedTask;
+                };
+                var connection = (QuicConnection)RuntimeHelpers.GetUninitializedObject(typeof(QuicConnection));
+
+                await DnsWireResolveQuic.CloseForProtocolViolationAsync(connection);
+
+                Assert.Equal(2, captured);
+            } finally {
+                DnsWireResolveQuic.ConnectionCloser = previousCloser;
             }
         }
     }

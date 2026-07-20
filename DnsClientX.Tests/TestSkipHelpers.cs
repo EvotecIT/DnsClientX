@@ -44,7 +44,7 @@ internal static class TestSkipHelpers
 
     internal static bool ShouldSkipEndpoint(DnsEndpoint endpoint, ITestOutputHelper? output = null)
     {
-        return ShouldSkipSystemUdp(endpoint, output) || ShouldSkipSystemTcp(endpoint, output) || ShouldSkipOdoh(endpoint, output);
+        return ShouldSkipSystemUdp(endpoint, output) || ShouldSkipSystemTcp(endpoint, output);
     }
 
     private static bool ShouldSkipSystemUdp(DnsEndpoint endpoint, ITestOutputHelper? output)
@@ -113,21 +113,4 @@ internal static class TestSkipHelpers
         return false;
     }
 
-    private static bool ShouldSkipOdoh(DnsEndpoint endpoint, ITestOutputHelper? output)
-    {
-        if (endpoint != DnsEndpoint.CloudflareOdoh)
-        {
-            return false;
-        }
-
-        var allow = Environment.GetEnvironmentVariable("DNSCLIENTX_RUN_ODOH_TESTS");
-        if (string.Equals(allow, "1", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(allow, "true", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        output?.WriteLine("[Diagnostic] Cloudflare ODoH tests skipped unless DNSCLIENTX_RUN_ODOH_TESTS=1.");
-        return true;
-    }
 }

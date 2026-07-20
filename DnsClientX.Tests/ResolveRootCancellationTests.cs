@@ -8,7 +8,7 @@ namespace DnsClientX.Tests {
     /// </summary>
     public class ResolveRootCancellationTests {
         /// <summary>
-        /// Cancels before starting and expects the response to indicate failure.
+        /// Cancels before starting and expects caller cancellation to propagate.
         /// </summary>
         [Fact]
         public async Task ResolveFromRoot_CancelsEarly() {
@@ -16,9 +16,8 @@ namespace DnsClientX.Tests {
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            var response = await client.ResolveFromRoot("example.com", cancellationToken: cts.Token);
-            Assert.NotEqual(DnsResponseCode.NoError, response.Status);
-            Assert.NotNull(response.Error);
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                client.ResolveFromRoot("example.com", cancellationToken: cts.Token));
         }
     }
 }

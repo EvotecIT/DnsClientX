@@ -5,8 +5,9 @@ using System.Collections.Generic;
 
 namespace DnsClientX {
     /// <summary>
-    /// Enumerates known DNS endpoints including DNS-over-HTTPS and DNSCrypt
-    /// providers as well as system resolvers. DNS-over-HTTPS is defined in
+    /// Enumerates known DNS endpoints, system resolvers, and reserved legacy endpoint identifiers.
+    /// Unsupported DNSCrypt and ODoH identifiers fail explicitly rather than selecting a different transport.
+    /// DNS-over-HTTPS is defined in
     /// <a href="https://www.rfc-editor.org/rfc/rfc8484">RFC 8484</a>.
     /// </summary>
     /// <remarks>
@@ -101,9 +102,9 @@ namespace DnsClientX {
         [Description("OpenDNS's family-friendly DNS-over-HTTPS endpoint.")]
         OpenDNSFamily,
         /// <summary>
-        /// Cloudflare's DNS-over-QUIC endpoint.
+        /// Reserved legacy value. Cloudflare does not publish a DNS-over-QUIC endpoint.
         /// </summary>
-        [Description("Cloudflare's DNS-over-QUIC endpoint.")]
+        [Description("Unsupported legacy value; Cloudflare does not publish a DNS-over-QUIC endpoint.")]
         CloudflareQuic,
         /// <summary>
         /// Quad9's DNS-over-HTTP/3 endpoint.
@@ -116,9 +117,9 @@ namespace DnsClientX {
         [Description("Quad9's DNS-over-QUIC endpoint (available in the core package on .NET 8 and later when QUIC is supported).")]
         Quad9Quic,
         /// <summary>
-        /// Google's DNS-over-QUIC endpoint.
+        /// Reserved legacy value. Google Public DNS does not publish a DNS-over-QUIC endpoint.
         /// </summary>
-        [Description("Google's DNS-over-QUIC endpoint.")]
+        [Description("Unsupported legacy value; Google Public DNS does not publish a DNS-over-QUIC endpoint.")]
         GoogleQuic,
         /// <summary>
         /// AdGuard DNS-over-HTTPS endpoint.
@@ -141,19 +142,19 @@ namespace DnsClientX {
         [Description("NextDNS DNS-over-HTTPS endpoint.")]
         NextDNS,
         /// <summary>
-        /// Cloudflare DNSCrypt endpoint.
+        /// Reserved for a future optional DNSCrypt v2 package.
         /// </summary>
-        [Description("Cloudflare DNSCrypt endpoint.")]
+        [Description("Unsupported in the core package; reserved for optional DNSCrypt v2 support.")]
         DnsCryptCloudflare,
         /// <summary>
-        /// Quad9 DNSCrypt endpoint.
+        /// Reserved for a future optional DNSCrypt v2 package.
         /// </summary>
-        [Description("Quad9 DNSCrypt endpoint.")]
+        [Description("Unsupported in the core package; reserved for optional DNSCrypt v2 support.")]
         DnsCryptQuad9,
         /// <summary>
         /// DNSCrypt relay server option.
         /// </summary>
-        [Description("DNSCrypt relay server option.")]
+        [Description("Unsupported in the core package; reserved for optional DNSCrypt v2 support.")]
         DnsCryptRelay,
         /// <summary>
         /// DNS root servers, queried iteratively starting from one of the
@@ -162,9 +163,9 @@ namespace DnsClientX {
         [Description("DNS root servers, queried iteratively starting from one of the well known A-M root server instances.")]
         RootServer,
         /// <summary>
-        /// Cloudflare's Oblivious DNS-over-HTTPS endpoint.
+        /// Reserved for future ODoH support; not implemented by the core package.
         /// </summary>
-        [Description("Cloudflare's Oblivious DNS-over-HTTPS endpoint.")]
+        [Description("Unsupported in the core package; ODoH requires HPKE relay and target handling.")]
         CloudflareOdoh,
         /// <summary>
         /// Custom DNS endpoint configured via <see cref="Configuration"/>

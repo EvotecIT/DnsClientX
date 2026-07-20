@@ -36,6 +36,8 @@ namespace DnsClientX {
                 DnsResponse response = await res.DeserializeResponse(debug).ConfigureAwait(false);
                 response.AddServerDetails(configuration);
                 return response;
+            } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                throw;
             } catch (Exception ex) {
                 DnsResponseCode responseCode;
                 string message;
@@ -100,6 +102,8 @@ namespace DnsClientX {
                 DnsResponse response = await res.DeserializeResponse(debug).ConfigureAwait(false);
                 response.AddServerDetails(configuration);
                 return response;
+            } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                throw;
             } catch (Exception ex) {
                 DnsResponseCode responseCode;
                 string message;

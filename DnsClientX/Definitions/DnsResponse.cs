@@ -15,6 +15,24 @@ namespace DnsClientX {
     /// </remarks>
     public class DnsResponse {
         /// <summary>
+        /// Gets the transaction identifier from a DNS wire response.
+        /// </summary>
+        [JsonIgnore]
+        public ushort TransactionId { get; internal set; }
+
+        /// <summary>
+        /// Gets whether the DNS QR flag identifies this packet as a response.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsResponse { get; internal set; }
+
+        /// <summary>
+        /// Gets the DNS operation code from the response header.
+        /// </summary>
+        [JsonIgnore]
+        public int OperationCode { get; internal set; }
+
+        /// <summary>
         /// The status code of the DNS response.
         /// </summary>
         [JsonPropertyName("Status")]
@@ -32,6 +50,12 @@ namespace DnsClientX {
         /// </summary>
         [JsonPropertyName("TC")]
         public bool IsTruncated { get; set; }
+
+        /// <summary>
+        /// Indicates whether the responding server is authoritative for the answer.
+        /// </summary>
+        [JsonPropertyName("AA")]
+        public bool IsAuthoritativeAnswer { get; set; }
 
         /// <summary>
         /// Convenience mirror of <see cref="IsTruncated"/>.
@@ -62,6 +86,30 @@ namespace DnsClientX {
         /// </summary>
         [JsonPropertyName("CD")]
         public bool CheckingDisabled { get; set; }
+
+        /// <summary>
+        /// Gets the outcome of local DNSSEC validation. This is independent of the resolver-provided AD flag.
+        /// </summary>
+        [JsonPropertyName("dnssec_validation_status")]
+        public DnsSecValidationStatus DnsSecValidationStatus { get; internal set; }
+
+        /// <summary>
+        /// Gets a concise explanation of the local DNSSEC validation outcome.
+        /// </summary>
+        [JsonPropertyName("dnssec_validation_message")]
+        public string DnsSecValidationMessage { get; internal set; } = string.Empty;
+
+        /// <summary>
+        /// Gets whether DNSSEC validation was attempted locally rather than inferred from the resolver's AD flag.
+        /// </summary>
+        [JsonPropertyName("dnssec_validation_attempted")]
+        public bool DnsSecValidationAttempted => DnsSecValidationStatus != DnsSecValidationStatus.NotRequested;
+
+        /// <summary>
+        /// Gets whether local validation proved a secure chain to a configured trust anchor.
+        /// </summary>
+        [JsonPropertyName("dnssec_validated_locally")]
+        public bool DnsSecValidatedLocally => DnsSecValidationStatus == DnsSecValidationStatus.Secure;
 
         /// <summary>
         /// The questions that were asked in the DNS query. Some providers do
@@ -141,11 +189,7 @@ namespace DnsClientX {
         /// Gets the answers in their minimal form.
         /// </summary>
         [JsonIgnore]
-        public DnsAnswerMinimal[] AnswersMinimal =>
-            _answersMinimal ??
-            (Answers == null
-                ? Array.Empty<DnsAnswerMinimal>()
-                : Answers.Select(answer => (DnsAnswerMinimal)answer).ToArray());
+        public DnsAnswerMinimal[] AnswersMinimal => _answersMinimal;
 
         /// <summary>
         /// The authority records provided by the DNS server.
@@ -178,14 +222,11 @@ namespace DnsClientX {
         [JsonPropertyName("extended_dns_errors")]
         public ExtendedDnsError[] ExtendedDnsErrors { get; set; } = Array.Empty<ExtendedDnsError>();
 
-        [JsonIgnore]
-        private ExtendedDnsErrorInfo[]? _extendedDnsErrorInfo;
-
         /// <summary>
         /// Gets the extended DNS error information in a simplified form.
         /// </summary>
         [JsonIgnore]
-        public ExtendedDnsErrorInfo[] ExtendedDnsErrorInfo => _extendedDnsErrorInfo ??=
+        public ExtendedDnsErrorInfo[] ExtendedDnsErrorInfo =>
             ExtendedDnsErrors == null
                 ? Array.Empty<ExtendedDnsErrorInfo>()
                 : ExtendedDnsErrors
@@ -198,6 +239,54 @@ namespace DnsClientX {
         /// </summary>
         [JsonPropertyName("edns_client_subnet")]
         public string EdnsClientSubnet { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets the UDP payload size advertised by the response OPT record, when present.
+        /// </summary>
+        [JsonIgnore]
+        public int? EdnsUdpPayloadSize { get; internal set; }
+
+        /// <summary>
+        /// Gets the EDNS version returned by the server, when present.
+        /// </summary>
+        [JsonIgnore]
+        public byte? EdnsVersion { get; internal set; }
+
+        /// <summary>
+        /// Gets whether the response OPT record has the DNSSEC OK flag set.
+        /// </summary>
+        [JsonIgnore]
+        public bool EdnsDnsSecOk { get; internal set; }
+
+        /// <summary>
+        /// Gets the raw EDNS NSID option returned by the server.
+        /// </summary>
+        [JsonIgnore]
+        public byte[] EdnsNsid { get; internal set; } = Array.Empty<byte>();
+
+        /// <summary>
+        /// Gets the raw EDNS Cookie option returned by the server.
+        /// </summary>
+        [JsonIgnore]
+        public byte[] EdnsCookie { get; internal set; } = Array.Empty<byte>();
+
+        [JsonIgnore]
+        internal byte[] WireMessage { get; set; } = Array.Empty<byte>();
+
+        /// <summary>
+        /// Gets the number of bytes in the validated wire-format response.
+        /// </summary>
+        [JsonIgnore]
+        public int WireMessageLength => WireMessage?.Length ?? 0;
+
+        [JsonIgnore]
+        internal DnsWireResourceRecord[] WireAnswers { get; set; } = Array.Empty<DnsWireResourceRecord>();
+
+        [JsonIgnore]
+        internal DnsWireResourceRecord[] WireAuthorities { get; set; } = Array.Empty<DnsWireResourceRecord>();
+
+        [JsonIgnore]
+        internal DnsWireResourceRecord[] WireAdditional { get; set; } = Array.Empty<DnsWireResourceRecord>();
 
         /// <summary>
         /// Adds the server details to the DNS questions for output purposes.
@@ -220,19 +309,57 @@ namespace DnsClientX {
             ServerAddress = configuration.Hostname;
             UsedTransport = usedTransport ?? MapTransport(configuration.RequestFormat);
 
-            if (Answers != null) {
-                _answersMinimal = Answers.Select(answer => new DnsAnswerMinimal {
-                    Name = answer.Name,
-                    TTL = answer.TTL,
-                    Type = answer.Type,
-                    Data = answer.Data,
-                    Port = configuration.Port,
-                    RequestFormat = configuration.RequestFormat
-                }).ToArray();
+            RefreshDerivedData(configuration.Port, configuration.RequestFormat);
+        }
 
-                // Compute TTL metrics when possible
-                ComputeTtlMetrics();
-            }
+        internal void RefreshDerivedData(int? port = null, DnsRequestFormat? requestFormat = null) {
+            DnsAnswer[] currentAnswers = Answers ?? Array.Empty<DnsAnswer>();
+            int effectivePort = port ?? (Questions != null && Questions.Length > 0 ? Questions[0].Port : 0);
+            DnsRequestFormat effectiveFormat = requestFormat ??
+                (Questions != null && Questions.Length > 0 ? Questions[0].RequestFormat : default);
+            _answersMinimal = currentAnswers.Select(answer => new DnsAnswerMinimal {
+                Name = answer.Name,
+                TTL = answer.TTL,
+                Type = answer.Type,
+                Data = answer.Data,
+                Port = effectivePort,
+                RequestFormat = effectiveFormat
+            }).ToArray();
+            ComputeTtlMetrics();
+        }
+
+        /// <summary>
+        /// Creates an independent response copy suitable for filtering or retaining beyond a cache lookup.
+        /// </summary>
+        public DnsResponse Clone() {
+            var clone = (DnsResponse)MemberwiseClone();
+            clone.Questions = Questions == null ? Array.Empty<DnsQuestion>() : (DnsQuestion[])Questions.Clone();
+            clone.Answers = Answers == null ? Array.Empty<DnsAnswer>() : (DnsAnswer[])Answers.Clone();
+            clone.Authorities = Authorities == null ? Array.Empty<DnsAnswer>() : (DnsAnswer[])Authorities.Clone();
+            clone.Additional = Additional == null ? Array.Empty<DnsAnswer>() : (DnsAnswer[])Additional.Clone();
+            clone.ExtendedDnsErrors = ExtendedDnsErrors == null ? Array.Empty<ExtendedDnsError>() : (ExtendedDnsError[])ExtendedDnsErrors.Clone();
+            clone.EdnsNsid = EdnsNsid == null ? Array.Empty<byte>() : (byte[])EdnsNsid.Clone();
+            clone.EdnsCookie = EdnsCookie == null ? Array.Empty<byte>() : (byte[])EdnsCookie.Clone();
+            clone.TypedAnswers = TypedAnswers == null ? null : (object[])TypedAnswers.Clone();
+            clone.WireMessage = WireMessage == null ? Array.Empty<byte>() : (byte[])WireMessage.Clone();
+            clone.WireAnswers = WireAnswers == null ? Array.Empty<DnsWireResourceRecord>() : (DnsWireResourceRecord[])WireAnswers.Clone();
+            clone.WireAuthorities = WireAuthorities == null ? Array.Empty<DnsWireResourceRecord>() : (DnsWireResourceRecord[])WireAuthorities.Clone();
+            clone.WireAdditional = WireAdditional == null ? Array.Empty<DnsWireResourceRecord>() : (DnsWireResourceRecord[])WireAdditional.Clone();
+            clone.RefreshDerivedData();
+            return clone;
+        }
+
+        /// <summary>
+        /// Creates an independent response copy with a replacement answer projection while preserving
+        /// status, flags, transport, DNSSEC, EDNS, timing, and error metadata.
+        /// </summary>
+        /// <param name="answers">Answers to expose on the projected response.</param>
+        public DnsResponse WithAnswers(IEnumerable<DnsAnswer>? answers) {
+            DnsResponse clone = Clone();
+            clone.Answers = answers?.ToArray() ?? Array.Empty<DnsAnswer>();
+            clone.TypedAnswers = null;
+            clone.RefreshDerivedData();
+            return clone;
         }
 
         private static Transport MapTransport(DnsRequestFormat requestFormat) {

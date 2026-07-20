@@ -36,7 +36,9 @@ namespace DnsClientX {
         /// <param name="debug">Whether to print the JSON data to the console.</param>
         /// <param name="typeInfo">Source generated metadata for the target type.</param>
         internal static async Task<T> Deserialize<T>(this HttpResponseMessage response, JsonTypeInfo<T> typeInfo, bool debug = false) {
-            if (response.Content.Headers.ContentLength.GetValueOrDefault() == 0)
+            if (response.Content == null)
+                throw new DnsClientException("Response content is missing, can't parse as JSON.");
+            if (response.Content.Headers.ContentLength.HasValue && response.Content.Headers.ContentLength.Value == 0)
                 throw new DnsClientException("Response content is empty, can't parse as JSON.");
             using Stream stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
             try {

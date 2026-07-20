@@ -89,21 +89,14 @@ namespace DnsClientX {
 
         private static readonly DnsResponseCache _cache = new();
         private readonly bool _cacheEnabled;
+#if NET8_0_OR_GREATER
+        private readonly DnsQuicConnectionPool _quicConnectionPool = new();
+#endif
 
         /// <summary>
         /// Gets a value indicating whether caching is enabled.
         /// </summary>
         public bool CacheEnabled => _cacheEnabled;
-
-        /// <summary>
-        /// Gets or sets the default expiration time for cached entries.
-        /// </summary>
-        public TimeSpan CacheExpiration { get; set; } = TimeSpan.FromMinutes(1);
-
-        /// <summary>
-        /// Gets or sets the minimal TTL allowed for cached responses.
-        /// </summary>
-        public TimeSpan MinCacheTtl { get; set; } = TimeSpan.FromSeconds(1);
 
         /// <summary>
         /// Gets or sets the maximal TTL allowed for cached responses.
@@ -324,6 +317,11 @@ namespace DnsClientX {
 
 #if NETCOREAPP2_1_OR_GREATER || NET5_0_OR_GREATER
             client.DefaultRequestVersion = EndpointConfiguration.HttpVersion;
+#endif
+#if NET5_0_OR_GREATER
+            // RFC 8484 clients should use HTTP/2 when available. Do not silently downgrade the
+            // default HTTP/2 request to HTTP/1.1, which some conforming resolvers reject.
+            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
 #endif
             // Set the user agent to the default value
             client.DefaultRequestHeaders.UserAgent.Clear();

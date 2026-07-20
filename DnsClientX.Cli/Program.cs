@@ -1005,6 +1005,10 @@ namespace DnsClientX.Cli {
                 }
             }
 
+            if (!string.IsNullOrWhiteSpace(response.Error)) {
+                Console.Error.WriteLine(response.Error);
+                return 1;
+            }
             return 0;
         }
 

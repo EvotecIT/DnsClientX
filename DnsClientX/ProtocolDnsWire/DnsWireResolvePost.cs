@@ -26,7 +26,8 @@ namespace DnsClientX {
         internal static async Task<DnsResponse> ResolveWireFormatPost(this HttpClient client, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
-            var query = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration);
+            var query = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration,
+                checkingDisabled: endpointConfiguration.CheckingDisabled || validateDnsSec);
             var queryBytes = query.SerializeDnsWireFormat();
 
             if (debug) {
@@ -38,10 +39,16 @@ namespace DnsClientX {
             using ByteArrayContent content = new(queryBytes);
             content.Headers.ContentType = new MediaTypeHeaderValue("application/dns-message");
 
-            using HttpResponseMessage postAsync = await client.PostAsync(client.BaseAddress, content, cancellationToken).ConfigureAwait(false);
-            var response = await postAsync.DeserializeDnsWireFormat(debug).ConfigureAwait(false);
-            response.AddServerDetails(endpointConfiguration);
-            return response;
+            using HttpRequestMessage request = new(HttpMethod.Post, client.BaseAddress) { Content = content };
+            request.Headers.Accept.Clear();
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/dns-message"));
+#if NET5_0_OR_GREATER
+            request.Version = endpointConfiguration.HttpVersion;
+            request.VersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
+#endif
+            using HttpResponseMessage postAsync = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            return await DnsWireResolve.DeserializeDnsWireHttpResponse(
+                postAsync, debug, query, name, type, endpointConfiguration).ConfigureAwait(false);
         }
     }
 }

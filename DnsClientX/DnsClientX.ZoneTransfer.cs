@@ -89,18 +89,28 @@ namespace DnsClientX {
             int maxRetries = 3,
             int retryDelayMs = 100,
             [EnumeratorCancellation] CancellationToken cancellationToken = default) {
+            ThrowIfDisposed();
             if (string.IsNullOrEmpty(zone)) {
                 throw new ArgumentNullException(nameof(zone));
             }
+            if (maxRetries <= 0) {
+                throw new ArgumentOutOfRangeException(nameof(maxRetries), "Maximum retries must be greater than zero.");
+            }
+            if (retryDelayMs < 0) {
+                throw new ArgumentOutOfRangeException(nameof(retryDelayMs), "Retry delay cannot be negative.");
+            }
 
-            EndpointConfiguration.SelectHostNameStrategy();
+            Configuration queryConfiguration = EndpointConfiguration.CreateQuerySnapshot();
 
-            var query = new DnsMessage(zone, DnsRecordType.AXFR, requestDnsSec: false, enableEdns: false, EndpointConfiguration.UdpBufferSize, null, EndpointConfiguration.CheckingDisabled, EndpointConfiguration.SigningKey);
+            var query = new DnsMessage(zone, DnsRecordType.AXFR, new DnsMessageOptions(
+                CheckingDisabled: queryConfiguration.CheckingDisabled,
+                RecursionDesired: false));
             var queryBytes = query.SerializeDnsWireFormat();
 
             for (int attempt = 0; attempt < maxRetries; attempt++) {
                 cancellationToken.ThrowIfCancellationRequested();
-                await using var enumerator = SendAxfrOverTcp(queryBytes, EndpointConfiguration.Hostname!, EndpointConfiguration.Port, EndpointConfiguration.TimeOut, Debug, EndpointConfiguration, cancellationToken).GetAsyncEnumerator(cancellationToken);
+                bool yieldedAny = false;
+                await using var enumerator = SendAxfrOverTcp(queryBytes, query.TransactionId, zone, queryConfiguration.Hostname!, queryConfiguration.Port, queryConfiguration.TimeOut, Debug, queryConfiguration, cancellationToken).GetAsyncEnumerator(cancellationToken);
                 Exception? iterationException = null;
 
                 while (true) {
@@ -117,6 +127,7 @@ namespace DnsClientX {
                         break;
                     }
 
+                    yieldedAny = true;
                     yield return enumerator.Current;
                 }
 
@@ -124,7 +135,10 @@ namespace DnsClientX {
                     yield break;
                 }
 
-                if (!(retryOnTransient && attempt < maxRetries - 1 && IsTransient(iterationException))) {
+                // Once a streaming caller has observed a prefix, replaying a fresh attempt would
+                // corrupt the logical AXFR with duplicate RRsets. Retries are therefore safe only
+                // before the first yielded RRset.
+                if (yieldedAny || !(retryOnTransient && attempt < maxRetries - 1 && IsTransient(iterationException))) {
                     if (iterationException is DnsClientException || iterationException is OperationCanceledException) {
                         throw iterationException;
                     }
@@ -133,6 +147,7 @@ namespace DnsClientX {
 
                 if (EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover) {
                     EndpointConfiguration.AdvanceToNextHostname();
+                    queryConfiguration = EndpointConfiguration.CreateQuerySnapshot();
                 }
 
                 int exponentialDelay = retryDelayMs <= 0 ? 0 : (int)Math.Min((long)retryDelayMs << attempt, int.MaxValue);
@@ -143,6 +158,8 @@ namespace DnsClientX {
 
         private static async IAsyncEnumerable<ZoneTransferResult> SendAxfrOverTcp(
             byte[] query,
+            ushort expectedTransactionId,
+            string expectedZone,
             string dnsServer,
             int port,
             int timeoutMilliseconds,
@@ -161,6 +178,7 @@ namespace DnsClientX {
                     var writeTask = stream.WriteAsync(lengthBytes, 0, lengthBytes.Length, cancellationToken);
                     var timeoutTask = Task.Delay(timeoutMilliseconds, cancellationToken);
                     if (await Task.WhenAny(writeTask, timeoutTask).ConfigureAwait(false) == timeoutTask) {
+                        cancellationToken.ThrowIfCancellationRequested();
                         throw new TimeoutException($"Writing length to {dnsServer}:{port} timed out after {timeoutMilliseconds} milliseconds.");
                     }
                     await writeTask.ConfigureAwait(false);
@@ -168,6 +186,7 @@ namespace DnsClientX {
                     writeTask = stream.WriteAsync(query, 0, query.Length, cancellationToken);
                     timeoutTask = Task.Delay(timeoutMilliseconds, cancellationToken);
                     if (await Task.WhenAny(writeTask, timeoutTask).ConfigureAwait(false) == timeoutTask) {
+                        cancellationToken.ThrowIfCancellationRequested();
                         throw new TimeoutException($"Writing query to {dnsServer}:{port} timed out after {timeoutMilliseconds} milliseconds.");
                     }
                     await writeTask.ConfigureAwait(false);
@@ -181,6 +200,7 @@ namespace DnsClientX {
                     bool started = false;
                     int index = 0;
                     DnsAnswer? lastRecord = null;
+                    DnsAnswer? openingSoa = null;
 
                     while (true) {
                         try {
@@ -198,6 +218,18 @@ namespace DnsClientX {
                         int length = BitConverter.ToUInt16(lenBuf, 0);
                         var responseBuffer = new byte[length];
                         await ReadExactWithTimeoutAsync(stream, responseBuffer, 0, length, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
+
+                        if (responseBuffer.Length < 12) {
+                            throw new DnsClientException("Zone transfer returned a truncated DNS header.");
+                        }
+                        ushort responseId = (ushort)((responseBuffer[0] << 8) | responseBuffer[1]);
+                        ushort responseFlags = (ushort)((responseBuffer[2] << 8) | responseBuffer[3]);
+                        if (responseId != expectedTransactionId) {
+                            throw new DnsClientException("Zone transfer response transaction ID did not match the request.");
+                        }
+                        if ((responseFlags & 0x8000) == 0 || ((responseFlags >> 11) & 0x0F) != 0) {
+                            throw new DnsClientException("Zone transfer returned an invalid DNS response envelope.");
+                        }
 
                         var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
                         response.AddServerDetails(configuration);
@@ -225,9 +257,13 @@ namespace DnsClientX {
 
                             if (!started) {
                                 if (rec.Type != DnsRecordType.SOA) {
-                                    continue;
+                                    throw new DnsClientException("Zone transfer did not begin with an SOA record.");
+                                }
+                                if (!string.Equals(DnsWireNameCodec.Canonical(rec.Name), DnsWireNameCodec.Canonical(expectedZone), StringComparison.Ordinal)) {
+                                    throw new DnsClientException("Zone transfer opening SOA owner does not match the requested zone.");
                                 }
                                 started = true;
+                                openingSoa = rec;
                             }
 
                             if (current.Count == 0 || (current[0].Name == rec.Name && current[0].Type == rec.Type)) {
@@ -244,6 +280,11 @@ namespace DnsClientX {
                             if (rec.Type == DnsRecordType.SOA) {
                                 soaCount++;
                                 if (soaCount == 2) {
+                                    if (!openingSoa.HasValue ||
+                                        !string.Equals(DnsWireNameCodec.Canonical(rec.Name), DnsWireNameCodec.Canonical(openingSoa.Value.Name), StringComparison.Ordinal) ||
+                                        !string.Equals(rec.DataRaw, openingSoa.Value.DataRaw, StringComparison.OrdinalIgnoreCase)) {
+                                        throw new DnsClientException("Zone transfer closing SOA does not match the opening SOA.");
+                                    }
                                     sawClosing = true;
                                 }
                             }
@@ -257,7 +298,7 @@ namespace DnsClientX {
                     }
 
                     if (soaCount == 0) {
-                        yield break;
+                        throw new DnsClientException("Zone transfer returned no opening SOA record.");
                     }
 
                     if (soaCount < 2 || extraAfterClosing || lastRecord == null || lastRecord.Value.Type != DnsRecordType.SOA) {
@@ -273,6 +314,7 @@ namespace DnsClientX {
             var readTask = DnsWire.ReadExactAsync(stream, buffer, offset, count, cancellationToken);
             var timeoutTask = Task.Delay(timeoutMilliseconds, cancellationToken);
             if (await Task.WhenAny(readTask, timeoutTask).ConfigureAwait(false) == timeoutTask) {
+                cancellationToken.ThrowIfCancellationRequested();
                 throw new TimeoutException($"Reading from stream timed out after {timeoutMilliseconds} milliseconds.");
             }
             await readTask.ConfigureAwait(false);

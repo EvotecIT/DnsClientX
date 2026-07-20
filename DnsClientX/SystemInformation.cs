@@ -169,7 +169,7 @@ namespace DnsClientX {
             try {
                 foreach (var line in File.ReadAllLines(path)) {
                     var trimmed = line.Trim();
-                    if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#")) {
+                    if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#", StringComparison.Ordinal)) {
                         continue;
                     }
                     if (trimmed.StartsWith("nameserver", StringComparison.OrdinalIgnoreCase)) {
@@ -260,13 +260,13 @@ namespace DnsClientX {
                 // IPv4 filtering
 
                 // Filter out link-local addresses (169.254.x.x)
-                if (ipString.StartsWith("169.254.")) return false;
+                if (ipString.StartsWith("169.254.", StringComparison.Ordinal)) return false;
 
                 // Filter out loopback addresses (127.x.x.x)
-                if (ipString.StartsWith("127.")) return false;
+                if (ipString.StartsWith("127.", StringComparison.Ordinal)) return false;
 
                 // Filter out macOS virtual network interface addresses (192.168.64.x)
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && ipString.StartsWith("192.168.64.")) {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && ipString.StartsWith("192.168.64.", StringComparison.Ordinal)) {
                     bool debug = Environment.GetEnvironmentVariable("DNSCLIENTX_DEBUG_SYSTEMDNS") == "1";
                     if (debug) Settings.Logger.WriteDebug($"[DnsClientX:SystemDNS] Filtering out macOS virtual network DNS: {ipString}");
                     return false;
@@ -277,16 +277,16 @@ namespace DnsClientX {
                 // IPv6 filtering
 
                 // Filter out link-local addresses (fe80:)
-                if (ipString.StartsWith("fe80:")) return false;
+                if (ipString.StartsWith("fe80:", StringComparison.OrdinalIgnoreCase)) return false;
 
                 // Filter out site-local addresses (fec0: - deprecated)
-                if (ipString.StartsWith("fec0:")) return false;
+                if (ipString.StartsWith("fec0:", StringComparison.OrdinalIgnoreCase)) return false;
 
                 // Filter out multicast addresses (ff00:)
-                if (ipString.StartsWith("ff00:")) return false;
+                if (ipString.StartsWith("ff00:", StringComparison.OrdinalIgnoreCase)) return false;
 
                 // Filter out other multicast addresses starting with ff
-                if (ipString.StartsWith("ff")) return false;
+                if (ipString.StartsWith("ff", StringComparison.OrdinalIgnoreCase)) return false;
 
                 return true;
             }
