@@ -92,4 +92,20 @@ public class DnsHttpResponseValidationTests {
         Assert.StartsWith("?dns=", handler.Request?.RequestUri?.Query, StringComparison.Ordinal);
         Assert.Equal("application/dns-message", Assert.Single(handler.Request!.Headers.Accept).MediaType);
     }
+
+    /// <summary>The immutable query configuration, not a mutable client's BaseAddress, selects the resolver.</summary>
+    [Fact]
+    public async Task WireGetUsesAbsoluteUriFromQuerySnapshot() {
+        using var handler = new ResponseHandler(HttpStatusCode.BadRequest, new StringContent("capture"));
+        using var client = new HttpClient(handler) { BaseAddress = new Uri("https://wrong-resolver.example/dns-query") };
+        var configuration = new Configuration(
+            new Uri("https://snapshot-resolver.example/custom-query"),
+            DnsRequestFormat.DnsOverHttps);
+
+        await Assert.ThrowsAsync<DnsClientException>(() => client.ResolveWireFormatGet(
+            "example.com", DnsRecordType.A, false, false, false, configuration, CancellationToken.None));
+
+        Assert.Equal("snapshot-resolver.example", handler.Request?.RequestUri?.Host);
+        Assert.Equal("/custom-query", handler.Request?.RequestUri?.AbsolutePath);
+    }
 }

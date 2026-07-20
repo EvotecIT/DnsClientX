@@ -67,6 +67,10 @@ namespace DnsClientX {
 
             DnsSecValidationResult? unsupported = null;
             foreach (IGrouping<string, DnsSecSignature> signer in signatures.GroupBy(item => item.SignerName, StringComparer.Ordinal)) {
+                if (!IsNameWithinZone(rrset.Name, signer.Key)) {
+                    return DnsSecValidationResult.Bogus(
+                        $"RRSIG signer {signer.Key} is not an ancestor of the {rrset.Name} RRset owner.");
+                }
                 ZoneKeysResult keys = await GetZoneKeysAsync(signer.Key, cancellationToken).ConfigureAwait(false);
                 if (keys.Status == DnsSecValidationStatus.Insecure) return DnsSecValidationResult.Insecure(keys.Message);
                 if (keys.Status != DnsSecValidationStatus.Secure) {
@@ -126,7 +130,7 @@ namespace DnsClientX {
 
             if (zone == ".") {
                 bool supportedAnchor = false;
-                foreach (RootDsRecord anchor in RootTrustAnchors.DsRecords) {
+                foreach (RootDsRecord anchor in RootTrustAnchors.DsRecords.Where(item => item.IsValidAt(_now))) {
                     if (DnsSecCrypto.IsSupportedAlgorithm((byte)anchor.Algorithm) &&
                         (anchor.DigestType == 1 || anchor.DigestType == 2 || anchor.DigestType == 4)) {
                         supportedAnchor = true;
@@ -308,7 +312,12 @@ namespace DnsClientX {
             IEnumerable<DnsSecSignature> signatures, IReadOnlyCollection<DnsSecKey> keys) {
             bool supported = false;
             bool timeFailure = false;
+            bool signerScopeFailure = false;
             foreach (DnsSecSignature signature in signatures) {
+                if (!IsNameWithinZone(rrset.Name, signature.SignerName)) {
+                    signerScopeFailure = true;
+                    continue;
+                }
                 DnsSecKey[] candidates = keys.Where(key => key.KeyTag == signature.KeyTag && key.Algorithm == signature.Algorithm).ToArray();
                 if (candidates.Length == 0 || !DnsSecCrypto.IsSupportedAlgorithm(signature.Algorithm)) continue;
                 supported = true;
@@ -327,6 +336,8 @@ namespace DnsClientX {
                 }
             }
             if (timeFailure) return DnsSecValidationResult.Bogus($"Every supported signature for {rrset.Name} {rrset.Type} is outside its validity interval.");
+            if (signerScopeFailure) return DnsSecValidationResult.Bogus(
+                $"No RRSIG signer is an ancestor of the {rrset.Name} RRset owner.");
             return supported
                 ? DnsSecValidationResult.Bogus($"The signature for {rrset.Name} {rrset.Type} failed cryptographic verification.")
                 : DnsSecValidationResult.Indeterminate($"No supported signing algorithm/key was available for {rrset.Name} {rrset.Type}.");

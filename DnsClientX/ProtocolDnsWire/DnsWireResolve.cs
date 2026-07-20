@@ -49,16 +49,9 @@ namespace DnsClientX {
                 Options: options,
                 RecursionDesired: endpointConfiguration.RecursionDesired));
             var base64UrlDnsMessage = dnsMessage.ToBase64Url();
-            string url = $"?dns={base64UrlDnsMessage}";
-            Uri? requestUri = null;
-            if (useStandardDnsQueryPath) {
-                Uri? baseUri = endpointConfiguration.BaseUri ?? client.BaseAddress;
-                if (baseUri == null) throw new DnsClientException("A base URI is required for DNSSEC wire-format validation over HTTPS.");
-                var builder = new UriBuilder(baseUri) { Path = "/dns-query", Query = "dns=" + base64UrlDnsMessage };
-                requestUri = builder.Uri;
-            }
-
-            using HttpRequestMessage req = new(HttpMethod.Get, requestUri ?? new Uri(url, UriKind.Relative));
+            Uri requestUri = DnsHttpRequestUri.Build(endpointConfiguration, "dns=" + base64UrlDnsMessage,
+                useStandardDnsQueryPath ? "/dns-query" : null);
+            using HttpRequestMessage req = new(HttpMethod.Get, requestUri);
             req.Headers.Accept.Clear();
             req.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/dns-message"));
 #if NET5_0_OR_GREATER

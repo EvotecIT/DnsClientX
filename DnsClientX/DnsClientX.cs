@@ -277,17 +277,12 @@ namespace DnsClientX {
         /// <summary>
         /// Creates an optimized HttpClient with proper connection management and realistic timeouts
         /// </summary>
-        private HttpClient CreateOptimizedHttpClient() {
+        private HttpClient CreateOptimizedHttpClient(Configuration configuration) {
             // Configure TLS protocols
 #if NET472 || NETSTANDARD2_0
-            SecurityProtocol = SecurityProtocolType.Tls12;
+            _securityProtocol = SecurityProtocolType.Tls12;
 #else
-            try {
-                SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
-            } catch {
-                // TLS 1.3 might not be available on all platforms, fallback to TLS 1.2
-                SecurityProtocol = SecurityProtocolType.Tls12;
-            }
+            _securityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
 #endif
 
             // Create handler with proper connection management
@@ -305,18 +300,18 @@ namespace DnsClientX {
             }
 
             // Optimize connection settings for DNS workloads
-            handler.MaxConnectionsPerServer = EndpointConfiguration.MaxConnectionsPerServer;
+            handler.MaxConnectionsPerServer = configuration.MaxConnectionsPerServer;
             handler.UseCookies = false; // DNS doesn't need cookies
 
             var client = new HttpClient(handler) {
-                BaseAddress = EndpointConfiguration.BaseUri,
-                Timeout = TimeSpan.FromMilliseconds(EndpointConfiguration.TimeOut) // Use realistic DNS timeout (1 second, not 3)
+                BaseAddress = configuration.BaseUri,
+                Timeout = TimeSpan.FromMilliseconds(configuration.TimeOut)
             };
 
             _handlerOwnedByClient = true;
 
 #if NETCOREAPP2_1_OR_GREATER || NET5_0_OR_GREATER
-            client.DefaultRequestVersion = EndpointConfiguration.HttpVersion;
+            client.DefaultRequestVersion = configuration.HttpVersion;
 #endif
 #if NET5_0_OR_GREATER
             // RFC 8484 clients should use HTTP/2 when available. Do not silently downgrade the
@@ -325,18 +320,18 @@ namespace DnsClientX {
 #endif
             // Set the user agent to the default value
             client.DefaultRequestHeaders.UserAgent.Clear();
-            client.DefaultRequestHeaders.UserAgent.ParseAdd(EndpointConfiguration.UserAgent);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(configuration.UserAgent);
             client.DefaultRequestHeaders.Accept.Clear();
 
             // Set the accept header based on the request format, which is required for proper processing
-            if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps ||
-                EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST ||
-                EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsWirePost ||
-                EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp2 ||
+            if (configuration.RequestFormat == DnsRequestFormat.DnsOverHttps ||
+                configuration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST ||
+                configuration.RequestFormat == DnsRequestFormat.DnsOverHttpsWirePost ||
+                configuration.RequestFormat == DnsRequestFormat.DnsOverHttp2 ||
 #if NET8_0_OR_GREATER
-                EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp3 ||
+                configuration.RequestFormat == DnsRequestFormat.DnsOverHttp3 ||
 #endif
-                EndpointConfiguration.RequestFormat == DnsRequestFormat.ObliviousDnsOverHttps) {
+                configuration.RequestFormat == DnsRequestFormat.ObliviousDnsOverHttps) {
                 client.DefaultRequestHeaders.Accept.Add(
                     new MediaTypeWithQualityHeaderValue("application/dns-message"));
             } else {
@@ -362,7 +357,7 @@ namespace DnsClientX {
                     handler.Dispose();
                 }
 
-                Client = CreateOptimizedHttpClient();
+                Client = CreateOptimizedHttpClient(EndpointConfiguration);
                 _managedClients.Add(Client);
                 _clients[EndpointConfiguration.SelectionStrategy] = Client;
             }
@@ -372,108 +367,46 @@ namespace DnsClientX {
         /// Gets the client based on the selection strategy
         /// This allows us to have multiple clients for different strategies, so performance is not affected
         /// </summary>
-        /// <param name="strategy">The strategy.</param>
+        /// <param name="configuration">Immutable configuration snapshot for the query.</param>
         /// <returns></returns>
-        private HttpClient GetClient(DnsSelectionStrategy strategy) {
-            if (_clients.TryGetValue(strategy, out var client)) {
-                if (!ClientMatchesConfiguration(client)) {
-                    lock (_lock) {
-                        if (_clients.TryGetValue(strategy, out client) && !ClientMatchesConfiguration(client)) {
-                            RecreateClientForStrategy(strategy, client);
-                            client = _clients[strategy];
-                        }
-                    }
-                }
-                Client = client;
-                return client!;
-            }
-
+        private HttpClient GetClient(Configuration configuration) {
+            DnsSelectionStrategy strategy = configuration.SelectionStrategy;
             lock (_lock) {
-                if (_clients.TryGetValue(strategy, out client)) {
-                    if (!ClientMatchesConfiguration(client)) {
-                        RecreateClientForStrategy(strategy, client);
+                if (_clients.TryGetValue(strategy, out HttpClient? client) && client != null) {
+                    if (!ClientMatchesConfiguration(client, configuration)) {
+                        RecreateClientForStrategy(strategy, configuration);
                         client = _clients[strategy];
                     }
                     Client = client;
                     return client;
                 }
 
-                // dispose any clients created for other strategies
-                foreach (KeyValuePair<DnsSelectionStrategy, HttpClient> kv in _clients) {
-                    if (kv.Key != strategy && TryAddDisposedClient(kv.Value)) {
-                        _managedClients.Remove(kv.Value);
-                        kv.Value.Dispose();
-                        if (ReferenceEquals(kv.Value, Client)) {
-                            if (!_handlerOwnedByClient && handler != null && TryAddDisposedClient(handler)) {
-                                handler.Dispose();
-                            }
-                            if (_handlerOwnedByClient && handler != null) {
-                                TryAddDisposedClient(handler);
-                            }
-                            handler = null;
-                        }
-                        System.Threading.Interlocked.Increment(ref _disposalCount);
-                    }
-                }
-                _clients.Clear();
-
-                // dispose the currently assigned client and handler if present
-                if (Client != null && TryAddDisposedClient(Client)) {
-                    _managedClients.Remove(Client);
-                    Client.Dispose();
-                    if (_handlerOwnedByClient && handler != null) {
-                        TryAddDisposedClient(handler);
-                    }
-                    if (!_handlerOwnedByClient && handler != null && TryAddDisposedClient(handler)) {
-                        handler.Dispose();
-                    }
-                    handler = null;
-                    System.Threading.Interlocked.Increment(ref _disposalCount);
-                }
-
-                client = CreateOptimizedHttpClient();
-                _clients[strategy] = client;
-                Client = client;
-                return client;
+                HttpClient created = CreateOptimizedHttpClient(configuration);
+                _clients[strategy] = created;
+                _managedClients.Add(created);
+                Client = created;
+                return created;
             }
         }
 
-        private bool ClientMatchesConfiguration(HttpClient client) {
+        private bool ClientMatchesConfiguration(HttpClient client, Configuration configuration) {
             if (!_managedClients.Contains(client)) {
                 return true;
             }
 
-            Uri? expectedBase = EndpointConfiguration.BaseUri;
-            if (!UriEquals(client.BaseAddress, expectedBase)) {
-                return false;
-            }
-
-            TimeSpan expectedTimeout = TimeSpan.FromMilliseconds(EndpointConfiguration.TimeOut);
+            // BaseAddress is deliberately excluded: every request uses the absolute URI captured in
+            // its query snapshot, so one pooled client can safely retain connections for several hosts.
+            TimeSpan expectedTimeout = TimeSpan.FromMilliseconds(configuration.TimeOut);
             return client.Timeout == expectedTimeout;
         }
 
-        private static bool UriEquals(Uri? left, Uri? right) {
-            if (left == null || right == null) {
-                return left == right;
-            }
-
-            return Uri.Compare(left, right, UriComponents.AbsoluteUri, UriFormat.SafeUnescaped, StringComparison.OrdinalIgnoreCase) == 0;
-        }
-
-        private void RecreateClientForStrategy(DnsSelectionStrategy strategy, HttpClient existingClient) {
-            if (TryAddDisposedClient(existingClient)) {
-                _managedClients.Remove(existingClient);
-                existingClient.Dispose();
-                System.Threading.Interlocked.Increment(ref _disposalCount);
-            }
-
-            handler = null;
-            var replacement = CreateOptimizedHttpClient();
+        private void RecreateClientForStrategy(DnsSelectionStrategy strategy, Configuration configuration) {
+            // Do not dispose the previous client here: another query may still be using it. All managed
+            // clients are retained until ClientX is disposed, while the strategy map stays enum-bounded.
+            var replacement = CreateOptimizedHttpClient(configuration);
             _managedClients.Add(replacement);
             _clients[strategy] = replacement;
-            if (ReferenceEquals(Client, existingClient)) {
-                Client = replacement;
-            }
+            Client = replacement;
         }
 
         /// <summary>

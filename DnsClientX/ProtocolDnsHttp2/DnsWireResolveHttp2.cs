@@ -28,9 +28,9 @@ namespace DnsClientX {
             var dnsMessage = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration,
                 checkingDisabled: endpointConfiguration.CheckingDisabled || validateDnsSec);
             var base64UrlDnsMessage = dnsMessage.ToBase64Url();
-            string url = $"?dns={base64UrlDnsMessage}";
+            Uri requestUri = DnsHttpRequestUri.Build(endpointConfiguration, "dns=" + base64UrlDnsMessage);
 
-            using HttpRequestMessage req = new(HttpMethod.Get, url);
+            using HttpRequestMessage req = new(HttpMethod.Get, requestUri);
             req.Headers.Accept.Clear();
             req.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/dns-message"));
 #if NET5_0_OR_GREATER

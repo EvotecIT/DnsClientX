@@ -1,4 +1,5 @@
 using System;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -27,11 +28,11 @@ namespace DnsClientX {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
             if (ttl < 0) throw new ArgumentOutOfRangeException(nameof(ttl));
             Configuration queryConfiguration = EndpointConfiguration.CreateQuerySnapshot();
-            Client ??= GetClient(queryConfiguration.SelectionStrategy);
+            HttpClient queryClient = GetClient(queryConfiguration);
             DnsResponse response;
             if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
                 if (queryConfiguration.TsigKey != null) throw new NotSupportedException("TSIG authenticates DNS wire UPDATE messages and cannot be applied to the provider-specific JSON update API.");
-                response = await Client!.UpdateJsonFormatPost(zone, name, type, data, ttl, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                response = await queryClient.UpdateJsonFormatPost(zone, name, type, data, ttl, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
             } else {
                 response = await DnsWireUpdateTcp.UpdateRecordAsync(queryConfiguration.Hostname!, queryConfiguration.Port, zone, name, type, data, ttl, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
             }
@@ -55,11 +56,11 @@ namespace DnsClientX {
             if (string.IsNullOrEmpty(zone)) throw new ArgumentNullException(nameof(zone));
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
             Configuration queryConfiguration = EndpointConfiguration.CreateQuerySnapshot();
-            Client ??= GetClient(queryConfiguration.SelectionStrategy);
+            HttpClient queryClient = GetClient(queryConfiguration);
             DnsResponse response;
             if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
                 if (queryConfiguration.TsigKey != null) throw new NotSupportedException("TSIG authenticates DNS wire UPDATE messages and cannot be applied to the provider-specific JSON update API.");
-                response = await Client!.DeleteJsonFormatPost(zone, name, type, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                response = await queryClient.DeleteJsonFormatPost(zone, name, type, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
             } else {
                 response = await DnsWireUpdateTcp.DeleteRecordAsync(queryConfiguration.Hostname!, queryConfiguration.Port, zone, name, type, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
             }

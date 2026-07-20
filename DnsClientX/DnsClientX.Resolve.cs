@@ -107,7 +107,7 @@ namespace DnsClientX {
                 CaptureAuditConfiguration(auditEntry, queryConfiguration);
 
                 // Get the HttpClient for the current strategy
-                HttpClient queryClient = GetClient(queryConfiguration.SelectionStrategy);
+                HttpClient queryClient = GetClient(queryConfiguration);
 
                 string cacheKey = DnsCacheKeyBuilder.Build(queryConfiguration, name, type, requestDnsSec,
                     validateDnsSec, returnAllTypes, typedRecords, parseTypedTxtRecords, MaxCacheTtl,

@@ -333,6 +333,7 @@ namespace DnsClientX {
         /// </summary>
         public DnsResponse Clone() {
             var clone = (DnsResponse)MemberwiseClone();
+            // Section models are structs, so cloning each array copies every record value.
             clone.Questions = Questions == null ? Array.Empty<DnsQuestion>() : (DnsQuestion[])Questions.Clone();
             clone.Answers = Answers == null ? Array.Empty<DnsAnswer>() : (DnsAnswer[])Answers.Clone();
             clone.Authorities = Authorities == null ? Array.Empty<DnsAnswer>() : (DnsAnswer[])Authorities.Clone();

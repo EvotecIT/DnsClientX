@@ -7,6 +7,17 @@ namespace DnsClientX.Tests {
     /// Contract tests for authenticated denial and unsigned-delegation classification.
     /// </summary>
     public class DnsSecProofTests {
+        /// <summary>Only the owner zone or one of its DNS ancestors may sign an RRset.</summary>
+        [Theory]
+        [InlineData("www.example.com", "example.com", true)]
+        [InlineData("www.example.com", "www.example.com", true)]
+        [InlineData("www.example.com", ".", true)]
+        [InlineData("www.example.com", "evil.com", false)]
+        [InlineData("notexample.com", "example.com", false)]
+        public void RrsigSignerMustContainRrsetOwner(string owner, string signer, bool expected) {
+            Assert.Equal(expected, DnsSecValidationEngine.IsNameWithinZone(owner, signer));
+        }
+
         /// <summary>
         /// Absence of DS is an insecure delegation only when the exact NSEC bitmap also
         /// proves a delegation (NS present and SOA absent).

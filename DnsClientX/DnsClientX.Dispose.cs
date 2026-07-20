@@ -55,8 +55,12 @@ namespace DnsClientX {
                     }
                     _disposed = true;
 
-                    clients = new List<HttpClient>(_clients.Values);
+                    clients = new List<HttpClient>(_managedClients);
+                    foreach (HttpClient mappedClient in _clients.Values) {
+                        if (!clients.Contains(mappedClient)) clients.Add(mappedClient);
+                    }
                     _clients.Clear();
+                    _managedClients.Clear();
 
                     mainClient = Client;
                     handlerLocal = handler;
@@ -125,8 +129,12 @@ namespace DnsClientX {
                     }
                     _disposed = true;
 
-                    clients = new List<HttpClient>(_clients.Values);
+                    clients = new List<HttpClient>(_managedClients);
+                    foreach (HttpClient mappedClient in _clients.Values) {
+                        if (!clients.Contains(mappedClient)) clients.Add(mappedClient);
+                    }
                     _clients.Clear();
+                    _managedClients.Clear();
 
                     mainClient = Client;
                     handlerLocal = handler;

@@ -206,7 +206,8 @@ namespace DnsClientX {
                         try {
                             await ReadExactWithTimeoutAsync(stream, lenBuf, 0, 2, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
                         } catch (EndOfStreamException) when (!received) {
-                            throw new DnsClientException("Connection closed during zone transfer.");
+                            throw new DnsClientException("Connection closed during zone transfer.",
+                                new EndOfStreamException("The server closed the AXFR stream before returning a response."));
                         } catch (EndOfStreamException) {
                             break;
                         }

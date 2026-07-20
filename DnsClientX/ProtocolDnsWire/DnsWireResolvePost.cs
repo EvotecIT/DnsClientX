@@ -39,7 +39,7 @@ namespace DnsClientX {
             using ByteArrayContent content = new(queryBytes);
             content.Headers.ContentType = new MediaTypeHeaderValue("application/dns-message");
 
-            using HttpRequestMessage request = new(HttpMethod.Post, client.BaseAddress) { Content = content };
+            using HttpRequestMessage request = new(HttpMethod.Post, DnsHttpRequestUri.Build(endpointConfiguration)) { Content = content };
             request.Headers.Accept.Clear();
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/dns-message"));
 #if NET5_0_OR_GREATER

@@ -18,14 +18,24 @@ namespace DnsClientX.Tests {
         [Fact]
         public void ShouldStoreAndRetrieve() {
             var cache = new DnsResponseCache();
-            var response = new DnsResponse { Status = DnsResponseCode.NoError };
+            var response = new DnsResponse {
+                Status = DnsResponseCode.NoError,
+                Questions = new[] { new DnsQuestion { Name = "example.com", Type = DnsRecordType.A } },
+                Answers = new[] { new DnsAnswer { Name = "example.com", Type = DnsRecordType.A, TTL = 60, DataRaw = "192.0.2.1" } }
+            };
             cache.Set("a", response, TimeSpan.FromSeconds(1));
             Assert.True(cache.TryGet("a", out var cached));
             Assert.NotSame(response, cached);
 
-            cached.Answers = new[] { new DnsAnswer { Name = "changed", Type = DnsRecordType.A } };
+            cached.Questions[0].Name = "changed.example";
+            cached.Answers[0].Name = "changed.example";
+            cached.Answers[0].TTL = 1;
+            cached.Answers[0].DataRaw = "203.0.113.9";
             Assert.True(cache.TryGet("a", out var second));
-            Assert.Empty(second.Answers);
+            Assert.Equal("example.com", second.Questions[0].Name);
+            Assert.Equal("example.com", second.Answers[0].Name);
+            Assert.Equal(60, second.Answers[0].TTL);
+            Assert.Equal("192.0.2.1", second.Answers[0].DataRaw);
         }
 
         /// <summary>

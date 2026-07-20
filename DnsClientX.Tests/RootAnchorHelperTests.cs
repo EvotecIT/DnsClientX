@@ -11,6 +11,18 @@ namespace DnsClientX.Tests;
 /// </summary>
 public class RootAnchorHelperTests
 {
+    /// <summary>Bundled anchors expose IANA lifecycle metadata for consumers and validation.</summary>
+    [Fact]
+    public void BundledTrustAnchorsExposeValidityMetadata()
+    {
+        DnsSecTrustAnchor current = Assert.Single(DnsSecTrustAnchors.Current, anchor => anchor.KeyTag == 38696);
+
+        Assert.Equal(new System.DateTimeOffset(2024, 7, 18, 0, 0, 0, System.TimeSpan.Zero), current.ValidFrom);
+        Assert.Null(current.ValidUntil);
+        Assert.False(current.IsValidAt(new System.DateTimeOffset(2024, 7, 17, 23, 59, 59, System.TimeSpan.Zero)));
+        Assert.True(current.IsValidAt(new System.DateTimeOffset(2024, 7, 18, 0, 0, 0, System.TimeSpan.Zero)));
+    }
+
     /// <summary>
     /// Parses embedded XML and verifies returned records.
     /// </summary>

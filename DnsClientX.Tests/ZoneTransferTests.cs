@@ -268,37 +268,39 @@ namespace DnsClientX.Tests {
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
 
             async Task Serve() {
+                try {
 #if NETFRAMEWORK
-                using (TcpClient client = await listener.AcceptTcpClientAsync()) {
+                    using (TcpClient client = await listener.AcceptTcpClientAsync()) {
 #else
-                using (TcpClient client = await listener.AcceptTcpClientAsync(token)) {
+                    using (TcpClient client = await listener.AcceptTcpClientAsync(token)) {
 #endif
-                    client.Close();
-                }
-
-#if NETFRAMEWORK
-                using (TcpClient client = await listener.AcceptTcpClientAsync()) {
-#else
-                using (TcpClient client = await listener.AcceptTcpClientAsync(token)) {
-#endif
-                    NetworkStream stream = client.GetStream();
-                    byte[] len = new byte[2];
-                    await TestUtilities.ReadExactlyAsync(stream, len, 2, token);
-                    if (BitConverter.IsLittleEndian) Array.Reverse(len);
-                    int qLen = BitConverter.ToUInt16(len, 0);
-                    byte[] q = new byte[qLen];
-                    await TestUtilities.ReadExactlyAsync(stream, q, qLen, token);
-                    foreach (var r in responses) {
-                        r[0] = q[0];
-                        r[1] = q[1];
-                        byte[] prefix = BitConverter.GetBytes((ushort)r.Length);
-                        if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
-                        await stream.WriteAsync(prefix, 0, prefix.Length, token);
-                        await stream.WriteAsync(r, 0, r.Length, token);
+                        client.Close();
                     }
-                }
 
-                listener.Stop();
+#if NETFRAMEWORK
+                    using (TcpClient client = await listener.AcceptTcpClientAsync()) {
+#else
+                    using (TcpClient client = await listener.AcceptTcpClientAsync(token)) {
+#endif
+                        NetworkStream stream = client.GetStream();
+                        byte[] len = new byte[2];
+                        await TestUtilities.ReadExactlyAsync(stream, len, 2, token);
+                        if (BitConverter.IsLittleEndian) Array.Reverse(len);
+                        int qLen = BitConverter.ToUInt16(len, 0);
+                        byte[] q = new byte[qLen];
+                        await TestUtilities.ReadExactlyAsync(stream, q, qLen, token);
+                        foreach (var r in responses) {
+                            r[0] = q[0];
+                            r[1] = q[1];
+                            byte[] prefix = BitConverter.GetBytes((ushort)r.Length);
+                            if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
+                            await stream.WriteAsync(prefix, 0, prefix.Length, token);
+                            await stream.WriteAsync(r, 0, r.Length, token);
+                        }
+                    }
+                } finally {
+                    listener.Stop();
+                }
             }
 
             return new AxfrServer(port, Serve());
@@ -310,16 +312,18 @@ namespace DnsClientX.Tests {
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
 
             async Task Serve() {
-                for (int i = 0; i < attempts; i++) {
+                try {
+                    for (int i = 0; i < attempts; i++) {
 #if NETFRAMEWORK
-                    using TcpClient client = await listener.AcceptTcpClientAsync();
+                        using TcpClient client = await listener.AcceptTcpClientAsync();
 #else
-                    using TcpClient client = await listener.AcceptTcpClientAsync(token);
+                        using TcpClient client = await listener.AcceptTcpClientAsync(token);
 #endif
-                    client.Close();
+                        client.Close();
+                    }
+                } finally {
+                    listener.Stop();
                 }
-
-                listener.Stop();
             }
 
             return new AxfrServer(port, Serve());
