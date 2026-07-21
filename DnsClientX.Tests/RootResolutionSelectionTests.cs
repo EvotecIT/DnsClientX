@@ -146,6 +146,22 @@ namespace DnsClientX.Tests {
             Assert.Equal("www.new.example", ClientX.FindAliasTarget(response, "www.old.example"));
         }
 
+        /// <summary>RFC 9156 keeps DS on the parent side instead of following the child cut.</summary>
+        [Fact]
+        public void SelectIterativeQuestion_AsksParentForFinalDs() {
+            ClientX.IterativeQuestion fromRoot = ClientX.SelectIterativeQuestion(
+                "child.example", DnsRecordType.DS, ".", enabled: true);
+            ClientX.IterativeQuestion fromParent = ClientX.SelectIterativeQuestion(
+                "child.example", DnsRecordType.DS, "example", enabled: true);
+
+            Assert.Equal("example", fromRoot.Name);
+            Assert.Equal(DnsRecordType.NS, fromRoot.Type);
+            Assert.False(fromRoot.IsFinal);
+            Assert.Equal("child.example", fromParent.Name);
+            Assert.Equal(DnsRecordType.DS, fromParent.Type);
+            Assert.True(fromParent.IsFinal);
+        }
+
         private static DnsAnswer Answer(string name, DnsRecordType type, string data) {
             return new DnsAnswer {
                 Name = name,

@@ -341,5 +341,30 @@ namespace DnsClientX.Tests {
             Assert.NotEqual(baseline, ipv6Preferred);
             Assert.NotEqual(baseline, fallbackDisabled);
         }
+
+        /// <summary>Locally validated entries cannot cross optional verifier instance boundaries.</summary>
+        [Fact]
+        public void CacheKeySeparatesDnsSecSignatureVerifiers() {
+            var configuration = new Configuration("192.0.2.53", DnsRequestFormat.DnsOverUDP);
+            string Key(bool validateDnsSec) => DnsCacheKeyBuilder.Build(configuration, "example.com", DnsRecordType.A,
+                true, validateDnsSec, false, false, false, TimeSpan.FromMinutes(1), false);
+            string withoutVerifier = Key(validateDnsSec: true);
+            string unvalidated = Key(validateDnsSec: false);
+            configuration.DnsSecSignatureVerifier = new FakeSignatureVerifier();
+            string firstVerifier = Key(validateDnsSec: true);
+            string unvalidatedWithVerifier = Key(validateDnsSec: false);
+            configuration.DnsSecSignatureVerifier = new FakeSignatureVerifier();
+            string secondVerifier = Key(validateDnsSec: true);
+
+            Assert.NotEqual(withoutVerifier, firstVerifier);
+            Assert.NotEqual(firstVerifier, secondVerifier);
+            Assert.Equal(unvalidated, unvalidatedWithVerifier);
+        }
+
+        private sealed class FakeSignatureVerifier : IDnsSecSignatureVerifier {
+            public string Name => "test";
+            public bool SupportsAlgorithm(DnsKeyAlgorithm algorithm) => false;
+            public bool Verify(DnsKeyAlgorithm algorithm, byte[] publicKey, byte[] data, byte[] signature) => false;
+        }
     }
 }

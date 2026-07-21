@@ -11,11 +11,14 @@ namespace DnsClientX {
         private readonly DateTimeOffset _now;
         private readonly Dictionary<string, Task<ZoneKeysResult>> _zoneCache = new(StringComparer.Ordinal);
         private readonly Rfc5011Store? _trustAnchorStore;
+        private readonly IDnsSecSignatureVerifier? _signatureVerifier;
 
         internal DnsSecValidationEngine(Func<string, DnsRecordType, CancellationToken, Task<DnsResponse>> lookup,
-            DateTimeOffset? now = null, string? trustAnchorStorePath = null) {
+            DateTimeOffset? now = null, string? trustAnchorStorePath = null,
+            IDnsSecSignatureVerifier? signatureVerifier = null) {
             _lookup = lookup ?? throw new ArgumentNullException(nameof(lookup));
             _now = now ?? DateTimeOffset.UtcNow;
+            _signatureVerifier = signatureVerifier;
             if (!string.IsNullOrWhiteSpace(trustAnchorStorePath)) {
                 _trustAnchorStore = new Rfc5011Store(trustAnchorStorePath!);
             }
@@ -190,7 +193,7 @@ namespace DnsClientX {
                     if (anchorSignature.Status == DnsSecValidationStatus.Secure) validatingAnchors.Add(anchor);
                 }
                 if (validatingAnchors.Count == 0) {
-                    return configuredAnchors.Any(key => DnsSecCrypto.IsSupportedAlgorithm(key.Algorithm))
+                    return configuredAnchors.Any(key => DnsSecCrypto.IsSupportedAlgorithm(key.Algorithm, _signatureVerifier))
                         ? ZoneKeysResult.Bogus("The root DNSKEY RRset was not signed by a configured trust-anchor key.")
                         : ZoneKeysResult.Indeterminate("No supported configured root trust-anchor key was available.");
                 }
@@ -242,7 +245,8 @@ namespace DnsClientX {
             var dsMatchedKeys = new List<DnsSecKey>();
             foreach (DnsWireResourceRecord dsRecord in dsRecords) {
                 if (!TryReadDs(dsResponse.WireMessage, dsRecord, out ushort keyTag, out byte algorithm, out byte digestType, out byte[] expected)) continue;
-                if ((digestType == 1 || digestType == 2 || digestType == 4) && DnsSecCrypto.IsSupportedAlgorithm(algorithm)) {
+                if ((digestType == 1 || digestType == 2 || digestType == 4)
+                    && DnsSecCrypto.IsSupportedAlgorithm(algorithm, _signatureVerifier)) {
                     supportedCombination = true;
                 }
                 foreach (DnsSecKey key in keys.Where(item => item.KeyTag == keyTag && item.Algorithm == algorithm)) {
@@ -460,7 +464,8 @@ namespace DnsClientX {
                     continue;
                 }
                 DnsSecKey[] candidates = keys.Where(key => key.KeyTag == signature.KeyTag && key.Algorithm == signature.Algorithm).ToArray();
-                if (candidates.Length == 0 || !DnsSecCrypto.IsSupportedAlgorithm(signature.Algorithm)) continue;
+                if (candidates.Length == 0
+                    || !DnsSecCrypto.IsSupportedAlgorithm(signature.Algorithm, _signatureVerifier)) continue;
                 supported = true;
                 if (!DnsSecWire.SignatureTimeIsValid(signature, _now)) {
                     timeFailure = true;
@@ -472,7 +477,7 @@ namespace DnsClientX {
                 } catch (DnsClientException ex) {
                     return DnsSecValidationResult.Bogus(ex.Message);
                 }
-                if (candidates.Any(key => DnsSecCrypto.Verify(key, data, signature.Signature))) {
+                if (candidates.Any(key => DnsSecCrypto.Verify(key, data, signature.Signature, _signatureVerifier))) {
                     return DnsSecValidationResult.Secure($"Validated {rrset.Name} {rrset.Type} with key tag {signature.KeyTag}.");
                 }
             }

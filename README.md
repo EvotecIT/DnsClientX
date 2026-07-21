@@ -809,7 +809,21 @@ Console.WriteLine($"Local DNSSEC status: {response.DnsSecValidationStatus}");
 Console.WriteLine(response.DnsSecValidationMessage);
 ```
 
-The resolver-provided `AuthenticData` flag and local validation are deliberately separate. `Secure` means DnsClientX built and verified a chain to a configured root trust anchor; `Insecure` means a secure parent authenticated an unsigned delegation; `Bogus` is a cryptographic or proof failure; and `Indeterminate` means the response, trust state, or supported algorithms were insufficient. The dependency-free validator supports RSA/SHA-1 (algorithms 5 and 7, for compatibility), RSA/SHA-256, RSA/SHA-512, ECDSA P-256/SHA-256, and ECDSA P-384/SHA-384. Ed25519 and Ed448 are supplied by the optional package described below rather than claimed by the core.
+The resolver-provided `AuthenticData` flag and local validation are deliberately separate. `Secure` means DnsClientX built and verified a chain to a configured root trust anchor; `Insecure` means a secure parent authenticated an unsigned delegation; `Bogus` is a cryptographic or proof failure; and `Indeterminate` means the response, trust state, or supported algorithms were insufficient. The dependency-free validator supports RSA/SHA-1 (algorithms 5 and 7, for compatibility), RSA/SHA-256, and RSA/SHA-512 on every target. The .NET 8 and .NET 10 assets also support ECDSA P-256/SHA-256 and ECDSA P-384/SHA-384. Ed25519 and Ed448 are supplied by the optional package below rather than claimed by the core.
+
+Install `DnsClientX.DnsSec.EdDsa` when RFC 8080 algorithms 15 and 16 are required. It is separately versioned and is the only DnsClientX package that depends on `BouncyCastle.Cryptography`:
+
+```csharp
+using DnsClientX.DnsSec.EdDsa;
+
+using var client = new ClientX(DnsEndpoint.RootServer);
+client.EndpointConfiguration.UseEdDsaDnsSec();
+
+DnsResponse response = await client.Resolve("signed.example", DnsRecordType.A,
+    requestDnsSec: true, validateDnsSec: true);
+```
+
+The extension verifier participates in the same chain validation, cache isolation, and `Secure`/`Bogus`/`Indeterminate` semantics as the built-in algorithms. Merely referencing the package does not enable it; configuration is explicit per client.
 
 The root-server profile enables RFC 9156 QNAME minimization by default. It asks for one delegation label at a time with type `NS`, continues through authoritative NODATA responses without revealing the final name, and sends the complete name and requested type only after reaching the authoritative zone. `DnsResponse.QNameMinimizedQueryCount` and `QNameMinimizationFallbackCount` make both the privacy protection and any compatibility downgrade visible. Set `Configuration.EnableQNameMinimization = false` only for controlled compatibility diagnostics.
 

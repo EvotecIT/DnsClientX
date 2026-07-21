@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace DnsClientX {
@@ -20,6 +21,10 @@ namespace DnsClientX {
             Append(builder, configuration.IterativeMaxHops.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Append(builder, configuration.EnableQNameMinimization ? "qname-minimized" : "full-qname");
             Append(builder, configuration.Rfc5011TrustAnchorStorePath ?? string.Empty);
+            IDnsSecSignatureVerifier? signatureVerifier = configuration.DnsSecSignatureVerifier;
+            Append(builder, !validateDnsSec || signatureVerifier == null
+                ? string.Empty
+                : $"{signatureVerifier.GetType().AssemblyQualifiedName}:{signatureVerifier.Name}:{RuntimeHelpers.GetHashCode(signatureVerifier)}");
             Append(builder, maxCacheTtl.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Append(builder, ignoreCertificateErrors ? "insecure-tls" : "validate-tls");
             Append(builder, DnsWireNameCodec.Canonical(normalizedName));

@@ -1,4 +1,12 @@
 ﻿## Unreleased - 2026.07.20
+### 2.1.0 DNS correctness, policy, transfer, and performance release
+
+- Adds persistent pipelined DNS-over-TCP and DNS-over-TLS sessions, exact-key single-flight caching, controlled load tests, and allocation/latency benchmark scenarios.
+- Adds Windows NRPT discovery and policy-aware system resolver routing.
+- Adds bounded IXFR, RFC 9103 XFR-over-TLS, and RFC 8976 ZONEMD validation.
+- Adds RFC 9156 QNAME minimization and opt-in RFC 5011 managed root trust anchors.
+- Adds the separately versioned `DnsClientX.DnsSec.EdDsa` package for RFC 8080 Ed25519 and Ed448 validation without adding dependencies to the core package.
+
 ### 2.0.0 breaking RFC and reliability release
 * Enforce DNS response correlation and wire-format bounds, including transaction ID, QR/opcode/question validation, compression-loop protection, complete section parsing, and EDNS extended response codes
 * Validate DoH HTTP status, media type, protocol version, and response body before DNS parsing so proxy and resolver error pages cannot masquerade as DNS responses

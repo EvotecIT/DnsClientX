@@ -182,6 +182,12 @@ namespace DnsClientX {
         public string? Rfc5011TrustAnchorStorePath { get; set; }
 
         /// <summary>
+        /// Gets or sets an optional thread-safe verifier for DNSSEC algorithms not implemented by
+        /// the dependency-free core, such as Ed25519 and Ed448.
+        /// </summary>
+        public IDnsSecSignatureVerifier? DnsSecSignatureVerifier { get; set; }
+
+        /// <summary>
         /// Sets the CD (Checking Disabled) flag on queries.
         /// </summary>
         public bool CheckingDisabled { get; set; }

@@ -2,7 +2,8 @@
   "$schema": "https://raw.githubusercontent.com/EvotecIT/PSPublishModule/main/Schemas/project.build.schema.json",
   "RootPath": "..",
   "ExpectedVersionMap": {
-    "DnsClientX": "2.0.X"
+    "DnsClientX": "2.1.X",
+    "DnsClientX.DnsSec.EdDsa": "1.0.X"
   },
   "ExpectedVersionMapAsInclude": true,
   "ExpectedVersionMapUseWildcards": false,

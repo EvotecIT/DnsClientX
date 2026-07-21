@@ -94,6 +94,7 @@ namespace DnsClientX {
                     validateDnsSec,
                     queryConfiguration.EnableQNameMinimization,
                     queryConfiguration.Rfc5011TrustAnchorStorePath,
+                    queryConfiguration.DnsSecSignatureVerifier,
                     cancellationToken).ConfigureAwait(false);
                 telemetry?.Complete(response);
                 return response;
@@ -113,6 +114,7 @@ namespace DnsClientX {
             bool validateDnsSec,
             bool enableQNameMinimization,
             string? trustAnchorStorePath,
+            IDnsSecSignatureVerifier? signatureVerifier,
             CancellationToken cancellationToken) {
             if (string.IsNullOrWhiteSpace(name)) throw new ArgumentNullException(nameof(name));
             if (maxHops <= 0) throw new ArgumentOutOfRangeException(nameof(maxHops));
@@ -157,7 +159,8 @@ namespace DnsClientX {
                         rootServers,
                         materialState,
                         token).ConfigureAwait(false);
-                }, trustAnchorStorePath: trustAnchorStorePath);
+                }, trustAnchorStorePath: trustAnchorStorePath,
+                    signatureVerifier: signatureVerifier);
                 DnsSecValidationResult validation = DnsSecValidationResult.Indeterminate(
                     "The iterative resolver did not retain a terminal DNSSEC validation segment.");
                 IReadOnlyList<RootDnsSecSegment> segments = state.ValidationSegments.Count == 0
@@ -562,6 +565,12 @@ namespace DnsClientX {
             string[] labels = normalizedName.Split('.');
             int bailiwickLabels = normalizedBailiwick == "." ? 0 : LabelCount(normalizedBailiwick);
             if (bailiwickLabels >= labels.Length) return new IterativeQuestion(normalizedName, type, true);
+            // RFC 9156 step 3: DS data belongs to the parent side of a zone cut. Once the
+            // closest known authority is exactly one label above QNAME, ask that parent the
+            // original DS question instead of following an NS referral to the child.
+            if (type == DnsRecordType.DS && bailiwickLabels + 1 == labels.Length) {
+                return new IterativeQuestion(normalizedName, type, true);
+            }
             string minimizedName = string.Join(".", labels.Skip(labels.Length - bailiwickLabels - 1));
             return new IterativeQuestion(minimizedName, DnsRecordType.NS, false);
         }

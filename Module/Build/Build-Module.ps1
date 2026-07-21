@@ -3,7 +3,7 @@
 Build-Module -ModuleName 'DnsClientX' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = '2.0.X'
+        ModuleVersion        = '2.1.X'
         CompatiblePSEditions = @('Desktop', 'Core')
         GUID                 = '77fa806c-70b7-48d9-8b88-942ed73f24ed'
         Author               = 'Przemyslaw Klys'
@@ -69,7 +69,7 @@ Build-Module -ModuleName 'DnsClientX' {
         SignModule                        = $true
         MergeModuleOnBuild                = $true
         MergeFunctionsFromApprovedModules = $true
-        CertificateThumbprint             = '483292C9E317AA13B07BB7A96AE9D1A5ED9E7703'
+        CertificateThumbprint             = '92E95FB58EFFA6A4A75E77A33CDD6BFE6DD30F1A'
         NETProjectPath                    = "$PSScriptRoot\..\..\DnsClientX.PowerShell"
         ResolveBinaryConflicts            = $true
         ResolveBinaryConflictsName        = 'DnsClientX.PowerShell'

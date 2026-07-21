@@ -29,6 +29,17 @@ namespace DnsClientX.Tests {
             Assert.False(DnsSecCrypto.Verify(key, data, signature));
         }
 
+        /// <summary>The supported-algorithm claim matches what the current target can execute.</summary>
+        [Fact]
+        public void SupportedAlgorithm_ReflectsTargetCapabilities() {
+#if NET5_0_OR_GREATER
+            Assert.True(DnsSecCrypto.IsSupportedAlgorithm((byte)DnsKeyAlgorithm.ECDSAP256SHA256));
+#else
+            Assert.False(DnsSecCrypto.IsSupportedAlgorithm((byte)DnsKeyAlgorithm.ECDSAP256SHA256));
+#endif
+            Assert.False(DnsSecCrypto.IsSupportedAlgorithm((byte)DnsKeyAlgorithm.ED25519));
+        }
+
 #if NET5_0_OR_GREATER
         /// <summary>Verifies DNSSEC ECDSA P-256 signatures use the RFC fixed-width encoding.</summary>
         [Fact]
