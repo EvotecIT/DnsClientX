@@ -293,6 +293,58 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>A timed-out written request keeps its connection capacity until the late reply is drained.</summary>
+        [Fact]
+        public async Task TimedOutWrittenQueryKeepsCapacityUntilLateResponse() {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var firstReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseLateResponse = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task server = Task.Run(async () => {
+                using TcpClient connection = await AcceptAsync(listener, guard.Token);
+                NetworkStream stream = connection.GetStream();
+                byte[] firstQuery = await ReadFrameAsync(stream, guard.Token);
+                firstReceived.TrySetResult(true);
+
+                Task<byte[]> secondRead = ReadFrameAsync(stream, guard.Token);
+                await releaseLateResponse.Task;
+                Assert.False(secondRead.IsCompleted,
+                    "A timed-out request released stream capacity before its late response was drained.");
+                await WriteFrameAsync(stream, TestUtilities.CreateResponseFromQuery(firstQuery), guard.Token);
+
+                byte[] secondQuery = await secondRead;
+                await WriteFrameAsync(stream, TestUtilities.CreateResponseFromQuery(secondQuery), guard.Token);
+            }, guard.Token);
+
+            try {
+                using var pool = new DnsStreamConnectionPool();
+                byte[] firstQuery = new DnsMessage("old.example", DnsRecordType.A,
+                    new DnsMessageOptions(TransactionId: 0x4242)).SerializeDnsWireFormat();
+                byte[] secondQuery = new DnsMessage("new.example", DnsRecordType.A,
+                    new DnsMessageOptions(TransactionId: 0x4343)).SerializeDnsWireFormat();
+
+                Task<byte[]> first = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
+                    firstQuery, 150, 1, guard.Token);
+                await firstReceived.Task;
+                await Assert.ThrowsAsync<TimeoutException>(() => first);
+
+                Task<byte[]> second = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
+                    secondQuery, 5000, 1, guard.Token);
+                await Task.Delay(100, guard.Token);
+                releaseLateResponse.TrySetResult(true);
+
+                byte[] response = await second;
+                DnsResponse parsed = await DnsWire.DeserializeDnsWireFormat(null, false, response);
+                Assert.Equal("new.example", Assert.Single(parsed.Questions).Name);
+                await server;
+            } finally {
+                releaseLateResponse.TrySetResult(true);
+                listener.Stop();
+            }
+        }
+
         /// <summary>Canceling behind the write gate leaves already-sent work and the shared stream intact.</summary>
         [Fact]
         public async Task QueuedWriteCancellationDoesNotFaultSharedConnection() {

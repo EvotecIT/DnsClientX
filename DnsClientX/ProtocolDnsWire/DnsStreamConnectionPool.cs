@@ -199,11 +199,13 @@ namespace DnsClientX {
                 CancellationToken cancellationToken, CancellationToken deadlineToken) {
                 ThrowIfUnavailable();
                 await _capacity.WaitAsync(deadlineToken).ConfigureAwait(false);
+                bool capacityOwnedByPendingQuery = false;
                 try {
                     await EnsureConnectedAsync(timeoutMilliseconds, deadlineToken).ConfigureAwait(false);
                     ushort transactionId = (ushort)((query[0] << 8) | query[1]);
                     PendingQuery pending = await ReserveTransactionIdAsync(transactionId, deadlineToken)
                         .ConfigureAwait(false);
+                    capacityOwnedByPendingQuery = true;
 
                     try {
                         await WriteQueryAsync(query, timeoutMilliseconds, deadlineToken, pending).ConfigureAwait(false);
@@ -236,14 +238,16 @@ namespace DnsClientX {
                     deadlineToken.ThrowIfCancellationRequested();
                     throw new TimeoutException($"The DNS stream query timed out after {timeoutMilliseconds} milliseconds.");
                 } finally {
-                    _capacity.Release();
+                    if (!capacityOwnedByPendingQuery) {
+                        _capacity.Release();
+                    }
                 }
             }
 
             private async Task<PendingQuery> ReserveTransactionIdAsync(ushort transactionId,
                 CancellationToken cancellationToken) {
                 while (true) {
-                    var pending = new PendingQuery();
+                    var pending = new PendingQuery(_capacity);
                     if (_pending.TryAdd(transactionId, pending)) return pending;
                     if (_pending.TryGetValue(transactionId, out PendingQuery? existing)) {
                         try {
@@ -476,14 +480,22 @@ namespace DnsClientX {
                     new KeyValuePair<ushort, PendingQuery>(transactionId, pending));
 
             private sealed class PendingQuery {
+                private readonly SemaphoreSlim _capacity;
+                private int _reservationReleased;
                 private int _writeStarted;
+                internal PendingQuery(SemaphoreSlim capacity) =>
+                    _capacity = capacity ?? throw new ArgumentNullException(nameof(capacity));
                 internal TaskCompletionSource<byte[]> Completion { get; } =
                     new(TaskCreationOptions.RunContinuationsAsynchronously);
                 internal TaskCompletionSource<bool> ReservationReleased { get; } =
                     new(TaskCreationOptions.RunContinuationsAsynchronously);
                 internal bool WriteStarted => Volatile.Read(ref _writeStarted) != 0;
                 internal void MarkWriteStarted() => Volatile.Write(ref _writeStarted, 1);
-                internal void ReleaseReservation() => ReservationReleased.TrySetResult(true);
+                internal void ReleaseReservation() {
+                    if (Interlocked.Exchange(ref _reservationReleased, 1) != 0) return;
+                    _capacity.Release();
+                    ReservationReleased.TrySetResult(true);
+                }
             }
         }
     }

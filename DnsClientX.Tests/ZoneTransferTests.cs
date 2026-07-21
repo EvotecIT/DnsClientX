@@ -103,7 +103,8 @@ namespace DnsClientX.Tests {
             }
         }
 
-        private static AxfrServer RunAxfrServerAsync(byte[][] responses, CancellationToken token) {
+        private static AxfrServer RunAxfrServerAsync(byte[][] responses, CancellationToken token,
+            Task? keepConnectionOpenUntil = null) {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -128,6 +129,9 @@ namespace DnsClientX.Tests {
                     if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
                     await stream.WriteAsync(prefix, 0, prefix.Length, token);
                     await stream.WriteAsync(r, 0, r.Length, token);
+                }
+                if (keepConnectionOpenUntil != null) {
+                    await keepConnectionOpenUntil;
                 }
                 listener.Stop();
             }
@@ -260,6 +264,32 @@ namespace DnsClientX.Tests {
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
             await Assert.ThrowsAsync<DnsClientException>(() => client.ZoneTransferAsync("example.com"));
             await server.Task;
+        }
+
+        /// <summary>The matching closing SOA terminates AXFR without requiring the reusable TCP connection to close.</summary>
+        [Fact]
+        public async Task ZoneTransferAsync_DoesNotWaitForConnectionClose() {
+            var soa = BuildSoaRdata();
+            byte[] opening = BuildMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
+            byte[] closing = BuildMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var releaseConnection = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var server = RunAxfrServerAsync(new[] { opening, closing }, cts.Token, releaseConnection.Task);
+
+            try {
+                using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) {
+                    EndpointConfiguration = { Port = server.Port, TimeOut = 500 }
+                };
+                ZoneTransferResult[] results = await client.ZoneTransferAsync("example.com");
+
+                ZoneTransferResult result = Assert.Single(results);
+                Assert.Equal(2, result.Records.Length);
+                Assert.True(result.IsOpening);
+                Assert.True(result.IsClosing);
+            } finally {
+                releaseConnection.TrySetResult(true);
+                await server.Task;
+            }
         }
 
         private static AxfrServer RunAxfrServerFailOnceAsync(byte[][] responses, CancellationToken token) {
