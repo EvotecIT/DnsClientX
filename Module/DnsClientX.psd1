@@ -13,12 +13,12 @@
     PowerShellVersion    = '5.1'
     PrivateData          = @{
         PSData = @{
-            IconUri    = 'https://raw.githubusercontent.com/EvotecIT/DnsClientX/master/Assets/Icons/DnsClientX3_128x128.png'
-            ProjectUri = 'https://github.com/EvotecIT/DnsClientX'
-            Tags       = @('Windows', 'MacOS', 'Linux')
-            RequireLicenseAcceptance = $false
+            IconUri                    = 'https://raw.githubusercontent.com/EvotecIT/DnsClientX/master/Assets/Icons/DnsClientX3_128x128.png'
+            ProjectUri                 = 'https://github.com/EvotecIT/DnsClientX'
+            Tags                       = @('Windows', 'MacOS', 'Linux')
+            RequireLicenseAcceptance   = $false
             ExternalModuleDependencies = @()
-}
+        }
     }
     RootModule           = 'DnsClientX.psm1'
     RequiredModules      = @()
