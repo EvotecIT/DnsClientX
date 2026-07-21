@@ -389,7 +389,7 @@ This behavior is by design and reflects the modern, distributed nature of intern
 - Unix-like systems can fall back to `/etc/resolv.conf`, including `nameserver`, `search`/`domain`, and `options ndots:n`.
 - Configured loopback and link-local resolvers are preserved because local forwarding stubs and IPv6 scoped DNS servers are valid. Unspecified and multicast addresses are rejected.
 - UDP clients reuse healthy connected sockets and automatically retry a truncated response over TCP when `UseTcpFallback` is enabled. TCP and DoT clients reuse persistent RFC 7766 connections, pipeline bounded concurrent queries, and dispatch out-of-order responses by transaction ID.
-- On Windows, dependency-free NRPT discovery honors the Group Policy-over-local-policy precedence rule. Supported suffix, prefix, FQDN, and catch-all matches route through `GenericDNSServers`; `DNSSECValidationRequired` triggers local chain validation. Conflicts and DirectAccess, IPsec, wildcard/subnet, or auto-trigger VPN behavior fail explicitly instead of bypassing policy.
+- On Windows, dependency-free NRPT discovery honors the Group Policy-over-local-policy precedence rule. Supported suffix, prefix, FQDN, and catch-all matches route through `GenericDNSServers`; `DNSSECValidationRequired` triggers local chain validation. Punycode IDN policy is supported, while Windows-only UTF-8 IDN modes, conflicts, DirectAccess, IPsec, wildcard/subnet, and auto-trigger VPN behavior fail explicitly instead of bypassing policy.
 - There is no silent public-resolver substitution. Missing system DNS is an explicit configuration error unless the caller opts in to `SystemDnsFallback.PublicResolvers`.
 
 ```csharp
@@ -417,7 +417,7 @@ Search expansion is enabled by default for system endpoints and can be disabled 
 
 NRPT enforcement is enabled by default for system endpoints and can be deliberately disabled with `Configuration.UseSystemDnsPolicies`. The applied match is available as `DnsResponse.AppliedSystemDnsPolicy`. DnsClientX reads policy directly and does not emulate Windows DirectAccess, VPN activation, or IPsec state; use the operating-system resolver API when those services own the policy.
 
-Persistent TCP/DoT reuse is enabled by default. Set `EnableTcpConnectionReuse = false` only for compatibility diagnostics with a broken server. `MaxTcpQueriesPerConnection` bounds in-flight queries on one connection and defaults to 128. Caller cancellation removes only that transaction; late responses are consumed without completing another query.
+Persistent TCP/DoT reuse is enabled by default. Set `EnableTcpConnectionReuse = false` only for compatibility diagnostics with a broken server. `MaxTcpQueriesPerConnection` bounds in-flight queries on one connection and defaults to 128. The configured timeout covers capacity, connection, transaction-ID reservation, write, and response waits. Caller cancellation removes only that transaction; late responses are consumed without completing another query.
 
 This direct DNS client does not delegate name resolution to the operating-system resolver service and does not claim parity with every platform-specific resolver feature. Configure a `Configuration` instance before issuing concurrent queries; each query takes a defensive snapshot, but concurrent mutation of shared configuration is not a supported control plane.
 
@@ -1157,7 +1157,7 @@ dotnet run -c Release -f net10.0 --project .\DnsClientX.LoadTests -- `
   --json .\artifacts\dns-load.json
 ```
 
-Use a resolver you own for sustained tests. The runner disables caching and retries, creates one reusable client per concurrency scenario, and returns a nonzero exit code when any request fails. Results compare complete query behavior; parser-only and cache-only costs belong in the microbenchmark suites above.
+Use a resolver you own for sustained tests. The runner disables caching and retries, creates one reusable client per concurrency scenario, and returns a nonzero exit code when any request fails. A `NoError` RCODE counts as success only when no response error is present and the complete pre-projection answer contains the requested RRset; missing or dropped answers are reported separately. Results compare complete query behavior; parser-only and cache-only costs belong in the microbenchmark suites above.
 
 ### Error Handling and Debugging
 

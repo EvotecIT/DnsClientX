@@ -71,6 +71,23 @@ namespace DnsClientX.Tests {
             Assert.Equal(3, result.FullZoneRecords.Count);
         }
 
+        /// <summary>An AXFR fallback whose opening SOA is isolated in the first frame is read to its closing SOA.</summary>
+        [Fact]
+        public async Task ParsesMultiMessageFullTransferFallback() {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            TransferServer server = RunServer(cts.Token,
+                BuildMessage("example.com", Soa(4)),
+                BuildMessage("example.com", A("www.example.com", 192, 0, 2, 4), Soa(4)));
+            using var client = CreateClient(server.Port);
+
+            IncrementalZoneTransferResult result = await client.IncrementalZoneTransferAsync(
+                "example.com", 1, cts.Token);
+
+            Assert.Equal(IncrementalZoneTransferKind.FullTransfer, result.Kind);
+            Assert.Equal((uint)4, result.CurrentSoa.Serial);
+            Assert.Equal(3, result.FullZoneRecords.Count);
+        }
+
         /// <summary>Rejects gaps in the old-to-new SOA serial chain.</summary>
         [Fact]
         public async Task RejectsBrokenSerialChain() {
@@ -126,7 +143,10 @@ namespace DnsClientX.Tests {
             return stream.ToArray();
         }
 
-        private static TransferServer RunServer(byte[] response, CancellationToken token) {
+        private static TransferServer RunServer(byte[] response, CancellationToken token) =>
+            RunServer(token, response);
+
+        private static TransferServer RunServer(CancellationToken token, params byte[][] responses) {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             var request = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -140,11 +160,13 @@ namespace DnsClientX.Tests {
                     var query = new byte[count];
                     await TestUtilities.ReadExactlyAsync(stream, query, count, token);
                     request.TrySetResult(query);
-                    response[0] = query[0];
-                    response[1] = query[1];
-                    byte[] prefix = { (byte)(response.Length >> 8), (byte)response.Length };
-                    await stream.WriteAsync(prefix, 0, prefix.Length, token);
-                    await stream.WriteAsync(response, 0, response.Length, token);
+                    foreach (byte[] response in responses) {
+                        response[0] = query[0];
+                        response[1] = query[1];
+                        byte[] prefix = { (byte)(response.Length >> 8), (byte)response.Length };
+                        await stream.WriteAsync(prefix, 0, prefix.Length, token);
+                        await stream.WriteAsync(response, 0, response.Length, token);
+                    }
                 } finally {
                     listener.Stop();
                 }

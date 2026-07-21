@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Security;
@@ -178,6 +179,16 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>A saturated RFC 7766 connection cannot hide an unbounded wait before the query deadline starts.</summary>
+        [Fact]
+        public Task CapacityWaitUsesWholeQueryDeadline() =>
+            AssertQueuedQueryUsesWholeDeadline(sameTransactionId: false, maxInFlight: 1);
+
+        /// <summary>A colliding transaction ID cannot wait beyond the second caller's whole-query deadline.</summary>
+        [Fact]
+        public Task TransactionIdWaitUsesWholeQueryDeadline() =>
+            AssertQueuedQueryUsesWholeDeadline(sameTransactionId: true, maxInFlight: 2);
+
 #if NET6_0_OR_GREATER
         /// <summary>DoT uses the same pipelined response-correlation engine over one authenticated stream.</summary>
         [Fact]
@@ -250,6 +261,51 @@ namespace DnsClientX.Tests {
                 await WriteFrameAsync(stream, TestUtilities.CreateResponseFromQuery(queries[0]), cancellationToken);
             } finally {
                 tls?.Dispose();
+            }
+        }
+
+        private static async Task AssertQueuedQueryUsesWholeDeadline(bool sameTransactionId, int maxInFlight) {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var firstReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task server = Task.Run(async () => {
+                using TcpClient connection = await AcceptAsync(listener, guard.Token);
+                NetworkStream stream = connection.GetStream();
+                byte[] query = await ReadFrameAsync(stream, guard.Token);
+                firstReceived.TrySetResult(true);
+                await releaseFirst.Task;
+                await WriteFrameAsync(stream, TestUtilities.CreateResponseFromQuery(query), guard.Token);
+            }, guard.Token);
+
+            try {
+                using var pool = new DnsStreamConnectionPool();
+                byte[] firstQuery = new DnsMessage("first.example", DnsRecordType.A,
+                    new DnsMessageOptions(TransactionId: 0x1234)).SerializeDnsWireFormat();
+                byte[] secondQuery = new DnsMessage("second.example", DnsRecordType.A,
+                    new DnsMessageOptions(TransactionId: sameTransactionId ? (ushort)0x1234 : (ushort)0x5678))
+                    .SerializeDnsWireFormat();
+                Task<byte[]> first = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
+                    firstQuery, 2000, maxInFlight, guard.Token);
+                await firstReceived.Task;
+
+                var elapsed = Stopwatch.StartNew();
+                Task<byte[]> queued = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
+                    secondQuery, 150, maxInFlight, guard.Token);
+                await Assert.ThrowsAsync<TimeoutException>(() => queued);
+                elapsed.Stop();
+
+                Assert.InRange(elapsed.ElapsedMilliseconds, 50, 1500);
+                releaseFirst.TrySetResult(true);
+                byte[] response = await first;
+                Assert.Equal((byte)0x12, response[0]);
+                Assert.Equal((byte)0x34, response[1]);
+                await server;
+            } finally {
+                releaseFirst.TrySetResult(true);
+                listener.Stop();
             }
         }
 

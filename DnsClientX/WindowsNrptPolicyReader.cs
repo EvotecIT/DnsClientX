@@ -38,6 +38,7 @@ namespace DnsClientX {
             "Name",
             "ConfigOptions",
             "GenericDNSServers",
+            "IDNConfig",
             "DNSSECValidationRequired",
             "DNSSECQueryIPsecRequired",
             "VpnRequired",
@@ -109,6 +110,19 @@ namespace DnsClientX {
             }
             if ((configOptions & GenericDnsOptions) != 0 && nameServers.Length == 0) {
                 diagnostics.Add("Generic DNS routing is enabled but no valid DNS server was configured.");
+            }
+            if ((configOptions & IdnOptions) != 0) {
+                if (!values.ContainsKey("IDNConfig")) {
+                    diagnostics.Add("IDN routing is enabled but the required IDNConfig value is missing.");
+                } else {
+                    int idnConfig = ReadInt32(values, "IDNConfig");
+                    if (idnConfig == 0 || idnConfig == 1) {
+                        diagnostics.Add(
+                            $"IDNConfig mode {idnConfig} requires Windows UTF-8 name handling that the managed Punycode DNS transport cannot reproduce.");
+                    } else if (idnConfig != 2) {
+                        diagnostics.Add($"IDNConfig mode {idnConfig} is not defined by the Windows NRPT protocol.");
+                    }
+                }
             }
 
             return new SystemDnsPolicyRule(

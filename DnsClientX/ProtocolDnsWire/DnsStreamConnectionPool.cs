@@ -40,26 +40,41 @@ namespace DnsClientX {
             }
             if (timeoutMilliseconds <= 0) throw new ArgumentOutOfRangeException(nameof(timeoutMilliseconds));
 
-            Exception? firstFailure = null;
-            for (int attempt = 0; attempt < 2; attempt++) {
-                ThrowIfDisposed();
-                DnsStreamConnection connection = _connections.GetOrAdd(key,
-                    item => new DnsStreamConnection(item));
-                if (Volatile.Read(ref _disposed) != 0) {
-                    if (_connections.TryRemove(key, out DnsStreamConnection? removed)) removed.Dispose();
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            deadline.CancelAfter(timeoutMilliseconds);
+            try {
+                Exception? firstFailure = null;
+                for (int attempt = 0; attempt < 2; attempt++) {
                     ThrowIfDisposed();
-                }
-                try {
-                    return await connection.QueryAsync(query, timeoutMilliseconds, cancellationToken)
-                        .ConfigureAwait(false);
-                } catch (DnsStreamConnectionException exception) when (attempt == 0 && !cancellationToken.IsCancellationRequested) {
-                    firstFailure = exception;
-                    if (_connections.TryRemove(key, out DnsStreamConnection? removed)) {
-                        removed.Dispose();
+                    DnsStreamConnection connection = _connections.GetOrAdd(key,
+                        item => new DnsStreamConnection(item));
+                    if (Volatile.Read(ref _disposed) != 0) {
+                        if (_connections.TryRemove(key, out DnsStreamConnection? removed)) removed.Dispose();
+                        ThrowIfDisposed();
+                    }
+                    try {
+                        return await connection.QueryAsync(
+                                query, timeoutMilliseconds, cancellationToken, deadline.Token)
+                            .ConfigureAwait(false);
+                    } catch (DnsStreamConnectionException exception) when (attempt == 0
+                        && !cancellationToken.IsCancellationRequested
+                        && !deadline.IsCancellationRequested) {
+                        firstFailure = exception;
+                        if (_connections.TryRemove(key, out DnsStreamConnection? removed)) {
+                            removed.Dispose();
+                        }
                     }
                 }
+                throw firstFailure ?? new DnsStreamConnectionException("The DNS stream query failed after reconnecting.");
+            } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested
+                && deadline.IsCancellationRequested) {
+                throw new TimeoutException(
+                    $"The DNS stream query timed out after {timeoutMilliseconds} milliseconds.");
+            } catch (DnsStreamConnectionException exception) when (!cancellationToken.IsCancellationRequested
+                && deadline.IsCancellationRequested) {
+                throw new TimeoutException(
+                    $"The DNS stream query timed out after {timeoutMilliseconds} milliseconds.", exception);
             }
-            throw firstFailure ?? new DnsStreamConnectionException("The DNS stream query failed after reconnecting.");
         }
 
         private void ThrowIfDisposed() {
@@ -149,17 +164,17 @@ namespace DnsClientX {
             }
 
             internal async Task<byte[]> QueryAsync(byte[] query, int timeoutMilliseconds,
-                CancellationToken cancellationToken) {
+                CancellationToken cancellationToken, CancellationToken deadlineToken) {
                 ThrowIfDisposed();
-                await _capacity.WaitAsync(cancellationToken).ConfigureAwait(false);
+                await _capacity.WaitAsync(deadlineToken).ConfigureAwait(false);
                 try {
-                    await EnsureConnectedAsync(timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
+                    await EnsureConnectedAsync(timeoutMilliseconds, deadlineToken).ConfigureAwait(false);
                     ushort transactionId = (ushort)((query[0] << 8) | query[1]);
-                    PendingQuery pending = await ReserveTransactionIdAsync(transactionId, cancellationToken)
+                    PendingQuery pending = await ReserveTransactionIdAsync(transactionId, deadlineToken)
                         .ConfigureAwait(false);
 
                     try {
-                        await WriteQueryAsync(query, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
+                        await WriteQueryAsync(query, timeoutMilliseconds, deadlineToken).ConfigureAwait(false);
                     } catch (Exception exception) {
                         _pending.TryRemove(transactionId, out _);
                         var failure = ToConnectionException(exception, "Writing the framed DNS query failed.");
@@ -168,9 +183,7 @@ namespace DnsClientX {
                         throw failure;
                     }
 
-                    using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                    deadline.CancelAfter(timeoutMilliseconds);
-                    Task timeoutTask = Task.Delay(Timeout.Infinite, deadline.Token);
+                    Task timeoutTask = Task.Delay(Timeout.Infinite, deadlineToken);
                     Task completed = await Task.WhenAny(pending.Completion.Task, timeoutTask).ConfigureAwait(false);
                     if (completed == pending.Completion.Task || pending.Completion.Task.IsCompleted) {
                         return await pending.Completion.Task.ConfigureAwait(false);
@@ -180,6 +193,7 @@ namespace DnsClientX {
                         removed.Completion.TrySetCanceled();
                     }
                     cancellationToken.ThrowIfCancellationRequested();
+                    deadlineToken.ThrowIfCancellationRequested();
                     throw new TimeoutException($"The DNS stream query timed out after {timeoutMilliseconds} milliseconds.");
                 } finally {
                     _capacity.Release();

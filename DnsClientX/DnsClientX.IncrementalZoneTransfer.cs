@@ -20,7 +20,8 @@ namespace DnsClientX {
             Configuration configuration = EndpointConfiguration.CreateQuerySnapshot();
             ValidateZoneTransferConfiguration(configuration);
             var query = DnsIxfrQueryMessage.Create(zone, currentSoa, configuration.CheckingDisabled);
-            List<DnsAnswer> records = await ReceiveIxfrAsync(query, zone, configuration, cancellationToken)
+            List<DnsAnswer> records = await ReceiveIxfrAsync(
+                    query, zone, currentSoa.Serial, configuration, cancellationToken)
                 .ConfigureAwait(false);
             return ParseIxfr(zone, currentSoa.Serial, records);
         }
@@ -38,7 +39,7 @@ namespace DnsClientX {
         }
 
         private async Task<List<DnsAnswer>> ReceiveIxfrAsync(DnsIxfrQueryMessage query, string zone,
-            Configuration configuration, CancellationToken cancellationToken) {
+            uint requestedSerial, Configuration configuration, CancellationToken cancellationToken) {
             await using DnsZoneTransferConnection connection = await DnsZoneTransferConnection.ConnectAsync(
                 configuration.Hostname!, configuration.Port, configuration.TimeOut, configuration,
                 IgnoreCertificateErrors, cancellationToken).ConfigureAwait(false);
@@ -91,7 +92,8 @@ namespace DnsClientX {
                     records.Add(answer);
                 }
 
-                if (records.Count == 1 && answers.Length == 1) {
+                if (records.Count == 1 && answers.Length == 1
+                    && ParseSoa(records[0]).Serial == requestedSerial) {
                     return records;
                 }
                 if (openingSoa.HasValue && records.Count > 1
@@ -110,6 +112,10 @@ namespace DnsClientX {
             }
             SoaRecord current = ParseSoa(records[0]);
             if (records.Count == 1) {
+                if (current.Serial != requestedSerial) {
+                    throw new DnsClientException(
+                        $"A single-SOA IXFR response reported serial {current.Serial}, not the requested serial {requestedSerial}.");
+                }
                 return new IncrementalZoneTransferResult(IncrementalZoneTransferKind.NoChange, current);
             }
             if (records[records.Count - 1].Type != DnsRecordType.SOA

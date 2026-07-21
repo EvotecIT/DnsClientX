@@ -166,10 +166,13 @@ namespace DnsClientX {
             DnsWireResourceRecord[] records = DnsSecWire.Records(keyResponse);
             DnsWireResourceRecord[] keyRecords = records.Where(record => record.Type == DnsRecordType.DNSKEY &&
                 string.Equals(DnsWireNameCodec.Canonical(record.Name), zone, StringComparison.Ordinal)).ToArray();
+            var observedSepKeys = new List<DnsSecKey>();
             var keys = new List<DnsSecKey>();
             foreach (DnsWireResourceRecord record in keyRecords) {
-                if (DnsSecWire.TryReadKey(keyResponse.WireMessage, record, out DnsSecKey key) &&
-                    (key.Flags & 0x0100) != 0 && (key.Flags & 0x0080) == 0) keys.Add(key);
+                if (!DnsSecWire.TryReadKey(keyResponse.WireMessage, record, out DnsSecKey key)
+                    || (key.Flags & 0x0100) == 0) continue;
+                observedSepKeys.Add(key);
+                if ((key.Flags & 0x0080) == 0) keys.Add(key);
             }
             if (keys.Count == 0) return ZoneKeysResult.Indeterminate($"No usable DNSKEY RRset was returned for {zone}");
 
@@ -200,7 +203,7 @@ namespace DnsClientX {
 
                 if (_trustAnchorStore != null) {
                     var verifiedRevocations = new List<string>();
-                    foreach (DnsSecKey key in keys.Where(key => (key.Flags & 0x0080) != 0)) {
+                    foreach (DnsSecKey key in observedSepKeys.Where(key => (key.Flags & 0x0080) != 0)) {
                         if (VerifyRrset(keyResponse, keyRrset, keySignatures, new[] { key }).Status
                             == DnsSecValidationStatus.Secure) {
                             verifiedRevocations.Add(Rfc5011Store.KeyIdentity(key));
@@ -212,7 +215,7 @@ namespace DnsClientX {
                         : DateTimeOffset.FromUnixTimeSeconds(keySignatures.Min(signature => (long)signature.Expiration));
                     try {
                         _trustAnchorStore.ObserveAuthenticated(
-                            keys,
+                            observedSepKeys,
                             validatingAnchors.Select(Rfc5011Store.KeyIdentity).ToArray(),
                             verifiedRevocations,
                             originalTtl,

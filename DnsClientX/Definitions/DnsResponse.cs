@@ -139,7 +139,7 @@ namespace DnsClientX {
         /// the caller-facing answer projection.
         /// </summary>
         [JsonIgnore]
-        internal bool RequestedAnswerPresent { get; set; }
+        public bool RequestedAnswerPresent { get; internal set; }
 
         /// <summary>
         /// Minimum TTL across <see cref="Answers"/> (seconds).

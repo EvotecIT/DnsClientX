@@ -99,6 +99,42 @@ namespace DnsClientX.Tests {
             Assert.Contains("DirectAccess", rule.Diagnostic);
         }
 
+        /// <summary>The managed DNS wire path faithfully matches the NRPT Punycode IDN mode.</summary>
+        [Fact]
+        public void PunycodeIdnRuleIsSupported() {
+            SystemDnsPolicyRule rule = WindowsNrptPolicyReader.ParseRule(
+                "idn-punycode",
+                SystemDnsPolicySource.Local,
+                new Dictionary<string, object?> {
+                    ["Name"] = new[] { ".münchen.example" },
+                    ["ConfigOptions"] = 0x18,
+                    ["GenericDNSServers"] = "192.0.2.10",
+                    ["IDNConfig"] = 2
+                });
+
+            Assert.True(rule.IsSupported);
+            Assert.True(rule.TryMatch("www.xn--mnchen-3ya.example", out _, out _));
+        }
+
+        /// <summary>Windows UTF-8 IDN modes are reported unsupported instead of being silently mapped to Punycode.</summary>
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        public void Utf8IdnModesAreReportedUnsupported(int idnConfig) {
+            SystemDnsPolicyRule rule = WindowsNrptPolicyReader.ParseRule(
+                "idn-utf8",
+                SystemDnsPolicySource.Local,
+                new Dictionary<string, object?> {
+                    ["Name"] = new[] { ".münchen.example" },
+                    ["ConfigOptions"] = 0x18,
+                    ["GenericDNSServers"] = "192.0.2.10",
+                    ["IDNConfig"] = idnConfig
+                });
+
+            Assert.False(rule.IsSupported);
+            Assert.Contains("UTF-8", rule.Diagnostic);
+        }
+
         /// <summary>Restores process-wide test discovery hooks.</summary>
         public void Dispose() {
             SystemInformation.SetDnsPolicyProvider(null);

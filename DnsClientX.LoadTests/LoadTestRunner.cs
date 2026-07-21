@@ -13,7 +13,11 @@ internal static class LoadTestRunner {
             cancellationToken.ThrowIfCancellationRequested();
             using ClientX client = CreateClient(options);
             for (int warmup = 0; warmup < options.Warmup; warmup++) {
-                await ResolveAsync(client, options, cancellationToken).ConfigureAwait(false);
+                DnsResponse response = await ResolveAsync(client, options, cancellationToken).ConfigureAwait(false);
+                string? failure = ClassifyFailure(response);
+                if (failure != null) {
+                    throw new InvalidOperationException($"Load-test warmup failed: {failure}.");
+                }
             }
             reports.Add(await RunScenarioAsync(client, options, concurrency, cancellationToken).ConfigureAwait(false));
         }
@@ -76,10 +80,11 @@ internal static class LoadTestRunner {
                 long queryStart = Stopwatch.GetTimestamp();
                 try {
                     DnsResponse response = await ResolveAsync(client, options, cancellationToken).ConfigureAwait(false);
-                    if (response.Status == DnsResponseCode.NoError) {
+                    string? failure = ClassifyFailure(response);
+                    if (failure == null) {
                         Interlocked.Increment(ref succeeded);
                     } else {
-                        failures.AddOrUpdate($"DNS:{response.Status}", 1, (_, count) => count + 1);
+                        failures.AddOrUpdate(failure, 1, (_, count) => count + 1);
                     }
                 } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
                     throw;
@@ -94,6 +99,14 @@ internal static class LoadTestRunner {
 
     private static Task<DnsResponse> ResolveAsync(ClientX client, LoadTestOptions options, CancellationToken cancellationToken) =>
         client.Resolve(options.Name, options.Type, retryOnTransient: false, cancellationToken: cancellationToken);
+
+    internal static string? ClassifyFailure(DnsResponse response) {
+        if (response == null) throw new ArgumentNullException(nameof(response));
+        if (response.Status != DnsResponseCode.NoError) return $"DNS:{response.Status}";
+        if (!string.IsNullOrWhiteSpace(response.Error)) return "ResponseError";
+        if (!response.RequestedAnswerPresent) return "MissingRequestedAnswer";
+        return null;
+    }
 
     private static ClientX CreateClient(LoadTestOptions options) {
         Configuration configuration;
