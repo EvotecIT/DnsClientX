@@ -14,18 +14,7 @@ namespace DnsClientX.Tests {
     /// </summary>
     [Collection("NoParallel")]
     public class CliExplainTraceTests {
-        private static byte[] CreateDnsHeader() {
-            byte[] bytes = new byte[12];
-            ushort id = 0x1234;
-            bytes[0] = (byte)(id >> 8);
-            bytes[1] = (byte)(id & 0xFF);
-            ushort flags = 0x8180;
-            bytes[2] = (byte)(flags >> 8);
-            bytes[3] = (byte)(flags & 0xFF);
-            return bytes;
-        }
-
-        private static async Task RunUdpServerAsync(int port, byte[] response, CancellationToken token) {
+        private static async Task RunUdpServerAsync(int port, CancellationToken token) {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
             UdpReceiveResult result;
 #if NET5_0_OR_GREATER
@@ -38,6 +27,7 @@ namespace DnsClientX.Tests {
             }
             result = receiveTask.Result;
 #endif
+            byte[] response = TestUtilities.CreateResponseFromQuery(result.Buffer);
 #if NET5_0_OR_GREATER
             await udp.SendAsync(response, result.RemoteEndPoint, token);
 #else
@@ -92,7 +82,7 @@ namespace DnsClientX.Tests {
         public async Task ExplainOption_PrintsDiagnostics() {
             int port = TestUtilities.GetFreeUdpPort();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            Task serverTask = RunUdpServerAsync(port, CreateDnsHeader(), cts.Token);
+            Task serverTask = RunUdpServerAsync(port, cts.Token);
 
             using var output = new StringWriter();
             TextWriter originalOut = Console.Out;
@@ -130,7 +120,7 @@ namespace DnsClientX.Tests {
         public async Task TraceOption_PrintsAuditDetails() {
             int port = TestUtilities.GetFreeUdpPort();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            Task serverTask = RunUdpServerAsync(port, CreateDnsHeader(), cts.Token);
+            Task serverTask = RunUdpServerAsync(port, cts.Token);
 
             using var output = new StringWriter();
             TextWriter originalOut = Console.Out;
@@ -277,14 +267,14 @@ namespace DnsClientX.Tests {
                 Assert.Contains("Probe:", text);
                 Assert.Contains("Domain: example.com", text);
                 Assert.Contains("Endpoint profile: Cloudflare", text);
-                Assert.Contains("Candidates: 6", text);
+                Assert.Contains("Candidates: 4", text);
                 Assert.Contains("[OK] Cloudflare via DnsOverHttpsJSON", text);
-                Assert.Contains("[OK] CloudflareQuic via DnsOverQuic", text);
-                Assert.Contains("Successful probes: 6/6", text);
+                Assert.DoesNotContain("CloudflareQuic", text);
+                Assert.Contains("Successful probes: 4/4", text);
                 Assert.Contains("Fastest success:", text);
                 Assert.Contains("Fastest consensus responder:", text);
-                Assert.Contains("Transport coverage: Doh 5/5 | Quic 1/1", text);
-                Assert.Contains("Answer consensus: 6/6 successful probes agree", text);
+                Assert.Contains("Transport coverage: Doh 4/4", text);
+                Assert.Contains("Answer consensus: 4/4 successful probes agree", text);
                 Assert.Contains("Mismatched responders: none", text);
                 Assert.Contains("Distinct answer sets: 1", text);
                 Assert.Contains("Answer variants: [1] example.com A 1.1.1.1 <-", text);
@@ -762,7 +752,7 @@ namespace DnsClientX.Tests {
                 Assert.Contains("Probe:", text);
                 Assert.Contains("Detail mode: summary-only", text);
                 Assert.Contains("Probe Summary:", text);
-                Assert.Contains("Successful probes: 6/6", text);
+                Assert.Contains("Successful probes: 4/4", text);
                 Assert.Contains("Policy result: pass", text);
                 Assert.DoesNotContain("[OK] Cloudflare via", text);
                 Assert.DoesNotContain("[OK] CloudflareQuic via", text);
@@ -807,11 +797,11 @@ namespace DnsClientX.Tests {
                 Assert.Contains("summary_version=1", text);
                 Assert.Contains("result=pass", text);
                 Assert.Contains("exit_code=0", text);
-                Assert.Contains("successful=6", text);
-                Assert.Contains("total=6", text);
+                Assert.Contains("successful=4", text);
+                Assert.Contains("total=4", text);
                 Assert.Contains("success_percent=100", text);
-                Assert.Contains("consensus_count=6", text);
-                Assert.Contains("consensus_total=6", text);
+                Assert.Contains("consensus_count=4", text);
+                Assert.Contains("consensus_total=4", text);
                 Assert.Contains("consensus_percent=100", text);
                 Assert.Contains("distinct_answer_sets=1", text);
                 Assert.Contains("fastest_success_target=cloudflare", text);

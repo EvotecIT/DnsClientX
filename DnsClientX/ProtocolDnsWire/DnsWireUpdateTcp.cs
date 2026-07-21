@@ -50,9 +50,10 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the request.</param>
         /// <returns>Response from the DNS server.</returns>
         internal static async Task<DnsResponse> UpdateRecordAsync(string dnsServer, int port, string zone, string name, DnsRecordType type, string data, int ttl, bool debug, Configuration endpointConfiguration, CancellationToken cancellationToken) {
-            var message = DnsUpdateMessage.CreateAddMessage(zone, name, type, data, ttl);
-            var responseBuffer = await SendMessageOverTcp(message, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
-            var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
+            DnsUpdateRequestMessage message = DnsUpdateMessage.CreateAddMessage(zone, name, type, data, ttl, endpointConfiguration.TsigKey);
+            byte[] responseBuffer = await SendMessageOverTcp(message.WireData, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
+            if (endpointConfiguration.TsigKey != null) DnsTsig.VerifyResponse(responseBuffer, message.TransactionId, endpointConfiguration.TsigKey, message.TsigMac);
+            DnsResponse response = await DnsWire.DeserializeDnsUpdateResponse(responseBuffer, debug, message.TransactionId, message.Zone).ConfigureAwait(false);
             response.AddServerDetails(endpointConfiguration);
             return response;
         }
@@ -70,9 +71,21 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the request.</param>
         /// <returns>Response from the DNS server.</returns>
         internal static async Task<DnsResponse> DeleteRecordAsync(string dnsServer, int port, string zone, string name, DnsRecordType type, bool debug, Configuration endpointConfiguration, CancellationToken cancellationToken) {
-            var message = DnsUpdateMessage.CreateDeleteMessage(zone, name, type);
-            var responseBuffer = await SendMessageOverTcp(message, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
-            var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
+            DnsUpdateRequestMessage message = DnsUpdateMessage.CreateDeleteRrsetMessage(zone, name, type, endpointConfiguration.TsigKey);
+            byte[] responseBuffer = await SendMessageOverTcp(message.WireData, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
+            if (endpointConfiguration.TsigKey != null) DnsTsig.VerifyResponse(responseBuffer, message.TransactionId, endpointConfiguration.TsigKey, message.TsigMac);
+            DnsResponse response = await DnsWire.DeserializeDnsUpdateResponse(responseBuffer, debug, message.TransactionId, message.Zone).ConfigureAwait(false);
+            response.AddServerDetails(endpointConfiguration);
+            return response;
+        }
+
+        internal static async Task<DnsResponse> DeleteRecordValueAsync(string dnsServer, int port, string zone,
+            string name, DnsRecordType type, string data, bool debug, Configuration endpointConfiguration,
+            CancellationToken cancellationToken) {
+            DnsUpdateRequestMessage message = DnsUpdateMessage.CreateDeleteValueMessage(zone, name, type, data, endpointConfiguration.TsigKey);
+            byte[] responseBuffer = await SendMessageOverTcp(message.WireData, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
+            if (endpointConfiguration.TsigKey != null) DnsTsig.VerifyResponse(responseBuffer, message.TransactionId, endpointConfiguration.TsigKey, message.TsigMac);
+            DnsResponse response = await DnsWire.DeserializeDnsUpdateResponse(responseBuffer, debug, message.TransactionId, message.Zone).ConfigureAwait(false);
             response.AddServerDetails(endpointConfiguration);
             return response;
         }
@@ -83,6 +96,7 @@ namespace DnsClientX {
             var completedTask = await Task.WhenAny(readTask, timeoutTask).ConfigureAwait(false);
 
             if (completedTask == timeoutTask) {
+                cancellationToken.ThrowIfCancellationRequested();
                 throw new TimeoutException($"Reading from stream timed out after {timeoutMilliseconds} milliseconds.");
             }
 

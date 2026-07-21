@@ -143,24 +143,6 @@ namespace DnsClientX {
         /// </summary>
         public int? MaxConcurrency { get; set; }
 
-        private TimeSpan? _cacheExpiration;
-        /// <summary>
-        /// Default cache expiration used when TTL is unavailable. When null, uses the library default.
-        /// </summary>
-        public TimeSpan? CacheExpiration {
-            get => _cacheExpiration;
-            set => _cacheExpiration = (value.HasValue && value.Value < TimeSpan.Zero) ? TimeSpan.Zero : value;
-        }
-
-        private TimeSpan? _minCacheTtl;
-        /// <summary>
-        /// Minimal TTL allowed for cached entries. Entries with smaller TTLs are rounded up to this value.
-        /// </summary>
-        public TimeSpan? MinCacheTtl {
-            get => _minCacheTtl;
-            set => _minCacheTtl = (value.HasValue && value.Value < TimeSpan.Zero) ? TimeSpan.Zero : value;
-        }
-
         private TimeSpan? _maxCacheTtl;
         /// <summary>
         /// Maximal TTL allowed for cached entries. Entries with larger TTLs are clipped to this value.
@@ -168,6 +150,34 @@ namespace DnsClientX {
         public TimeSpan? MaxCacheTtl {
             get => _maxCacheTtl;
             set => _maxCacheTtl = (value.HasValue && value.Value < TimeSpan.Zero) ? TimeSpan.Zero : value;
+        }
+
+        internal MultiResolverOptions Clone() {
+            return new MultiResolverOptions {
+                Strategy = Strategy,
+                MaxParallelism = MaxParallelism,
+                PreferIpv6 = PreferIpv6,
+                RespectEndpointTimeout = RespectEndpointTimeout,
+                DefaultTimeout = DefaultTimeout,
+                FastestCacheDuration = FastestCacheDuration,
+                EnableFastestCache = EnableFastestCache,
+                PerEndpointMaxInFlight = PerEndpointMaxInFlight,
+                EnableResponseCache = EnableResponseCache,
+                RequestDnsSec = RequestDnsSec,
+                ValidateDnsSec = ValidateDnsSec,
+                TypedRecords = TypedRecords,
+                ParseTypedTxtRecords = ParseTypedTxtRecords,
+                CheckingDisabled = CheckingDisabled,
+                EdnsOptions = EdnsOptions?.Clone(),
+                UserAgent = UserAgent,
+                HttpVersion = HttpVersion,
+                IgnoreCertificateErrors = IgnoreCertificateErrors,
+                UseTcpFallback = UseTcpFallback,
+                WebProxy = WebProxy,
+                MaxConnectionsPerServer = MaxConnectionsPerServer,
+                MaxConcurrency = MaxConcurrency,
+                MaxCacheTtl = MaxCacheTtl
+            };
         }
     }
 }

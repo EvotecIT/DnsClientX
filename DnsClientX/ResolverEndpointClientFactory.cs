@@ -17,6 +17,11 @@ namespace DnsClientX {
             }
 
             DnsRequestFormat requestFormat = endpoint.RequestFormat ?? DnsRequestFormatMapper.FromTransport(endpoint.Transport);
+            if (requestFormat == DnsRequestFormat.ObliviousDnsOverHttps ||
+                requestFormat == DnsRequestFormat.DnsCrypt ||
+                requestFormat == DnsRequestFormat.DnsCryptRelay) {
+                throw new NotSupportedException(DnsTransportCapabilities.GetUnsupportedMessage(requestFormat));
+            }
             if (IsUriBasedRequestFormat(requestFormat) || endpoint.Transport == Transport.Doh || endpoint.DohUrl != null) {
                 Uri dohUri = EndpointParser.BuildDohUri(endpoint);
                 return new ClientX(dohUri, requestFormat);

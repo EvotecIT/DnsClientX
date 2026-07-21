@@ -70,6 +70,9 @@ namespace DnsClientX {
             return requestFormat switch {
                 DnsRequestFormat.DnsOverHttp3 => SupportsDnsOverHttp3,
                 DnsRequestFormat.DnsOverQuic => SupportsDnsOverQuic,
+                DnsRequestFormat.ObliviousDnsOverHttps => false,
+                DnsRequestFormat.DnsCrypt => false,
+                DnsRequestFormat.DnsCryptRelay => false,
                 _ => true
             };
         }
@@ -137,6 +140,10 @@ namespace DnsClientX {
                     "DNS over HTTP/3 is supported in the core package on net8+ and is unavailable on this runtime.",
                 DnsRequestFormat.DnsOverQuic =>
                     "DNS over QUIC is supported in the core package on net8+ when the runtime provides QUIC support and is unavailable on this runtime.",
+                DnsRequestFormat.ObliviousDnsOverHttps =>
+                    "ODoH requires HPKE plus relay and target handling and is not implemented by the core package.",
+                DnsRequestFormat.DnsCrypt or DnsRequestFormat.DnsCryptRelay =>
+                    "DNSCrypt v2 is reserved for an optional protocol package and is not implemented by the core package.",
                 _ => $"{requestFormat} is not supported on this runtime."
             };
         }

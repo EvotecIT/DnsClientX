@@ -74,6 +74,8 @@ namespace DnsClientX.Tests {
                 byte[] q = new byte[qLen];
                 await TestUtilities.ReadExactlyAsync(stream, q, qLen, token);
                 foreach (var r in responses) {
+                    r[0] = q[0];
+                    r[1] = q[1];
                     byte[] prefix = BitConverter.GetBytes((ushort)r.Length);
                     if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
                     await stream.WriteAsync(prefix, 0, prefix.Length, token);
@@ -86,19 +88,17 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Performs a zone transfer and expects no SOA record to be present.
+        /// Rejects a successful-looking AXFR response that omits the mandatory opening SOA.
         /// </summary>
         [Fact]
-        public async Task ZoneTransferAsync_NoSoa_ReturnsEmptyArray() {
+        public async Task ZoneTransferAsync_NoSoa_Throws() {
             byte[] m1 = BuildEmptyMessage("example.com");
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var server = RunAxfrServerAsync(new[] { m1 }, cts.Token);
 
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
-            var recordSets = await client.ZoneTransferAsync("example.com");
+            await Assert.ThrowsAsync<DnsClientException>(() => client.ZoneTransferAsync("example.com"));
             await server.Task;
-
-            Assert.Empty(recordSets);
         }
     }
 }

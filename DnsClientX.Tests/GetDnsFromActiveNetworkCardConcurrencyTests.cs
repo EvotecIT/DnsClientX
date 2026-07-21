@@ -7,6 +7,7 @@ namespace DnsClientX.Tests {
     /// <summary>
     /// Tests concurrency when refreshing DNS server information.
     /// </summary>
+    [Collection("NoParallel")]
     public class GetDnsFromActiveNetworkCardConcurrencyTests {
         /// <summary>
         /// Multiple concurrent refresh calls should return identical results.

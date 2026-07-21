@@ -65,5 +65,27 @@ namespace DnsClientX.Tests {
 
             Assert.Equal("dns.example:4443", ResolverEndpointClientFactory.DescribeConfiguredResolver(client));
         }
+
+        /// <summary>Unsupported protocol identifiers fail when the client is created, not after network work begins.</summary>
+        [Theory]
+        [InlineData(DnsRequestFormat.ObliviousDnsOverHttps)]
+        [InlineData(DnsRequestFormat.DnsCrypt)]
+        [InlineData(DnsRequestFormat.DnsCryptRelay)]
+        public void CreateClient_RejectsReservedUnsupportedProtocols(DnsRequestFormat requestFormat) {
+            var endpoint = new DnsResolverEndpoint {
+                Transport = requestFormat == DnsRequestFormat.ObliviousDnsOverHttps ? Transport.Doh : Transport.Udp,
+                Host = "resolver.example",
+                Port = requestFormat == DnsRequestFormat.ObliviousDnsOverHttps ? 443 : 53,
+                DohUrl = requestFormat == DnsRequestFormat.ObliviousDnsOverHttps
+                    ? new Uri("https://resolver.example/dns-query")
+                    : null,
+                RequestFormat = requestFormat
+            };
+
+            NotSupportedException exception = Assert.Throws<NotSupportedException>(() =>
+                ResolverEndpointClientFactory.CreateClient(endpoint));
+
+            Assert.Equal(DnsTransportCapabilities.GetUnsupportedMessage(requestFormat), exception.Message);
+        }
     }
 }

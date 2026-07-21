@@ -203,6 +203,8 @@ namespace DnsClientX.Tests {
                 await TestUtilities.ReadExactlyAsync(stream, queryBuffer, queryLength, token);
 
                 foreach (byte[] response in responses) {
+                    response[0] = queryBuffer[0];
+                    response[1] = queryBuffer[1];
                     byte[] prefix = BitConverter.GetBytes((ushort)response.Length);
                     if (BitConverter.IsLittleEndian) {
                         Array.Reverse(prefix);

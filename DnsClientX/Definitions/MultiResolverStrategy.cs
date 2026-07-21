@@ -14,8 +14,7 @@ namespace DnsClientX {
         /// <summary>
         /// Try endpoints sequentially and return the first success or the best error if all fail.
         /// </summary>
-        SequentialAll
-        ,
+        SequentialFallback,
         /// <summary>
         /// Distribute queries across endpoints in round-robin fashion to balance load. The
         /// chosen endpoint handles the query; on failure, the resolver falls back to the first
@@ -23,6 +22,11 @@ namespace DnsClientX {
         /// to cap overall concurrency and <see cref="MultiResolverOptions.PerEndpointMaxInFlight"/>
         /// to limit per-endpoint concurrency.
         /// </summary>
-        RoundRobin
+        RoundRobin,
+        /// <summary>
+        /// Select an endpoint uniformly at random for each query. If that endpoint fails, the
+        /// remaining endpoints are tried once in randomized cyclic order.
+        /// </summary>
+        Random
     }
 }

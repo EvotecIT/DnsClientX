@@ -22,5 +22,10 @@ namespace DnsClientX {
         /// Gets or sets a value indicating whether DoH requests should prefer wire-format POST when supported.
         /// </summary>
         public bool ForceDohWirePost { get; init; }
+
+        /// <summary>
+        /// Gets or sets the TSIG key used to authenticate RFC 2136 DNS UPDATE traffic.
+        /// </summary>
+        public TsigKey? TsigKey { get; init; }
     }
 }

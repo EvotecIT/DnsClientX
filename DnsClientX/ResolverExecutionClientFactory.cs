@@ -45,6 +45,10 @@ namespace DnsClientX {
                 client.EndpointConfiguration.Port = options.PortOverride.Value;
             }
 
+            if (options.TsigKey != null) {
+                client.EndpointConfiguration.TsigKey = options.TsigKey;
+            }
+
             if (options.ForceDohWirePost &&
                 (client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps ||
                  client.EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST ||

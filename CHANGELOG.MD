@@ -1,5 +1,19 @@
-﻿## Unreleased - 2026.01.16
-### What's Changed
+﻿## Unreleased - 2026.07.20
+### 2.0.0 breaking RFC and reliability release
+* Enforce DNS response correlation and wire-format bounds, including transaction ID, QR/opcode/question validation, compression-loop protection, complete section parsing, and EDNS extended response codes
+* Validate DoH HTTP status, media type, protocol version, and response body before DNS parsing so proxy and resolver error pages cannot masquerade as DNS responses
+* Correct retry, bounded TTL cache, RFC 2308 negative-cache, immutable snapshot, and UDP peer-validation behavior
+* Add dependency-free DNSSEC chain and denial validation for RSA and ECDSA using bundled IANA root trust anchors, delegation-cut-aware NSEC/NSEC3 proofs, and public trust-anchor/key-tag metadata
+* Add RFC 8945 TSIG authentication for RFC 2136 updates, typed update RDATA, exact-value deletes, and correct zero-TTL update encoding
+* Implement pooled DNS over QUIC for published DoQ endpoints and reject misleading provider, DNSCrypt v2, and ODoH declarations explicitly
+* Make the shared multi-resolver pool clients, enforce a global parallelism bound, preserve terminal NXDOMAIN/NODATA responses, and provide bounded-worker batch queries
+* Harden AXFR response correlation and opening/closing SOA validation
+* Rename `SequentialAll` to `SequentialFallback` and remove dead asymmetric `SigningKey`/`ValidateRootDnsSec` APIs whose names did not describe implemented DNS protocols
+* Add public response cloning/filtering helpers so consumers can preserve DNS metadata without their own resolver implementation
+* Add a caller-owned-`HttpClient` DNS JSON client for browser/WASM and dependency-injected hosts, including HTTP and media-type validation
+* Stop injecting the application icon into every consuming target framework while retaining package and assembly branding
+
+### Earlier unreleased changes
 * Fix custom endpoint docs and add `ClientX(Configuration ...)` constructor
 * Improve UDP/Multicast timeout handling to rely on cancellation tokens
 * Add tests for TXT record filtering and configuration constructor

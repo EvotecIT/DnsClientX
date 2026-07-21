@@ -97,5 +97,51 @@ namespace DnsClientX {
             await using ClientX client = ResolverExecutionClientFactory.CreateClient(target, clientOptions);
             return await client.DeleteRecordAsync(zone, name, type, cancellationToken).ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// Resolves a single target source and deletes one exact RDATA value from an RRset.
+        /// </summary>
+        /// <param name="targetSource">The shared target source to resolve.</param>
+        /// <param name="zone">The zone containing the record.</param>
+        /// <param name="name">The record name.</param>
+        /// <param name="type">The record type.</param>
+        /// <param name="data">The exact RDATA value to remove.</param>
+        /// <param name="clientOptions">Optional shared client creation options.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The delete response.</returns>
+        public static async Task<DnsResponse> DeleteValueAsync(
+            ResolverExecutionTargetSource targetSource,
+            string zone,
+            string name,
+            DnsRecordType type,
+            string data,
+            ResolverExecutionClientOptions? clientOptions = null,
+            CancellationToken cancellationToken = default) {
+            ResolverExecutionTarget target = await ResolverExecutionTargetResolver.ResolveSingleAsync(targetSource, cancellationToken).ConfigureAwait(false);
+            return await DeleteValueAsync(target, zone, name, type, data, clientOptions, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Deletes one exact RDATA value from an RRset against one normalized execution target.
+        /// </summary>
+        /// <param name="target">The normalized execution target.</param>
+        /// <param name="zone">The zone containing the record.</param>
+        /// <param name="name">The record name.</param>
+        /// <param name="type">The record type.</param>
+        /// <param name="data">The exact RDATA value to remove.</param>
+        /// <param name="clientOptions">Optional shared client creation options.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The delete response.</returns>
+        public static async Task<DnsResponse> DeleteValueAsync(
+            ResolverExecutionTarget target,
+            string zone,
+            string name,
+            DnsRecordType type,
+            string data,
+            ResolverExecutionClientOptions? clientOptions = null,
+            CancellationToken cancellationToken = default) {
+            await using ClientX client = ResolverExecutionClientFactory.CreateClient(target, clientOptions);
+            return await client.DeleteRecordValueAsync(zone, name, type, data, cancellationToken).ConfigureAwait(false);
+        }
     }
 }

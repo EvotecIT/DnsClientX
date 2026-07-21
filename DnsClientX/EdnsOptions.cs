@@ -51,5 +51,17 @@ namespace DnsClientX {
                 yield return option;
             }
         }
+
+        internal EdnsOptions Clone() {
+            var clone = new EdnsOptions {
+                EnableEdns = EnableEdns,
+                UdpBufferSize = UdpBufferSize,
+                Subnet = Subnet,
+                PaddingLength = PaddingLength,
+                Cookie = Cookie == null ? null : (byte[])Cookie.Clone()
+            };
+            clone.Options.AddRange(Options);
+            return clone;
+        }
     }
 }

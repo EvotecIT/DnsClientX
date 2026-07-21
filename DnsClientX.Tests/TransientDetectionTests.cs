@@ -78,15 +78,15 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Certain response codes indicate transient conditions.
+        /// Terminal policy and capability response codes are not retried automatically.
         /// </summary>
         [Theory]
         [InlineData(DnsResponseCode.Refused)]
         [InlineData(DnsResponseCode.NotImplemented)]
-        public void IsTransientResponse_TransientCodes_ShouldBeTrue(DnsResponseCode code) {
+        public void IsTransientResponse_TerminalCodes_ShouldBeFalse(DnsResponseCode code) {
             var response = new DnsResponse { Status = code };
 
-            Assert.True(InvokeIsTransientResponse(response));
+            Assert.False(InvokeIsTransientResponse(response));
         }
 
         /// <summary>

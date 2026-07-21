@@ -87,8 +87,6 @@ namespace DnsClientX {
                 FastestCacheDuration = TimeSpan.FromMinutes(Math.Max(1, request.FastestCacheMinutes)),
                 PerEndpointMaxInFlight = request.PerEndpointMaxInFlight > 0 ? request.PerEndpointMaxInFlight : null,
                 EnableResponseCache = request.ResponseCache,
-                CacheExpiration = request.CacheExpirationSeconds > 0 ? TimeSpan.FromSeconds(request.CacheExpirationSeconds) : null,
-                MinCacheTtl = request.MinCacheTtlSeconds > 0 ? TimeSpan.FromSeconds(request.MinCacheTtlSeconds) : null,
                 MaxCacheTtl = request.MaxCacheTtlSeconds > 0 ? TimeSpan.FromSeconds(request.MaxCacheTtlSeconds) : null,
                 RequestDnsSec = request.ShouldRequestDnsSec,
                 ValidateDnsSec = request.ShouldValidateDnsSec,

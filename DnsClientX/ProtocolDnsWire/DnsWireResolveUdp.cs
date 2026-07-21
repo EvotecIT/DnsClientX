@@ -27,7 +27,8 @@ namespace DnsClientX {
         internal static async Task<DnsResponse> ResolveWireFormatUdp(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, int maxRetries, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
-            var query = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration);
+            var query = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration,
+                checkingDisabled: endpointConfiguration.CheckingDisabled || validateDnsSec);
             var queryBytes = query.SerializeDnsWireFormat();
 
             if (debug) {
@@ -56,7 +57,8 @@ namespace DnsClientX {
                     endpointConfiguration.DnsServerResolutionStaleTtl,
                     endpointConfiguration.DnsServerResolutionFailureBackoffEnabled,
                     endpointConfiguration.DnsServerResolutionFailureBackoffFactor,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffMaxTtl)
+                    endpointConfiguration.DnsServerResolutionFailureBackoffMaxTtl,
+                    endpointConfiguration.PreferredAddressFamily)
                 .ConfigureAwait(false);
             if (address == null) {
                 DnsResponse invalidAddress = new DnsResponse {
@@ -81,7 +83,7 @@ namespace DnsClientX {
                     using var udpClient = new UdpClient(address!.AddressFamily);
                     var responseBuffer = await SendQueryOverUdp(udpClient, queryBytes, address!, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
-                    var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
+                    var response = await DnsWire.DeserializeDnsWireResponse(null, debug, responseBuffer, query).ConfigureAwait(false);
                     bool usedTcpFallback = false;
                     if (response.IsTruncated && endpointConfiguration.UseTcpFallback) {
                         usedTcpFallback = true;
@@ -90,6 +92,8 @@ namespace DnsClientX {
                     }
                     response.AddServerDetails(endpointConfiguration, usedTcpFallback ? Transport.Tcp : Transport.Udp);
                     return response;
+                } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                    throw;
                 } catch (Exception ex) {
                     lastException = ex;
                     if (attempt == maxRetries) break;
@@ -132,18 +136,19 @@ namespace DnsClientX {
         /// <param name="timeoutMilliseconds">Timeout in milliseconds.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>Raw DNS response bytes.</returns>
-        private static async Task<byte[]> SendQueryOverUdp(UdpClient udpClient, byte[] query, IPAddress ipAddress, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
+        internal static async Task<byte[]> SendQueryOverUdp(UdpClient udpClient, byte[] query, IPAddress ipAddress, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
             // The caller owns udpClient disposal; keep lifetime management in one place.
             if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6) {
                 udpClient.Client.DualMode = true;
             }
             var serverEndpoint = new IPEndPoint(ipAddress, port);
+            udpClient.Connect(serverEndpoint);
 
             // Send the query
 #if NET5_0_OR_GREATER
-            await udpClient.SendAsync(query, serverEndpoint, cancellationToken).ConfigureAwait(false);
+            await udpClient.SendAsync(query, cancellationToken).ConfigureAwait(false);
 #else
-            await udpClient.SendAsync(query, query.Length, serverEndpoint).ConfigureAwait(false);
+            await udpClient.SendAsync(query, query.Length).ConfigureAwait(false);
 #endif
 
             // Set up the cancellation token for the timeout
@@ -163,9 +168,10 @@ namespace DnsClientX {
                     }
 
                     ObserveFault(responseTask);
+                    cancellationToken.ThrowIfCancellationRequested();
                     throw new TimeoutException("The UDP query timed out.");
 #endif
-                } catch (OperationCanceledException) {
+                } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
                     throw new TimeoutException("The UDP query timed out.");
                 }
             }

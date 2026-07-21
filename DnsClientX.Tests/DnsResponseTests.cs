@@ -115,21 +115,42 @@ namespace DnsClientX.Tests {
             Assert.Empty(response.AnswersMinimal);
         }
 
-        private static byte[] CreateDnsHeader() {
-            byte[] bytes = new byte[12];
-            ushort id = 0x1234;
-            bytes[0] = (byte)(id >> 8);
-            bytes[1] = (byte)(id & 0xFF);
-            ushort flags = 0x8180;
-            bytes[2] = (byte)(flags >> 8);
-            bytes[3] = (byte)(flags & 0xFF);
-            return bytes;
+        /// <summary>
+        /// Local DNSSEC validation is successful only for a secure result, while other
+        /// terminal states still report that validation was attempted.
+        /// </summary>
+        [Theory]
+        [InlineData(DnsSecValidationStatus.NotRequested, false, false)]
+        [InlineData(DnsSecValidationStatus.Secure, true, true)]
+        [InlineData(DnsSecValidationStatus.Insecure, true, false)]
+        [InlineData(DnsSecValidationStatus.Bogus, true, false)]
+        [InlineData(DnsSecValidationStatus.Indeterminate, true, false)]
+        public void DnsSecValidationFlagsReflectActualOutcome(DnsSecValidationStatus status,
+            bool attempted, bool validated) {
+            var response = new DnsResponse { DnsSecValidationStatus = status };
+
+            Assert.Equal(attempted, response.DnsSecValidationAttempted);
+            Assert.Equal(validated, response.DnsSecValidatedLocally);
         }
 
-        private static async Task RunUdpServerAsync(int port, byte[] response, CancellationToken token) {
+        /// <summary>Untrusted answers are not emitted through short pipeline-oriented output.</summary>
+        [Fact]
+        public void ShortOutputSuppressesAnswersWhenResponseHasAnError() {
+            var response = new DnsResponse {
+                Error = "DNSSEC bogus",
+                Answers = new[] { new DnsAnswer { Name = "example.com", Type = DnsRecordType.A, DataRaw = "192.0.2.1" } }
+            };
+
+            Assert.Empty(DnsResponseTextFormatter.BuildShortLines(response, txtConcat: false));
+            Assert.Contains(DnsResponseTextFormatter.BuildPrettyLines(response, false, true, false, false, false),
+                line => line.Contains("DNSSEC bogus", StringComparison.Ordinal));
+        }
+
+        private static async Task RunUdpServerAsync(int port, CancellationToken token) {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
 #if NET5_0_OR_GREATER
             UdpReceiveResult result = await udp.ReceiveAsync(token);
+            byte[] response = TestUtilities.CreateResponseFromQuery(result.Buffer);
             await udp.SendAsync(response, result.RemoteEndPoint, token);
 #else
             var receiveTask = udp.ReceiveAsync();
@@ -138,6 +159,7 @@ namespace DnsClientX.Tests {
                 throw new OperationCanceledException(token);
             }
             UdpReceiveResult result = receiveTask.Result;
+            byte[] response = TestUtilities.CreateResponseFromQuery(result.Buffer);
             await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
 #endif
         }
@@ -149,7 +171,7 @@ namespace DnsClientX.Tests {
         public async Task Resolve_SetsRoundTripTime() {
             int port = TestUtilities.GetFreeUdpPort();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            Task serverTask = RunUdpServerAsync(port, CreateDnsHeader(), cts.Token);
+            Task serverTask = RunUdpServerAsync(port, cts.Token);
 
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP, timeOutMilliseconds: 2000);
             client.EndpointConfiguration.Port = port;

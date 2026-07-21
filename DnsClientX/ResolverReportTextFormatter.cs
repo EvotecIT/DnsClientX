@@ -345,8 +345,12 @@ namespace DnsClientX {
             lines.Add($"  Final source: {DescribeSingleOperationFinalSource(result)}");
             lines.Add($"  Resolvers tried: {DescribeSingleOperationAttemptResolvers(result)}");
             lines.Add($"  Retry reasons: {DescribeSingleOperationRetryReasons(result)}");
-            lines.Add($"  DNSSEC requested: {requestDnsSec}");
-            lines.Add($"  DNSSEC validated: {validateDnsSec}");
+            lines.Add($"  DNSSEC requested: {requestDnsSec || validateDnsSec}");
+            lines.Add($"  DNSSEC validation requested: {validateDnsSec}");
+            lines.Add($"  DNSSEC validation status: {response.DnsSecValidationStatus}");
+            if (!string.IsNullOrWhiteSpace(response.DnsSecValidationMessage)) {
+                lines.Add($"  DNSSEC validation detail: {response.DnsSecValidationMessage}");
+            }
             lines.Add($"  Retries: {response.RetryCount}");
             lines.Add($"  Elapsed: {durationFormatter(response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : result.Elapsed)}");
             lines.Add($"  Answers: {response.Answers?.Length ?? 0}");

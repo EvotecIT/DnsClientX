@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
@@ -35,7 +36,8 @@ namespace DnsClientX {
         internal static async Task<DnsResponse> ResolveWireFormatDoT(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, bool ignoreCertificateErrors, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
-            var query = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration);
+            var query = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration,
+                checkingDisabled: endpointConfiguration.CheckingDisabled || validateDnsSec);
             var queryBytes = query.SerializeDnsWireFormat();
 
             // Calculate the length prefix for the query
@@ -68,19 +70,35 @@ namespace DnsClientX {
 
             DotFailurePhase failurePhase = DotFailurePhase.Connect;
             try {
-                // Create a new TCP client and connect to the DNS server
-                using var client = new TcpClient();
-                await ConnectAsync(client, dnsServer, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
+                var (address, resolveError) = await DnsServerResolver.ResolveAsync(
+                    dnsServer,
+                    endpointConfiguration.TimeOut,
+                    cancellationToken,
+                    endpointConfiguration.DnsServerResolutionSuccessTtl,
+                    endpointConfiguration.DnsServerResolutionFailureTtl,
+                    endpointConfiguration.DnsServerResolutionAllowStale,
+                    endpointConfiguration.DnsServerResolutionStaleTtl,
+                    endpointConfiguration.DnsServerResolutionFailureBackoffEnabled,
+                    endpointConfiguration.DnsServerResolutionFailureBackoffFactor,
+                    endpointConfiguration.DnsServerResolutionFailureBackoffMaxTtl,
+                    endpointConfiguration.PreferredAddressFamily).ConfigureAwait(false);
+                if (address == null) throw new DnsClientException(resolveError ?? $"Host '{dnsServer}' resolved to no addresses.");
+
+                using var client = new TcpClient(address.AddressFamily);
+                await ConnectAsync(client, address, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
                 // Create a new SSL stream for the secure connection
                 failurePhase = DotFailurePhase.Authenticate;
                 using var sslStream = new SslStream(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) =>
                     sslPolicyErrors == SslPolicyErrors.None || ignoreCertificateErrors);
+                string targetHost = string.IsNullOrWhiteSpace(endpointConfiguration.TlsServerName)
+                    ? dnsServer
+                    : endpointConfiguration.TlsServerName!;
 
 #if NET6_0_OR_GREATER
-                await AuthenticateWithTimeoutAsync(sslStream, dnsServer, SslProtocols.Tls12 | SslProtocols.Tls13, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
+                await AuthenticateWithTimeoutAsync(sslStream, targetHost, SslProtocols.Tls12 | SslProtocols.Tls13, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 #else
-                await AuthenticateWithTimeoutAsync(sslStream, dnsServer, SslProtocols.Tls12, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
+                await AuthenticateWithTimeoutAsync(sslStream, targetHost, SslProtocols.Tls12, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 #endif
 
                 // Write the combined query bytes to the SSL stream and flush it
@@ -97,9 +115,11 @@ namespace DnsClientX {
                 await ReadExactWithTimeoutAsync(sslStream, responseBuffer, 0, responseBuffer.Length, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
                 // Deserialize the response from DNS wire format
-                var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
+                var response = await DnsWire.DeserializeDnsWireResponse(null, debug, responseBuffer, query).ConfigureAwait(false);
                 response.AddServerDetails(endpointConfiguration);
                 return response;
+            } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                throw;
             } catch (Exception ex) {
                 var (status, errorCode) = MapFailure(ex, failurePhase);
                 var failureResponse = new DnsResponse {
@@ -118,11 +138,11 @@ namespace DnsClientX {
         /// Connects asynchronously to the specified host using a <see cref="TcpClient"/>.
         /// </summary>
         /// <param name="tcpClient">Client used for the connection.</param>
-        /// <param name="host">Target host.</param>
+        /// <param name="address">Resolved target address.</param>
         /// <param name="port">Target port.</param>
         /// <param name="timeoutMilliseconds">Timeout in milliseconds.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
-        private static async Task ConnectAsync(TcpClient tcpClient, string host, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
+        private static async Task ConnectAsync(TcpClient tcpClient, IPAddress address, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             if (timeoutMilliseconds <= 0) {
                 linkedCts.Cancel();
@@ -131,21 +151,21 @@ namespace DnsClientX {
             }
 #if NET5_0_OR_GREATER
             try {
-                await tcpClient.ConnectAsync(host, port, linkedCts.Token).ConfigureAwait(false);
+                await tcpClient.ConnectAsync(address, port, linkedCts.Token).ConfigureAwait(false);
             } catch (OperationCanceledException) {
                 tcpClient.Close();
                 cancellationToken.ThrowIfCancellationRequested();
-                throw new TimeoutException($"Connection to {host}:{port} timed out after {timeoutMilliseconds} milliseconds.");
+                throw new TimeoutException($"Connection to {address}:{port} timed out after {timeoutMilliseconds} milliseconds.");
             }
 #else
-            var connectTask = tcpClient.ConnectAsync(host, port);
+            var connectTask = tcpClient.ConnectAsync(address, port);
             var delayTask = Task.Delay(Timeout.Infinite, linkedCts.Token);
 
             var completed = await Task.WhenAny(connectTask, delayTask).ConfigureAwait(false);
             if (completed != connectTask) {
                 tcpClient.Close();
                 cancellationToken.ThrowIfCancellationRequested();
-                throw new TimeoutException($"Connection to {host}:{port} timed out after {timeoutMilliseconds} milliseconds.");
+                throw new TimeoutException($"Connection to {address}:{port} timed out after {timeoutMilliseconds} milliseconds.");
             }
 
             await connectTask.ConfigureAwait(false); // propagate possible exceptions

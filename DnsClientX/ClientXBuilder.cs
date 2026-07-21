@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Security.Cryptography;
 
 namespace DnsClientX {
     /// <summary>
@@ -15,7 +14,7 @@ namespace DnsClientX {
         private int _timeout = Configuration.DefaultTimeout;
         private IWebProxy? _proxy;
         private EdnsOptions? _ednsOptions;
-        private AsymmetricAlgorithm? _signingKey;
+        private TsigKey? _tsigKey;
         private DnsSelectionStrategy _strategy = DnsSelectionStrategy.First;
         private string? _userAgent;
         private Version? _httpVersion;
@@ -137,11 +136,11 @@ namespace DnsClientX {
         }
 
         /// <summary>
-        /// Supplies a key used to sign DNS messages.
+        /// Configures an RFC 8945 TSIG key for authenticated RFC 2136 DNS UPDATE requests.
         /// </summary>
-        /// <param name="key">Asymmetric key pair.</param>
-        public ClientXBuilder WithSigningKey(AsymmetricAlgorithm key) {
-            _signingKey = key;
+        /// <param name="key">TSIG key identity, secret, and algorithm.</param>
+        public ClientXBuilder WithTsigKey(TsigKey key) {
+            _tsigKey = key ?? throw new ArgumentNullException(nameof(key));
             return this;
         }
 
@@ -161,8 +160,8 @@ namespace DnsClientX {
             if (_ednsOptions != null) {
                 client.EndpointConfiguration.EdnsOptions = _ednsOptions;
             }
-            if (_signingKey != null) {
-                client.EndpointConfiguration.SigningKey = _signingKey;
+            if (_tsigKey != null) {
+                client.EndpointConfiguration.TsigKey = _tsigKey;
             }
 
             var names = client.EndpointConfiguration.Hostnames;

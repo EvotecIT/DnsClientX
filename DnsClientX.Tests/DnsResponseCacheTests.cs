@@ -18,10 +18,24 @@ namespace DnsClientX.Tests {
         [Fact]
         public void ShouldStoreAndRetrieve() {
             var cache = new DnsResponseCache();
-            var response = new DnsResponse { Status = DnsResponseCode.NoError };
+            var response = new DnsResponse {
+                Status = DnsResponseCode.NoError,
+                Questions = new[] { new DnsQuestion { Name = "example.com", Type = DnsRecordType.A } },
+                Answers = new[] { new DnsAnswer { Name = "example.com", Type = DnsRecordType.A, TTL = 60, DataRaw = "192.0.2.1" } }
+            };
             cache.Set("a", response, TimeSpan.FromSeconds(1));
             Assert.True(cache.TryGet("a", out var cached));
-            Assert.Same(response, cached);
+            Assert.NotSame(response, cached);
+
+            cached.Questions[0].Name = "changed.example";
+            cached.Answers[0].Name = "changed.example";
+            cached.Answers[0].TTL = 1;
+            cached.Answers[0].DataRaw = "203.0.113.9";
+            Assert.True(cache.TryGet("a", out var second));
+            Assert.Equal("example.com", second.Questions[0].Name);
+            Assert.Equal("example.com", second.Answers[0].Name);
+            Assert.Equal(60, second.Answers[0].TTL);
+            Assert.Equal("192.0.2.1", second.Answers[0].DataRaw);
         }
 
         /// <summary>
@@ -109,15 +123,14 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Verifies that cache TTL values below the minimum are clamped.
+        /// Verifies that a configured minimum never extends an authoritative DNS TTL.
         /// </summary>
         [Fact]
-        public async Task ShouldClampToMinCacheTtl() {
+        public async Task ShouldNotExtendAuthoritativeTtlToConfiguredMinimum() {
             ClearCache();
             var json = "{\"Status\":0,\"Answer\":[{\"name\":\"example.com\",\"type\":1,\"TTL\":1,\"data\":\"1.1.1.1\"}]}";
             var handler = new JsonResponseHandler(json);
             using var client = new ClientX("https://example.com/dns-query", DnsRequestFormat.DnsOverHttpsJSON, enableCache: true);
-            client.MinCacheTtl = TimeSpan.FromSeconds(5);
             client.MaxCacheTtl = TimeSpan.FromSeconds(30);
             var httpClient = new HttpClient(handler) { BaseAddress = client.EndpointConfiguration.BaseUri };
             InjectClient(client, httpClient);
@@ -125,7 +138,41 @@ namespace DnsClientX.Tests {
             await client.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
 
             var ttl = GetCachedTtl();
-            Assert.InRange(Math.Abs((ttl - client.MinCacheTtl).TotalSeconds), 0, 1);
+            Assert.InRange(ttl.TotalSeconds, 0, 1.1);
+        }
+
+        /// <summary>A projected address answer remains bounded by the CNAME TTL that led to it.</summary>
+        [Fact]
+        public async Task ProjectedAddressCacheDoesNotOutliveAlias() {
+            ClearCache();
+            var json = "{\"Status\":0,\"Answer\":[{\"name\":\"alias.example\",\"type\":5,\"TTL\":1,\"data\":\"target.example\"},{\"name\":\"target.example\",\"type\":1,\"TTL\":600,\"data\":\"192.0.2.1\"}]}";
+            var handler = new JsonResponseHandler(json);
+            using var client = new ClientX("https://example.com/dns-query", DnsRequestFormat.DnsOverHttpsJSON, enableCache: true);
+            client.MaxCacheTtl = TimeSpan.FromMinutes(30);
+            InjectClient(client, new HttpClient(handler) { BaseAddress = client.EndpointConfiguration.BaseUri });
+
+            DnsResponse response = await client.Resolve("alias.example", DnsRecordType.A,
+                returnAllTypes: false, retryOnTransient: false);
+
+            Assert.Single(response.Answers);
+            Assert.Equal(DnsRecordType.A, response.Answers[0].Type);
+            Assert.InRange(GetCachedTtl().TotalSeconds, 0, 1.1);
+        }
+
+        /// <summary>
+        /// Ensures capacity is a hard bound rather than an expired-entry cleanup hint.
+        /// </summary>
+        [Fact]
+        public void ShouldEvictOldestEntryAtCapacity() {
+            using var cache = new DnsResponseCache(cleanupThreshold: 2);
+            var response = new DnsResponse { Status = DnsResponseCode.NoError };
+            cache.Set("a", response, TimeSpan.FromMinutes(1));
+            cache.Set("b", response, TimeSpan.FromMinutes(1));
+            cache.Set("c", response, TimeSpan.FromMinutes(1));
+
+            Assert.False(cache.TryGet("a", out _));
+            Assert.True(cache.TryGet("b", out _));
+            Assert.True(cache.TryGet("c", out _));
         }
 
         /// <summary>
@@ -137,7 +184,6 @@ namespace DnsClientX.Tests {
             var json = "{\"Status\":0,\"Answer\":[{\"name\":\"example.com\",\"type\":1,\"TTL\":600,\"data\":\"1.1.1.1\"}]}";
             var handler = new JsonResponseHandler(json);
             using var client = new ClientX("https://example.com/dns-query", DnsRequestFormat.DnsOverHttpsJSON, enableCache: true);
-            client.MinCacheTtl = TimeSpan.FromSeconds(5);
             client.MaxCacheTtl = TimeSpan.FromSeconds(10);
             var httpClient = new HttpClient(handler) { BaseAddress = client.EndpointConfiguration.BaseUri };
             InjectClient(client, httpClient);
@@ -157,7 +203,6 @@ namespace DnsClientX.Tests {
             var json = "{\"Status\":0,\"Answer\":[{\"name\":\"example.com\",\"type\":1,\"TTL\":0,\"data\":\"1.1.1.1\"}]}";
             var handler = new JsonResponseHandler(json);
             using var client = new ClientX("https://example.com/dns-query", DnsRequestFormat.DnsOverHttpsJSON, enableCache: true);
-            client.MinCacheTtl = TimeSpan.FromSeconds(5);
             client.MaxCacheTtl = TimeSpan.FromSeconds(30);
             var httpClient = new HttpClient(handler) { BaseAddress = client.EndpointConfiguration.BaseUri };
             InjectClient(client, httpClient);
@@ -165,6 +210,29 @@ namespace DnsClientX.Tests {
             await client.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
 
             Assert.True(IsCacheEmpty());
+        }
+
+        /// <summary>
+        /// Ensures the process-wide cache cannot cross client cache-lifetime or TLS-validation boundaries.
+        /// </summary>
+        [Fact]
+        public void CacheKeySeparatesClientSecurityAndLifetimePolicies() {
+            var configuration = new Configuration("https://resolver.example/dns-query", DnsRequestFormat.DnsOverHttps) {
+                TlsServerName = "resolver.example"
+            };
+            string baseline = DnsCacheKeyBuilder.Build(configuration, "example.com", DnsRecordType.A,
+                false, false, false, false, false, TimeSpan.FromMinutes(1), false);
+            string longer = DnsCacheKeyBuilder.Build(configuration, "example.com", DnsRecordType.A,
+                false, false, false, false, false, TimeSpan.FromHours(1), false);
+            string insecure = DnsCacheKeyBuilder.Build(configuration, "example.com", DnsRecordType.A,
+                false, false, false, false, false, TimeSpan.FromMinutes(1), true);
+            configuration.TlsServerName = "different-resolver.example";
+            string differentTlsIdentity = DnsCacheKeyBuilder.Build(configuration, "example.com", DnsRecordType.A,
+                false, false, false, false, false, TimeSpan.FromMinutes(1), false);
+
+            Assert.NotEqual(baseline, longer);
+            Assert.NotEqual(baseline, insecure);
+            Assert.NotEqual(baseline, differentTlsIdentity);
         }
     }
 }

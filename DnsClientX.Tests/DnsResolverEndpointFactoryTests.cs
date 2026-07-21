@@ -47,18 +47,9 @@ namespace DnsClientX.Tests {
         /// Request format overrides should be preserved for non-default transports.
         /// </summary>
         [Fact]
-        public void From_AdvancedProviders_PreservesRequestFormat() {
+        public void From_SupportedAdvancedProviders_PreservesRequestFormat() {
             var cloudflarePost = DnsResolverEndpointFactory.From(DnsEndpoint.CloudflareWireFormatPost);
             Assert.All(cloudflarePost, e => Assert.Equal(DnsRequestFormat.DnsOverHttpsWirePost, e.RequestFormat));
-
-            var quic = DnsResolverEndpointFactory.From(DnsEndpoint.CloudflareQuic);
-            Assert.NotEmpty(quic);
-            Assert.All(quic, e => Assert.Equal(Transport.Quic, e.Transport));
-            Assert.All(quic, e => Assert.Equal(DnsRequestFormat.DnsOverQuic, e.RequestFormat));
-
-            var odoh = DnsResolverEndpointFactory.From(DnsEndpoint.CloudflareOdoh);
-            Assert.Single(odoh);
-            Assert.Equal(DnsRequestFormat.ObliviousDnsOverHttps, odoh[0].RequestFormat);
 
             var quad9Http3 = DnsResolverEndpointFactory.From(DnsEndpoint.Quad9Http3);
             Assert.Single(quad9Http3);
@@ -69,6 +60,18 @@ namespace DnsClientX.Tests {
             Assert.Single(quad9Quic);
             Assert.Equal(DnsRequestFormat.DnsOverQuic, quad9Quic[0].RequestFormat);
             Assert.Equal(Transport.Quic, quad9Quic[0].Transport);
+        }
+
+        /// <summary>
+        /// Provider names that do not correspond to published protocol endpoints fail explicitly.
+        /// </summary>
+        [Theory]
+        [InlineData(DnsEndpoint.CloudflareQuic)]
+        [InlineData(DnsEndpoint.GoogleQuic)]
+        [InlineData(DnsEndpoint.CloudflareOdoh)]
+        [InlineData(DnsEndpoint.DnsCryptCloudflare)]
+        public void From_UnsupportedProviderClaims_Throws(DnsEndpoint endpoint) {
+            Assert.Throws<NotSupportedException>(() => DnsResolverEndpointFactory.From(endpoint));
         }
 
         /// <summary>

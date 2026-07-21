@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
+using System.Collections.Generic;
 
 namespace DnsClientX {
     /// <summary>
@@ -12,6 +13,7 @@ namespace DnsClientX {
         private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
         private readonly Timer _cleanupTimer;
         private readonly int _cleanupThreshold;
+        private readonly ConcurrentQueue<string> _insertionOrder = new();
         private readonly TimeSpan _cleanupInterval;
         private bool _disposed;
 
@@ -22,6 +24,7 @@ namespace DnsClientX {
         /// <param name="cleanupThreshold">Maximum number of entries before a cleanup is triggered.</param>
         public DnsResponseCache(TimeSpan? cleanupInterval = null, int cleanupThreshold = 1000) {
             _cleanupInterval = cleanupInterval ?? TimeSpan.FromMinutes(5);
+            if (cleanupThreshold <= 0) throw new ArgumentOutOfRangeException(nameof(cleanupThreshold));
             _cleanupThreshold = cleanupThreshold;
             _cleanupTimer = new Timer(_ => Cleanup(), null, _cleanupInterval, _cleanupInterval);
         }
@@ -56,7 +59,7 @@ namespace DnsClientX {
         public bool TryGet(string key, [NotNullWhen(true)] out DnsResponse? response) {
             if (_cache.TryGetValue(key, out var entry)) {
                 if (DateTimeOffset.UtcNow < entry.Expiration) {
-                    response = entry.Response;
+                    response = entry.Response.Clone();
                     return true;
                 }
                 _cache.TryRemove(key, out _);
@@ -85,10 +88,16 @@ namespace DnsClientX {
         /// <param name="ttl">Time to keep the entry.</param>
         /// <returns>None.</returns>
         public void Set(string key, DnsResponse response, TimeSpan ttl) {
-            var entry = new CacheEntry(response, DateTimeOffset.UtcNow.Add(ttl));
+            if (ttl <= TimeSpan.Zero) return;
+            bool isNew = !_cache.ContainsKey(key);
+            var entry = new CacheEntry(response.Clone(), DateTimeOffset.UtcNow.Add(ttl));
             _cache[key] = entry;
+            if (isNew) _insertionOrder.Enqueue(key);
             if (_cache.Count > _cleanupThreshold) {
                 Cleanup();
+                while (_cache.Count > _cleanupThreshold && _insertionOrder.TryDequeue(out string? oldest)) {
+                    _cache.TryRemove(oldest, out _);
+                }
             }
         }
 

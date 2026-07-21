@@ -66,7 +66,8 @@ namespace DnsClientX.Tests {
         }
 
         private static void AssertDoAndCdBits(byte[] query, string name) {
-            AssertTtlFlags(query, name, 0x00008010u);
+            Assert.Equal(0x10, query[3] & 0x10);
+            AssertTtlFlags(query, name, 0x00008000u);
         }
 
         private static void AssertTtlFlags(byte[] query, string name, uint expectedTtl) {
