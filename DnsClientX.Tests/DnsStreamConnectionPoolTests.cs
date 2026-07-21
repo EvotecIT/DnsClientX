@@ -189,6 +189,57 @@ namespace DnsClientX.Tests {
         public Task TransactionIdWaitUsesWholeQueryDeadline() =>
             AssertQueuedQueryUsesWholeDeadline(sameTransactionId: true, maxInFlight: 2);
 
+        /// <summary>Caller cancellation during connection establishment is not disguised as a transport failure.</summary>
+        [Fact]
+        public async Task CallerCancellationDuringConnectRemainsOperationCanceled() {
+            using var cancellation = new CancellationTokenSource();
+            var connectStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var pool = new DnsStreamConnectionPool(connectOverride: async (_, _, _, _, token) => {
+                connectStarted.TrySetResult(true);
+                await Task.Delay(Timeout.Infinite, token);
+            });
+            byte[] query = new DnsMessage("connect.example", DnsRecordType.A,
+                new DnsMessageOptions(TransactionId: 0x1234)).SerializeDnsWireFormat();
+
+            Task<byte[]> pending = pool.QueryTcpAsync(IPAddress.Loopback, 53, null,
+                query, 5000, 1, cancellation.Token);
+            await connectStarted.Task;
+            cancellation.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+        }
+
+        /// <summary>Caller cancellation during a framed write is not disguised as a transport failure.</summary>
+        [Fact]
+        public async Task CallerCancellationDuringWriteRemainsOperationCanceled() {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var cancellation = new CancellationTokenSource();
+            var writeStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<TcpClient> accept = AcceptAsync(listener, guard.Token);
+
+            try {
+                using var pool = new DnsStreamConnectionPool(writeOverride: async (_, _, token) => {
+                    writeStarted.TrySetResult(true);
+                    await Task.Delay(Timeout.Infinite, token);
+                });
+                byte[] query = new DnsMessage("write.example", DnsRecordType.A,
+                    new DnsMessageOptions(TransactionId: 0x5678)).SerializeDnsWireFormat();
+                Task<byte[]> pending = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
+                    query, 5000, 1, cancellation.Token);
+
+                using TcpClient accepted = await accept;
+                await writeStarted.Task;
+                cancellation.Cancel();
+
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+            } finally {
+                listener.Stop();
+            }
+        }
+
 #if NET6_0_OR_GREATER
         /// <summary>DoT uses the same pipelined response-correlation engine over one authenticated stream.</summary>
         [Fact]

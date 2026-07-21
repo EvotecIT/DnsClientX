@@ -14,7 +14,16 @@ namespace DnsClientX {
     /// </summary>
     internal sealed class DnsStreamConnectionPool : IDisposable, IAsyncDisposable {
         private readonly ConcurrentDictionary<PoolKey, DnsStreamConnection> _connections = new();
+        private readonly Func<TcpClient, IPAddress, int, int, CancellationToken, Task>? _connectOverride;
+        private readonly Func<Stream, byte[], CancellationToken, Task>? _writeOverride;
         private int _disposed;
+
+        internal DnsStreamConnectionPool(
+            Func<TcpClient, IPAddress, int, int, CancellationToken, Task>? connectOverride = null,
+            Func<Stream, byte[], CancellationToken, Task>? writeOverride = null) {
+            _connectOverride = connectOverride;
+            _writeOverride = writeOverride;
+        }
 
         internal Task<byte[]> QueryTcpAsync(IPAddress address, int port, IPEndPoint? localEndPoint,
             byte[] query, int timeoutMilliseconds, int maxInFlight, CancellationToken cancellationToken) {
@@ -47,7 +56,7 @@ namespace DnsClientX {
                 for (int attempt = 0; attempt < 2; attempt++) {
                     ThrowIfDisposed();
                     DnsStreamConnection connection = _connections.GetOrAdd(key,
-                        item => new DnsStreamConnection(item));
+                        item => new DnsStreamConnection(item, _connectOverride, _writeOverride));
                     if (Volatile.Read(ref _disposed) != 0) {
                         if (_connections.TryRemove(key, out DnsStreamConnection? removed)) removed.Dispose();
                         ThrowIfDisposed();
@@ -151,6 +160,8 @@ namespace DnsClientX {
             private readonly SemaphoreSlim _connectGate = new(1, 1);
             private readonly SemaphoreSlim _writeGate = new(1, 1);
             private readonly SemaphoreSlim _capacity;
+            private readonly Func<TcpClient, IPAddress, int, int, CancellationToken, Task>? _connectOverride;
+            private readonly Func<Stream, byte[], CancellationToken, Task>? _writeOverride;
             private TcpClient? _client;
             private Stream? _stream;
             private CancellationTokenSource? _lifetime;
@@ -158,9 +169,13 @@ namespace DnsClientX {
             private int _faulted;
             private int _disposed;
 
-            internal DnsStreamConnection(PoolKey key) {
+            internal DnsStreamConnection(PoolKey key,
+                Func<TcpClient, IPAddress, int, int, CancellationToken, Task>? connectOverride,
+                Func<Stream, byte[], CancellationToken, Task>? writeOverride) {
                 _key = key;
                 _capacity = new SemaphoreSlim(key.MaxInFlight, key.MaxInFlight);
+                _connectOverride = connectOverride;
+                _writeOverride = writeOverride;
             }
 
             internal async Task<byte[]> QueryAsync(byte[] query, int timeoutMilliseconds,
@@ -175,6 +190,12 @@ namespace DnsClientX {
 
                     try {
                         await WriteQueryAsync(query, timeoutMilliseconds, deadlineToken).ConfigureAwait(false);
+                    } catch (OperationCanceledException) when (deadlineToken.IsCancellationRequested) {
+                        _pending.TryRemove(transactionId, out _);
+                        pending.Completion.TrySetCanceled();
+                        Fault(new DnsStreamConnectionException(
+                            "Writing the framed DNS query was canceled before it completed."));
+                        throw;
                     } catch (Exception exception) {
                         _pending.TryRemove(transactionId, out _);
                         var failure = ToConnectionException(exception, "Writing the framed DNS query failed.");
@@ -230,8 +251,13 @@ namespace DnsClientX {
                     Stream? stream = null;
                     try {
                         SocketBinding.Bind(client.Client, _key.LocalEndPoint, _key.Address.AddressFamily);
-                        await ConnectAsync(client, _key.Address, _key.Port, timeoutMilliseconds, cancellationToken)
-                            .ConfigureAwait(false);
+                        if (_connectOverride == null) {
+                            await ConnectAsync(client, _key.Address, _key.Port, timeoutMilliseconds,
+                                cancellationToken).ConfigureAwait(false);
+                        } else {
+                            await _connectOverride(client, _key.Address, _key.Port, timeoutMilliseconds,
+                                cancellationToken).ConfigureAwait(false);
+                        }
                         stream = client.GetStream();
                         if (_key.UseTls) {
                             var sslStream = new SslStream(stream, false,
@@ -247,6 +273,10 @@ namespace DnsClientX {
                         _lifetime = lifetime;
                         Volatile.Write(ref _faulted, 0);
                         _readerTask = Task.Run(() => ReadLoopAsync(stream, lifetime.Token));
+                    } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                        stream?.Dispose();
+                        client.Dispose();
+                        throw;
                     } catch (Exception exception) {
                         stream?.Dispose();
                         client.Dispose();
@@ -266,13 +296,17 @@ namespace DnsClientX {
                     frame[0] = (byte)(query.Length >> 8);
                     frame[1] = (byte)query.Length;
                     Buffer.BlockCopy(query, 0, frame, 2, query.Length);
-                    await WaitWithTimeoutAsync(
-                        stream.WriteAsync(frame, 0, frame.Length, cancellationToken),
-                        timeoutMilliseconds,
-                        cancellationToken,
-                        "Writing to the DNS stream").ConfigureAwait(false);
-                    await WaitWithTimeoutAsync(stream.FlushAsync(cancellationToken), timeoutMilliseconds,
-                        cancellationToken, "Flushing the DNS stream").ConfigureAwait(false);
+                    if (_writeOverride == null) {
+                        await WaitWithTimeoutAsync(
+                            stream.WriteAsync(frame, 0, frame.Length, cancellationToken),
+                            timeoutMilliseconds,
+                            cancellationToken,
+                            "Writing to the DNS stream").ConfigureAwait(false);
+                        await WaitWithTimeoutAsync(stream.FlushAsync(cancellationToken), timeoutMilliseconds,
+                            cancellationToken, "Flushing the DNS stream").ConfigureAwait(false);
+                    } else {
+                        await _writeOverride(stream, frame, cancellationToken).ConfigureAwait(false);
+                    }
                 } finally {
                     _writeGate.Release();
                 }
