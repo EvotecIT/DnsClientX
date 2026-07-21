@@ -356,6 +356,7 @@ namespace DnsClientX {
             clone.EdnsNsid = EdnsNsid == null ? Array.Empty<byte>() : (byte[])EdnsNsid.Clone();
             clone.EdnsCookie = EdnsCookie == null ? Array.Empty<byte>() : (byte[])EdnsCookie.Clone();
             clone.TypedAnswers = TypedAnswers == null ? null : (object[])TypedAnswers.Clone();
+            clone._answersMinimal = (DnsAnswerMinimal[])_answersMinimal.Clone();
             clone.WireMessage = WireMessage == null ? Array.Empty<byte>() : (byte[])WireMessage.Clone();
             clone.WireAnswers = WireAnswers == null ? Array.Empty<DnsWireResourceRecord>() : (DnsWireResourceRecord[])WireAnswers.Clone();
             clone.WireAuthorities = WireAuthorities == null ? Array.Empty<DnsWireResourceRecord>() : (DnsWireResourceRecord[])WireAuthorities.Clone();
