@@ -7,6 +7,8 @@ namespace DnsClientX {
     /// Provides shared JSON serialization helpers for user-facing payloads.
     /// </summary>
     public static class DnsClientXJsonSerializer {
+        private static readonly JsonSerializerOptions SharedSerializerOptions = CreateSerializerOptions();
+
         /// <summary>
         /// Serializes a value using the shared user-facing serializer options.
         /// </summary>
@@ -14,7 +16,7 @@ namespace DnsClientX {
         /// <param name="value">Value to serialize.</param>
         /// <returns>Formatted JSON text.</returns>
         public static string Serialize<T>(T value) {
-            return JsonSerializer.Serialize(value, CreateSerializerOptions());
+            return JsonSerializer.Serialize(value, SharedSerializerOptions);
         }
 
         /// <summary>
@@ -28,7 +30,7 @@ namespace DnsClientX {
                 throw new ArgumentNullException(nameof(content));
             }
 
-            return JsonSerializer.Deserialize<T>(content, CreateSerializerOptions());
+            return JsonSerializer.Deserialize<T>(content, SharedSerializerOptions);
         }
 
         /// <summary>

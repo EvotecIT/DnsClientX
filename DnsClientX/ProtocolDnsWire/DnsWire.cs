@@ -1,515 +1,248 @@
 using System;
-using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
-using System.Net;
 using System.Net.Http;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
     /// <summary>
-    /// Provides serialization and deserialization helpers for DNS wire format messages.
+    /// Provides DNS wire-format serialization and response parsing.
     /// </summary>
     internal static class DnsWire {
-        /// <summary>
-        /// Deserializes the DNS wire format.
-        /// </summary>
-        /// <param name="res">The resource.</param>
-        /// <param name="debug">if set to <c>true</c> [debug].</param>
-        /// <param name="bytes">The bytes.</param>
-        /// <returns></returns>
-        /// <exception cref="DnsClientX.DnsClientException">
-        /// Response content is empty, can't parse as DNS wire format.
-        /// or
-        /// Not enough data in the stream to read the question.
-        /// or
-        /// Not enough data in the stream to read the answer.
-        /// or
-        /// Not enough data in the stream to read the authority.
-        /// or
-        /// Not enough data in the stream to read the additional.
-        /// or
-        /// </exception>
-        internal static async Task<DnsResponse> DeserializeDnsWireFormat(this HttpResponseMessage? res, bool debug = false, byte[]? bytes = null) {
+        internal static Task<DnsResponse> DeserializeDnsWireFormat(this HttpResponseMessage? res,
+            bool debug = false, byte[]? bytes = null) =>
+            DeserializeDnsWireCore(res, debug, bytes, query: null, requireResponse: false);
+
+        internal static Task<DnsResponse> DeserializeDnsWireResponse(this HttpResponseMessage? res,
+            bool debug, byte[]? bytes, DnsMessage query) =>
+            DeserializeDnsWireCore(res, debug, bytes, query, requireResponse: true);
+
+        internal static async Task<DnsResponse> DeserializeDnsUpdateResponse(byte[] bytes, bool debug,
+            ushort transactionId, string zone) {
+            DnsResponse response = await DeserializeDnsWireCore(null, debug, bytes, query: null, requireResponse: true).ConfigureAwait(false);
+            if (response.TransactionId != transactionId) throw new DnsClientException("DNS UPDATE response transaction ID does not match the request.");
+            if (response.OperationCode != 5) throw new DnsClientException($"DNS UPDATE response has unexpected opcode {response.OperationCode}.");
+            if (response.Questions == null || response.Questions.Length != 1 ||
+                response.Questions[0].Type != DnsRecordType.SOA ||
+                !string.Equals(DnsWireNameCodec.Canonical(response.Questions[0].Name), DnsWireNameCodec.Canonical(zone), StringComparison.Ordinal)) {
+                throw new DnsClientException("DNS UPDATE response zone section does not match the request.");
+            }
+            return response;
+        }
+
+        private static async Task<DnsResponse> DeserializeDnsWireCore(HttpResponseMessage? res,
+            bool debug, byte[]? bytes, DnsMessage? query, bool requireResponse) {
             if (res == null && bytes == null) throw new ArgumentNullException(nameof(res));
             try {
-                byte[] dnsWireFormatBytes;
+                byte[] message;
                 if (bytes != null) {
-                    dnsWireFormatBytes = bytes;
+                    message = bytes;
                 } else {
-                    HttpResponseMessage notNullRes = res ?? throw new ArgumentNullException(nameof(res));
-                    using Stream stream = await notNullRes.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                    if (stream.Length == 0) throw new DnsClientException("Response content is empty, can't parse as DNS wire format.");
-                    // Ensure the stream's position is at the start
-                    stream.Position = 0;
-
-                    dnsWireFormatBytes = new byte[stream.Length];
-                    await ReadExactAsync(stream, dnsWireFormatBytes, 0, dnsWireFormatBytes.Length, CancellationToken.None).ConfigureAwait(false);
+                    HttpResponseMessage response = res ?? throw new ArgumentNullException(nameof(res));
+                    using Stream stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                    if (stream.CanSeek && stream.Length == 0) {
+                        throw new DnsClientException("Response content is empty; it cannot be parsed as a DNS message.");
+                    }
+                    using var buffer = new MemoryStream();
+                    await stream.CopyToAsync(buffer).ConfigureAwait(false);
+                    message = buffer.ToArray();
                 }
 
                 if (debug) {
-                    if (res?.RequestMessage?.RequestUri is { } requestUri) {
-                        // Print the DNS wire format bytes to the logger
-                        Settings.Logger.WriteDebug("Response Uri: " + requestUri);
-                    }
-
-                    Settings.Logger.WriteDebug("Response DnsWireFormatBytes: " + BitConverter.ToString(dnsWireFormatBytes));
+                    if (res?.RequestMessage?.RequestUri is Uri requestUri) Settings.Logger.WriteDebug("Response Uri: " + requestUri);
+                    Settings.Logger.WriteDebug("DNS response bytes: " + BitConverter.ToString(message));
                 }
 
-                // Extract the RCODE from the DNS message header
-                byte rcodeByte = dnsWireFormatBytes[3];
-                DnsResponseCode rcode = (DnsResponseCode)(rcodeByte & 0x0F); // The RCODE is in the lower 4 bits of the byte
-
-                // Check the RCODE and throw an exception if it indicates an error
-                if (rcode != DnsResponseCode.NoError) {
-                    //throw new DnsClientException($"DNS query failed with RCODE: {rcode}");
-                }
-
-                // Create a BinaryReader to read the DNS wire format bytes
-                using BinaryReader reader = new BinaryReader(new MemoryStream(dnsWireFormatBytes));
-                long messageStart = reader.BaseStream.Position;
-
-                //ushort transactionId = DebuggingHelpers.TroubleshootingDnsWire2(reader, "classCount", true);
-                //ushort flags = DebuggingHelpers.TroubleshootingDnsWire2(reader, "classCount", true);
-                //ushort questionCount = DebuggingHelpers.TroubleshootingDnsWire2(reader, "classCount", true);
-                //ushort answerCount = DebuggingHelpers.TroubleshootingDnsWire2(reader, "answerCount", true);
-                //ushort authorityCount = DebuggingHelpers.TroubleshootingDnsWire2(reader, "authorityCount", true);
-                //ushort additionalCount = DebuggingHelpers.TroubleshootingDnsWire2(reader, "additionalCount", true);
-
-                ushort transactionId = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
-                ushort flags = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
-                ushort questionCount = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
-                ushort answerCount = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
-                ushort authorityCount = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
-                ushort additionalCount = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
-
-                // Read the question section
-                DnsQuestion[] questions = questionCount > 0
-                    ? new DnsQuestion[questionCount]
-                    : Array.Empty<DnsQuestion>();
-                for (int i = 0; i < questionCount; i++) {
-                    if (reader.BaseStream.Position + 4 > reader.BaseStream.Length) {
-                        throw new DnsClientException("Not enough data in the stream to read the question.");
-                    }
-                    // Read the question name, type, and class from the reader and create a new Question object
-                    string name = reader.ReadDnsName(dnsWireFormatBytes, 0, messageStart);
-
-                    //ResourceRecordType type = (ResourceRecordType)DebuggingHelpers.TroubleshootingDnsWire2(reader, "QuestionType", true);
-                    DnsRecordType type = (DnsRecordType)BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
-
-                    //ushort @class = DebuggingHelpers.TroubleshootingDnsWire2(reader, "QuestionClass", true);
-                    ushort @class = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
-
-                    questions[i] = new DnsQuestion {
-                        Name = name,
-                        Type = type,
-                        //Class = @class
-                    };
-                }
-
-                // Read the answer section
-                DnsAnswer[] answers = answerCount > 0
-                    ? new DnsAnswer[answerCount]
-                    : Array.Empty<DnsAnswer>();
-                for (int i = 0; i < answerCount; i++) {
-                    //Console.WriteLine("-----------------");
-                    if (reader.BaseStream.Position + 6 > reader.BaseStream.Length) {
-                        throw new DnsClientException("Not enough data in the stream to read the answer.");
-                    }
-
-                    // Read the answer name
-                    string name = reader.ReadDnsName(dnsWireFormatBytes, 0, messageStart);
-
-                    // Read the answer type, class, TTL, and data length
-                    //ResourceRecordType type = (ResourceRecordType)TroubleshootingDnsWire2(reader, "AnswerType", true);
-                    DnsRecordType type = (DnsRecordType)BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
-
-                    //ushort @class = DebuggingHelpers.TroubleshootingDnsWire2(reader, "AnswerClass", true);
-                    ushort @class = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
-
-                    //uint ttl = DebuggingHelpers.TroubleshootingDnsWire4(reader, "AnswerTtl", true);
-                    uint ttl = BinaryPrimitives.ReadUInt32BigEndian(reader.ReadBytes(4));
-
-                    //ushort rdLength = DebuggingHelpers.TroubleshootingDnsWire2(reader, "AnswerRdlength", true);
-                    ushort rdLength = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
-
-                    //Console.WriteLine("rdlength: " + rdLength);
-
-                    // Read the answer data
-                    byte[] rdata = reader.ReadBytes(rdLength);
-
-                    //Console.WriteLine("Position: " + reader.BaseStream.Position);
-                    //Console.WriteLine("Length: " + reader.BaseStream.Length);
-                    //Console.WriteLine("rdata: " + rdata);
-                    //Console.WriteLine("Name: " + name);
-                    //Console.WriteLine("Type: " + type);
-                    //Console.WriteLine("Class: " + @class);
-                    //Console.WriteLine("Ttl: " + ttl);
-
-                    // Set recordStart to the current position of the reader
-                    int recordStart = (int)reader.BaseStream.Position;
-
-                    // Process the record data
-                    string data = ProcessRecordData(dnsWireFormatBytes, recordStart, type, rdata, rdLength, messageStart);
-
-                    //Create a new Answer object and fill in the properties based on the DNS wire format bytes
-                    answers[i] = new DnsAnswer {
-                        Name = name,
-                        Type = type,
-                        TTL = (int)ttl,
-                        DataRaw = data,
-                    };
-                }
-
-                // Read the authority section
-                DnsAnswer[] authorities = authorityCount > 0
-                    ? new DnsAnswer[authorityCount]
-                    : Array.Empty<DnsAnswer>();
-                for (int i = 0; i < authorityCount; i++) {
-                    if (reader.BaseStream.Position + 6 > reader.BaseStream.Length)
-                        throw new DnsClientException("Not enough data in the stream to read the authority.");
-
-                    // Read the authority record
-                    authorities[i] = reader.ReadDnsRecord(dnsWireFormatBytes, messageStart);
-                }
-
-                // Read the additional section
-                DnsAnswer[] additional = additionalCount > 0
-                    ? new DnsAnswer[additionalCount]
-                    : Array.Empty<DnsAnswer>();
-                for (int i = 0; i < additionalCount; i++) {
-                    if (reader.BaseStream.Position + 6 > reader.BaseStream.Length)
-                        throw new DnsClientException("Not enough data in the stream to read the additional.");
-
-                    // Read the additional record
-                    additional[i] = reader.ReadDnsRecord(dnsWireFormatBytes, messageStart);
-                }
-
-                // Create a new Response object and fill in the properties based on the DNS wire format bytes
-                DnsResponse response = new DnsResponse {
-                    Status = (DnsResponseCode)(flags & 0x000F), // RCODE is the last 4 bits of flags
-                    IsTruncated = (flags & 0x0200) != 0, // TC is the 7th bit of flags
-                    IsRecursionDesired = (flags & 0x0100) != 0, // RD is the 8th bit of flags
-                    IsRecursionAvailable = (flags & 0x0080) != 0, // RA is the 9th bit of flags
-                    AuthenticData = (flags & 0x0020) != 0, // AD is the 12th bit of flags
-                    CheckingDisabled = (flags & 0x0010) != 0, // CD is the 13th bit of flags
-                    Questions = questions,
-                    Answers = answers,
-                    Authorities = authorities,
-                    Additional = additional,
-                };
-                return response;
+                return ParseMessage(message, query, requireResponse || query != null);
+            } catch (DnsClientException) {
+                throw;
             } catch (Exception ex) {
-                throw new DnsClientException(ex.Message);
+                throw new DnsClientException("Invalid DNS wire response: " + ex.Message, ex);
             }
         }
 
-        private static string ReadDnsName(this BinaryReader reader, byte[] dnsMessage, ushort rdlength, long messageStart) {
-            var labels = new List<string>();
+        // Retained for internal binary/source compatibility with older tests and custom builds.
+        // Production response parsing uses the bounded message-aware formatter directly.
+        internal static string ProcessRecordData(byte[] dnsMessage, int recordStart, DnsRecordType type,
+            byte[] rdata, ushort rdLength, long messageStart) {
+            if (rdata == null) throw new ArgumentNullException(nameof(rdata));
+            if (rdLength > rdata.Length) throw new DnsClientException("RDATA length exceeds the supplied buffer.");
+            return DnsWireRecordFormatter.Format(rdata, type, 0, rdLength);
+        }
 
-            while (true) {
-                byte length = reader.ReadByte();
+        private static DnsResponse ParseMessage(byte[] message, DnsMessage? query, bool requireResponse) {
+            if (message.Length < 12) throw new DnsClientException("DNS message is shorter than its 12-byte header.");
+            if (message.Length > ushort.MaxValue) throw new DnsClientException("DNS message exceeds the 65535-octet protocol limit.");
+            var reader = new DnsWireReader(message);
+            ushort transactionId = reader.ReadUInt16();
+            ushort flags = reader.ReadUInt16();
+            ushort questionCount = reader.ReadUInt16();
+            ushort answerCount = reader.ReadUInt16();
+            ushort authorityCount = reader.ReadUInt16();
+            ushort additionalCount = reader.ReadUInt16();
 
-                if (length == 0) {
-                    // This is the end of the name
-                    break;
-                }
+            bool isResponse = (flags & 0x8000) != 0;
+            int opcode = (flags >> 11) & 0x0F;
+            if (requireResponse && !isResponse) throw new DnsClientException("DNS packet is not a response (QR=0).");
+            if (query != null && transactionId != query.TransactionId) {
+                throw new DnsClientException($"DNS response transaction ID {transactionId} does not match query ID {query.TransactionId}.");
+            }
+            if (query != null && opcode != 0) throw new DnsClientException($"DNS response opcode {opcode} does not match a standard query.");
 
-                // Check if this is a pointer
-                if ((length & 0xC0) == 0xC0) {
-                    // The next byte combined with the last 6 bits of this byte form a pointer to the rest of the name
-                    byte secondByte = reader.ReadByte();
-                    ushort pointer = (ushort)(((length & 0x3F) << 8) | secondByte);
+            var questions = new DnsQuestion[questionCount];
+            var questionClasses = new ushort[questionCount];
+            for (int i = 0; i < questionCount; i++) {
+                string name = reader.ReadName();
+                DnsRecordType type = (DnsRecordType)reader.ReadUInt16();
+                ushort queryClass = reader.ReadUInt16();
+                questions[i] = new DnsQuestion { Name = name, Type = type, OriginalName = name };
+                questionClasses[i] = queryClass;
+            }
 
-                    // Save the current position
-                    long currentPosition = reader.BaseStream.Position;
-
-                    // Create a new BinaryReader at the pointer position
-                    using BinaryReader pointerReader = new BinaryReader(new MemoryStream(dnsMessage));
-                    pointerReader.BaseStream.Position = messageStart + pointer;
-
-                    // Read the rest of the name
-                    labels.Add(pointerReader.ReadDnsName(dnsMessage, rdlength, messageStart));
-
-                    // Jump back to the original position
-                    reader.BaseStream.Position = currentPosition;
-
-                    break;
-                } else {
-                    // This is a normal label, read the text
-                    labels.Add(Encoding.UTF8.GetString(reader.ReadBytes(length)) + ".");
+            if (query != null) {
+                if (questionCount != 1) throw new DnsClientException($"DNS response contains {questionCount} questions; exactly one was expected.");
+                if (!string.Equals(DnsWireNameCodec.Canonical(questions[0].Name), DnsWireNameCodec.Canonical(query.Name), StringComparison.Ordinal) ||
+                    questions[0].Type != query.Type || questionClasses[0] != query.QueryClass) {
+                    throw new DnsClientException("DNS response question does not match the requested name, type, and class.");
                 }
             }
 
-            return string.Join("", labels);
-        }
+            DnsWireResourceRecord[] answerRecords = ReadRecords(reader, answerCount);
+            DnsWireResourceRecord[] authorityRecords = ReadRecords(reader, authorityCount);
+            DnsWireResourceRecord[] additionalRecords = ReadRecords(reader, additionalCount);
+            if (Array.Exists(answerRecords, record => record.Type == DnsRecordType.OPT) ||
+                Array.Exists(authorityRecords, record => record.Type == DnsRecordType.OPT)) {
+                throw new DnsClientException("The OPT pseudo-record is only valid in the additional section.");
+            }
+            if (!reader.IsAtEnd) throw new DnsClientException("DNS response contains trailing bytes after the declared sections.");
 
-        private static DnsAnswer ReadDnsRecord(this BinaryReader reader, byte[] dnsMessage, long messageStart) {
-            // Read the record name
-            string name = reader.ReadDnsName(dnsMessage, 0, messageStart);
+            int extendedRcode = 0;
+            int? ednsPayloadSize = null;
+            byte? ednsVersion = null;
+            bool ednsDnsSecOk = false;
+            byte[] nsid = Array.Empty<byte>();
+            byte[] cookie = Array.Empty<byte>();
+            string ednsClientSubnet = string.Empty;
+            var extendedErrors = new List<ExtendedDnsError>();
+            bool sawOpt = false;
 
-            // Read the record type, class, TTL, and data length
-            DnsRecordType type = (DnsRecordType)BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
-            ushort @class = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
-            uint ttl = BinaryPrimitives.ReadUInt32BigEndian(reader.ReadBytes(4));
-            ushort rdlength = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
+            foreach (DnsWireResourceRecord record in additionalRecords) {
+                if (record.Type != DnsRecordType.OPT) continue;
+                if (sawOpt) throw new DnsClientException("DNS response contains more than one OPT pseudo-record.");
+                sawOpt = true;
+                if (record.Name != ".") throw new DnsClientException("The OPT pseudo-record owner name must be the root name.");
+                ednsPayloadSize = record.Class;
+                extendedRcode = (int)((record.RawTtl >> 24) & 0xFF);
+                ednsVersion = (byte)((record.RawTtl >> 16) & 0xFF);
+                ednsDnsSecOk = (record.RawTtl & 0x8000) != 0;
+                ParseEdnsOptions(message, record, extendedErrors, ref nsid, ref cookie, ref ednsClientSubnet);
+            }
 
-            // Check if there's enough data left in the stream to read the record data
-            if (reader.BaseStream.Position + rdlength > reader.BaseStream.Length)
-                throw new DnsClientException("Not enough data in the stream to read the record data.");
-
-            // Read the record data
-            byte[] rdata = reader.ReadBytes(rdlength);
-
-            return new DnsAnswer {
-                Name = name,
-                Type = type,
-                TTL = (int)ttl,
-                DataRaw = Convert.ToBase64String(rdata)
+            int responseCode = (flags & 0x000F) | (extendedRcode << 4);
+            var response = new DnsResponse {
+                TransactionId = transactionId,
+                IsResponse = isResponse,
+                OperationCode = opcode,
+                Status = (DnsResponseCode)responseCode,
+                IsAuthoritativeAnswer = (flags & 0x0400) != 0,
+                IsTruncated = (flags & 0x0200) != 0,
+                IsRecursionDesired = (flags & 0x0100) != 0,
+                IsRecursionAvailable = (flags & 0x0080) != 0,
+                AuthenticData = (flags & 0x0020) != 0,
+                CheckingDisabled = (flags & 0x0010) != 0,
+                Questions = questions,
+                Answers = ToAnswers(answerRecords),
+                Authorities = ToAnswers(authorityRecords),
+                Additional = ToAnswers(additionalRecords),
+                ExtendedDnsErrors = extendedErrors.ToArray(),
+                EdnsClientSubnet = ednsClientSubnet,
+                EdnsUdpPayloadSize = ednsPayloadSize,
+                EdnsVersion = ednsVersion,
+                EdnsDnsSecOk = ednsDnsSecOk,
+                EdnsNsid = nsid,
+                EdnsCookie = cookie,
+                WireMessage = (byte[])message.Clone(),
+                WireAnswers = answerRecords,
+                WireAuthorities = authorityRecords,
+                WireAdditional = additionalRecords
             };
+            response.RefreshDerivedData();
+            return response;
         }
 
-        private static string DecodeCAARecord(this BinaryReader reader, ushort rdLength) {
-            byte flags = reader.ReadByte();
-            byte tagLength = reader.ReadByte();
-            string tag = Encoding.ASCII.GetString(reader.ReadBytes(tagLength));
-            string value = Encoding.ASCII.GetString(reader.ReadBytes(rdLength - tagLength - 2)); // Subtract 2 for the flags and tag length bytes
-            return $"{flags} {tag} \"{value}\""; // Add quotes around the value
-        }
-
-        /// <summary>
-        /// The SOA record data is structured as follows:
-        /// • MNAME: The domain name of the primary NS record for the zone.This is a DNS name which is encoded the same way as in other records.
-        /// • RNAME: A domain name that represents the email address of the administrative contact for the zone. The "@" symbol is replaced with a dot.
-        /// • SERIAL: A 32-bit integer in network byte order.
-        /// • REFRESH: A 32-bit integer in network byte order.
-        /// • RETRY: A 32-bit integer in network byte order.
-        /// • EXPIRE: A 32-bit integer in network byte order.
-        /// • MINIMUM: A 32-bit integer in network byte order.
-        /// </summary>
-        /// <param name="reader"></param>
-        /// <param name="dnsMessage"></param>
-        /// <param name="rdLength"></param>
-        /// <param name="messageStart"></param>
-        /// <returns></returns>
-        private static string DecodeSOARecord(this BinaryReader reader, byte[] dnsMessage, ushort rdLength, long messageStart) {
-            string mname = reader.ReadDnsName(dnsMessage, rdLength, messageStart);
-            string rname = reader.ReadDnsName(dnsMessage, rdLength, messageStart);
-            uint serial = BinaryPrimitives.ReadUInt32BigEndian(reader.ReadBytes(4));
-            int refresh = BinaryPrimitives.ReadInt32BigEndian(reader.ReadBytes(4));
-            int retry = BinaryPrimitives.ReadInt32BigEndian(reader.ReadBytes(4));
-            int expire = BinaryPrimitives.ReadInt32BigEndian(reader.ReadBytes(4));
-            int minimum = BinaryPrimitives.ReadInt32BigEndian(reader.ReadBytes(4));
-            return $"{mname} {rname} {serial} {refresh} {retry} {expire} {minimum}";
-        }
-
-        /// <summary>
-        /// Decodes the dnskey record.
-        /// </summary>
-        /// <param name="reader">The reader.</param>
-        /// <param name="rdLength">Length of the rd.</param>
-        /// <returns></returns>
-        private static string DecodeDNSKEYRecord(this BinaryReader reader, ushort rdLength) {
-            // For DNSKEY records, decode the flags, protocol, algorithm, and public key from the record data
-            ushort flags = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
-            byte protocol = reader.ReadByte();
-            DnsKeyAlgorithm algorithm = (DnsKeyAlgorithm)reader.ReadByte();
-            byte[] publicKey = reader.ReadBytes(rdLength - 4); // Subtract 4 for the flags, protocol, and algorithm bytes
-
-            return $"{flags} {protocol} {algorithm} {Convert.ToBase64String(publicKey)}";
-        }
-
-        private static double DecodePrecision(byte value) {
-            int @base = (value >> 4) & 0x0F;
-            int exponent = value & 0x0F;
-            if (@base == 0 && exponent == 0) return 0;
-            return (@base * Math.Pow(10, exponent)) / 100.0;
-        }
-
-        private static string DecodeLOCRecord(this BinaryReader reader, ushort rdLength) {
-            if (rdLength < 16) throw new DnsClientException("The record data for LOC is not long enough");
-            byte version = reader.ReadByte();
-            byte size = reader.ReadByte();
-            byte horizPre = reader.ReadByte();
-            byte vertPre = reader.ReadByte();
-            uint latVal = BinaryPrimitives.ReadUInt32BigEndian(reader.ReadBytes(4));
-            uint lonVal = BinaryPrimitives.ReadUInt32BigEndian(reader.ReadBytes(4));
-            uint altVal = BinaryPrimitives.ReadUInt32BigEndian(reader.ReadBytes(4));
-
-            int lat = (int)latVal - (1 << 31);
-            char ns = lat < 0 ? 'S' : 'N';
-            lat = Math.Abs(lat);
-            int latMillis = lat % 1000;
-            lat /= 1000;
-            int latSec = lat % 60;
-            lat /= 60;
-            int latMin = lat % 60;
-            int latDeg = lat / 60;
-
-            int lon = (int)lonVal - (1 << 31);
-            char ew = lon < 0 ? 'W' : 'E';
-            lon = Math.Abs(lon);
-            int lonMillis = lon % 1000;
-            lon /= 1000;
-            int lonSec = lon % 60;
-            lon /= 60;
-            int lonMin = lon % 60;
-            int lonDeg = lon / 60;
-
-            double altitude = (altVal / 100.0) - 100000.0;
-
-            double sizeM = DecodePrecision(size);
-            double hpM = DecodePrecision(horizPre);
-            double vpM = DecodePrecision(vertPre);
-
-            return $"{latDeg} {latMin} {latSec}.{latMillis:D3} {ns} {lonDeg} {lonMin} {lonSec}.{lonMillis:D3} {ew} {altitude}m {sizeM}m {hpM}m {vpM}m";
-        }
-
-
-        /// <summary>
-        /// NSEC record data is structured as follows:
-        /// - Next Domain Name: The next domain name in the zone. This is a DNS name which is encoded the same way as in other records.
-        /// - Type Bit Maps: A variable-length field that contains a list of the types of records that exist for the next domain name.
-        /// - The type bit maps are encoded as a series of windows, each of which contains a bitmap of the types of records that exist for the next domain name.
-        /// - Each window contains a bitmap length byte followed by a bitmap of the types of records that exist for the next domain name.
-        /// - The bitmap length byte is followed by a variable-length bitmap of the types of records that exist for the next domain name.
-        /// - The bitmap length byte is a value from 0 to 32 that represents the number of bits in the bitmap.
-        /// - The bitmap is a variable-length field that contains a list of the types of records that exist for the next domain name.
-        /// - The types of records are encoded as a series of bit fields, each of which represents a type of record that exists for the next domain name.
-        /// - The bit fields are encoded as a series of bytes, each of which contains a bitmap of the types of records that exist for the next domain name.
-        /// - The bit fields are encoded from the most significant bit to the least significant bit, and from the most significant byte to the least significant byte.
-        /// - The bit fields are encoded in network byte order.
-        /// - The bit fields are encoded in the same way as the type bitmap in the NSEC3PARAM record.
-        /// - The types of records are encoded as a series of bit fields, each of which represents a type of record that exists for the next domain name.
-        /// </summary>
-        /// <param name="reader"></param>
-        /// <param name="dnsMessage"></param>
-        /// <param name="rdLength"></param>
-        /// <param name="messageStart"></param>
-        /// <returns></returns>
-        private static string DecodeNSECRecord(this BinaryReader reader, byte[] dnsMessage, ushort rdLength, long messageStart) {
-            //string nextDomainName = reader.ReadDnsName(messageStart);
-            string nextDomainName = reader.ReadDnsName(dnsMessage, rdLength, messageStart);
-            // let's replace nulls with \0 to make sure it's visible and similar to how it's done via JSON API
-            nextDomainName = nextDomainName.Replace("\0", "\\000");
-            byte[] typeBitmaps = reader.ReadBytes(rdLength - (int)(reader.BaseStream.Position - messageStart));
-
-            List<string> types = new List<string>();
-            for (int i = 0; i < typeBitmaps.Length;) {
-                byte windowNumber = typeBitmaps[i++];
-                byte bitmapLength = typeBitmaps[i++];
-
-                for (int j = 0; j < bitmapLength; j++) {
-                    for (int bit = 0; bit < 8; bit++) {
-                        if ((typeBitmaps[i + j] & (1 << (7 - bit))) != 0) { // bit order is from most significant to least significant
-                            ushort typeValue = (ushort)((windowNumber * 256) + (j * 8) + bit);
-                            string typeName = Enum.IsDefined(typeof(DnsRecordType), typeValue)
-                                ? ((DnsRecordType)typeValue).ToString()
-                                : typeValue.ToString();
-                            types.Add(typeName);
-                        }
-                    }
-                }
-
-                i += bitmapLength;
+        private static DnsWireResourceRecord[] ReadRecords(DnsWireReader reader, ushort count) {
+            if (count == 0) return Array.Empty<DnsWireResourceRecord>();
+            var records = new DnsWireResourceRecord[count];
+            for (int i = 0; i < count; i++) {
+                string name = reader.ReadName();
+                DnsRecordType type = (DnsRecordType)reader.ReadUInt16();
+                ushort recordClass = reader.ReadUInt16();
+                uint rawTtl = reader.ReadUInt32();
+                ushort length = reader.ReadUInt16();
+                int rdataOffset = reader.Position;
+                reader.Skip(length);
+                int ttl = type == DnsRecordType.OPT ? 0 : rawTtl > int.MaxValue ? int.MaxValue : (int)rawTtl;
+                string data = DnsWireRecordFormatter.Format(reader.Message, type, rdataOffset, length);
+                records[i] = new DnsWireResourceRecord(name, type, recordClass, ttl, rawTtl, rdataOffset, length, data);
             }
-
-            return $"{nextDomainName} {string.Join(" ", types)}";
+            return records;
         }
 
-        /// <summary>
-        /// Processes the record data.
-        /// </summary>
-        /// <param name="dnsMessage">The DNS message.</param>
-        /// <param name="recordStart">The record start.</param>
-        /// <param name="type">The type.</param>
-        /// <param name="rdata">The rdata.</param>
-        /// <param name="rdLength">Length of the rd.</param>
-        /// <param name="messageStart">The message start.</param>
-        /// <returns></returns>
-        /// <exception cref="DnsClientException">
-        /// The record data for " + type + " is not long enough? " + ex.Message
-        /// or
-        /// Error processing record data for " + type + ": " + ex.Message
-        /// </exception>
-        internal static string ProcessRecordData(byte[] dnsMessage, int recordStart, DnsRecordType type, byte[] rdata, ushort rdLength, long messageStart) {
-            using (BinaryReader reader = new BinaryReader(new MemoryStream(rdata))) {
-                try {
-                    if (type == DnsRecordType.TXT) {
-                        // For TXT records, read each string separately
-                        StringBuilder sb = new StringBuilder();
-                        while (reader.BaseStream.Position < reader.BaseStream.Length) {
-                            byte length = reader.ReadByte();
-                            byte[] stringBytes = reader.ReadBytes(length);
-                            sb.Append('"');
-                            sb.Append(Encoding.UTF8.GetString(stringBytes));
-                            sb.Append('"');
+        private static DnsAnswer[] ToAnswers(DnsWireResourceRecord[] records) {
+            var answers = new DnsAnswer[records.Length];
+            for (int i = 0; i < records.Length; i++) {
+                answers[i] = new DnsAnswer {
+                    Name = records[i].Name,
+                    Type = records[i].Type,
+                    TTL = records[i].Ttl,
+                    DataRaw = records[i].Data
+                };
+            }
+            return answers;
+        }
+
+        private static void ParseEdnsOptions(byte[] message, DnsWireResourceRecord record,
+            List<ExtendedDnsError> errors, ref byte[] nsid, ref byte[] cookie, ref string subnet) {
+            var reader = new DnsWireReader(message, record.RdataOffset, record.RdataOffset + record.RdataLength);
+            while (!reader.IsAtEnd) {
+                ushort code = reader.ReadUInt16();
+                ushort length = reader.ReadUInt16();
+                int end = checked(reader.Position + length);
+                if (end > reader.End) throw new DnsClientException("EDNS option length exceeds the OPT RDATA boundary.");
+                byte[] value = reader.ReadBytes(length);
+                switch (code) {
+                    case 3: // NSID, RFC 5001
+                        nsid = value;
+                        break;
+                    case 8: // ECS, RFC 7871
+                        subnet = DnsWireRecordFormatter.FormatClientSubnet(value);
+                        break;
+                    case 10: // COOKIE, RFC 7873
+                        if (!CookieOption.IsValidResponseLength(value.Length)) {
+                            throw new DnsClientException("EDNS Cookie must contain an 8-byte client cookie and either no server cookie or an 8-32 byte server cookie.");
                         }
-                        return sb.ToString();
-                    } else if (type == DnsRecordType.A || type == DnsRecordType.AAAA) {
-                        // For A records, decode the IP address from the record data
-                        return new IPAddress(rdata).ToString();
-                    } else if (type == DnsRecordType.CNAME) {
-                        // For CNAME records, decode the domain name from the record data
-                        return reader.ReadDnsName(dnsMessage, rdLength, messageStart);
-                    } else if (type == DnsRecordType.DNAME) {
-                        // For DNAME records, decode the domain name from the record data
-                        return reader.ReadDnsName(dnsMessage, rdLength, messageStart);
-                    } else if (type == DnsRecordType.NS) {
-                        // For NS records, decode the domain name from the record data
-                        //return reader.ReadDnsNameNS(dnsMessage, recordStart, messageStart, rdLength);
-                        return reader.ReadDnsName(dnsMessage, rdLength, messageStart);
-                    } else if (type == DnsRecordType.MX) {
-                        // For MX records, decode the preference and exchange from the record data
-                        ushort preference = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
-                        string exchange = reader.ReadDnsName(dnsMessage, rdLength, messageStart);
-                        return $"{preference} {exchange}";
-                    } else if (type == DnsRecordType.SOA) {
-                        // For SOA records, decode the mname, rname, and other fields from the record data
-                        return reader.DecodeSOARecord(dnsMessage, rdLength, messageStart);
-                    } else if (type == DnsRecordType.CAA) {
-                        return reader.DecodeCAARecord(rdLength);
-                    } else if (type == DnsRecordType.DNSKEY) {
-                        return reader.DecodeDNSKEYRecord(rdLength);
-                    } else if (type == DnsRecordType.DS) {
-                        if (rdLength < 4) throw new DnsClientException("The record data for DS is not long enough");
-                        ushort keyTag = BinaryPrimitives.ReadUInt16BigEndian(reader.ReadBytes(2));
-                        byte algorithmVal = reader.ReadByte();
-                        byte digestType = reader.ReadByte();
-                        byte[] digestBytes = reader.ReadBytes(rdLength - 4);
-                        string algorithmName = Enum.IsDefined(typeof(DnsKeyAlgorithm), (int)algorithmVal)
-                            ? ((DnsKeyAlgorithm)algorithmVal).ToString()
-                            : algorithmVal.ToString();
-                        string digest = BitConverter.ToString(digestBytes).Replace("-", string.Empty).ToLowerInvariant();
-                        return $"{keyTag} {algorithmName} {digestType} {digest}";
-                    } else if (type == DnsRecordType.LOC) {
-                        return reader.DecodeLOCRecord(rdLength);
-                    } else if (type == DnsRecordType.NSEC) {
-                        return reader.DecodeNSECRecord(dnsMessage, rdLength, messageStart);
-                    } else {
-                        return Convert.ToBase64String(rdata);
-                    }
-                } catch (EndOfStreamException ex) {
-                    throw new DnsClientException("The record data for " + type + " is not long enough? " + ex.Message);
-                } catch (Exception ex) {
-                    throw new DnsClientException("Error processing record data for " + type + ": " + ex.Message);
+                        cookie = value;
+                        break;
+                    case 15: // EDE, RFC 8914
+                        if (value.Length < 2) throw new DnsClientException("Extended DNS Error option is shorter than its 2-byte info code.");
+                        int infoCode = (value[0] << 8) | value[1];
+                        string text = value.Length == 2 ? string.Empty : System.Text.Encoding.UTF8.GetString(value, 2, value.Length - 2);
+                        errors.Add(new ExtendedDnsError { InfoCode = infoCode, ExtraText = text });
+                        break;
                 }
             }
         }
 
         /// <summary>
-        /// Helper to read exactly the requested number of bytes from a stream.
+        /// Reads exactly the requested number of bytes or throws when the stream ends early.
         /// </summary>
         internal static async Task ReadExactAsync(Stream stream, byte[] buffer, int offset, int count, CancellationToken cancellationToken) {
-            int read;
-            while (count > 0 && (read = await stream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false)) > 0) {
+            while (count > 0) {
+                int read = await stream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
+                if (read == 0) throw new EndOfStreamException("Stream ended before the declared DNS message length.");
                 offset += read;
                 count -= read;
-            }
-            if (count > 0) {
-                throw new System.IO.EndOfStreamException("Stream ended before reading all requested bytes.");
             }
         }
     }

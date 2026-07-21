@@ -23,6 +23,11 @@ namespace DnsClientX {
         public AddressFamily? Family { get; init; }
 
         /// <summary>
+        /// Optional TLS server name used for certificate validation and SNI when <see cref="Host"/> is an IP address.
+        /// </summary>
+        public string? TlsServerName { get; init; }
+
+        /// <summary>
         /// Transport protocol used to query this endpoint.
         /// </summary>
         public Transport Transport { get; init; } = Transport.Udp;

@@ -29,13 +29,15 @@ namespace DnsClientX {
                 type == DnsRecordType.A ? "" : $"&type={type.ToString().UrlEncode()}",
                 requestDnsSec == false ? "" : $"&do=1", validateDnsSec == false ? "" : $"&cd=1");
 
-            using HttpRequestMessage req = new(HttpMethod.Get, url);
+            using HttpRequestMessage req = new(HttpMethod.Get, DnsHttpRequestUri.Build(configuration, url));
             try {
                 using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
 
                 DnsResponse response = await res.DeserializeResponse(debug).ConfigureAwait(false);
                 response.AddServerDetails(configuration);
                 return response;
+            } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                throw;
             } catch (Exception ex) {
                 DnsResponseCode responseCode;
                 string message;
@@ -60,8 +62,8 @@ namespace DnsClientX {
                         new DnsQuestion {
                             Name = name,
                             RequestFormat = DnsRequestFormat.DnsOverHttps,
-                            HostName = client.BaseAddress?.Host ?? string.Empty,
-                            Port = client.BaseAddress?.Port ?? 0,
+                            HostName = configuration.Hostname ?? configuration.BaseUri?.Host ?? string.Empty,
+                            Port = configuration.BaseUri?.Port ?? configuration.Port,
                             Type = type,
                             OriginalName = name
                         }
@@ -91,7 +93,7 @@ namespace DnsClientX {
             }
             string json = DnsJson.Serialize(payload, DnsJsonContext.Default.ResolveRequest);
 
-            using HttpRequestMessage req = new(HttpMethod.Post, string.Empty) {
+            using HttpRequestMessage req = new(HttpMethod.Post, DnsHttpRequestUri.Build(configuration)) {
                 Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
             };
 
@@ -100,6 +102,8 @@ namespace DnsClientX {
                 DnsResponse response = await res.DeserializeResponse(debug).ConfigureAwait(false);
                 response.AddServerDetails(configuration);
                 return response;
+            } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                throw;
             } catch (Exception ex) {
                 DnsResponseCode responseCode;
                 string message;
@@ -124,8 +128,8 @@ namespace DnsClientX {
                         new DnsQuestion {
                             Name = name,
                             RequestFormat = DnsRequestFormat.DnsOverHttps,
-                            HostName = client.BaseAddress?.Host ?? string.Empty,
-                            Port = client.BaseAddress?.Port ?? 0,
+                            HostName = configuration.Hostname ?? configuration.BaseUri?.Host ?? string.Empty,
+                            Port = configuration.BaseUri?.Port ?? configuration.Port,
                             Type = type,
                             OriginalName = name
                         }

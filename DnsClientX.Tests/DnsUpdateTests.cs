@@ -45,29 +45,13 @@ namespace DnsClientX.Tests {
             s.Write(b, 0, 2);
         }
 
-        private static byte[] BuildResponse(DnsResponseCode code) {
-            using var ms = new System.IO.MemoryStream();
-            WriteUInt16(ms, 1);
-            ushort flags = (ushort)(0x8000 | (ushort)code);
-            WriteUInt16(ms, flags);
-            WriteUInt16(ms, 1);
-            WriteUInt16(ms, 0);
-            WriteUInt16(ms, 0);
-            WriteUInt16(ms, 0);
-            var zone = EncodeName("example.com");
-            ms.Write(zone, 0, zone.Length);
-            WriteUInt16(ms, (ushort)DnsRecordType.SOA);
-            WriteUInt16(ms, 1);
-            return ms.ToArray();
-        }
-
         private sealed class UpdateServer {
             public int Port { get; }
             public Task Task { get; }
             public UpdateServer(int port, Task task) { Port = port; Task = task; }
         }
 
-        private static UpdateServer RunServerAsync(byte[] response, CancellationToken token) {
+        private static UpdateServer RunServerAsync(DnsResponseCode code, CancellationToken token) {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -85,6 +69,7 @@ namespace DnsClientX.Tests {
                 int qLen = BitConverter.ToUInt16(len, 0);
                 byte[] q = new byte[qLen];
                 await TestUtilities.ReadExactlyAsync(stream, q, qLen, token);
+                byte[] response = TestUtilities.CreateResponseFromQuery(q, (ushort)(0xA800 | (ushort)code));
                 byte[] prefix = BitConverter.GetBytes((ushort)response.Length);
                 if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
                 await stream.WriteAsync(prefix, 0, prefix.Length, token);
@@ -100,9 +85,8 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task UpdateRecordAsync_ReturnsSuccess() {
-            byte[] resp = BuildResponse(DnsResponseCode.NoError);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var server = RunServerAsync(resp, cts.Token);
+            var server = RunServerAsync(DnsResponseCode.NoError, cts.Token);
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
             var res = await client.UpdateRecordAsync("example.com", "www.example.com", DnsRecordType.A, "1.2.3.4");
             await server.Task;
@@ -114,9 +98,8 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task UpdateRecordAsync_FailsWithError() {
-            byte[] resp = BuildResponse(DnsResponseCode.Refused);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var server = RunServerAsync(resp, cts.Token);
+            var server = RunServerAsync(DnsResponseCode.Refused, cts.Token);
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) { EndpointConfiguration = { Port = server.Port } };
             await Assert.ThrowsAsync<DnsClientException>(() => client.UpdateRecordAsync("example.com", "www.example.com", DnsRecordType.A, "1.2.3.4"));
             await server.Task;
@@ -126,12 +109,29 @@ namespace DnsClientX.Tests {
         /// Ensures invalid TTL values throw an exception.
         /// </summary>
         [Theory]
-        [InlineData(0)]
         [InlineData(-1)]
         public async Task UpdateRecordAsync_InvalidTtl_Throws(int ttl) {
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP);
             await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 () => client.UpdateRecordAsync("example.com", "www.example.com", DnsRecordType.A, "1.2.3.4", ttl));
+        }
+
+        /// <summary>
+        /// RFC 2136 does not prohibit a zero TTL for an RR added with the zone class.
+        /// </summary>
+        [Fact]
+        public async Task UpdateRecordAsync_AllowsZeroTtl() {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var server = RunServerAsync(DnsResponseCode.NoError, cts.Token);
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) {
+                EndpointConfiguration = { Port = server.Port }
+            };
+
+            DnsResponse response = await client.UpdateRecordAsync(
+                "example.com", "www.example.com", DnsRecordType.A, "1.2.3.4", ttl: 0);
+
+            await server.Task;
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
         }
 
         /// <summary>
@@ -141,7 +141,7 @@ namespace DnsClientX.Tests {
         public void CreateAddMessage_LongTxt_IsSplitIntoValidChunks() {
             string text = new string('a', 300);
 
-            byte[] message = DnsUpdateMessage.CreateAddMessage("example.com", "txt.example.com", DnsRecordType.TXT, text, 60);
+            byte[] message = DnsUpdateMessage.CreateAddMessage("example.com", "txt.example.com", DnsRecordType.TXT, text, 60).WireData;
 
             int offset = 12;
             offset = SkipName(message, offset);

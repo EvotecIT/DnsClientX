@@ -17,15 +17,13 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.CloudflareSecurity)]
         [InlineData(DnsEndpoint.CloudflareWireFormat)]
         [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
-        [InlineData(DnsEndpoint.CloudflareOdoh)]
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
 #if DNS_OVER_QUIC
-        [InlineData(DnsEndpoint.CloudflareQuic)]
-        [InlineData(DnsEndpoint.GoogleQuic)]
+        [InlineData(DnsEndpoint.Quad9Quic)]
 #endif
         public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
@@ -48,7 +46,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.CloudflareSecurity)]
         [InlineData(DnsEndpoint.CloudflareWireFormat)]
         [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
-        [InlineData(DnsEndpoint.CloudflareOdoh)]
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
@@ -58,8 +55,7 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
 #if DNS_OVER_QUIC
-        [InlineData(DnsEndpoint.CloudflareQuic)]
-        [InlineData(DnsEndpoint.GoogleQuic)]
+        [InlineData(DnsEndpoint.Quad9Quic)]
 #endif
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
@@ -81,15 +77,13 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.CloudflareSecurity)]
         [InlineData(DnsEndpoint.CloudflareWireFormat)]
         [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
-        [InlineData(DnsEndpoint.CloudflareOdoh)]
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
 #if DNS_OVER_QUIC
-        [InlineData(DnsEndpoint.CloudflareQuic)]
-        [InlineData(DnsEndpoint.GoogleQuic)]
+        [InlineData(DnsEndpoint.Quad9Quic)]
 #endif
         public void ShouldWorkForTXT_Sync(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
@@ -112,15 +106,13 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.CloudflareSecurity)]
         [InlineData(DnsEndpoint.CloudflareWireFormat)]
         [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
-        [InlineData(DnsEndpoint.CloudflareOdoh)]
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
 #if DNS_OVER_QUIC
-        [InlineData(DnsEndpoint.CloudflareQuic)]
-        [InlineData(DnsEndpoint.GoogleQuic)]
+        [InlineData(DnsEndpoint.Quad9Quic)]
 #endif
         public void ShouldWorkForA_Sync(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);

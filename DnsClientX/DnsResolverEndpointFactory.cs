@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace DnsClientX {
     /// <summary>
@@ -7,6 +8,22 @@ namespace DnsClientX {
     /// Built-in entries cover the core transport families supported by the shared resolver workflows.
     /// </summary>
     public static class DnsResolverEndpointFactory {
+        /// <summary>
+        /// Expands predefined providers into their concrete resolver endpoints and removes duplicates.
+        /// </summary>
+        public static DnsResolverEndpoint[] From(IEnumerable<DnsEndpoint> endpoints) {
+            if (endpoints == null) throw new ArgumentNullException(nameof(endpoints));
+            var expanded = new List<DnsResolverEndpoint>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (DnsEndpoint endpoint in endpoints) {
+                foreach (DnsResolverEndpoint candidate in From(endpoint)) {
+                    string key = $"{candidate.Transport}|{candidate.RequestFormat}|{candidate.DohUrl}|{candidate.Host}|{candidate.Port}|{candidate.Family}|{candidate.TlsServerName}";
+                    if (seen.Add(key)) expanded.Add(candidate);
+                }
+            }
+            return expanded.ToArray();
+        }
+
         /// <summary>
         /// Creates one or more <see cref="DnsResolverEndpoint"/> entries for a predefined <see cref="DnsEndpoint"/>.
         /// DNSCrypt variants are not included because <see cref="Transport"/> does not currently model them.
@@ -104,9 +121,7 @@ namespace DnsClientX {
                     foreach (var host in RootServers.Servers) AddHost(host, 53, Transport.Udp);
                     break;
                 case DnsEndpoint.CloudflareQuic:
-                    AddHost("1.1.1.1", 853, Transport.Quic, DnsRequestFormat.DnsOverQuic);
-                    AddHost("1.0.0.1", 853, Transport.Quic, DnsRequestFormat.DnsOverQuic);
-                    break;
+                    throw new NotSupportedException("Cloudflare does not publish a DNS-over-QUIC resolver endpoint.");
                 case DnsEndpoint.Quad9Http3:
                     AddDoh("dns.quad9.net", "/dns-query", DnsRequestFormat.DnsOverHttp3);
                     break;
@@ -114,15 +129,13 @@ namespace DnsClientX {
                     AddHost("dns.quad9.net", 853, Transport.Quic, DnsRequestFormat.DnsOverQuic);
                     break;
                 case DnsEndpoint.GoogleQuic:
-                    AddHost("8.8.8.8", 853, Transport.Quic, DnsRequestFormat.DnsOverQuic);
-                    AddHost("8.8.4.4", 853, Transport.Quic, DnsRequestFormat.DnsOverQuic);
-                    break;
+                    throw new NotSupportedException("Google Public DNS does not publish a DNS-over-QUIC resolver endpoint.");
                 case DnsEndpoint.CloudflareOdoh:
-                    AddDoh("odoh.cloudflare-dns.com", "/dns-query", DnsRequestFormat.ObliviousDnsOverHttps);
-                    break;
+                    throw new NotSupportedException("ODoH is intentionally not implemented by the core package.");
                 case DnsEndpoint.DnsCryptCloudflare:
                 case DnsEndpoint.DnsCryptQuad9:
                 case DnsEndpoint.DnsCryptRelay:
+                    throw new NotSupportedException("DNSCrypt v2 is reserved for an optional protocol package.");
                 case DnsEndpoint.Custom:
                 default:
                     break;

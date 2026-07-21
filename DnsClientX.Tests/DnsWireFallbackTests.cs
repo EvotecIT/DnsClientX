@@ -16,29 +16,18 @@ namespace DnsClientX.Tests {
             return ((IPEndPoint)socket.LocalEndPoint!).Port;
         }
 
-        private static byte[] CreateDnsHeader(bool truncated) {
-            byte[] bytes = new byte[12];
-            ushort id = 0x1234;
-            bytes[0] = (byte)(id >> 8);
-            bytes[1] = (byte)(id & 0xFF);
-            ushort flags = truncated ? (ushort)0x0200 : (ushort)0x8180;
-            bytes[2] = (byte)(flags >> 8);
-            bytes[3] = (byte)(flags & 0xFF);
-            // remaining bytes left at 0 (counts)
-            return bytes;
-        }
-
-        private static async Task RunUdpServerAsync(int port, byte[] response, CancellationToken token) {
+        private static async Task RunUdpServerAsync(int port, bool truncated, CancellationToken token) {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
 #if NET5_0_OR_GREATER
             UdpReceiveResult result = await udp.ReceiveAsync(token).AsTask();
 #else
             UdpReceiveResult result = await udp.ReceiveAsync();
 #endif
+            byte[] response = TestUtilities.CreateResponseFromQuery(result.Buffer, truncated ? (ushort)0x8380 : (ushort)0x8180);
             await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
         }
 
-        private static async Task RunTcpServerAsync(TcpListener listener, byte[] response, Action onReceived, CancellationToken token) {
+        private static async Task RunTcpServerAsync(TcpListener listener, Action onReceived, CancellationToken token) {
             try {
                 using TcpClient client = await listener.AcceptTcpClientAsync();
                 NetworkStream stream = client.GetStream();
@@ -49,6 +38,7 @@ namespace DnsClientX.Tests {
                 byte[] queryBuffer = new byte[length];
                 await TestUtilities.ReadExactlyAsync(stream, queryBuffer, length, token);
                 onReceived();
+                byte[] response = TestUtilities.CreateResponseFromQuery(queryBuffer);
                 byte[] prefix = BitConverter.GetBytes((ushort)response.Length);
                 if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
                 await stream.WriteAsync(prefix, 0, prefix.Length, token);
@@ -63,15 +53,13 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldFallbackToTcpWhenTruncated() {
-            var udpResponse = CreateDnsHeader(truncated: true);
-            var tcpResponse = CreateDnsHeader(truncated: false);
             bool tcpCalled = false;
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            var udpTask = RunUdpServerAsync(port, udpResponse, cts.Token);
-            var tcpTask = RunTcpServerAsync(listener, tcpResponse, () => tcpCalled = true, cts.Token);
+            var udpTask = RunUdpServerAsync(port, truncated: true, cts.Token);
+            var tcpTask = RunTcpServerAsync(listener, () => tcpCalled = true, cts.Token);
 
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port };
             DnsResponse response = await DnsWireResolveUdp.ResolveWireFormatUdp(
@@ -98,9 +86,8 @@ namespace DnsClientX.Tests {
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldNotFallbackWhenDisabled() {
             int port = GetFreeUdpPort();
-            var udpResponse = CreateDnsHeader(truncated: true);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var udpTask = RunUdpServerAsync(port, udpResponse, cts.Token);
+            var udpTask = RunUdpServerAsync(port, truncated: true, cts.Token);
 
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port, UseTcpFallback = false };
             DnsResponse response = await DnsWireResolveUdp.ResolveWireFormatUdp(

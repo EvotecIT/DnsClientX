@@ -56,6 +56,7 @@ namespace DnsClientX {
                 throw new ArgumentNullException(nameof(response));
             }
 
+            if (!string.IsNullOrWhiteSpace(response.Error)) return Array.Empty<string>();
             var lines = new List<string>();
             foreach (DnsAnswer answer in response.Answers ?? Array.Empty<DnsAnswer>()) {
                 lines.Add(FormatAnswerData(answer, txtConcat));
@@ -81,6 +82,7 @@ namespace DnsClientX {
             var lines = new List<string> {
                 $"Status: {response.Status} (retries {response.RetryCount})"
             };
+            if (!string.IsNullOrWhiteSpace(response.Error)) lines.Add($"Error: {response.Error}");
 
             if (showQuestions) {
                 lines.AddRange(BuildQuestionSectionLines("Questions", response.Questions ?? Array.Empty<DnsQuestion>()));
@@ -132,6 +134,7 @@ namespace DnsClientX {
                 $";; query time: {durationFormatter(response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : elapsed)}",
                 $";; sections: question {questions.Length}, answer {answers.Length}, authority {authorities.Length}, additional {additional.Length}"
             };
+            if (!string.IsNullOrWhiteSpace(response.Error)) lines.Add($";; error: {response.Error}");
 
             if (showQuestions) {
                 lines.Add(string.Empty);

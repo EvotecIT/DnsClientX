@@ -48,16 +48,16 @@ namespace DnsClientX.Tests {
 
         private class Http2Handler : HttpMessageHandler {
             public HttpRequestMessage? Request { get; private set; }
-            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
+            protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
                 Request = request;
-                byte[] responseBytes = { 0x00, 0x01, 0x81, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+                byte[] responseBytes = TestUtilities.CreateResponseFromQuery(await TestUtilities.ReadDnsQueryAsync(request));
                 var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(responseBytes) };
 #if NET5_0_OR_GREATER
                 response.Version = HttpVersion.Version20;
 #else
                 response.Version = new Version(2, 0);
 #endif
-                return Task.FromResult(response);
+                return response;
             }
         }
 
@@ -78,12 +78,12 @@ namespace DnsClientX.Tests {
 #if NET5_0_OR_GREATER
         private class Http3Handler : HttpMessageHandler {
             public HttpRequestMessage? Request { get; private set; }
-            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
+            protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
                 Request = request;
-                byte[] responseBytes = { 0x00, 0x01, 0x81, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+                byte[] responseBytes = TestUtilities.CreateResponseFromQuery(await TestUtilities.ReadDnsQueryAsync(request));
                 var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(responseBytes) };
                 response.Version = HttpVersion.Version30;
-                return Task.FromResult(response);
+                return response;
             }
         }
 

@@ -46,8 +46,7 @@ namespace DnsClientX {
                 }
             }
 
-            return exception is DnsClientException ||
-                   exception is TaskCanceledException ||
+            return exception is TaskCanceledException ||
                    exception is TimeoutException ||
                    exception is HttpRequestException ||
                    exception is SocketException ||
@@ -78,11 +77,6 @@ namespace DnsClientX {
                     return true;
                 }
 
-                return true;
-            }
-
-            if (response.Status == DnsResponseCode.Refused ||
-                response.Status == DnsResponseCode.NotImplemented) {
                 return true;
             }
 

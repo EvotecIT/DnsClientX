@@ -39,7 +39,7 @@ namespace DnsClientX.Tests {
                 DnsWireResolveGrpc.SendAsync = (_, request, _) => {
                     captured = request.Content?.ReadAsByteArrayAsync().Result;
                     var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
-                        Content = new ByteArrayContent(new byte[] { 0,0,0,0,12,0x00,0x01,0x81,0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 })
+                        Content = new ByteArrayContent(TestUtilities.CreateGrpcResponseFromRequest(captured!))
                     };
                     return Task.FromResult(response);
                 };

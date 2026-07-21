@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography;
 
 namespace DnsClientX {
     /// <summary>
@@ -27,6 +26,7 @@ namespace DnsClientX {
 
         private readonly List<string> hostnames = new();
         private readonly Dictionary<string, DateTime> unavailable = new();
+        private readonly object selectionLock = new();
         private string? baseUriFormat;
         private int hostnameIndex;
 
@@ -126,14 +126,27 @@ namespace DnsClientX {
         public int TimeOut = DefaultTimeout;
 
         /// <summary>
-        /// Validates DS and DNSKEY records against a builtin root key set.
-        /// </summary>
-        public bool ValidateRootDnsSec { get; set; }
-
-        /// <summary>
         /// Sets the CD (Checking Disabled) flag on queries.
         /// </summary>
         public bool CheckingDisabled { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether standard queries request recursive resolution. Disable this when
+        /// querying authoritative servers directly or performing recursion diagnostics.
+        /// </summary>
+        public bool RecursionDesired { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets the TLS server name used for certificate validation and SNI on DoT and DoQ.
+        /// This is required when a custom encrypted DNS endpoint is configured by IP address.
+        /// </summary>
+        public string? TlsServerName { get; set; }
+
+        /// <summary>
+        /// Gets or sets the preferred address family when a DNS server hostname resolves to both IPv4 and IPv6.
+        /// The other family remains a fallback when the preferred family is unavailable.
+        /// </summary>
+        public AddressFamily? PreferredAddressFamily { get; set; }
 
         /// <summary>
         /// Determines whether to fall back to TCP when a UDP response is truncated.
@@ -154,9 +167,9 @@ namespace DnsClientX {
         public int? MaxConcurrency { get; set; }
 
         /// <summary>
-        /// Optional key used to sign outgoing DNS messages.
+        /// Gets or sets the TSIG key used to authenticate RFC 2136 DNS UPDATE requests and responses.
         /// </summary>
-        public AsymmetricAlgorithm? SigningKey { get; set; }
+        public TsigKey? TsigKey { get; set; }
 
         /// <summary>
         /// Gets or sets the UDP buffer size used when sending EDNS queries.
@@ -252,16 +265,24 @@ namespace DnsClientX {
         /// <summary>
         /// Marks the current hostname as unavailable.
         /// </summary>
-        public void MarkCurrentHostnameUnavailable() => MarkHostnameUnavailable(Hostname);
+        public void MarkCurrentHostnameUnavailable() {
+            string? hostname;
+            lock (selectionLock) {
+                hostname = Hostname;
+            }
+            MarkHostnameUnavailable(hostname);
+        }
 
         internal void AdvanceToNextHostname() {
-            if (hostnames.Count <= 1) {
-                return;
-            }
+            lock (selectionLock) {
+                if (hostnames.Count <= 1) {
+                    return;
+                }
 
-            hostnameIndex++;
-            if (hostnameIndex >= hostnames.Count) {
-                hostnameIndex = 0;
+                hostnameIndex++;
+                if (hostnameIndex >= hostnames.Count) {
+                    hostnameIndex = 0;
+                }
             }
         }
 
@@ -325,6 +346,25 @@ namespace DnsClientX {
         /// Selects the Dns server based on the selection strategy.
         /// </summary>
         public void SelectHostNameStrategy() {
+            lock (selectionLock) {
+                SelectHostNameStrategyCore();
+            }
+        }
+
+        /// <summary>
+        /// Selects a resolver and freezes all query-visible endpoint values so concurrent
+        /// calls cannot observe a hostname paired with another call's URI or port.
+        /// </summary>
+        internal Configuration CreateQuerySnapshot() {
+            lock (selectionLock) {
+                SelectHostNameStrategyCore();
+                Configuration snapshot = (Configuration)MemberwiseClone();
+                snapshot.EdnsOptions = EdnsOptions?.Clone();
+                return snapshot;
+            }
+        }
+
+        private void SelectHostNameStrategyCore() {
             if (hostnames.Count == 1) {
                 Hostname = hostnames[0];
                 if (baseUriFormat != null) {
@@ -435,10 +475,7 @@ namespace DnsClientX {
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.CloudflareQuic:
-                    hostnames = new List<string> { "1.1.1.1", "1.0.0.1" };
-                    RequestFormat = DnsRequestFormat.DnsOverQuic;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
+                    throw new NotSupportedException("Cloudflare does not publish a DNS-over-QUIC resolver endpoint. Use Cloudflare DoH, DoH3, or DoT.");
                 case DnsEndpoint.Quad9Http3:
                     hostnames = new List<string> { "dns.quad9.net" };
                     RequestFormat = DnsRequestFormat.DnsOverHttp3;
@@ -447,13 +484,11 @@ namespace DnsClientX {
                 case DnsEndpoint.Quad9Quic:
                     hostnames = new List<string> { "dns.quad9.net" };
                     RequestFormat = DnsRequestFormat.DnsOverQuic;
+                    TlsServerName = "dns.quad9.net";
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.CloudflareOdoh:
-                    hostnames = ["odoh.cloudflare-dns.com"];
-                    RequestFormat = DnsRequestFormat.ObliviousDnsOverHttps;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
+                    throw new NotSupportedException("ODoH requires HPKE encapsulation and relay/target handling. It is intentionally not implemented by the core package.");
                 case DnsEndpoint.Custom:
                     hostnames = [];
                     RequestFormat = DnsRequestFormat.DnsOverHttps;
@@ -480,10 +515,7 @@ namespace DnsClientX {
                     baseUriFormat = "https://{0}/resolve";
                     break;
                 case DnsEndpoint.GoogleQuic:
-                    hostnames = new List<string> { "8.8.8.8", "8.8.4.4" };
-                    RequestFormat = DnsRequestFormat.DnsOverQuic;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
+                    throw new NotSupportedException("Google Public DNS does not publish a DNS-over-QUIC resolver endpoint. Use Google DoH, DoH3, or DoT.");
                 case DnsEndpoint.AdGuard:
                     hostnames = new List<string> { "dns.adguard.com" };
                     RequestFormat = DnsRequestFormat.DnsOverHttps;
@@ -530,20 +562,9 @@ namespace DnsClientX {
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.DnsCryptCloudflare:
-                    hostnames = new List<string> { "1.1.1.1", "1.0.0.1" };
-                    RequestFormat = DnsRequestFormat.DnsCrypt;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
                 case DnsEndpoint.DnsCryptQuad9:
-                    hostnames = new List<string> { "9.9.9.9", "149.112.112.9" };
-                    RequestFormat = DnsRequestFormat.DnsCrypt;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
                 case DnsEndpoint.DnsCryptRelay:
-                    hostnames = new List<string> { "94.198.41.235", "37.120.142.115" };
-                    RequestFormat = DnsRequestFormat.DnsCryptRelay;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
+                    throw new NotSupportedException("DNSCrypt v2 is intentionally reserved for an optional protocol package; the core package does not implement its cryptography.");
                 default:
                     throw new ArgumentException("Invalid endpoint", nameof(endpoint));
             }

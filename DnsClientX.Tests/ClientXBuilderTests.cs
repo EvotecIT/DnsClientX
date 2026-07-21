@@ -2,7 +2,6 @@ using System;
 using System.Net;
 using System.Reflection;
 using System.Collections.Generic;
-using System.Security.Cryptography;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -46,16 +45,16 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Verifies that a signing key can be configured via the builder.
+        /// Verifies that a typed TSIG key can be configured without exposing its secret.
         /// </summary>
         [Fact]
-        public void BuildShouldApplySigningKey() {
-            using var rsa = RSA.Create();
+        public void BuildShouldApplyTsigKey() {
+            var key = new TsigKey("update-key.example.com", new byte[] { 1, 2, 3, 4 });
             using var client = new ClientXBuilder()
-                .WithSigningKey(rsa)
+                .WithTsigKey(key)
                 .Build();
 
-            Assert.Same(rsa, client.EndpointConfiguration.SigningKey);
+            Assert.Same(key, client.EndpointConfiguration.TsigKey);
         }
 
         /// <summary>

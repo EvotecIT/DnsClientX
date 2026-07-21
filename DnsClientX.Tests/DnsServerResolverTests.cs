@@ -71,6 +71,29 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Ensures address-family preference is honored and cached independently by family.
+        /// </summary>
+        [Fact]
+        public async Task ResolveAsync_HonorsPreferredAddressFamily() {
+            int calls = 0;
+            DnsServerResolver.ResolveHostAddressesAsync = _ => {
+                calls++;
+                return Task.FromResult(new[] { IPAddress.Parse("192.0.2.1"), IPAddress.Parse("2001:db8::1") });
+            };
+
+            var ipv6 = await DnsServerResolver.ResolveAsync(
+                "dual-stack.local", 1000, CancellationToken.None,
+                preferredAddressFamily: System.Net.Sockets.AddressFamily.InterNetworkV6);
+            var ipv4 = await DnsServerResolver.ResolveAsync(
+                "dual-stack.local", 1000, CancellationToken.None,
+                preferredAddressFamily: System.Net.Sockets.AddressFamily.InterNetwork);
+
+            Assert.Equal(IPAddress.Parse("2001:db8::1"), ipv6.Address);
+            Assert.Equal(IPAddress.Parse("192.0.2.1"), ipv4.Address);
+            Assert.Equal(2, calls);
+        }
+
+        /// <summary>
         /// Ensures stale cached addresses can be reused when resolution fails.
         /// </summary>
         [Fact]

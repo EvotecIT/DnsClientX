@@ -8,7 +8,7 @@ namespace DnsClientX {
     /// This enumeration maps the numeric values returned in the DNS header's
     /// <c>RCODE</c> field to friendly names.
     /// </remarks>
-    public enum DnsResponseCode : byte {
+    public enum DnsResponseCode : ushort {
         /// <summary>
         /// The DNS query completed successfully.
         /// </summary>

@@ -29,7 +29,7 @@ public class StrategySwitchDisposalTests {
         }
 
         /// <summary>
-        /// Ensures each strategy switch increments the disposal counter.
+        /// Strategy switches retain pooled clients until the owning ClientX is disposed.
         /// </summary>
         [Fact]
         public async Task MultipleStrategySwitches_ShouldIncreaseDisposalCount() {
@@ -51,20 +51,20 @@ public class StrategySwitchDisposalTests {
 
             var finalCount = ClientX.DisposalCount;
             var diff = finalCount - initialCount;
-            Assert.True(diff >= 3 && diff <= 6,
-                $"Expected 3-6 disposals but was {diff}");
+            Assert.Equal(1, diff);
         }
 
         /// <summary>
-        /// Ensures the cached HTTP client is recreated when failover selects a different host under the same strategy.
+        /// Failover reuses the pooled HTTP client because each request carries its snapshot's absolute URI.
         /// </summary>
         [Fact]
-        public void GetClient_ShouldRefreshBaseAddressAfterFailoverHostChange() {
+        public void GetClient_ShouldReusePoolAfterFailoverHostChange() {
             using var client = new ClientX(DnsEndpoint.Cloudflare, DnsSelectionStrategy.Failover);
             var getClient = typeof(ClientX).GetMethod("GetClient", BindingFlags.NonPublic | BindingFlags.Instance)!;
             var advance = typeof(Configuration).GetMethod("AdvanceToNextHostname", BindingFlags.NonPublic | BindingFlags.Instance)!;
 
-            var firstClient = (HttpClient)getClient.Invoke(client, new object[] { client.EndpointConfiguration.SelectionStrategy })!;
+            Configuration firstConfiguration = client.EndpointConfiguration.CreateQuerySnapshot();
+            var firstClient = (HttpClient)getClient.Invoke(client, new object[] { firstConfiguration })!;
             Uri? firstBaseAddress = firstClient.BaseAddress;
             string? firstHostname = client.EndpointConfiguration.Hostname;
 
@@ -73,11 +73,12 @@ public class StrategySwitchDisposalTests {
 
             Assert.NotEqual(firstHostname, client.EndpointConfiguration.Hostname);
 
-            var secondClient = (HttpClient)getClient.Invoke(client, new object[] { client.EndpointConfiguration.SelectionStrategy })!;
+            Configuration secondConfiguration = client.EndpointConfiguration.CreateQuerySnapshot();
+            var secondClient = (HttpClient)getClient.Invoke(client, new object[] { secondConfiguration })!;
 
-            Assert.NotSame(firstClient, secondClient);
-            Assert.NotEqual(firstBaseAddress, secondClient.BaseAddress);
-            Assert.Equal(client.EndpointConfiguration.BaseUri, secondClient.BaseAddress);
+            Assert.Same(firstClient, secondClient);
+            Assert.Equal(firstBaseAddress, secondClient.BaseAddress);
+            Assert.NotEqual(firstConfiguration.BaseUri, secondConfiguration.BaseUri);
         }
     }
 }

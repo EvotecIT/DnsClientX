@@ -25,11 +25,14 @@ namespace DnsClientX {
         internal static async Task<DnsResponse> ResolveWireFormatHttp2(this HttpClient client, string name,
             DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug,
             Configuration endpointConfiguration, CancellationToken cancellationToken) {
-            var dnsMessage = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration);
+            var dnsMessage = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration,
+                checkingDisabled: endpointConfiguration.CheckingDisabled || validateDnsSec);
             var base64UrlDnsMessage = dnsMessage.ToBase64Url();
-            string url = $"?dns={base64UrlDnsMessage}";
+            Uri requestUri = DnsHttpRequestUri.Build(endpointConfiguration, "dns=" + base64UrlDnsMessage);
 
-            using HttpRequestMessage req = new(HttpMethod.Get, url);
+            using HttpRequestMessage req = new(HttpMethod.Get, requestUri);
+            req.Headers.Accept.Clear();
+            req.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/dns-message"));
 #if NET5_0_OR_GREATER
             req.Version = HttpVersion.Version20;
             req.VersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
@@ -43,40 +46,8 @@ namespace DnsClientX {
 
             try {
                 using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
-                byte[] responseBytes = await res.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
-                DnsResponse response;
-                if (res.StatusCode == HttpStatusCode.OK) {
-                    response = await res.DeserializeDnsWireFormat(debug, responseBytes).ConfigureAwait(false);
-                } else {
-                    try {
-                        response = await res.DeserializeDnsWireFormat(debug, responseBytes).ConfigureAwait(false);
-                    } catch {
-                        response = new DnsResponse {
-                            Status = DnsResponseCode.ServerFailure,
-                            Questions = [ new DnsQuestion { Name = name, Type = type, OriginalName = name } ]
-                        };
-                    }
-                }
-                response.AddServerDetails(endpointConfiguration);
-                if (res.StatusCode != HttpStatusCode.OK || !string.IsNullOrEmpty(response.Error)) {
-                    string body = string.Empty;
-                    if (res.StatusCode != HttpStatusCode.OK) {
-                        try {
-                            body = Encoding.UTF8.GetString(responseBytes);
-                        } catch {
-                            body = string.Empty;
-                        }
-                    }
-
-                    string message = string.Concat(
-                        $"Failed to query type {type} of \"{name}\", received HTTP status code {res.StatusCode}.",
-                        string.IsNullOrEmpty(response.Error) ? string.Empty : $"\nError: {response.Error}",
-                        string.IsNullOrEmpty(body) ? string.Empty : $"\nBody: {body}",
-                        response.Comments is null ? string.Empty : $"\nComments: {string.Join(", ", response.Comments)}");
-                    throw new DnsClientException(message, response);
-                }
-
-                return response;
+                return await DnsWireResolve.DeserializeDnsWireHttpResponse(
+                    res, debug, dnsMessage, name, type, endpointConfiguration).ConfigureAwait(false);
             } catch (HttpRequestException ex) {
                 DnsResponseCode responseCode;
                 if (ex.InnerException is TaskCanceledException || ex.InnerException is TimeoutException) {
@@ -102,9 +73,11 @@ namespace DnsClientX {
                     }
                 } else {
                     var error = (ex.InnerException?.Message ?? string.Empty).ToLowerInvariant();
-                    if (error.Contains("ssl") || error.Contains("certificate") || error.Contains("handshake")) {
+                    if (error.IndexOf("ssl", StringComparison.Ordinal) >= 0 ||
+                        error.IndexOf("certificate", StringComparison.Ordinal) >= 0 ||
+                        error.IndexOf("handshake", StringComparison.Ordinal) >= 0) {
                         responseCode = DnsResponseCode.Refused;
-                    } else if (error.Contains("timeout")) {
+                    } else if (error.IndexOf("timeout", StringComparison.Ordinal) >= 0) {
                         responseCode = DnsResponseCode.ServerFailure;
                     } else {
                         responseCode = DnsResponseCode.ServerFailure;

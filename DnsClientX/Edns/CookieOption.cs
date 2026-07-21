@@ -25,8 +25,8 @@ public sealed class CookieOption : EdnsOption {
             throw new ArgumentNullException(nameof(data));
         }
 
-        if (!IsValidLength(data.Length)) {
-            throw new ArgumentException($"Cookie length must be between {MinCookieLength} and {MaxCookieLength} bytes.", nameof(data));
+        if (!IsValidClientLength(data.Length)) {
+            throw new ArgumentException("A DNS request Cookie must contain exactly the 8-byte client cookie.", nameof(data));
         }
 
         Data = new byte[data.Length];
@@ -38,7 +38,11 @@ public sealed class CookieOption : EdnsOption {
     /// </summary>
     public byte[] Data { get; }
 
-    internal static bool IsValidLength(int length) => length >= MinCookieLength && length <= MaxCookieLength;
+    internal static bool IsValidLength(int length) => IsValidClientLength(length);
+
+    internal static bool IsValidClientLength(int length) => length == MinCookieLength;
+
+    internal static bool IsValidResponseLength(int length) => length == MinCookieLength || (length >= 16 && length <= MaxCookieLength);
 
     /// <inheritdoc/>
     protected override byte[] GetData() => Data;

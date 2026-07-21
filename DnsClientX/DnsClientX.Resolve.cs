@@ -47,6 +47,7 @@ namespace DnsClientX {
             bool typedRecords = false,
             bool parseTypedTxtRecords = false,
             CancellationToken cancellationToken = default) {
+            ThrowIfDisposed();
             _lastAuditEntryContext.Value = null;
             if (retryOnTransient) {
                 try {
@@ -62,8 +63,8 @@ namespace DnsClientX {
                         onRetry,
                         true,
                         cancellationToken).ConfigureAwait(false);
-                } catch (DnsClientException ex) {
-                    return ex.Response ?? new DnsResponse();
+                } catch (DnsClientException ex) when (ex.Response != null) {
+                    return ex.Response;
                 } finally {
                     _lastAuditEntryContext.Value = null;
                 }
@@ -76,11 +77,13 @@ namespace DnsClientX {
             }
         }
 
-        private async Task<DnsResponse> ResolveInternal(string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool returnAllTypes, int maxRetries, int retryDelayMs, bool typedRecords, bool parseTypedTxtRecords, CancellationToken cancellationToken) {
+        private async Task<DnsResponse> ResolveInternal(string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool returnAllTypes, int maxRetries, int retryDelayMs, bool typedRecords, bool parseTypedTxtRecords, CancellationToken cancellationToken, bool dnsSecMaterialQuery = false) {
             cancellationToken.ThrowIfCancellationRequested();
 
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
             requestDnsSec = requestDnsSec || validateDnsSec;
+            if (type == DnsRecordType.PTR) name = ConvertToPtrFormat(name);
+            name = ConvertToPunycode(name);
 
             var auditEntry = EnableAudit ? new AuditEntry(name, type) { StartedAtUtc = DateTimeOffset.UtcNow } : null;
             var stopwatch = Stopwatch.StartNew();
@@ -98,126 +101,119 @@ namespace DnsClientX {
                 }
             }
 
-            bool originalCd = EndpointConfiguration.CheckingDisabled;
-            if (validateDnsSec) {
-                EndpointConfiguration.CheckingDisabled = true;
-            }
-
             try {
                 // lets we execute valid dns host name strategy
-                EndpointConfiguration.SelectHostNameStrategy();
-                CaptureAuditConfiguration(auditEntry);
+                Configuration queryConfiguration = EndpointConfiguration.CreateQuerySnapshot();
+                CaptureAuditConfiguration(auditEntry, queryConfiguration);
 
                 // Get the HttpClient for the current strategy
-                Client = GetClient(EndpointConfiguration.SelectionStrategy);
+                HttpClient queryClient = GetClient(queryConfiguration);
 
-                string cacheKey = $"{EndpointConfiguration.BaseUri}|{type}|{name}";
-                if (_cacheEnabled && _cache.TryGet(cacheKey, out var cached)) {
+                string cacheKey = DnsCacheKeyBuilder.Build(queryConfiguration, name, type, requestDnsSec,
+                    validateDnsSec, returnAllTypes, typedRecords, parseTypedTxtRecords, MaxCacheTtl,
+                    IgnoreCertificateErrors);
+                if (!dnsSecMaterialQuery && _cacheEnabled && _cache.TryGet(cacheKey, out var cached)) {
                     FinalizeAuditEntry(auditEntry, cached, stopwatch, servedFromCache: true);
                     return cached;
                 }
 
-                if (type == DnsRecordType.PTR) {
-                    // if we have PTR we need to convert it to proper format, just in case user didn't provide as with one
-                    name = ConvertToPtrFormat(name);
-                }
-                // Convert the domain name to punycode if it contains non-ASCII characters
-                name = ConvertToPunycode(name);
-
                 DnsResponse response;
-                if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
-                    response = await Client.ResolveJsonFormat(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
-                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps) {
-                    response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
-                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST ||
-                           EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsWirePost) {
-                    response = await Client.ResolveWireFormatPost(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
-                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
-                    response = await Client.ResolveJsonFormatPost(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
-                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.ObliviousDnsOverHttps) {
-                    response = await Client.ResolveWireFormatGet(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
-                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp2) {
-                    response = await Client.ResolveWireFormatHttp2(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
-                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp3) {
+                bool wireValidationQuery = validateDnsSec || dnsSecMaterialQuery;
+                if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
+                    response = wireValidationQuery
+                        ? await queryClient.ResolveWireFormatGet(name, type, requestDnsSec, true, Debug, queryConfiguration, cancellationToken, useStandardDnsQueryPath: true).ConfigureAwait(false)
+                        : await queryClient.ResolveJsonFormat(name, type, requestDnsSec, false, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps) {
+                    response = await queryClient.ResolveWireFormatGet(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST ||
+                           queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsWirePost) {
+                    response = await queryClient.ResolveWireFormatPost(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
+                    response = wireValidationQuery
+                        ? await queryClient.ResolveWireFormatGet(name, type, requestDnsSec, true, Debug, queryConfiguration, cancellationToken, useStandardDnsQueryPath: true).ConfigureAwait(false)
+                        : await queryClient.ResolveJsonFormatPost(name, type, requestDnsSec, false, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.ObliviousDnsOverHttps) {
+                    throw new NotSupportedException("Oblivious DNS-over-HTTPS requires HPKE encapsulation and is not implemented by the dependency-free core package.");
+                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp2) {
+                    response = await queryClient.ResolveWireFormatHttp2(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp3) {
 #if NET8_0_OR_GREATER
-                    response = await Client.ResolveWireFormatHttp3(name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                    response = await queryClient.ResolveWireFormatHttp3(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
 #else
                     throw new DnsClientException("DNS over HTTP/3 is not supported on this platform.");
 #endif
-                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverGrpc) {
+                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverGrpc) {
 #if NET8_0_OR_GREATER
-                    response = await DnsWireResolveGrpc.ResolveWireFormatGrpc(EndpointConfiguration.Hostname!, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                    response = await DnsWireResolveGrpc.ResolveWireFormatGrpc(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
 #else
                     throw new DnsClientException("DNS over gRPC is not supported on this platform.");
 #endif
-                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
-                    response = await DnsWireResolveDot.ResolveWireFormatDoT(EndpointConfiguration.Hostname!, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, IgnoreCertificateErrors, cancellationToken).ConfigureAwait(false);
-                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverQuic) {
+                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
+                    response = await DnsWireResolveDot.ResolveWireFormatDoT(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, IgnoreCertificateErrors, cancellationToken).ConfigureAwait(false);
+                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverQuic) {
 #if NET8_0_OR_GREATER
                 if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) {
-                        response = await DnsWireResolveQuic.ResolveWireFormatQuic(EndpointConfiguration.Hostname!, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                        response = await DnsWireResolveQuic.ResolveWireFormatQuic(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken, _quicConnectionPool).ConfigureAwait(false);
                 } else {
                     response = new DnsResponse {
                         Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverQuic, Type = type, OriginalName = name } ],
                         Status = DnsResponseCode.NotImplemented
                     };
-                    response.AddServerDetails(EndpointConfiguration);
+                    response.AddServerDetails(queryConfiguration);
                     response.Error = "DNS over QUIC is not supported on this platform.";
                 }
 #else
                     throw new DnsClientException("DNS over QUIC is not supported on this platform.");
 #endif
-                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
-                    response = await DnsWireResolveTcp.ResolveWireFormatTcp(EndpointConfiguration.Hostname!, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
-                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
-                    response = await DnsWireResolveUdp.ResolveWireFormatUdp(EndpointConfiguration.Hostname!, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, maxRetries, cancellationToken).ConfigureAwait(false);
-                } else if (EndpointConfiguration.RequestFormat == DnsRequestFormat.Multicast) {
-                    response = await DnsWireResolveMulticast.ResolveWireFormatMulticast(EndpointConfiguration.Hostname!, EndpointConfiguration.Port, name, type, requestDnsSec, validateDnsSec, Debug, EndpointConfiguration, cancellationToken).ConfigureAwait(false);
+                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
+                    response = await DnsWireResolveTcp.ResolveWireFormatTcp(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
+                    response = await DnsWireResolveUdp.ResolveWireFormatUdp(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, 1, cancellationToken).ConfigureAwait(false);
+                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.Multicast) {
+                    response = await DnsWireResolveMulticast.ResolveWireFormatMulticast(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsCrypt ||
+                           queryConfiguration.RequestFormat == DnsRequestFormat.DnsCryptRelay) {
+                    throw new NotSupportedException("DNSCrypt v2 is reserved for an optional protocol package and is not implemented by the core package.");
                 } else {
-                    throw new DnsClientException($"Invalid RequestFormat: {EndpointConfiguration.RequestFormat}");
+                    throw new DnsClientException($"Invalid RequestFormat: {queryConfiguration.RequestFormat}");
                 }
-                // Some DNS Providers return requested type, but also additional types
-                // https://dns.quad9.net:5053/dns-query?name=autodiscover.evotec.pl&type=CNAME
-                // We want to make sure the output is consistent
+                if (validateDnsSec && !dnsSecMaterialQuery) {
+                    var validator = new DnsSecValidationEngine((materialName, materialType, token) =>
+                        ResolveInternal(materialName, materialType, requestDnsSec: true, validateDnsSec: false,
+                            returnAllTypes: true, maxRetries: 1, retryDelayMs: retryDelayMs,
+                            typedRecords: false, parseTypedTxtRecords: false, cancellationToken: token,
+                            dnsSecMaterialQuery: true));
+                    DnsSecValidationResult validation = await validator.ValidateAsync(response, name, type, cancellationToken).ConfigureAwait(false);
+                    response.DnsSecValidationStatus = validation.Status;
+                    response.DnsSecValidationMessage = validation.Message;
+                    if (validation.Status == DnsSecValidationStatus.Bogus || validation.Status == DnsSecValidationStatus.Indeterminate) {
+                        string validationError = $"DNSSEC {validation.Status.ToString().ToLowerInvariant()}: {validation.Message}";
+                        response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
+                    }
+                }
+
+                // Cache lifetime is determined by the complete answer. In particular, an address
+                // reached through a CNAME must not outlive the alias RRset merely because callers
+                // requested an answer projection that hides the CNAME.
+                TimeSpan cacheTtl = GetCacheTtl(response);
+
+                // Validate the complete wire answer first, then apply the caller's projection.
                 if (!returnAllTypes && response.Answers != null) {
                     response.Answers = response.Answers.Where(x => x.Type == type).ToArray();
                 } else if (response.Answers == null) {
                     response.Answers = Array.Empty<DnsAnswer>();
                 }
 
-                if (typedRecords && response.Answers != null) {
+                if (typedRecords) {
                     response.TypedAnswers = response.Answers
                         .Select(a => DnsRecordFactory.Create(a, parseTypedTxtRecords))
                         .Where(o => o != null)
                         .ToArray()!;
                 }
+                response.RefreshDerivedData();
 
-                if (validateDnsSec) {
-                    bool hasRrsig = response.Answers != null && response.Answers.Any(a => a.Type == DnsRecordType.RRSIG);
-                    if (!response.AuthenticData && !hasRrsig) {
-                        string validationError = "DNSSEC validation failed.";
-                        response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
-                    }
-                    if (EndpointConfiguration.ValidateRootDnsSec && (type == DnsRecordType.DS || type == DnsRecordType.DNSKEY)) {
-                        if (!DnsSecValidator.ValidateAgainstRoot(response, out string rootMessage)) {
-                            string validationError = $"Root DNSSEC validation failed: {rootMessage}";
-                            response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
-                        }
-                    }
-                    if (hasRrsig && !DnsSecValidator.ValidateChain(response, out string chainMessage)) {
-                        string validationError = $"DNSSEC signature verification failed: {chainMessage}";
-                        response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
-                    }
-                }
-
-                if (_cacheEnabled) {
-                    TimeSpan ttl = CacheExpiration;
-                    if (response.Answers != null && response.Answers.Length > 0) {
-                        int minTtl = response.Answers.Min(a => a.TTL);
-                        ttl = minTtl == 0 ? TimeSpan.Zero : TimeSpan.FromSeconds(minTtl);
-                    }
-
-                    if (ttl != TimeSpan.Zero && ttl < MinCacheTtl) ttl = MinCacheTtl;
+                if (!dnsSecMaterialQuery && _cacheEnabled) {
+                    TimeSpan ttl = cacheTtl;
                     if (ttl > MaxCacheTtl) ttl = MaxCacheTtl;
 
                     if (ttl > TimeSpan.Zero) {
@@ -241,20 +237,39 @@ namespace DnsClientX {
             } catch (Exception ex) {
                 FinalizeAuditException(auditEntry, ex, stopwatch);
                 throw;
-            } finally {
-                EndpointConfiguration.CheckingDisabled = originalCd;
             }
         }
 
-        private void CaptureAuditConfiguration(AuditEntry? auditEntry) {
+        private static TimeSpan GetCacheTtl(DnsResponse response) {
+            if (response.Answers is { Length: > 0 }) {
+                int minimum = response.Answers.Min(answer => Math.Max(0, answer.TTL));
+                return minimum == 0 ? TimeSpan.Zero : TimeSpan.FromSeconds(minimum);
+            }
+
+            if (response.Status != DnsResponseCode.NoError && response.Status != DnsResponseCode.NXDomain) {
+                return TimeSpan.Zero;
+            }
+
+            DnsAnswer soa = (response.Authorities ?? Array.Empty<DnsAnswer>())
+                .FirstOrDefault(answer => answer.Type == DnsRecordType.SOA);
+            if (soa.Type != DnsRecordType.SOA) return TimeSpan.Zero;
+            string[] parts = soa.DataRaw.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 7 || !uint.TryParse(parts[parts.Length - 1], out uint minimumTtl)) return TimeSpan.Zero;
+            uint soaTtl = (uint)Math.Max(0, soa.TTL);
+            uint seconds = Math.Min(soaTtl, minimumTtl);
+            return seconds == 0 ? TimeSpan.Zero : TimeSpan.FromSeconds(seconds);
+        }
+
+        private void CaptureAuditConfiguration(AuditEntry? auditEntry, Configuration? configuration = null) {
             if (auditEntry == null) {
                 return;
             }
 
-            auditEntry.SelectionStrategy = EndpointConfiguration.SelectionStrategy;
-            auditEntry.RequestFormat = EndpointConfiguration.RequestFormat;
-            auditEntry.ResolverHost = EndpointConfiguration.BaseUri?.Host ?? EndpointConfiguration.Hostname;
-            auditEntry.ResolverPort = EndpointConfiguration.BaseUri?.Port ?? EndpointConfiguration.Port;
+            Configuration selectedConfiguration = configuration ?? EndpointConfiguration;
+            auditEntry.SelectionStrategy = selectedConfiguration.SelectionStrategy;
+            auditEntry.RequestFormat = selectedConfiguration.RequestFormat;
+            auditEntry.ResolverHost = selectedConfiguration.BaseUri?.Host ?? selectedConfiguration.Hostname;
+            auditEntry.ResolverPort = selectedConfiguration.BaseUri?.Port ?? selectedConfiguration.Port;
         }
 
         private void FinalizeAuditEntry(AuditEntry? auditEntry, DnsResponse response, Stopwatch stopwatch, Exception? exception = null, bool servedFromCache = false) {
@@ -395,7 +410,7 @@ namespace DnsClientX {
                         beforeRetry?.Invoke();
                         int exponentialDelay = delayMs <= 0
                             ? 0
-                            : (int)Math.Min((long)delayMs << attempt, int.MaxValue);
+                            : (int)Math.Min((long)delayMs << (attempt - 1), int.MaxValue);
                         int jitter = useJitter ? GetJitter(delayMs) : 0;
                         await Task.Delay(exponentialDelay + jitter, cancellationToken).ConfigureAwait(false);
                         continue;
@@ -422,7 +437,7 @@ namespace DnsClientX {
                     beforeRetry?.Invoke();
                     int exponentialDelay = delayMs <= 0
                         ? 0
-                        : (int)Math.Min((long)delayMs << attempt, int.MaxValue);
+                        : (int)Math.Min((long)delayMs << (attempt - 1), int.MaxValue);
                     int jitter = useJitter ? GetJitter(delayMs) : 0;
                     await Task.Delay(exponentialDelay + jitter, cancellationToken).ConfigureAwait(false);
                     continue;
@@ -574,8 +589,7 @@ namespace DnsClientX {
                         tasksUnbounded.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken));
                     }
                 }
-                await Task.WhenAll(tasksUnbounded).ConfigureAwait(false);
-                return tasksUnbounded.Select(task => task.Result).ToArray();
+                return await Task.WhenAll(tasksUnbounded).ConfigureAwait(false);
             }
 
             var responses = new DnsResponse[total];
@@ -644,8 +658,7 @@ namespace DnsClientX {
                 foreach (var name in names) {
                     tasksUnbounded.Add(Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken));
                 }
-                await Task.WhenAll(tasksUnbounded).ConfigureAwait(false);
-                return tasksUnbounded.Select(task => task.Result).ToArray();
+                return await Task.WhenAll(tasksUnbounded).ConfigureAwait(false);
             }
 
             var responses = new DnsResponse[total];

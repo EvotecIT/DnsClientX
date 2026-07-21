@@ -11,21 +11,11 @@ namespace DnsClientX.Tests {
     /// </summary>
     [Collection("DisposalTests")]
     public class DnsMultiResolverResourceTests {
-        private static byte[] CreateDnsHeader() {
-            byte[] bytes = new byte[12];
-            ushort id = 0x1234;
-            bytes[0] = (byte)(id >> 8);
-            bytes[1] = (byte)(id & 0xFF);
-            ushort flags = 0x8180;
-            bytes[2] = (byte)(flags >> 8);
-            bytes[3] = (byte)(flags & 0xFF);
-            return bytes;
-        }
-
-        private static async Task<byte[]> RunUdpServerAsync(int port, byte[] response, CancellationToken token) {
+        private static async Task<byte[]> RunUdpServerAsync(int port, CancellationToken token) {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
             UdpReceiveResult result = await udp.ReceiveAsync();
             token.ThrowIfCancellationRequested();
+            byte[] response = TestUtilities.CreateResponseFromQuery(result.Buffer);
             await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
             return result.Buffer;
         }
@@ -51,25 +41,37 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Each real query should dispose the temporary <see cref="ClientX"/> instance created per endpoint.
+        /// The resolver should reuse an endpoint client and dispose it when the resolver is disposed.
         /// </summary>
         [Fact]
-        public async Task QueryAsync_ShouldDisposeTemporaryClient() {
+        public async Task QueryAsync_ShouldDisposePooledClientWithResolver() {
             int initialCount = ClientX.DisposalCount;
             int port = TestUtilities.GetFreeUdpPort();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var udpTask = RunUdpServerAsync(port, CreateDnsHeader(), cts.Token);
+            var udpTask = RunUdpServerAsync(port, cts.Token);
 
             var endpoint = new DnsResolverEndpoint { Host = "127.0.0.1", Port = port, Transport = Transport.Udp };
-            using var resolver = new DnsMultiResolver(new[] { endpoint });
+            var resolver = new DnsMultiResolver(new[] { endpoint });
 
             DnsResponse response = await resolver.QueryAsync("example.com", DnsRecordType.A, cts.Token);
 
             await udpTask;
-            await Task.Delay(50);
+            resolver.Dispose();
 
             Assert.Equal(DnsResponseCode.NoError, response.Status);
             Assert.True(ClientX.DisposalCount - initialCount >= 1, $"Initial={initialCount} Final={ClientX.DisposalCount}");
+        }
+
+        /// <summary>
+        /// Disposed resolvers fail fast instead of recreating pooled clients.
+        /// </summary>
+        [Fact]
+        public async Task QueryAsync_AfterDispose_ThrowsObjectDisposedException() {
+            var endpoint = new DnsResolverEndpoint { Host = "127.0.0.1", Port = 53, Transport = Transport.Udp };
+            var resolver = new DnsMultiResolver(new[] { endpoint });
+            resolver.Dispose();
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => resolver.QueryAsync("example.com", DnsRecordType.A));
         }
 
         /// <summary>
@@ -79,7 +81,7 @@ namespace DnsClientX.Tests {
         public async Task QueryAsync_DnsSecOkFalse_ShouldNotSetEdnsFlags() {
             int port = TestUtilities.GetFreeUdpPort();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var udpTask = RunUdpServerAsync(port, CreateDnsHeader(), cts.Token);
+            var udpTask = RunUdpServerAsync(port, cts.Token);
 
             var endpoint = new DnsResolverEndpoint { Host = "127.0.0.1", Port = port, Transport = Transport.Udp, DnsSecOk = false };
             using var resolver = new DnsMultiResolver(new[] { endpoint });
@@ -98,7 +100,7 @@ namespace DnsClientX.Tests {
         public async Task QueryAsync_DnsSecOkTrue_ShouldSetDoBitOnly() {
             int port = TestUtilities.GetFreeUdpPort();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var udpTask = RunUdpServerAsync(port, CreateDnsHeader(), cts.Token);
+            var udpTask = RunUdpServerAsync(port, cts.Token);
 
             var endpoint = new DnsResolverEndpoint { Host = "127.0.0.1", Port = port, Transport = Transport.Udp, DnsSecOk = true };
             using var resolver = new DnsMultiResolver(new[] { endpoint });

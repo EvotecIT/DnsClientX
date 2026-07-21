@@ -16,7 +16,11 @@ namespace DnsClientX.Tests {
         [Fact]
         public async Task MaxParallelism_Caps_InFlight() {
             try {
-                var eps = new[] { new DnsResolverEndpoint { Host="e1", Port=53, Transport=Transport.Udp } };
+                var eps = new[] {
+                    new DnsResolverEndpoint { Host="e1", Port=53, Transport=Transport.Udp },
+                    new DnsResolverEndpoint { Host="e2", Port=53, Transport=Transport.Udp },
+                    new DnsResolverEndpoint { Host="e3", Port=53, Transport=Transport.Udp }
+                };
                 var opts = new MultiResolverOptions { Strategy = MultiResolverStrategy.FirstSuccess, MaxParallelism = 3 };
                 int inFlight = 0, maxInFlight = 0;
                 object gate = new object();
@@ -29,8 +33,7 @@ namespace DnsClientX.Tests {
                 var mr = new DnsMultiResolver(eps, opts);
                 var names = new[] { "a","b","c","d","e","f" };
                 await mr.QueryBatchAsync(names, DnsRecordType.A);
-                // Allow a small scheduling skew but still enforce close to the configured cap.
-                Assert.True(maxInFlight <= opts.MaxParallelism + 1, $"maxInFlight={maxInFlight}");
+                Assert.True(maxInFlight <= opts.MaxParallelism, $"maxInFlight={maxInFlight}");
             } finally { DnsMultiResolver.ResolveOverride = null; }
         }
 

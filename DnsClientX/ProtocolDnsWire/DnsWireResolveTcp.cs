@@ -27,7 +27,8 @@ namespace DnsClientX {
         internal static async Task<DnsResponse> ResolveWireFormatTcp(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, CancellationToken cancellationToken) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
-            var query = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration);
+            var query = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration,
+                checkingDisabled: endpointConfiguration.CheckingDisabled || validateDnsSec);
             var queryBytes = query.SerializeDnsWireFormat();
 
             if (debug) {
@@ -55,7 +56,8 @@ namespace DnsClientX {
                     endpointConfiguration.DnsServerResolutionStaleTtl,
                     endpointConfiguration.DnsServerResolutionFailureBackoffEnabled,
                     endpointConfiguration.DnsServerResolutionFailureBackoffFactor,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffMaxTtl)
+                    endpointConfiguration.DnsServerResolutionFailureBackoffMaxTtl,
+                    endpointConfiguration.PreferredAddressFamily)
                 .ConfigureAwait(false);
             if (address == null) {
                 DnsResponse invalidAddress = new DnsResponse {
@@ -79,9 +81,11 @@ namespace DnsClientX {
                 var responseBuffer = await SendQueryOverTcp(queryBytes, address.ToString(), port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
                 // Deserialize the response from DNS wire format
-                var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
+                var response = await DnsWire.DeserializeDnsWireResponse(null, debug, responseBuffer, query).ConfigureAwait(false);
                 response.AddServerDetails(endpointConfiguration, Transport.Tcp);
                 return response;
+            } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                throw;
             } catch (Exception ex) {
                 DnsResponseCode responseCode;
                 if (ex is SocketException) {
@@ -139,6 +143,7 @@ namespace DnsClientX {
                 var completedTask = await Task.WhenAny(writeTask, timeoutTask).ConfigureAwait(false);
 
                 if (completedTask == timeoutTask) {
+                    cancellationToken.ThrowIfCancellationRequested();
                     throw new TimeoutException($"Writing length to {dnsServer}:{port} timed out after {timeoutMilliseconds} milliseconds.");
                 }
                 await writeTask.ConfigureAwait(false);
@@ -149,6 +154,7 @@ namespace DnsClientX {
                 completedTask = await Task.WhenAny(writeTask, timeoutTask).ConfigureAwait(false);
 
                 if (completedTask == timeoutTask) {
+                    cancellationToken.ThrowIfCancellationRequested();
                     throw new TimeoutException($"Writing query to {dnsServer}:{port} timed out after {timeoutMilliseconds} milliseconds.");
                 }
                 await writeTask.ConfigureAwait(false);
@@ -169,7 +175,7 @@ namespace DnsClientX {
                 await readTask.ConfigureAwait(false);
 
                 return responseBuffer;
-            } catch (OperationCanceledException) {
+            } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
                 throw new TimeoutException($"The TCP DNS query timed out after {timeoutMilliseconds} milliseconds.");
             } finally {
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
@@ -196,6 +202,7 @@ namespace DnsClientX {
             var completedTask = await Task.WhenAny(readTask, timeoutTask).ConfigureAwait(false);
 
             if (completedTask == timeoutTask) {
+                cancellationToken.ThrowIfCancellationRequested();
                 throw new TimeoutException($"Reading from stream timed out after {timeoutMilliseconds} milliseconds.");
             }
 

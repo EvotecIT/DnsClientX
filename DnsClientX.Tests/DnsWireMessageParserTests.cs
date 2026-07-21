@@ -160,6 +160,15 @@ namespace DnsClientX.Tests {
             Assert.False(ok);
         }
 
+        /// <summary>The lightweight parser rejects an OPT record placed in the answer section.</summary>
+        [Fact]
+        public void TryParseEdns_ShouldRejectOptOutsideAdditionalSection() {
+            var bytes = new List<byte>(CreateHeader(flags: 0x8000, qd: 0, an: 1, ns: 0, ar: 0));
+            AppendOptRecord(bytes, 1232);
+
+            Assert.False(DnsWireMessageParser.TryParseEdns(bytes.ToArray(), out _));
+        }
+
         private static byte[] CreateHeader(ushort flags, ushort qd, ushort an, ushort ns, ushort ar) {
             var data = new byte[DnsHeaderLength];
             WriteUInt16At(data, 0, 1); // ID

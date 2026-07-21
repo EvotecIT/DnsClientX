@@ -21,21 +21,11 @@ namespace DnsClientX.Tests {
             public Task Task { get; }
         }
 
-        private static byte[] CreateDnsHeader() {
-            byte[] bytes = new byte[12];
-            ushort id = 0x1234;
-            bytes[0] = (byte)(id >> 8);
-            bytes[1] = (byte)(id & 0xFF);
-            ushort flags = 0x8180;
-            bytes[2] = (byte)(flags >> 8);
-            bytes[3] = (byte)(flags & 0xFF);
-            return bytes;
-        }
-
-        private static async Task RunUdpServerAsync(int port, byte[] response, CancellationToken token) {
+        private static async Task RunUdpServerAsync(int port, CancellationToken token) {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
 #if NET5_0_OR_GREATER
             UdpReceiveResult result = await udp.ReceiveAsync(token);
+            byte[] response = TestUtilities.CreateResponseFromQuery(result.Buffer);
             await udp.SendAsync(response, result.RemoteEndPoint, token);
 #else
             var receiveTask = udp.ReceiveAsync();
@@ -45,6 +35,7 @@ namespace DnsClientX.Tests {
             }
 
             UdpReceiveResult result = receiveTask.Result;
+            byte[] response = TestUtilities.CreateResponseFromQuery(result.Buffer);
             await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
 #endif
         }
@@ -67,23 +58,7 @@ namespace DnsClientX.Tests {
             return ms.ToArray();
         }
 
-        private static byte[] BuildUpdateResponse(DnsResponseCode code) {
-            using var ms = new MemoryStream();
-            WriteUInt16(ms, 1);
-            ushort flags = (ushort)(0x8000 | (ushort)code);
-            WriteUInt16(ms, flags);
-            WriteUInt16(ms, 1);
-            WriteUInt16(ms, 0);
-            WriteUInt16(ms, 0);
-            WriteUInt16(ms, 0);
-            byte[] zone = EncodeName("example.com");
-            ms.Write(zone, 0, zone.Length);
-            WriteUInt16(ms, (ushort)DnsRecordType.SOA);
-            WriteUInt16(ms, 1);
-            return ms.ToArray();
-        }
-
-        private static UpdateServer RunUpdateServerAsync(byte[] response, CancellationToken token) {
+        private static UpdateServer RunUpdateServerAsync(DnsResponseCode code, CancellationToken token) {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -104,6 +79,7 @@ namespace DnsClientX.Tests {
                 int queryLength = BitConverter.ToUInt16(len, 0);
                 byte[] query = new byte[queryLength];
                 await TestUtilities.ReadExactlyAsync(stream, query, queryLength, token);
+                byte[] response = TestUtilities.CreateResponseFromQuery(query, (ushort)(0xA800 | (ushort)code));
 
                 byte[] prefix = BitConverter.GetBytes((ushort)response.Length);
                 if (BitConverter.IsLittleEndian) {
@@ -125,7 +101,7 @@ namespace DnsClientX.Tests {
         public async Task QueryAsync_ReturnsOperationMetadata() {
             int port = TestUtilities.GetFreeUdpPort();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            Task serverTask = RunUdpServerAsync(port, CreateDnsHeader(), cts.Token);
+            Task serverTask = RunUdpServerAsync(port, cts.Token);
 
             ResolverSingleOperationResult result = await ResolverSingleOperationWorkflow.QueryAsync(
                 new ResolverExecutionTarget {
@@ -156,7 +132,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public async Task UpdateAsync_ReturnsOperationMetadata() {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            UpdateServer server = RunUpdateServerAsync(BuildUpdateResponse(DnsResponseCode.NoError), cts.Token);
+            UpdateServer server = RunUpdateServerAsync(DnsResponseCode.NoError, cts.Token);
 
             ResolverSingleOperationResult result = await ResolverSingleOperationWorkflow.UpdateAsync(
                 new ResolverExecutionTarget {
