@@ -78,8 +78,10 @@ namespace DnsClientX {
             int port,
             bool requestDnsSec,
             bool validateDnsSec,
-            CancellationToken cancellationToken) {
+            CancellationToken cancellationToken,
+            Configuration? queryConfiguration = null) {
             ThrowIfDisposed();
+            queryConfiguration ??= EndpointConfiguration.CreateQuerySnapshot(name);
             using DnsClientTelemetry.DnsQueryTelemetryScope? telemetry = DnsClientTelemetry.StartQuery(name, type, EndpointConfiguration);
             try {
                 DnsResponse response = await ResolveFromRootCore(
@@ -90,6 +92,8 @@ namespace DnsClientX {
                     port,
                     requestDnsSec,
                     validateDnsSec,
+                    queryConfiguration.EnableQNameMinimization,
+                    queryConfiguration.Rfc5011TrustAnchorStorePath,
                     cancellationToken).ConfigureAwait(false);
                 telemetry?.Complete(response);
                 return response;
@@ -107,6 +111,8 @@ namespace DnsClientX {
             int port,
             bool requestDnsSec,
             bool validateDnsSec,
+            bool enableQNameMinimization,
+            string? trustAnchorStorePath,
             CancellationToken cancellationToken) {
             if (string.IsNullOrWhiteSpace(name)) throw new ArgumentNullException(nameof(name));
             if (maxHops <= 0) throw new ArgumentOutOfRangeException(nameof(maxHops));
@@ -122,7 +128,12 @@ namespace DnsClientX {
                 .ToArray();
             if (rootServers.Length == 0) throw new ArgumentException("At least one root-server seed is required.", nameof(servers));
 
-            var state = new RootResolutionState(rootServers, maxHops, port, requestDnsSec || validateDnsSec);
+            var state = new RootResolutionState(
+                rootServers,
+                maxHops,
+                port,
+                requestDnsSec || validateDnsSec,
+                enableQNameMinimization);
             string normalizedName = NormalizeIterativeName(name);
             DnsResponse response = await ResolveIteratively(
                 normalizedName,
@@ -130,16 +141,23 @@ namespace DnsClientX {
                 rootServers,
                 state,
                 cancellationToken).ConfigureAwait(false);
+            response.QNameMinimizedQueryCount = state.MinimizedQueryCount;
+            response.QNameMinimizationFallbackCount = state.MinimizationFallbackCount;
             if (validateDnsSec) {
                 var validator = new DnsSecValidationEngine(async (materialName, materialType, token) => {
-                    var materialState = new RootResolutionState(rootServers, maxHops, port, requestDnsSec: true);
+                    var materialState = new RootResolutionState(
+                        rootServers,
+                        maxHops,
+                        port,
+                        requestDnsSec: true,
+                        enableQNameMinimization);
                     return await ResolveIteratively(
                         NormalizeIterativeName(materialName),
                         materialType,
                         rootServers,
                         materialState,
                         token).ConfigureAwait(false);
-                });
+                }, trustAnchorStorePath: trustAnchorStorePath);
                 DnsSecValidationResult validation = DnsSecValidationResult.Indeterminate(
                     "The iterative resolver did not retain a terminal DNSSEC validation segment.");
                 IReadOnlyList<RootDnsSecSegment> segments = state.ValidationSegments.Count == 0
@@ -198,16 +216,50 @@ namespace DnsClientX {
                 DnsResponse? lastResponse = null;
                 while (state.Hops < state.MaxHops) {
                     Referral? referral = null;
+                    bool advancedMinimization = false;
                     foreach (string server in currentServers) {
                         cancellationToken.ThrowIfCancellationRequested();
+                        IterativeQuestion question = SelectIterativeQuestion(
+                            name, type, currentBailiwick, state.EnableQNameMinimization);
                         DnsResponse response = await QueryAuthoritativeServer(
                             server,
                             state.Port,
-                            name,
-                            type,
+                            question.Name,
+                            question.Type,
                             state.RequestDnsSec,
                             cancellationToken).ConfigureAwait(false);
+                        if (!question.IsFinal) state.MinimizedQueryCount++;
                         lastResponse = response;
+
+                        if (!question.IsFinal) {
+                            Referral? minimizedReferral = FindReferral(response, name, currentBailiwick);
+                            if (minimizedReferral != null) {
+                                referral = minimizedReferral;
+                                break;
+                            }
+
+                            if (response.Status == DnsResponseCode.NoError
+                                && (response.IsAuthoritativeAnswer || HasNegativeSoa(response))) {
+                                // An authenticated/authoritative NODATA result means there is no zone cut at
+                                // this candidate. Keep the same servers and reveal just one more label.
+                                currentBailiwick = question.Name;
+                                state.Hops++;
+                                advancedMinimization = true;
+                                break;
+                            }
+
+                            // RFC 9156 permits a full-question fallback for incompatible authorities.
+                            // Record the privacy downgrade rather than silently claiming full minimization.
+                            state.MinimizationFallbackCount++;
+                            response = await QueryAuthoritativeServer(
+                                server,
+                                state.Port,
+                                name,
+                                type,
+                                state.RequestDnsSec,
+                                cancellationToken).ConfigureAwait(false);
+                            lastResponse = response;
+                        }
 
                         if (HasRequestedAnswer(response, name, type)) {
                             state.ValidationSegments.Add(new RootDnsSecSegment(response, name, type, aliasOnly: false));
@@ -248,6 +300,8 @@ namespace DnsClientX {
                             break;
                         }
                     }
+
+                    if (advancedMinimization) continue;
 
                     if (referral == null) {
                         return lastResponse ?? CreateRootFailure(name, type, "No authoritative server returned a usable response.");
@@ -495,6 +549,23 @@ namespace DnsClientX {
             return name.Trim('.').Length == 0 ? 0 : name.Trim('.').Split('.').Length;
         }
 
+        internal static IterativeQuestion SelectIterativeQuestion(string name, DnsRecordType type,
+            string currentBailiwick, bool enabled) {
+            string normalizedName = NormalizeIterativeName(name);
+            if (!enabled || normalizedName == ".") return new IterativeQuestion(normalizedName, type, true);
+            string normalizedBailiwick = NormalizeIterativeName(
+                string.IsNullOrWhiteSpace(currentBailiwick) ? "." : currentBailiwick);
+            if (normalizedBailiwick != "." && !IsSubdomainOrEqual(normalizedName, normalizedBailiwick)) {
+                return new IterativeQuestion(normalizedName, type, true);
+            }
+
+            string[] labels = normalizedName.Split('.');
+            int bailiwickLabels = normalizedBailiwick == "." ? 0 : LabelCount(normalizedBailiwick);
+            if (bailiwickLabels >= labels.Length) return new IterativeQuestion(normalizedName, type, true);
+            string minimizedName = string.Join(".", labels.Skip(labels.Length - bailiwickLabels - 1));
+            return new IterativeQuestion(minimizedName, DnsRecordType.NS, false);
+        }
+
         private static DnsResponse CreateRootFailure(string name, DnsRecordType type, string error) {
             return new DnsResponse {
                 Questions = [new DnsQuestion {
@@ -514,12 +585,14 @@ namespace DnsClientX {
                 int maxHops,
                 int port,
                 bool requestDnsSec,
+                bool enableQNameMinimization,
                 Dictionary<string, string[]>? nameServerAddressCache = null,
                 HashSet<string>? activeNameServerLookups = null) {
                 RootServers = rootServers;
                 MaxHops = maxHops;
                 Port = port;
                 RequestDnsSec = requestDnsSec;
+                EnableQNameMinimization = enableQNameMinimization;
                 NameServerAddressCache = nameServerAddressCache
                     ?? new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
                 ActiveNameServerLookups = activeNameServerLookups
@@ -530,7 +603,10 @@ namespace DnsClientX {
             internal int MaxHops { get; }
             internal int Port { get; }
             internal bool RequestDnsSec { get; }
+            internal bool EnableQNameMinimization { get; }
             internal int Hops { get; set; }
+            internal int MinimizedQueryCount { get; set; }
+            internal int MinimizationFallbackCount { get; set; }
             internal HashSet<string> ActiveQueries { get; } = new(StringComparer.OrdinalIgnoreCase);
             internal HashSet<string> VisitedReferrals { get; } = new(StringComparer.OrdinalIgnoreCase);
             internal Dictionary<string, string[]> NameServerAddressCache { get; }
@@ -543,9 +619,21 @@ namespace DnsClientX {
                     MaxHops,
                     Port,
                     RequestDnsSec,
+                    EnableQNameMinimization,
                     NameServerAddressCache,
                     ActiveNameServerLookups);
             }
+        }
+
+        internal readonly struct IterativeQuestion {
+            internal IterativeQuestion(string name, DnsRecordType type, bool isFinal) {
+                Name = name;
+                Type = type;
+                IsFinal = isFinal;
+            }
+            internal string Name { get; }
+            internal DnsRecordType Type { get; }
+            internal bool IsFinal { get; }
         }
 
         private sealed class RootDnsSecSegment {

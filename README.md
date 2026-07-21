@@ -809,7 +809,22 @@ Console.WriteLine($"Local DNSSEC status: {response.DnsSecValidationStatus}");
 Console.WriteLine(response.DnsSecValidationMessage);
 ```
 
-The resolver-provided `AuthenticData` flag and local validation are deliberately separate. `Secure` means DnsClientX built and verified a chain to a bundled root trust anchor; `Insecure` means a secure parent authenticated an unsigned delegation; `Bogus` is a cryptographic or proof failure; and `Indeterminate` means the response or supported algorithms were insufficient. The dependency-free validator supports RSA/SHA-1 (algorithms 5 and 7, for compatibility), RSA/SHA-256, RSA/SHA-512, ECDSA P-256/SHA-256, and ECDSA P-384/SHA-384. Ed25519 and Ed448 are not implemented and therefore cannot produce `Secure`. The validator embeds the current IANA root DS trust anchors; it does not implement RFC 5011 automated trust-anchor rollover, so applications with independently managed or long-lived trust stores must monitor root-anchor updates.
+The resolver-provided `AuthenticData` flag and local validation are deliberately separate. `Secure` means DnsClientX built and verified a chain to a configured root trust anchor; `Insecure` means a secure parent authenticated an unsigned delegation; `Bogus` is a cryptographic or proof failure; and `Indeterminate` means the response, trust state, or supported algorithms were insufficient. The dependency-free validator supports RSA/SHA-1 (algorithms 5 and 7, for compatibility), RSA/SHA-256, RSA/SHA-512, ECDSA P-256/SHA-256, and ECDSA P-384/SHA-384. Ed25519 and Ed448 are supplied by the optional package described below rather than claimed by the core.
+
+The root-server profile enables RFC 9156 QNAME minimization by default. It asks for one delegation label at a time with type `NS`, continues through authoritative NODATA responses without revealing the final name, and sends the complete name and requested type only after reaching the authoritative zone. `DnsResponse.QNameMinimizedQueryCount` and `QNameMinimizationFallbackCount` make both the privacy protection and any compatibility downgrade visible. Set `Configuration.EnableQNameMinimization = false` only for controlled compatibility diagnostics.
+
+RFC 5011 trust-anchor maintenance is opt-in because durable state belongs to the application. Configure a private, durable file and schedule explicit refreshes:
+
+```csharp
+using var client = new ClientX(DnsEndpoint.RootServer);
+client.EndpointConfiguration.Rfc5011TrustAnchorStorePath = "dnssec/root-anchors.json";
+
+DnsSecTrustAnchorRefreshResult refresh = await client.RefreshRootTrustAnchorsAsync();
+if (!refresh.Succeeded) throw new InvalidOperationException(refresh.Response.DnsSecValidationMessage);
+Console.WriteLine($"Refresh again by {refresh.Snapshot!.NextRefreshUtc:O}");
+```
+
+The state machine enforces the 30-day add hold-down plus original DNSKEY TTL, requires a validated post-deadline observation, resets absent pending keys, preserves missing active keys, immediately and permanently honors a key's verified self-revocation, and retains revoked tombstones through the 30-day remove hold-down. State writes replace a same-directory temporary file atomically; malformed state and clock rollback fail closed. No background timer is hidden inside `ClientX`: the application must call `RefreshRootTrustAnchorsAsync` by `NextRefreshUtc` and retry failed refreshes according to its scheduler. Without a configured store, the immutable IANA public-key anchors bundled with the package remain the validation boundary.
 
 #### Pattern-Based Queries
 ```csharp

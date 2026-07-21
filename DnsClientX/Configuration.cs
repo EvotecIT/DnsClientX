@@ -169,6 +169,19 @@ namespace DnsClientX {
         public int IterativeMaxHops { get; set; } = DefaultIterativeMaxHops;
 
         /// <summary>
+        /// Gets or sets whether iterative root resolution uses RFC 9156 QNAME minimization while
+        /// discovering delegation points. The complete name and requested type are sent only to
+        /// the authoritative zone, except when a broken delegation requires an explicit fallback.
+        /// </summary>
+        public bool EnableQNameMinimization { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets an optional path for persistent RFC 5011 root trust-anchor state.
+        /// When null, validation uses only the immutable anchors bundled with this release.
+        /// </summary>
+        public string? Rfc5011TrustAnchorStorePath { get; set; }
+
+        /// <summary>
         /// Sets the CD (Checking Disabled) flag on queries.
         /// </summary>
         public bool CheckingDisabled { get; set; }

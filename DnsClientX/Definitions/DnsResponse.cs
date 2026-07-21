@@ -187,6 +187,17 @@ namespace DnsClientX {
         [JsonIgnore]
         public SystemDnsPolicyMatch? AppliedSystemDnsPolicy { get; internal set; }
 
+        /// <summary>Gets the number of delegation-discovery queries protected by RFC 9156 QNAME minimization.</summary>
+        [JsonIgnore]
+        public int QNameMinimizedQueryCount { get; internal set; }
+
+        /// <summary>
+        /// Gets the number of times iterative resolution had to reveal the complete question early
+        /// because a server did not return a usable referral for a minimized question.
+        /// </summary>
+        [JsonIgnore]
+        public int QNameMinimizationFallbackCount { get; internal set; }
+
         /// <summary>
         /// Measured round-trip time for the query.
         /// </summary>

@@ -15,6 +15,36 @@ namespace DnsClientX.Tests {
             Assert.Equal("example.com", ClientX.NormalizeIterativeName("example.com."));
         }
 
+        /// <summary>RFC 9156 reveals one additional label at each delegation and preserves the final question.</summary>
+        [Theory]
+        [InlineData("", "com", DnsRecordType.NS, false)]
+        [InlineData("com", "example.com", DnsRecordType.NS, false)]
+        [InlineData("example.com", "www.example.com", DnsRecordType.NS, false)]
+        [InlineData("www.example.com", "api.www.example.com", DnsRecordType.NS, false)]
+        [InlineData("api.www.example.com", "api.www.example.com", DnsRecordType.AAAA, true)]
+        public void SelectIterativeQuestion_MinimizesDelegationDiscovery(string bailiwick,
+            string expectedName, DnsRecordType expectedType, bool expectedFinal) {
+            ClientX.IterativeQuestion question = ClientX.SelectIterativeQuestion(
+                "api.www.example.com", DnsRecordType.AAAA, bailiwick, enabled: true);
+
+            Assert.Equal(expectedName, question.Name);
+            Assert.Equal(expectedType, question.Type);
+            Assert.Equal(expectedFinal, question.IsFinal);
+        }
+
+        /// <summary>Disabling minimization and inconsistent referral state both fail safely to the original question.</summary>
+        [Theory]
+        [InlineData("com", false)]
+        [InlineData("unrelated.test", true)]
+        public void SelectIterativeQuestion_UsesFullQuestionWhenRequired(string bailiwick, bool enabled) {
+            ClientX.IterativeQuestion question = ClientX.SelectIterativeQuestion(
+                "www.example.com", DnsRecordType.A, bailiwick, enabled);
+
+            Assert.Equal("www.example.com", question.Name);
+            Assert.Equal(DnsRecordType.A, question.Type);
+            Assert.True(question.IsFinal);
+        }
+
         /// <summary>
         /// The closest authority ancestor is selected and unrelated authority data is ignored.
         /// </summary>

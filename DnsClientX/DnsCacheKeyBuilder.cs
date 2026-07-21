@@ -18,6 +18,8 @@ namespace DnsClientX {
             Append(builder, configuration.PreferredAddressFamily?.ToString() ?? string.Empty);
             Append(builder, configuration.UseTcpFallback ? "tcp-fallback" : "no-tcp-fallback");
             Append(builder, configuration.IterativeMaxHops.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            Append(builder, configuration.EnableQNameMinimization ? "qname-minimized" : "full-qname");
+            Append(builder, configuration.Rfc5011TrustAnchorStorePath ?? string.Empty);
             Append(builder, maxCacheTtl.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Append(builder, ignoreCertificateErrors ? "insecure-tls" : "validate-tls");
             Append(builder, DnsWireNameCodec.Canonical(normalizedName));

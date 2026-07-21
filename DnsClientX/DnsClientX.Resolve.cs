@@ -176,6 +176,8 @@ namespace DnsClientX {
                         queryConfiguration.Port,
                         requestDnsSec,
                         validateDnsSec,
+                        queryConfiguration.EnableQNameMinimization,
+                        queryConfiguration.Rfc5011TrustAnchorStorePath,
                         cancellationToken).ConfigureAwait(false);
                 } else {
                     // Get the HTTP client only for transports that can use it. Root iteration stays
@@ -249,7 +251,8 @@ namespace DnsClientX {
                         ResolveInternal(materialName, materialType, requestDnsSec: true, validateDnsSec: false,
                             returnAllTypes: true, maxRetries: 1, retryDelayMs: retryDelayMs,
                             typedRecords: false, parseTypedTxtRecords: false, cancellationToken: token,
-                            dnsSecMaterialQuery: true));
+                            dnsSecMaterialQuery: true),
+                        trustAnchorStorePath: queryConfiguration.Rfc5011TrustAnchorStorePath);
                     DnsSecValidationResult validation = await validator.ValidateAsync(response, name, type, cancellationToken).ConfigureAwait(false);
                     response.DnsSecValidationStatus = validation.Status;
                     response.DnsSecValidationMessage = validation.Message;

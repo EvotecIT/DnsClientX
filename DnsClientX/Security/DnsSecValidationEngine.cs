@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,11 +10,15 @@ namespace DnsClientX {
         private readonly Func<string, DnsRecordType, CancellationToken, Task<DnsResponse>> _lookup;
         private readonly DateTimeOffset _now;
         private readonly Dictionary<string, Task<ZoneKeysResult>> _zoneCache = new(StringComparer.Ordinal);
+        private readonly Rfc5011Store? _trustAnchorStore;
 
         internal DnsSecValidationEngine(Func<string, DnsRecordType, CancellationToken, Task<DnsResponse>> lookup,
-            DateTimeOffset? now = null) {
+            DateTimeOffset? now = null, string? trustAnchorStorePath = null) {
             _lookup = lookup ?? throw new ArgumentNullException(nameof(lookup));
             _now = now ?? DateTimeOffset.UtcNow;
+            if (!string.IsNullOrWhiteSpace(trustAnchorStorePath)) {
+                _trustAnchorStore = new Rfc5011Store(trustAnchorStorePath!);
+            }
         }
 
         internal async Task<DnsSecValidationResult> ValidateAsync(DnsResponse response, string name,
@@ -167,26 +172,56 @@ namespace DnsClientX {
 
             RrsetKey keyRrset = new(zone, DnsRecordType.DNSKEY, keyRecords[0].Class);
             List<DnsSecSignature> keySignatures = ReadSignatures(keyResponse, zone, DnsRecordType.DNSKEY, keyRecords[0].Class);
-            DnsSecValidationResult selfSignature = VerifyRrset(keyResponse, keyRrset, keySignatures, keys);
-            if (selfSignature.Status != DnsSecValidationStatus.Secure) return new ZoneKeysResult(selfSignature.Status, Array.Empty<DnsSecKey>(), selfSignature.Message);
-
             if (zone == ".") {
-                bool supportedAnchor = false;
-                foreach (RootDsRecord anchor in RootTrustAnchors.DsRecords.Where(item => item.IsValidAt(_now))) {
-                    if (DnsSecCrypto.IsSupportedAlgorithm((byte)anchor.Algorithm) &&
-                        (anchor.DigestType == 1 || anchor.DigestType == 2 || anchor.DigestType == 4)) {
-                        supportedAnchor = true;
-                    }
-                    foreach (DnsSecKey key in keys.Where(item => item.KeyTag == anchor.KeyTag && item.Algorithm == (byte)anchor.Algorithm)) {
-                        if (!DnsSecCrypto.TryComputeDsDigest(zone, key, anchor.DigestType, out byte[] digest)) continue;
-                        if (string.Equals(ToHex(digest), anchor.Digest, StringComparison.OrdinalIgnoreCase)) {
-                            return ZoneKeysResult.Secure(keys, "The root DNSKEY RRset matches a built-in trust anchor.");
+                DnsSecKey[] configuredAnchors;
+                try {
+                    configuredAnchors = _trustAnchorStore?.ActiveKeys(_now)
+                        ?? RootTrustAnchors.DnsKeys.Where(key => DnsSecTrustAnchors.Current.Any(anchor =>
+                            anchor.IsValidAt(_now) && anchor.KeyTag == key.KeyTag
+                            && (byte)anchor.Algorithm == key.Algorithm)).ToArray();
+                } catch (Exception ex) when (IsTrustAnchorStoreFailure(ex)) {
+                    return ZoneKeysResult.Indeterminate($"RFC 5011 trust-anchor state could not be loaded: {ex.Message}");
+                }
+
+                var validatingAnchors = new List<DnsSecKey>();
+                foreach (DnsSecKey anchor in configuredAnchors) {
+                    DnsSecValidationResult anchorSignature = VerifyRrset(
+                        keyResponse, keyRrset, keySignatures, new[] { anchor });
+                    if (anchorSignature.Status == DnsSecValidationStatus.Secure) validatingAnchors.Add(anchor);
+                }
+                if (validatingAnchors.Count == 0) {
+                    return configuredAnchors.Any(key => DnsSecCrypto.IsSupportedAlgorithm(key.Algorithm))
+                        ? ZoneKeysResult.Bogus("The root DNSKEY RRset was not signed by a configured trust-anchor key.")
+                        : ZoneKeysResult.Indeterminate("No supported configured root trust-anchor key was available.");
+                }
+
+                if (_trustAnchorStore != null) {
+                    var verifiedRevocations = new List<string>();
+                    foreach (DnsSecKey key in keys.Where(key => (key.Flags & 0x0080) != 0)) {
+                        if (VerifyRrset(keyResponse, keyRrset, keySignatures, new[] { key }).Status
+                            == DnsSecValidationStatus.Secure) {
+                            verifiedRevocations.Add(Rfc5011Store.KeyIdentity(key));
                         }
                     }
+                    uint originalTtl = keyRecords.Min(record => record.RawTtl);
+                    DateTimeOffset signatureExpiration = keySignatures.Count == 0
+                        ? _now
+                        : DateTimeOffset.FromUnixTimeSeconds(keySignatures.Min(signature => (long)signature.Expiration));
+                    try {
+                        _trustAnchorStore.ObserveAuthenticated(
+                            keys,
+                            validatingAnchors.Select(Rfc5011Store.KeyIdentity).ToArray(),
+                            verifiedRevocations,
+                            originalTtl,
+                            signatureExpiration,
+                            _now);
+                    } catch (Exception ex) when (IsTrustAnchorStoreFailure(ex)) {
+                        return ZoneKeysResult.Indeterminate($"RFC 5011 trust-anchor state could not be updated: {ex.Message}");
+                    }
                 }
-                return supportedAnchor
-                    ? ZoneKeysResult.Bogus("The root DNSKEY RRset did not match a built-in trust anchor.")
-                    : ZoneKeysResult.Indeterminate("No supported root trust anchor matched a returned DNSKEY algorithm.");
+                return ZoneKeysResult.Secure(keys, _trustAnchorStore == null
+                    ? "The root DNSKEY RRset was signed by a bundled IANA trust-anchor key."
+                    : "The root DNSKEY RRset was signed by an active RFC 5011 trust-anchor key.");
             }
 
             DnsResponse dsResponse = await _lookup(zone, DnsRecordType.DS, cancellationToken).ConfigureAwait(false);
@@ -204,6 +239,7 @@ namespace DnsClientX {
             if (dsSignature.Status != DnsSecValidationStatus.Secure) return new ZoneKeysResult(dsSignature.Status, Array.Empty<DnsSecKey>(), dsSignature.Message);
 
             bool supportedCombination = false;
+            var dsMatchedKeys = new List<DnsSecKey>();
             foreach (DnsWireResourceRecord dsRecord in dsRecords) {
                 if (!TryReadDs(dsResponse.WireMessage, dsRecord, out ushort keyTag, out byte algorithm, out byte digestType, out byte[] expected)) continue;
                 if ((digestType == 1 || digestType == 2 || digestType == 4) && DnsSecCrypto.IsSupportedAlgorithm(algorithm)) {
@@ -211,13 +247,32 @@ namespace DnsClientX {
                 }
                 foreach (DnsSecKey key in keys.Where(item => item.KeyTag == keyTag && item.Algorithm == algorithm)) {
                     if (!DnsSecCrypto.TryComputeDsDigest(zone, key, digestType, out byte[] actual)) continue;
-                    if (actual.SequenceEqual(expected)) return ZoneKeysResult.Secure(keys, $"The {zone} DNSKEY RRset is linked to its secure parent.");
+                    if (actual.SequenceEqual(expected) && !dsMatchedKeys.Any(candidate =>
+                            Rfc5011Store.KeyIdentity(candidate) == Rfc5011Store.KeyIdentity(key))) {
+                        dsMatchedKeys.Add(key);
+                    }
                 }
+            }
+            if (dsMatchedKeys.Count > 0) {
+                DnsSecValidationResult keySignature = VerifyRrset(
+                    keyResponse, keyRrset, keySignatures, dsMatchedKeys);
+                if (keySignature.Status == DnsSecValidationStatus.Secure) {
+                    return ZoneKeysResult.Secure(keys,
+                        $"The {zone} DNSKEY RRset is signed by a key matching its authenticated DS record.");
+                }
+                return new ZoneKeysResult(keySignature.Status, Array.Empty<DnsSecKey>(), keySignature.Message);
             }
             return supportedCombination
                 ? ZoneKeysResult.Bogus($"No DNSKEY for {zone} matched the authenticated DS digest.")
                 : ZoneKeysResult.Indeterminate($"The authenticated DS RRset for {zone} uses no supported digest/key combination.");
         }
+
+        private static bool IsTrustAnchorStoreFailure(Exception exception) =>
+            exception is IOException
+            || exception is UnauthorizedAccessException
+            || exception is InvalidOperationException
+            || exception is FormatException
+            || exception is System.Security.SecurityException;
 
         private async Task<ZoneKeysResult> ValidateUnsignedDelegationAsync(string zone, DnsResponse response,
             CancellationToken cancellationToken) {

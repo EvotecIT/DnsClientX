@@ -83,7 +83,7 @@ The current end-to-end goal is deliberately ordered so correctness and measureme
 - [x] Add exact-key cache single-flight and explicit cache/network provenance without crossing configuration or DNSSEC policy boundaries
 - [x] Discover Windows NRPT rules and route only matching namespaces through validated policy-aware resolvers, with explicit unsupported/error states
 - [x] Add IXFR, DNS zone transfer over TLS, and ZONEMD validation with bounded transfer and integrity contracts
-- [ ] Add QNAME minimization and RFC 5011 trust-anchor lifecycle management to iterative DNSSEC resolution
+- [x] Add QNAME minimization and RFC 5011 trust-anchor lifecycle management to iterative DNSSEC resolution
 - [ ] Put Ed25519/Ed448 DNSSEC verification in a separately versioned optional package so the dependency-light core remains unchanged
 
 Each capability must include focused contracts, cross-target validation, honest CLI/PowerShell/docs exposure where applicable, packaged-artifact proof, and consumer validation before release. Network benchmarks are environment evidence, not universal performance claims.
