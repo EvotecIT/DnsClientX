@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Threading.Tasks;
 using Xunit;
@@ -9,6 +10,14 @@ namespace DnsClientX.Tests {
     /// Tests operating-system DNS search candidate construction.
     /// </summary>
     public class SystemDnsConfigurationTests {
+        /// <summary>Every active interface remains eligible so loopback stub resolvers are discoverable.</summary>
+        [Theory]
+        [InlineData(OperationalStatus.Up, true)]
+        [InlineData(OperationalStatus.Down, false)]
+        public void SelectsActiveInterfacesForDnsDiscovery(OperationalStatus status, bool expected) {
+            Assert.Equal(expected, SystemInformation.ShouldInspectDnsInterface(status));
+        }
+
         /// <summary>Searches suffixes before an absolute query when the name has fewer dots than ndots.</summary>
         [Fact]
         public void BuildsSearchFirstCandidates() {

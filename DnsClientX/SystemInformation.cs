@@ -158,8 +158,7 @@ namespace DnsClientX {
             var searchDomains = new List<string>();
             try {
                 foreach (NetworkInterface networkInterface in NetworkInterface.GetAllNetworkInterfaces()) {
-                    if (networkInterface.OperationalStatus != OperationalStatus.Up
-                        || networkInterface.NetworkInterfaceType == NetworkInterfaceType.Loopback) {
+                    if (!ShouldInspectDnsInterface(networkInterface.OperationalStatus)) {
                         continue;
                     }
 
@@ -237,6 +236,12 @@ namespace DnsClientX {
             } catch (NetworkInformationException) {
                 return int.MaxValue;
             }
+        }
+
+        internal static bool ShouldInspectDnsInterface(OperationalStatus operationalStatus) {
+            // Local resolvers commonly listen on loopback. Eligibility is based on whether the
+            // interface is active, not its type, so configured stub resolvers are not discarded.
+            return operationalStatus == OperationalStatus.Up;
         }
 
         internal static bool IsUsableDnsAddress(IPAddress? address) {

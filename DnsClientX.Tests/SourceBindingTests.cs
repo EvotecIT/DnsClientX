@@ -61,21 +61,22 @@ namespace DnsClientX.Tests {
                 client.Resolve("example.com", retryOnTransient: false));
         }
 
-        /// <summary>RFC 2136 updates share the TCP engine and originate from the configured local address.</summary>
+        /// <summary>RFC 2136 updates share the TCP engine and originate from the configured local endpoint.</summary>
         [Fact]
-        public async Task UpdateUsesConfiguredLocalAddress() {
+        public async Task UpdateUsesConfiguredLocalEndpoint() {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            int sourcePort = TestUtilities.GetFreeTcpPort();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            IPAddress? observedSource = null;
+            IPEndPoint? observedSource = null;
             Task responder = Task.Run(async () => {
 #if NETFRAMEWORK
                 using TcpClient connection = await listener.AcceptTcpClientAsync();
 #else
                 using TcpClient connection = await listener.AcceptTcpClientAsync(cts.Token);
 #endif
-                observedSource = ((IPEndPoint)connection.Client.RemoteEndPoint!).Address;
+                observedSource = (IPEndPoint)connection.Client.RemoteEndPoint!;
                 NetworkStream stream = connection.GetStream();
                 byte[] length = new byte[2];
                 await TestUtilities.ReadExactlyAsync(stream, length, 2, cts.Token);
@@ -91,7 +92,7 @@ namespace DnsClientX.Tests {
 
             var configuration = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTCP) {
                 Port = port,
-                LocalEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.2"), 0),
+                LocalEndPoint = new IPEndPoint(IPAddress.Loopback, sourcePort),
                 TimeOut = 2000
             };
             using var client = new ClientX(configuration);
@@ -104,7 +105,8 @@ namespace DnsClientX.Tests {
             await responder;
 
             Assert.Equal(DnsResponseCode.NoError, result.Status);
-            Assert.Equal(IPAddress.Parse("127.0.0.2"), observedSource);
+            Assert.Equal(IPAddress.Loopback, observedSource!.Address);
+            Assert.Equal(sourcePort, observedSource.Port);
         }
 
         /// <summary>TCP constructs a socket for the resolved IPv6 family on every target framework.</summary>
