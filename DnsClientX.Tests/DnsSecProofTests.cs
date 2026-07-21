@@ -48,6 +48,56 @@ namespace DnsClientX.Tests {
             Assert.Null(error);
         }
 
+        /// <summary>A signed DNAME can authenticate its RFC 6672 synthesized unsigned CNAME.</summary>
+        [Fact]
+        public void AnswerChainFollowsDnameAndRecognizesSynthesizedCname() {
+            var dname = new DnsWireResourceRecord("old.example.", DnsRecordType.DNAME, 1, 300, 300,
+                0, 0, "new.example.");
+            var cname = new DnsWireResourceRecord("www.old.example.", DnsRecordType.CNAME, 1, 300, 300,
+                0, 0, "www.new.example.");
+            var terminal = new DnsWireResourceRecord("www.new.example.", DnsRecordType.A, 1, 300, 300,
+                0, 0, "192.0.2.1");
+            DnsWireResourceRecord[] answers = [dname, cname, terminal];
+
+            bool valid = DnsSecValidationEngine.TryFollowAnswerChain(answers, "www.old.example",
+                DnsRecordType.A, out string finalName, out bool isTerminal, out string? error);
+
+            Assert.True(valid);
+            Assert.True(isTerminal);
+            Assert.Equal("www.new.example.", finalName);
+            Assert.Null(error);
+            Assert.True(DnsSecValidationEngine.IsSynthesizedDnameCname(answers, cname));
+        }
+
+        /// <summary>DNAME substitution applies only to descendants and rejects an unrelated CNAME.</summary>
+        [Fact]
+        public void DnameDoesNotAuthenticateOwnerOrUnrelatedCname() {
+            var dname = new DnsWireResourceRecord("old.example.", DnsRecordType.DNAME, 1, 300, 300,
+                0, 0, "new.example.");
+            var unrelated = new DnsWireResourceRecord("www.old.example.", DnsRecordType.CNAME, 1, 300, 300,
+                0, 0, "evil.example.");
+
+            Assert.False(DnsSecValidationEngine.IsSynthesizedDnameCname([dname, unrelated], unrelated));
+            Assert.False(DnsSecValidationEngine.IsSynthesizedDnameCname([dname],
+                new DnsWireResourceRecord("old.example.", DnsRecordType.CNAME, 1, 300, 300, 0, 0, "new.example.")));
+        }
+
+        /// <summary>An ANY query is terminal when any ordinary RRset exists at the current owner.</summary>
+        [Fact]
+        public void AnyQueryRecognizesOrdinaryTerminalRrset() {
+            DnsWireResourceRecord[] answers = [
+                new DnsWireResourceRecord("www.example.", DnsRecordType.AAAA, 1, 300, 300,
+                    0, 0, "2001:db8::1")
+            ];
+
+            bool valid = DnsSecValidationEngine.TryFollowAnswerChain(answers, "www.example",
+                DnsRecordType.ANY, out _, out bool terminal, out string? error);
+
+            Assert.True(valid);
+            Assert.True(terminal);
+            Assert.Null(error);
+        }
+
         /// <summary>Denial signers may authenticate only names at or below their own zone.</summary>
         [Theory]
         [InlineData("www.example.com", "example.com", true)]

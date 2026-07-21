@@ -19,6 +19,10 @@ namespace DnsClientX.Tests {
     [SupportedOSPlatform("macos")]
     [Collection("NoParallel")]
     public class DnsWireResolveQuicTests {
+        private sealed class KeepaliveOption : EdnsOption {
+            internal KeepaliveOption() : base(11) { }
+            protected override byte[] GetData() => Array.Empty<byte>();
+        }
         /// <summary>
         /// Ensures server failure is returned when the host has no addresses.
         /// </summary>
@@ -152,7 +156,8 @@ namespace DnsClientX.Tests {
                     return ValueTask.FromException<QuicConnection>(new PlatformNotSupportedException("capture only"));
                 };
                 var config = new Configuration("192.0.2.1", DnsRequestFormat.DnsOverQuic) {
-                    TlsServerName = "resolver.example"
+                    TlsServerName = "resolver.example",
+                    LocalEndPoint = new IPEndPoint(IPAddress.Loopback, 0)
                 };
 
                 await DnsWireResolveQuic.ResolveWireFormatQuic("resolver.example", 853, "example.com",
@@ -162,6 +167,7 @@ namespace DnsClientX.Tests {
                 Assert.Equal(0, captured!.DefaultCloseErrorCode);
                 Assert.Equal(0, captured.DefaultStreamErrorCode);
                 Assert.Equal("resolver.example", captured.ClientAuthenticationOptions.TargetHost);
+                Assert.Equal(config.LocalEndPoint, captured.LocalEndPoint);
                 Assert.Contains(captured.ClientAuthenticationOptions.ApplicationProtocols!,
                     protocol => protocol.Protocol.Span.SequenceEqual("doq"u8));
             } finally {
@@ -188,6 +194,22 @@ namespace DnsClientX.Tests {
             } finally {
                 DnsWireResolveQuic.ConnectionCloser = previousCloser;
             }
+        }
+
+        /// <summary>DoQ rejects EDNS TCP Keepalive and the safe wire parser detects it.</summary>
+        [Fact]
+        public void RejectsTcpKeepaliveOption() {
+            var configuration = new Configuration("resolver.example", DnsRequestFormat.DnsOverQuic) {
+                EdnsOptions = new EdnsOptions()
+            };
+            configuration.EdnsOptions.Options.Add(new KeepaliveOption());
+            var message = new DnsMessage("example.com", DnsRecordType.A,
+                new DnsMessageOptions(EnableEdns: true, Options: configuration.EdnsOptions.Options));
+            byte[] wire = message.SerializeDnsWireFormat();
+
+            Assert.True(DnsWireResolveQuic.HasConfiguredOption(configuration, 11));
+            Assert.True(DnsWireMessageParser.TryContainsEdnsOption(wire, 11, out bool contains));
+            Assert.True(contains);
         }
     }
 }

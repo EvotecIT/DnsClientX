@@ -9,7 +9,7 @@ namespace DnsClientX {
     /// Provides DNS resolution over TCP using the DNS wire protocol.
     /// </summary>
     internal class DnsWireResolveTcp {
-        internal static Func<TcpClient> TcpClientFactory { get; set; } = () => new TcpClient();
+        internal static Func<AddressFamily, TcpClient> TcpClientFactory { get; set; } = family => new TcpClient(family);
         /// <summary>
         /// Sends a DNS query in wire format using DNS over TCP (53) and returns the response.
         /// </summary>
@@ -78,7 +78,13 @@ namespace DnsClientX {
 
             try {
                 // Send the DNS query over TCP and receive the response
-                var responseBuffer = await SendQueryOverTcp(queryBytes, address.ToString(), port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
+                var responseBuffer = await SendQueryOverTcp(
+                    queryBytes,
+                    address.ToString(),
+                    port,
+                    endpointConfiguration.TimeOut,
+                    cancellationToken,
+                    endpointConfiguration.LocalEndPoint).ConfigureAwait(false);
 
                 // Deserialize the response from DNS wire format
                 var response = await DnsWire.DeserializeDnsWireResponse(null, debug, responseBuffer, query).ConfigureAwait(false);
@@ -120,11 +126,26 @@ namespace DnsClientX {
         /// <param name="port"></param>
         /// <param name="timeoutMilliseconds">Timeout in milliseconds.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <param name="localEndPoint">Optional local source endpoint.</param>
         /// <returns>Raw DNS response bytes.</returns>
-        internal static async Task<byte[]> SendQueryOverTcp(byte[] query, string dnsServer, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
-            using var tcpClient = TcpClientFactory();
+        internal static async Task<byte[]> SendQueryOverTcp(
+            byte[] query,
+            string dnsServer,
+            int port,
+            int timeoutMilliseconds,
+            CancellationToken cancellationToken,
+            System.Net.IPEndPoint? localEndPoint = null) {
+            AddressFamily addressFamily = System.Net.IPAddress.TryParse(dnsServer, out System.Net.IPAddress? parsedAddress)
+                ? parsedAddress.AddressFamily
+                : localEndPoint?.AddressFamily ?? AddressFamily.InterNetwork;
+            using var tcpClient = TcpClientFactory(addressFamily);
             NetworkStream? stream = null;
             try {
+                if (System.Net.IPAddress.TryParse(dnsServer, out System.Net.IPAddress? remoteAddress)) {
+                    SocketBinding.Bind(tcpClient.Client, localEndPoint, remoteAddress.AddressFamily);
+                } else if (localEndPoint != null) {
+                    SocketBinding.Bind(tcpClient.Client, localEndPoint, localEndPoint.AddressFamily);
+                }
                 // Connect to the server with timeout
                 await ConnectAsync(tcpClient, dnsServer, port, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
 

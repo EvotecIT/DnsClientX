@@ -19,22 +19,28 @@ namespace DnsClientX.Tests {
                     new DnsAnswer { Name = "_services._dns-sd._udp.example.com", Type = DnsRecordType.PTR, DataRaw = "_http._tcp.example.com." }
                 }
             };
+            var instanceResponse = new DnsResponse {
+                Answers = new[] {
+                    new DnsAnswer { Name = "_http._tcp.example.com", Type = DnsRecordType.PTR, DataRaw = "Printer._http._tcp.example.com." }
+                }
+            };
             var srvResponse = new DnsResponse {
                 Answers = new[] {
-                    new DnsAnswer { Name = "_http._tcp.example.com", Type = DnsRecordType.SRV, DataRaw = "0 0 80 host.example.com." }
+                    new DnsAnswer { Name = "Printer._http._tcp.example.com", Type = DnsRecordType.SRV, DataRaw = "0 0 80 host.example.com." }
                 }
             };
             var txtResponse = new DnsResponse {
                 Answers = new[] {
-                    new DnsAnswer { Name = "_http._tcp.example.com", Type = DnsRecordType.TXT, DataRaw = "path=/" }
+                    new DnsAnswer { Name = "Printer._http._tcp.example.com", Type = DnsRecordType.TXT, DataRaw = "path=/" }
                 }
             };
 
-            using var client = new ClientX(DnsEndpoint.System);
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP);
             client.ResolverOverride = (name, type, ct) => {
                 if (name == "_services._dns-sd._udp.example.com" && type == DnsRecordType.PTR) return Task.FromResult(ptrResponse);
-                if (name == "_http._tcp.example.com" && type == DnsRecordType.SRV) return Task.FromResult(srvResponse);
-                if (name == "_http._tcp.example.com" && type == DnsRecordType.TXT) return Task.FromResult(txtResponse);
+                if (name == "_http._tcp.example.com" && type == DnsRecordType.PTR) return Task.FromResult(instanceResponse);
+                if (name == "Printer._http._tcp.example.com" && type == DnsRecordType.SRV) return Task.FromResult(srvResponse);
+                if (name == "Printer._http._tcp.example.com" && type == DnsRecordType.TXT) return Task.FromResult(txtResponse);
                 return Task.FromResult(new DnsResponse { Answers = Array.Empty<DnsAnswer>() });
             };
 
@@ -45,7 +51,8 @@ namespace DnsClientX.Tests {
 
             Assert.Single(results);
             var service = results[0];
-            Assert.Equal("_http._tcp.example.com", service.ServiceName);
+            Assert.Equal("Printer._http._tcp.example.com", service.InstanceName);
+            Assert.Equal("_http._tcp.example.com", service.ServiceType);
             Assert.Equal("host.example.com", service.Target);
             Assert.Equal(80, service.Port);
             Assert.True(service.Metadata != null && service.Metadata["path"] == "/");

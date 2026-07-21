@@ -6,7 +6,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures IDN queries resolve correctly to punycode using the specified endpoint.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -21,6 +21,8 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             var response = await ClientX.QueryDns("www.bücher.de", DnsRecordType.A, endpoint);
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.NotEmpty(response.Answers);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "www.xn--bcher-kva.de");
                 Assert.True(answer.Type == DnsRecordType.A);

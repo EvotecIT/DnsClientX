@@ -61,9 +61,7 @@ namespace DnsClientX {
                     AddDoh("1.0.0.1", "/dns-query", DnsRequestFormat.DnsOverHttpsWirePost);
                     break;
                 case DnsEndpoint.CloudflareJsonPost:
-                    AddDoh("1.1.1.1", "/dns-query", DnsRequestFormat.DnsOverHttpsJSONPOST);
-                    AddDoh("1.0.0.1", "/dns-query", DnsRequestFormat.DnsOverHttpsJSONPOST);
-                    break;
+                    throw new NotSupportedException("Cloudflare does not publish a JSON-over-POST DNS endpoint. Use CloudflareWireFormatPost for RFC 8484 POST.");
                 case DnsEndpoint.CloudflareSecurity:
                     AddDoh("1.1.1.2", "/dns-query", DnsRequestFormat.DnsOverHttpsJSON);
                     AddDoh("1.0.0.2", "/dns-query", DnsRequestFormat.DnsOverHttpsJSON);
@@ -73,21 +71,16 @@ namespace DnsClientX {
                     AddDoh("1.0.0.3", "/dns-query", DnsRequestFormat.DnsOverHttpsJSON);
                     break;
                 case DnsEndpoint.Google:
-                    AddDoh("8.8.8.8", "/resolve", DnsRequestFormat.DnsOverHttpsJSON);
-                    AddDoh("8.8.4.4", "/resolve", DnsRequestFormat.DnsOverHttpsJSON);
+                    AddDoh("dns.google", "/dns-query", DnsRequestFormat.DnsOverHttps);
                     break;
                 case DnsEndpoint.GoogleWireFormat:
-                    AddDoh("8.8.8.8", "/dns-query", DnsRequestFormat.DnsOverHttps);
-                    AddDoh("8.8.4.4", "/dns-query", DnsRequestFormat.DnsOverHttps);
+                    AddDoh("dns.google", "/dns-query", DnsRequestFormat.DnsOverHttps);
                     break;
                 case DnsEndpoint.GoogleWireFormatPost:
-                    AddDoh("8.8.8.8", "/dns-query", DnsRequestFormat.DnsOverHttpsWirePost);
-                    AddDoh("8.8.4.4", "/dns-query", DnsRequestFormat.DnsOverHttpsWirePost);
+                    AddDoh("dns.google", "/dns-query", DnsRequestFormat.DnsOverHttpsWirePost);
                     break;
                 case DnsEndpoint.GoogleJsonPost:
-                    AddDoh("8.8.8.8", "/resolve", DnsRequestFormat.DnsOverHttpsJSONPOST);
-                    AddDoh("8.8.4.4", "/resolve", DnsRequestFormat.DnsOverHttpsJSONPOST);
-                    break;
+                    throw new NotSupportedException("Google Public DNS does not publish a JSON-over-POST endpoint. Use GoogleWireFormatPost for RFC 8484 POST.");
                 case DnsEndpoint.Quad9:
                     AddDoh("dns.quad9.net", "/dns-query", DnsRequestFormat.DnsOverHttps);
                     break;

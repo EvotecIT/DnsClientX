@@ -59,5 +59,21 @@ namespace DnsClientX.Tests {
 
             Assert.Equal("line1line2", answer.TxtConcatenatedData);
         }
+
+        /// <summary>
+        /// Ensures character-strings within one TXT RDATA are concatenated without fabricating multiple records.
+        /// </summary>
+        [Fact]
+        public void TxtData_ConcatenatesCharacterStringsWithinOneRecord() {
+            var answer = new DnsAnswer {
+                Name = "example.com",
+                Type = DnsRecordType.TXT,
+                TTL = 300,
+                DataRaw = "\"v=spf1 include:\" \"example.com -all\""
+            };
+
+            Assert.Equal("v=spf1 include:example.com -all", answer.Data);
+            Assert.Equal(2, answer.DataStrings.Length);
+        }
     }
 }

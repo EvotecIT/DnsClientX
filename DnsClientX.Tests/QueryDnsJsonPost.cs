@@ -37,12 +37,10 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Sends a query and verifies that the request uses POST with a JSON payload.
         /// </summary>
-        [Theory]
-        [InlineData(DnsEndpoint.CloudflareJsonPost)]
-        [InlineData(DnsEndpoint.GoogleJsonPost)]
-        public async Task ShouldPostJson(DnsEndpoint endpoint) {
+        [Fact]
+        public async Task ShouldPostJson() {
             var handler = new JsonPostHandler();
-            using var clientX = new ClientX(endpoint);
+            using var clientX = new ClientX(new Configuration(new Uri("https://resolver.example/dns-query"), DnsRequestFormat.DnsOverHttpsJSONPOST));
             var httpClient = new HttpClient(handler) { BaseAddress = clientX.EndpointConfiguration.BaseUri };
             InjectClient(clientX, httpClient);
 

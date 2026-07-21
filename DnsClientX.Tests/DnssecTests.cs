@@ -10,12 +10,13 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Resolves DNSKEY records with DNSSEC enabled.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.Cloudflare)]
         [InlineData(DnsEndpoint.Google)]
         public async Task QueryDnskey_WithDnssec(DnsEndpoint endpoint) {
             using var client = new ClientX(endpoint);
             DnsResponse response = await client.Resolve("evotec.pl", DnsRecordType.DNSKEY, requestDnsSec: true);
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
             Assert.NotEmpty(response.Answers);
             Assert.Contains(response.Answers, a => a.Type == DnsRecordType.DNSKEY);
             Assert.True(response.AuthenticData || response.Answers.Any(a => a.Type == DnsRecordType.RRSIG));
@@ -24,12 +25,13 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Resolves DS records with DNSSEC enabled.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.Cloudflare)]
         [InlineData(DnsEndpoint.Google)]
         public async Task QueryDs_WithDnssec(DnsEndpoint endpoint) {
             using var client = new ClientX(endpoint);
             DnsResponse response = await client.Resolve("evotec.pl", DnsRecordType.DS, requestDnsSec: true);
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
             Assert.NotEmpty(response.Answers);
             Assert.Contains(response.Answers, a => a.Type == DnsRecordType.DS);
             Assert.True(response.AuthenticData || response.Answers.Any(a => a.Type == DnsRecordType.RRSIG));

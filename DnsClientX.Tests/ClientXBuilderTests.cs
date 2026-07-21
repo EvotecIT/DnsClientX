@@ -24,7 +24,7 @@ namespace DnsClientX.Tests {
 
             Assert.Equal(2000, client.EndpointConfiguration.TimeOut);
             Assert.NotNull(client.EndpointConfiguration.BaseUri);
-            Assert.StartsWith("https://8.8.8.8", client.EndpointConfiguration.BaseUri!.ToString());
+            Assert.StartsWith("https://dns.google", client.EndpointConfiguration.BaseUri!.ToString());
 
             var field = typeof(ClientX).GetField("_webProxy", BindingFlags.NonPublic | BindingFlags.Instance)!;
             Assert.Same(proxy, field.GetValue(client));
@@ -113,6 +113,20 @@ namespace DnsClientX.Tests {
             Assert.True(client.IgnoreCertificateErrors);
             Assert.True(client.CacheEnabled);
             Assert.False(client.EndpointConfiguration.UseTcpFallback);
+        }
+
+        /// <summary>
+        /// The advertised root-server profile creates an iterative, non-recursive client.
+        /// </summary>
+        [Fact]
+        public void RootServerEndpoint_ShouldCreateIterativeClient() {
+            using var client = new ClientX(DnsEndpoint.RootServer);
+
+            Assert.Equal(DnsEndpoint.RootServer, client.EndpointConfiguration.BuiltInEndpoint);
+            Assert.Equal(DnsRequestFormat.DnsOverUDP, client.EndpointConfiguration.RequestFormat);
+            Assert.False(client.EndpointConfiguration.RecursionDesired);
+            Assert.Equal(53, client.EndpointConfiguration.Port);
+            Assert.NotNull(client.EndpointConfiguration.Hostname);
         }
 
         /// <summary>

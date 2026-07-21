@@ -183,6 +183,52 @@ namespace DnsClientX {
             return true;
         }
 
+        /// <summary>Safely checks whether an OPT record contains a specific EDNS option code.</summary>
+        internal static bool TryContainsEdnsOption(byte[]? data, ushort optionCode, out bool contains) {
+            contains = false;
+            if (data == null || data.Length < DnsHeaderLength) return false;
+
+            int offset = QuestionCountOffset;
+            if (!TryReadUInt16(data, ref offset, out ushort qd)
+                || !TryReadUInt16(data, ref offset, out ushort an)
+                || !TryReadUInt16(data, ref offset, out ushort ns)
+                || !TryReadUInt16(data, ref offset, out ushort ar)) return false;
+
+            offset = DnsHeaderLength;
+            for (int index = 0; index < qd; index++) {
+                if (!TrySkipName(data, ref offset) || offset + QuestionTypeAndClassLength > data.Length) return false;
+                offset += QuestionTypeAndClassLength;
+            }
+
+            int recordCount = an + ns + ar;
+            bool sawOpt = false;
+            for (int index = 0; index < recordCount; index++) {
+                if (!TrySkipName(data, ref offset)
+                    || !TryReadUInt16(data, ref offset, out ushort type)
+                    || !TryReadUInt16(data, ref offset, out _)
+                    || !TryReadUInt32(data, ref offset, out _)
+                    || !TryReadUInt16(data, ref offset, out ushort length)
+                    || offset + length > data.Length) return false;
+
+                int end = offset + length;
+                if (type == (ushort)DnsRecordType.OPT) {
+                    if (index < an + ns || sawOpt) return false;
+                    sawOpt = true;
+                    while (offset < end) {
+                        if (!TryReadUInt16(data, ref offset, out ushort code)
+                            || !TryReadUInt16(data, ref offset, out ushort optionLength)
+                            || offset + optionLength > end) return false;
+                        if (code == optionCode) contains = true;
+                        offset += optionLength;
+                    }
+                } else {
+                    offset = end;
+                }
+            }
+
+            return offset == data.Length;
+        }
+
 	        private static bool TrySkipName(byte[] buffer, ref int offset) {
 	            int segments = 0;
 	            while (true) {

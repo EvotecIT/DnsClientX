@@ -16,21 +16,17 @@ namespace DnsClientX {
                 },
                 DnsEndpoint.Cloudflare or
                 DnsEndpoint.CloudflareWireFormat or
-                DnsEndpoint.CloudflareWireFormatPost or
-                DnsEndpoint.CloudflareJsonPost => new[] {
+                DnsEndpoint.CloudflareWireFormatPost => new[] {
                     DnsEndpoint.Cloudflare,
                     DnsEndpoint.CloudflareWireFormat,
-                    DnsEndpoint.CloudflareWireFormatPost,
-                    DnsEndpoint.CloudflareJsonPost
+                    DnsEndpoint.CloudflareWireFormatPost
                 },
                 DnsEndpoint.Google or
                 DnsEndpoint.GoogleWireFormat or
-                DnsEndpoint.GoogleWireFormatPost or
-                DnsEndpoint.GoogleJsonPost => new[] {
+                DnsEndpoint.GoogleWireFormatPost => new[] {
                     DnsEndpoint.Google,
                     DnsEndpoint.GoogleWireFormat,
-                    DnsEndpoint.GoogleWireFormatPost,
-                    DnsEndpoint.GoogleJsonPost
+                    DnsEndpoint.GoogleWireFormatPost
                 },
                 DnsEndpoint.AdGuard or
                 DnsEndpoint.AdGuardFamily or

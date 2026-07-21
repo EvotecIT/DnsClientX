@@ -28,12 +28,13 @@ namespace DnsClientX {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
             if (ttl < 0) throw new ArgumentOutOfRangeException(nameof(ttl));
             Configuration queryConfiguration = EndpointConfiguration.CreateQuerySnapshot();
-            HttpClient queryClient = GetClient(queryConfiguration);
             DnsResponse response;
             if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
                 if (queryConfiguration.TsigKey != null) throw new NotSupportedException("TSIG authenticates DNS wire UPDATE messages and cannot be applied to the provider-specific JSON update API.");
+                HttpClient queryClient = GetClient(queryConfiguration);
                 response = await queryClient.UpdateJsonFormatPost(zone, name, type, data, ttl, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
             } else {
+                EnsureWireUpdateTransport(queryConfiguration.RequestFormat);
                 response = await DnsWireUpdateTcp.UpdateRecordAsync(queryConfiguration.Hostname!, queryConfiguration.Port, zone, name, type, data, ttl, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
             }
             if (response.Status != DnsResponseCode.NoError) {
@@ -56,12 +57,13 @@ namespace DnsClientX {
             if (string.IsNullOrEmpty(zone)) throw new ArgumentNullException(nameof(zone));
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
             Configuration queryConfiguration = EndpointConfiguration.CreateQuerySnapshot();
-            HttpClient queryClient = GetClient(queryConfiguration);
             DnsResponse response;
             if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
                 if (queryConfiguration.TsigKey != null) throw new NotSupportedException("TSIG authenticates DNS wire UPDATE messages and cannot be applied to the provider-specific JSON update API.");
+                HttpClient queryClient = GetClient(queryConfiguration);
                 response = await queryClient.DeleteJsonFormatPost(zone, name, type, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
             } else {
+                EnsureWireUpdateTransport(queryConfiguration.RequestFormat);
                 response = await DnsWireUpdateTcp.DeleteRecordAsync(queryConfiguration.Hostname!, queryConfiguration.Port, zone, name, type, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
             }
             if (response.Status != DnsResponseCode.NoError) {
@@ -90,10 +92,19 @@ namespace DnsClientX {
             if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
                 throw new NotSupportedException("Deleting one RDATA value requires an RFC 2136 DNS wire UPDATE endpoint.");
             }
+            EnsureWireUpdateTransport(queryConfiguration.RequestFormat);
             DnsResponse response = await DnsWireUpdateTcp.DeleteRecordValueAsync(queryConfiguration.Hostname!,
                 queryConfiguration.Port, zone, name, type, data, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
             if (response.Status != DnsResponseCode.NoError) throw new DnsClientException($"DNS update failed with {response.Status}", response);
             return response;
+        }
+
+        private static void EnsureWireUpdateTransport(DnsRequestFormat requestFormat) {
+            if (requestFormat != DnsRequestFormat.DnsOverUDP
+                && requestFormat != DnsRequestFormat.DnsOverTCP) {
+                throw new NotSupportedException(
+                    $"RFC 2136 DNS UPDATE is supported only for UDP/TCP-configured authoritative targets; {requestFormat} cannot be silently converted to plaintext TCP.");
+            }
         }
     }
 }

@@ -9,9 +9,15 @@ namespace DnsClientX {
             TimeSpan maxCacheTtl, bool ignoreCertificateErrors) {
             var builder = new StringBuilder(256);
             Append(builder, configuration.RequestFormat.ToString());
+            Append(builder, configuration.BuiltInEndpoint?.ToString() ?? string.Empty);
             Append(builder, configuration.BaseUri?.AbsoluteUri ?? configuration.Hostname ?? string.Empty);
             Append(builder, configuration.Port.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Append(builder, configuration.TlsServerName ?? string.Empty);
+            Append(builder, configuration.LocalEndPoint?.ToString() ?? string.Empty);
+            Append(builder, configuration.MulticastInterfaceIndex?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty);
+            Append(builder, configuration.PreferredAddressFamily?.ToString() ?? string.Empty);
+            Append(builder, configuration.UseTcpFallback ? "tcp-fallback" : "no-tcp-fallback");
+            Append(builder, configuration.IterativeMaxHops.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Append(builder, maxCacheTtl.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Append(builder, ignoreCertificateErrors ? "insecure-tls" : "validate-tls");
             Append(builder, DnsWireNameCodec.Canonical(normalizedName));

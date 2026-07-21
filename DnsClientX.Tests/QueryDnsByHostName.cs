@@ -6,10 +6,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures TXT queries succeed when specifying the DNS host.
         /// </summary>
-        /// <summary>
-        /// Ensures multiple domains can be resolved for a given host name.
-        /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData("1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON)]
         [InlineData("family.cloudflare-dns.com", DnsRequestFormat.DnsOverHttpsJSON)]
         // Google contrary to the other endpoints does not work with /dns-query but with /resolve
@@ -17,6 +14,8 @@ namespace DnsClientX.Tests {
         [InlineData("208.67.222.222", DnsRequestFormat.DnsOverHttps)]
         public async Task ShouldWorkForTXT(string hostName, DnsRequestFormat requestFormat) {
             var response = await ClientX.QueryDns("github.com", DnsRecordType.TXT, hostName, requestFormat);
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.NotEmpty(response.Answers);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "github.com");
                 Assert.True(answer.Type == DnsRecordType.TXT);
@@ -27,7 +26,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures A record queries succeed when specifying the DNS host.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData("1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON)]
         [InlineData("family.cloudflare-dns.com", DnsRequestFormat.DnsOverHttpsJSON)]
         [InlineData("1.1.1.1", DnsRequestFormat.DnsOverUDP)]
@@ -37,6 +36,8 @@ namespace DnsClientX.Tests {
         [InlineData("208.67.222.222", DnsRequestFormat.DnsOverHttps)]
         public async Task ShouldWorkForA(string hostName, DnsRequestFormat requestFormat) {
             var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, hostName, requestFormat);
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.NotEmpty(response.Answers);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "evotec.pl");
                 Assert.True(answer.Type == DnsRecordType.A);
@@ -47,7 +48,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures multiple domains can be resolved for a given host name.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData("1.1.1.1", DnsRequestFormat.DnsOverHttpsJSON)]
         [InlineData("family.cloudflare-dns.com", DnsRequestFormat.DnsOverHttpsJSON)]
         [InlineData("1.1.1.1", DnsRequestFormat.DnsOverUDP)]
@@ -58,8 +59,11 @@ namespace DnsClientX.Tests {
         public async Task ShouldWorkForMultipleDomains(string hostName, DnsRequestFormat requestFormat) {
             var domains = new[] { "evotec.pl", "google.com" };
             var responses = await ClientX.QueryDns(domains, DnsRecordType.A, hostName, requestFormat);
+            Assert.Equal(domains.Length, responses.Length);
             foreach (var domain in domains) {
                 var response = responses.First(r => r.Questions?.Any(q => q.Name == domain) == true);
+                Assert.Equal(DnsResponseCode.NoError, response.Status);
+                Assert.NotEmpty(response.Answers);
                 foreach (DnsAnswer answer in response.Answers) {
                     Assert.True(answer.Name == domain);
                     Assert.True(answer.Type == DnsRecordType.A);

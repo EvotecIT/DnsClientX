@@ -12,6 +12,23 @@
 * Add public response cloning/filtering helpers so consumers can preserve DNS metadata without their own resolver implementation
 * Add a caller-owned-`HttpClient` DNS JSON client for browser/WASM and dependency-injected hosts, including HTTP and media-type validation
 * Stop injecting the application icon into every consuming target framework while retaining package and assembly branding
+* Discover system resolvers without silent public fallback, preserve local forwarding/link-local servers, expose search domains and `ndots`, and apply system search expansion with an explicit opt-in public fallback
+* Correct RFC 6763 DNS-SD browsing, RFC 2782 weighted SRV ordering, and bounded RFC 6762 multicast collection across IPv4/IPv6 interfaces
+* Harden iterative referrals with closest-zone selection, bailiwick-constrained glue, missing nameserver resolution, and CNAME/DNAME loop limits
+* Add a public diagnostic BIND master-file parser with `$ORIGIN`, `$INCLUDE`, `$GENERATE`, owner inheritance, multiline records, and RFC 3597 generic types
+* Add UDP socket reuse, explicit UDP/TCP/DoT/DoQ source binding, zero-cost-when-disabled query telemetry, and a controlled DnsClient.NET comparison benchmark
+* Document the exact DNSSEC algorithm boundary and the reviewed dependency gates for future optional DNSCrypt and ODoH packages
+* Stop guessing TXT record boundaries from SPF/verification content, preserve complete TXT RRs during filtering, route the default Google profile through RFC 8484 wire format, and reject built-in JSON POST profiles that their providers do not publish
+* Prevent malformed eleven-field LOC presentation data from reaching a twelfth-field parser read
+* Make the advertised `RootServer` profile executable through every shared resolver workflow, preserve root-label DNSKEY lookups, and apply glue against the responding authority's bailiwick
+* Reject encrypted/recursive resolver profiles as RFC 2136 update targets instead of silently sending plaintext DNS to their ports, and share TCP source binding with authenticated updates
+* Validate RFC 6672 DNAME-synthesized unsigned CNAMEs through their signed DNAME RRset and validate cross-zone iterative alias packets independently
+* Correlate mDNS packets by requested owner/type, retain only related DNS-SD records, and cap collected responses to resist unrelated multicast traffic and floods
+* Make zone-file includes opt-in, root-confined, and link-safe by default, and turn TTL/`$GENERATE` overflow or hostile expansion into bounded diagnostics
+* Keep source/interface/family/fallback selections out of one another's cache entries, continue system search lists after NODATA without skipping projected alias successes, and isolate telemetry subscriber failures
+* Atomically claim client resources before asynchronous disposal, construct TCP/update/AXFR sockets for the resolved IPv4/IPv6 family, and enforce DoQ FIN, one-response, and EDNS keepalive rules
+* Route the root profile through normal retry, cache, audit, projection, typed-record, PTR, and IDN behavior with an independent iterative-hop setting
+* Rename the misleading `ResolveFromRoot(... maxRetries ...)` parameter to `maxHops`, keep `RetryCount` for actual repeated attempts, and retain ordinary RRsets for ANY queries
 
 ### Earlier unreleased changes
 * Fix custom endpoint docs and add `ClientX(Configuration ...)` constructor

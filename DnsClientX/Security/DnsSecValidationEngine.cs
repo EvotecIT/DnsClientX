@@ -32,30 +32,72 @@ namespace DnsClientX {
                 .ToArray();
 
             if (rrsets.Length > 0) {
-                bool insecure = false;
-                foreach (IGrouping<RrsetKey, DnsWireResourceRecord> rrset in rrsets) {
-                    DnsSecValidationResult result = await ValidateAnswerRrsetAsync(response, rrset.Key, cancellationToken).ConfigureAwait(false);
-                    if (result.Status == DnsSecValidationStatus.Bogus || result.Status == DnsSecValidationStatus.Indeterminate) return result;
-                    insecure |= result.Status == DnsSecValidationStatus.Insecure;
-                }
-
-                if (!TryFollowAnswerChain(answerRecords, name, type, out string finalName, out bool terminal, out string? chainError)) {
-                    return DnsSecValidationResult.Indeterminate(chainError ?? "The answer did not contain a usable canonical-name chain.");
-                }
-                if (!terminal) {
-                    DnsSecValidationResult denial = await ValidateNegativeAsync(response, finalName, type, cancellationToken).ConfigureAwait(false);
-                    if (denial.Status == DnsSecValidationStatus.Bogus || denial.Status == DnsSecValidationStatus.Indeterminate) return denial;
-                    insecure |= denial.Status == DnsSecValidationStatus.Insecure;
-                }
-
-                return insecure
-                    ? DnsSecValidationResult.Insecure("A secure delegation chain proved that at least one answer zone is unsigned.")
-                    : DnsSecValidationResult.Secure(terminal
-                        ? "The complete answer chain and delegation chain were validated to a root trust anchor."
-                        : "The canonical-name chain and authenticated denial for its final target were validated.");
+                return await ValidatePositiveAsync(response, answerRecords, rrsets, name, type,
+                    requireTerminal: true, cancellationToken).ConfigureAwait(false);
             }
 
             return await ValidateNegativeAsync(response, name, type, cancellationToken).ConfigureAwait(false);
+        }
+
+        internal async Task<DnsSecValidationResult> ValidateAliasAsync(DnsResponse response, string name,
+            DnsRecordType type, CancellationToken cancellationToken) {
+            if (response.WireMessage == null || response.WireMessage.Length == 0) {
+                return DnsSecValidationResult.Indeterminate("Local DNSSEC validation requires a DNS wire-format response.");
+            }
+            DnsWireResourceRecord[] answers = response.WireAnswers ?? Array.Empty<DnsWireResourceRecord>();
+            var rrsets = answers
+                .Where(record => record.Type != DnsRecordType.RRSIG && record.Type != DnsRecordType.OPT)
+                .GroupBy(record => new RrsetKey(DnsWireNameCodec.Canonical(record.Name), record.Type, record.Class))
+                .ToArray();
+            if (rrsets.Length == 0) {
+                return DnsSecValidationResult.Indeterminate("The iterative alias response contained no answer RRset.");
+            }
+            return await ValidatePositiveAsync(response, answers, rrsets, name, type,
+                requireTerminal: false, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task<DnsSecValidationResult> ValidatePositiveAsync(
+            DnsResponse response,
+            DnsWireResourceRecord[] answerRecords,
+            IGrouping<RrsetKey, DnsWireResourceRecord>[] rrsets,
+            string name,
+            DnsRecordType type,
+            bool requireTerminal,
+            CancellationToken cancellationToken) {
+            bool insecure = false;
+            foreach (IGrouping<RrsetKey, DnsWireResourceRecord> rrset in rrsets) {
+                if (rrset.Key.Type == DnsRecordType.CNAME
+                    && ReadSignatures(response, rrset.Key.Name, rrset.Key.Type, rrset.Key.Class).Count == 0
+                    && rrset.All(record => IsSynthesizedDnameCname(answerRecords, record))) {
+                    continue;
+                }
+                DnsSecValidationResult result = await ValidateAnswerRrsetAsync(response, rrset.Key, cancellationToken).ConfigureAwait(false);
+                if (result.Status == DnsSecValidationStatus.Bogus || result.Status == DnsSecValidationStatus.Indeterminate) return result;
+                insecure |= result.Status == DnsSecValidationStatus.Insecure;
+            }
+
+            if (!TryFollowAnswerChain(answerRecords, name, type, out string finalName, out bool terminal, out string? chainError)) {
+                return DnsSecValidationResult.Indeterminate(chainError ?? "The answer did not contain a usable canonical-name chain.");
+            }
+            if (!terminal && !requireTerminal) {
+                if (string.Equals(DnsWireNameCodec.Canonical(name), finalName, StringComparison.Ordinal)) {
+                    return DnsSecValidationResult.Indeterminate("The answer did not redirect the iterative query to another name.");
+                }
+                return insecure
+                    ? DnsSecValidationResult.Insecure("The authenticated alias crosses an unsigned delegation.")
+                    : DnsSecValidationResult.Secure("The iterative alias segment was authenticated.");
+            }
+            if (!terminal) {
+                DnsSecValidationResult denial = await ValidateNegativeAsync(response, finalName, type, cancellationToken).ConfigureAwait(false);
+                if (denial.Status == DnsSecValidationStatus.Bogus || denial.Status == DnsSecValidationStatus.Indeterminate) return denial;
+                insecure |= denial.Status == DnsSecValidationStatus.Insecure;
+            }
+
+            return insecure
+                ? DnsSecValidationResult.Insecure("A secure delegation chain proved that at least one answer zone is unsigned.")
+                : DnsSecValidationResult.Secure(terminal
+                    ? "The complete answer chain and delegation chain were validated to a root trust anchor."
+                    : "The canonical-name chain and authenticated denial for its final target were validated.");
         }
 
         private async Task<DnsSecValidationResult> ValidateAnswerRrsetAsync(DnsResponse response, RrsetKey rrset,
@@ -272,18 +314,62 @@ namespace DnsClientX {
                     return false;
                 }
                 string currentName = finalName;
-                if (answers.Any(record => record.Type == requestedType &&
+                if (answers.Any(record => (record.Type == requestedType
+                                             || requestedType == DnsRecordType.ANY
+                                             && record.Type != DnsRecordType.RRSIG
+                                             && record.Type != DnsRecordType.OPT) &&
                     string.Equals(DnsWireNameCodec.Canonical(record.Name), currentName, StringComparison.Ordinal))) {
                     terminal = true;
                     return true;
                 }
                 DnsWireResourceRecord? alias = answers.FirstOrDefault(record => record.Type == DnsRecordType.CNAME &&
                     string.Equals(DnsWireNameCodec.Canonical(record.Name), currentName, StringComparison.Ordinal));
-                if (!alias.HasValue || alias.Value.Type != DnsRecordType.CNAME) return true;
-                finalName = DnsWireNameCodec.Canonical(alias.Value.Data);
+                if (alias.HasValue && alias.Value.Type == DnsRecordType.CNAME) {
+                    finalName = DnsWireNameCodec.Canonical(alias.Value.Data);
+                    continue;
+                }
+                if (!TryGetDnameTarget(answers, currentName, out string? dnameTarget)) return true;
+                finalName = dnameTarget!;
             }
             error = "The DNS answer contains an excessively long canonical-name chain.";
             return false;
+        }
+
+        internal static bool IsSynthesizedDnameCname(
+            DnsWireResourceRecord[] answers,
+            DnsWireResourceRecord cname) {
+            if (cname.Type != DnsRecordType.CNAME) return false;
+            string owner = DnsWireNameCodec.Canonical(cname.Name);
+            return TryGetDnameTarget(answers, owner, out string? target)
+                && string.Equals(DnsWireNameCodec.Canonical(cname.Data), target, StringComparison.Ordinal);
+        }
+
+        private static bool TryGetDnameTarget(
+            DnsWireResourceRecord[] answers,
+            string currentName,
+            out string? target) {
+            target = null;
+            string canonicalName = DnsWireNameCodec.Canonical(currentName);
+            DnsWireResourceRecord? dname = answers
+                .Where(record => record.Type == DnsRecordType.DNAME)
+                .Where(record => IsStrictSubdomain(canonicalName, DnsWireNameCodec.Canonical(record.Name)))
+                .OrderByDescending(record => DnsWireNameCodec.Canonical(record.Name).Length)
+                .Cast<DnsWireResourceRecord?>()
+                .FirstOrDefault();
+            if (!dname.HasValue) return false;
+
+            string owner = DnsWireNameCodec.Canonical(dname.Value.Name);
+            string replacement = DnsWireNameCodec.Canonical(dname.Value.Data);
+            string prefix = canonicalName.Substring(0, canonicalName.Length - owner.Length).TrimEnd('.');
+            target = prefix.Length == 0 ? replacement : $"{prefix}.{replacement}";
+            return true;
+        }
+
+        private static bool IsStrictSubdomain(string name, string parent) {
+            return parent == "."
+                ? name != "."
+                : name.Length > parent.Length
+                  && name.EndsWith("." + parent, StringComparison.Ordinal);
         }
 
         internal static bool IsNameWithinZone(string name, string zone) {

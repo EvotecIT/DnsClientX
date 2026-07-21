@@ -4,14 +4,14 @@ using Xunit;
 
 namespace DnsClientX.Tests {
     /// <summary>
-    /// Tests TXT record filtering behavior for concatenated provider responses.
+    /// Tests TXT record filtering behavior without inventing resource-record boundaries.
     /// </summary>
     public class TxtRecordFilteringTests {
         /// <summary>
-        /// Ensures concatenated TXT records are split and filtered correctly.
+        /// Ensures content that resembles several records remains the single record supplied by the resolver.
         /// </summary>
         [Fact]
-        public async Task ResolveFilter_SplitsConcatenatedTxtRecord() {
+        public async Task ResolveFilter_PreservesWholeTxtRecord() {
             var answer = new DnsAnswer {
                 Name = "example.com",
                 Type = DnsRecordType.TXT,
@@ -31,7 +31,7 @@ namespace DnsClientX.Tests {
 
             Assert.NotNull(filtered.Answers);
             Assert.Single(filtered.Answers!);
-            Assert.Equal("v=spf1 include:example.com -all", filtered.Answers![0].Data);
+            Assert.Equal(answer.DataRaw, filtered.Answers![0].Data);
         }
     }
 }

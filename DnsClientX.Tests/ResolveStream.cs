@@ -10,7 +10,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Streams multiple responses and verifies the count.
         /// </summary>
-        [Fact]
+        [RealDnsFact]
         public async Task ShouldStreamMultipleResponses() {
             using var client = new ClientX(DnsEndpoint.System);
             var names = new[] { "github.com", "microsoft.com" };
@@ -19,7 +19,9 @@ namespace DnsClientX.Tests {
 
             await foreach (var response in client.ResolveStream(names, types, retryOnTransient: false)) {
                 Assert.NotNull(response);
+                Assert.Equal(DnsResponseCode.NoError, response.Status);
                 Assert.NotNull(response.Answers);
+                Assert.NotEmpty(response.Answers);
                 count++;
             }
 

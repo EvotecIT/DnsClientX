@@ -153,7 +153,7 @@ When working with DNSSEC:
 
 - **DoH (DNS over HTTPS)**: Supports both JSON and wire format
 - **DoT (DNS over TLS)**: Uses port 853 by default
-- **DoQ (DNS over QUIC)**: Experimental, requires .NET 8.0+
+- **DoQ (DNS over QUIC)**: RFC 9250 wire transport, requires .NET 8.0+
 - **Multicast DNS**: Uses 224.0.0.251:5353 for local network discovery
 
 ## Publishing

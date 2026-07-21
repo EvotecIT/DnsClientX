@@ -117,6 +117,23 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Encrypted resolver profiles must not be silently reinterpreted as plaintext TCP update endpoints.
+        /// </summary>
+        [Theory]
+        [InlineData(DnsEndpoint.Cloudflare)]
+        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
+        [InlineData(DnsEndpoint.Quad9)]
+        [InlineData(DnsEndpoint.Quad9Quic)]
+        public async Task UpdateRecordAsync_RejectsNonUpdateTransport(DnsEndpoint endpoint) {
+            using var client = new ClientX(endpoint);
+
+            NotSupportedException exception = await Assert.ThrowsAsync<NotSupportedException>(() =>
+                client.UpdateRecordAsync("example.com", "www.example.com", DnsRecordType.A, "192.0.2.10"));
+
+            Assert.Contains("cannot be silently converted", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
         /// RFC 2136 does not prohibit a zero TTL for an RR added with the zone class.
         /// </summary>
         [Fact]

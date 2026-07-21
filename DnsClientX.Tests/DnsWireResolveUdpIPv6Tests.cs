@@ -9,6 +9,7 @@ namespace DnsClientX.Tests {
     /// <summary>
     /// Tests for UDP DNS resolution over IPv6.
     /// </summary>
+    [Collection("NoParallel")]
     public class DnsWireResolveUdpIPv6Tests {
         private static int GetFreePort() {
             using var socket = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp);
@@ -41,6 +42,7 @@ namespace DnsClientX.Tests {
             int port = GetFreePort();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var udpTask = RunUdpServerAsync(port, cts.Token);
+            using var pool = new DnsUdpClientPool();
 
             var config = new Configuration("::1", DnsRequestFormat.DnsOverUDP) { Port = port };
             DnsResponse dnsResponse = await DnsWireResolveUdp.ResolveWireFormatUdp(
@@ -53,7 +55,8 @@ namespace DnsClientX.Tests {
                 debug: false,
                 config,
                 1,
-                cts.Token);
+                cts.Token,
+                pool);
 
             await udpTask;
             Assert.Equal(DnsResponseCode.NoError, dnsResponse.Status);

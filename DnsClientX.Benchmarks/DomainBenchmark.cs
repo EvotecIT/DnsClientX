@@ -8,8 +8,9 @@ namespace DnsClientX.Benchmarks;
 /// Benchmark suite measuring query performance over different transports.
 /// </summary>
 [MemoryDiagnoser]
+[BenchmarkCategory("External", "Transport")]
 public class DomainBenchmark {
-    private readonly string[] _domains = ["google.com", "github.com", "cloudflare.com"];
+    private readonly string _domain = "github.com";
     private ClientX _udp = null!;
     private ClientX _tcp = null!;
     private ClientX _dot = null!;
@@ -38,33 +39,32 @@ public class DomainBenchmark {
 
     /// <summary>Benchmark querying over UDP.</summary>
     [Benchmark]
-    public Task Udp() => ResolveAll(_udp);
+    public Task<DnsResponse> Udp() => Resolve(_udp);
 
     /// <summary>Benchmark querying over TCP.</summary>
     [Benchmark]
-    public Task Tcp() => ResolveAll(_tcp);
+    public Task<DnsResponse> Tcp() => Resolve(_tcp);
 
     /// <summary>Benchmark querying over TLS.</summary>
     [Benchmark]
-    public Task Dot() => ResolveAll(_dot);
+    public Task<DnsResponse> Dot() => Resolve(_dot);
 
     /// <summary>Benchmark querying over HTTPS.</summary>
     [Benchmark]
-    public Task Doh() => ResolveAll(_doh);
+    public Task<DnsResponse> Doh() => Resolve(_doh);
 
     /// <summary>Benchmark querying over QUIC.</summary>
     [Benchmark]
-    public Task Doq() => ResolveAll(_doq);
+    public Task<DnsResponse> Doq() => Resolve(_doq);
 
-    private async Task ResolveAll(ClientX client) {
-        foreach (var domain in _domains) {
-            DnsResponse response = await client.Resolve(domain, DnsRecordType.A, retryOnTransient: false)
-                .ConfigureAwait(false);
-            if (response.Status != DnsResponseCode.NoError || response.Answers == null || response.Answers.Length == 0) {
-                throw new InvalidOperationException(
-                    $"The {client.EndpointConfiguration.RequestFormat} benchmark query for '{domain}' failed: " +
-                    $"{response.Status} {response.Error}");
-            }
+    private async Task<DnsResponse> Resolve(ClientX client) {
+        DnsResponse response = await client.Resolve(_domain, DnsRecordType.A, retryOnTransient: false)
+            .ConfigureAwait(false);
+        if (response.Status != DnsResponseCode.NoError || response.Answers == null || response.Answers.Length == 0) {
+            throw new InvalidOperationException(
+                $"The {client.EndpointConfiguration.RequestFormat} benchmark query for '{_domain}' failed: " +
+                $"{response.Status} {response.Error}");
         }
+        return response;
     }
 }

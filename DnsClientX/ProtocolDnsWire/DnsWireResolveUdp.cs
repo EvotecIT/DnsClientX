@@ -22,9 +22,10 @@ namespace DnsClientX {
         /// <param name="endpointConfiguration">Provide configuration so it can be added to Question for display purposes</param>
         /// <param name="maxRetries">Maximum number of retry attempts.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <param name="clientPool">Optional pool that reuses connected UDP sockets owned by a high-level client.</param>
         /// <returns>The DNS response.</returns>
         /// <exception cref="ArgumentNullException"></exception>
-        internal static async Task<DnsResponse> ResolveWireFormatUdp(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, int maxRetries, CancellationToken cancellationToken) {
+        internal static async Task<DnsResponse> ResolveWireFormatUdp(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, int maxRetries, CancellationToken cancellationToken, DnsUdpClientPool? clientPool = null) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             var query = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration,
@@ -79,11 +80,20 @@ namespace DnsClientX {
 
             Exception? lastException = null;
             for (int attempt = 1; attempt <= Math.Max(1, maxRetries); attempt++) {
+                UdpClient? udpClient = null;
+                DnsUdpClientPool.PoolKey poolKey = default;
+                bool reusable = false;
                 try {
-                    using var udpClient = new UdpClient(address!.AddressFamily);
-                    var responseBuffer = await SendQueryOverUdp(udpClient, queryBytes, address!, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
+                    if (clientPool != null) {
+                        udpClient = clientPool.Rent(address!, port, endpointConfiguration.LocalEndPoint, out poolKey);
+                    } else {
+                        udpClient = new UdpClient(address!.AddressFamily);
+                        SocketBinding.Bind(udpClient.Client, endpointConfiguration.LocalEndPoint, address.AddressFamily);
+                    }
+                    var responseBuffer = await SendQueryOverUdp(udpClient, queryBytes, address!, port, endpointConfiguration.TimeOut, cancellationToken, connect: clientPool == null).ConfigureAwait(false);
 
                     var response = await DnsWire.DeserializeDnsWireResponse(null, debug, responseBuffer, query).ConfigureAwait(false);
+                    reusable = true;
                     bool usedTcpFallback = false;
                     if (response.IsTruncated && endpointConfiguration.UseTcpFallback) {
                         usedTcpFallback = true;
@@ -97,6 +107,11 @@ namespace DnsClientX {
                 } catch (Exception ex) {
                     lastException = ex;
                     if (attempt == maxRetries) break;
+                } finally {
+                    if (udpClient != null) {
+                        if (clientPool != null) clientPool.Return(poolKey, udpClient, reusable);
+                        else udpClient.Dispose();
+                    }
                 }
             }
 
@@ -135,14 +150,14 @@ namespace DnsClientX {
         /// <param name="port"></param>
         /// <param name="timeoutMilliseconds">Timeout in milliseconds.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <param name="connect">Whether this method must connect an unconnected UDP client.</param>
         /// <returns>Raw DNS response bytes.</returns>
-        internal static async Task<byte[]> SendQueryOverUdp(UdpClient udpClient, byte[] query, IPAddress ipAddress, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
+        internal static async Task<byte[]> SendQueryOverUdp(UdpClient udpClient, byte[] query, IPAddress ipAddress, int port, int timeoutMilliseconds, CancellationToken cancellationToken, bool connect = true) {
             // The caller owns udpClient disposal; keep lifetime management in one place.
-            if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6) {
-                udpClient.Client.DualMode = true;
+            if (connect) {
+                var serverEndpoint = new IPEndPoint(ipAddress, port);
+                udpClient.Connect(serverEndpoint);
             }
-            var serverEndpoint = new IPEndPoint(ipAddress, port);
-            udpClient.Connect(serverEndpoint);
 
             // Send the query
 #if NET5_0_OR_GREATER

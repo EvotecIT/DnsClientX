@@ -74,7 +74,7 @@ public class TcpDisposeCountTests {
 
             try {
                 lock (lockObj) {
-                    DnsWireResolveTcp.TcpClientFactory = () => new CountingTcpClient(() => {
+                    DnsWireResolveTcp.TcpClientFactory = _ => new CountingTcpClient(() => {
                         lock (lockObj) {
                             disposed++;
                         }

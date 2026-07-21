@@ -10,7 +10,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures the measured latency is greater than zero.
         /// </summary>
-        [Fact]
+        [RealDnsFact]
         public async Task MeasureLatency_ReturnsPositiveTime() {
             using var client = new ClientX(DnsEndpoint.Cloudflare);
             var latency = await client.MeasureLatencyAsync();

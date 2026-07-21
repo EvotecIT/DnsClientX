@@ -115,6 +115,26 @@ namespace DnsClientX.Tests {
             Assert.Empty(response.AnswersMinimal);
         }
 
+        /// <summary>A projected response must not mutate the source response's derived answer data.</summary>
+        [Fact]
+        public void WithAnswersKeepsSourceDerivedDataIndependent() {
+            var response = new DnsResponse {
+                Questions = new[] { new DnsQuestion { Name = "example.com", Type = DnsRecordType.A } },
+                Answers = new[] {
+                    new DnsAnswer { Name = "example.com", Type = DnsRecordType.A, TTL = 60, DataRaw = "192.0.2.1" }
+                }
+            };
+            response.AddServerDetails(new Configuration("192.0.2.53", DnsRequestFormat.DnsOverUDP));
+
+            DnsResponse projected = response.WithAnswers(new[] {
+                new DnsAnswer { Name = "example.com", Type = DnsRecordType.A, TTL = 30, DataRaw = "192.0.2.2" }
+            });
+
+            Assert.NotSame(response.AnswersMinimal, projected.AnswersMinimal);
+            Assert.Equal("192.0.2.1", response.AnswersMinimal[0].Data);
+            Assert.Equal("192.0.2.2", projected.AnswersMinimal[0].Data);
+        }
+
         /// <summary>
         /// Local DNSSEC validation is successful only for a secure result, while other
         /// terminal states still report that validation was attempted.

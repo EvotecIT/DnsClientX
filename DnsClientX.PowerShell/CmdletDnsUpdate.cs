@@ -47,9 +47,9 @@ public sealed class CmdletDnsUpdate : AsyncPSCmdlet {
     [Parameter(Position = 4)]
     public string Data { get; set; } = string.Empty;
 
-    /// <summary>TTL for the new record. Defaults to 300 seconds.</summary>
+    /// <summary>TTL for the new record. Zero is valid under RFC 2136; the default is 300 seconds.</summary>
     [Parameter]
-    [ValidateRange(1, int.MaxValue)]
+    [ValidateRange(0, int.MaxValue)]
     public int Ttl { get; set; } = 300;
 
     /// <summary>If specified, the record is removed instead of added.</summary>

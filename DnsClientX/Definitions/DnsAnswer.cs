@@ -23,7 +23,6 @@ namespace DnsClientX {
             Type = DnsRecordType.A;
             TTL = 0;
             DataRaw = string.Empty;
-            _filteredData = null;
         }
         /// <summary>
         /// This is the name of the record.
@@ -31,13 +30,6 @@ namespace DnsClientX {
         /// </summary>
         [JsonIgnore]
         public string OriginalName;
-
-        /// <summary>
-        /// Temporary storage for filtered data that overrides the normal ConvertData() behavior.
-        /// </summary>
-        [JsonIgnore]
-        private string? _filteredData;
-        //private string[] _data;
 
         /// <summary>
         /// This is the name of the record.
@@ -79,7 +71,7 @@ namespace DnsClientX {
         /// the value of the DNS record for the given name and type after being processed and converted to a string.
         /// </summary>
         [JsonIgnore]
-        public string Data => NormalizeLineEndings(_filteredData is null ? ConvertData() : _filteredData);
+        public string Data => NormalizeLineEndings(ConvertData());
 
         /// <summary>
         /// The value of the DNS record for the given name and type, split into multiple strings if necessary.
@@ -99,11 +91,7 @@ namespace DnsClientX {
                     return Data;
                 }
 
-                string[] segments = DataStringsEscaped;
-                string combined = segments.Length == 0
-                    ? Data
-                    : string.Concat(segments.Select(segment => UnescapePresentationText(segment.Trim('"'))));
-                return NormalizeLineEndings(combined).Replace("\r", string.Empty).Replace("\n", string.Empty);
+                return NormalizeLineEndings(Data).Replace("\r", string.Empty).Replace("\n", string.Empty);
             }
         }
 
@@ -132,24 +120,13 @@ namespace DnsClientX {
         }
 
         /// <summary>
-        /// Sets filtered data that will override the normal ConvertData() behavior.
-        /// This is used internally for filtering operations. Not thread-safe; callers should ensure
-        /// they operate on a local copy of the struct, not shared across threads.
-        /// </summary>
-        /// <param name="filteredData">The filtered data to return from the Data property.</param>
-        internal void SetFilteredData(string? filteredData) {
-            _filteredData = filteredData;
-        }
-
-        /// <summary>
         /// Converts the raw data to multiple strings. By default, DNS records are stored as a single string.
         /// Some records (mainly TXT) can be split into multiple strings and maximum length of a string is 255 characters.
         /// This method tries to preserve the original format of the data in case user needs to check for that format.
         /// </summary>
         /// <returns>Array of strings representing record data.</returns>
         private string[] ConvertToMultiString() {
-            // If we have filtered data, use that instead of the raw data
-            string dataToProcess = _filteredData is null ? DataRaw : _filteredData;
+            string dataToProcess = DataRaw;
 
             if (dataToProcess is null) {
                 return Array.Empty<string>();
@@ -216,39 +193,18 @@ namespace DnsClientX {
         }
 
         private string ConvertTxtRecord() {
-            // This is a TXT record. The data is a string enclosed in quotes.
-            // The string may be split into multiple strings if it is too long.
-            // The strings are enclosed in quotes and separated by a space or without space at all depending on provider
+            string[] segments = ConvertToMultiString();
+            if (segments.Length == 0) return string.Empty;
 
-            // First, check if we have properly formatted data with quotes and spaces
-            if (!string.IsNullOrEmpty(DataRaw) && DataRaw.Contains("\" \"")) {
-                var result = UnescapePresentationText(DataRaw.Replace("\" \"", string.Empty).Replace("\"", string.Empty));
-                return CleanupTxtRecordData(result);
+            var result = new StringBuilder(DataRaw.Length);
+            foreach (string segment in segments) {
+                string value = segment;
+                if (value.Length >= 2 && value[0] == '"' && value[value.Length - 1] == '"') {
+                    value = value.Substring(1, value.Length - 2);
+                }
+                result.Append(UnescapePresentationText(value));
             }
-
-            // Remove quotes if present for analysis
-            string cleanData = string.IsNullOrEmpty(DataRaw)
-                ? string.Empty
-                : UnescapePresentationText(DataRaw.Replace("\"", string.Empty));
-
-            // Check if the data appears to be concatenated (no line breaks but contains known patterns)
-            // Improved detection: also check for obvious concatenation patterns
-            bool hasLineBreaks = cleanData.IndexOf('\n') >= 0 || cleanData.IndexOf('\r') >= 0;
-            bool isConcatenated = IsConcatenatedTxtRecord(cleanData);
-            bool hasObvious = HasObviousConcatenation(cleanData);
-
-            if (!hasLineBreaks && (isConcatenated || hasObvious)) {
-                return CleanupTxtRecordData(SplitConcatenatedTxtRecord(cleanData));
-            }
-
-            // Even if there are line breaks, if the data is obviously concatenated, try to split it
-            // This handles cases where Google returns concatenated data with embedded line breaks
-            if (hasObvious) {
-                return CleanupTxtRecordData(SplitConcatenatedTxtRecord(cleanData));
-            }
-
-            // Default behavior - just remove quotes and clean up empty lines
-            return CleanupTxtRecordData(cleanData);
+            return CleanupTxtRecordData(result.ToString());
         }
 
         private static string UnescapePresentationText(string value) {
@@ -613,240 +569,5 @@ namespace DnsClientX {
             return result.ToString().TrimEnd('.').ToLowerInvariant();
         }
 
-        /// <summary>
-        /// Determines if a TXT record appears to be concatenated based on common patterns
-        /// </summary>
-        /// <param name="data">The cleaned TXT record data</param>
-        /// <returns>True if the record appears to be concatenated</returns>
-        private bool IsConcatenatedTxtRecord(string data) {
-            if (string.IsNullOrWhiteSpace(data)) return false;
-
-            // Common patterns that indicate concatenated records
-            var patterns = new[] {
-                // Detect common TXT records that may be concatenated by some providers
-                "v=spf1", // SPF records
-                "google-site-verification=",
-                "facebook-domain-verification=",
-                "apple-domain-verification=",
-                "MS=ms",
-                "_domainkey",
-                "dmarc=",
-                "adsp="
-            };
-
-            int patternMatches = 0;
-            foreach (var pattern in patterns) {
-                var matches = CountOccurrences(data, pattern);
-                if (matches > 1) {
-                    patternMatches += matches - 1; // Subtract 1 because first occurrence is expected
-                }
-            }
-
-            // More lenient threshold - if we have any duplicate patterns, it's likely concatenated
-            return patternMatches >= 1;
-        }
-
-        /// <summary>
-        /// Splits concatenated TXT records into separate lines
-        /// </summary>
-        /// <param name="data">The concatenated TXT record data</param>
-        /// <returns>Properly separated TXT records</returns>
-        private string SplitConcatenatedTxtRecord(string data) {
-            if (string.IsNullOrWhiteSpace(data)) return data;
-
-            var result = new List<string>();
-            var currentRecord = new StringBuilder();
-
-            // Common prefixes that typically start new TXT records
-            var recordPrefixes = new[] {
-                "v=spf1",
-                "google-site-verification=",
-                "facebook-domain-verification=",
-                "apple-domain-verification=",
-                "MS=ms",
-                "_domainkey=",
-                "dmarc=",
-                "adsp="
-            };
-
-            // Split the data into potential records based on known patterns
-            var segments = new List<string>();
-            int lastSplit = 0;
-
-            for (int i = 0; i < data.Length; i++) {
-                // Check if we're at the start of a new record
-                foreach (var prefix in recordPrefixes) {
-                    if (i > 0 && i + prefix.Length <= data.Length &&
-                        data.Substring(i, prefix.Length).Equals(prefix, StringComparison.OrdinalIgnoreCase)) {
-                        // Found a new record start - split here
-                        if (i > lastSplit) {
-                            var segment = data.Substring(lastSplit, i - lastSplit);
-                            if (!string.IsNullOrWhiteSpace(segment)) {
-                                segments.Add(segment);
-                            }
-                        }
-                        lastSplit = i;
-                        break;
-                    }
-                }
-            }
-
-            // Add the last segment
-            if (lastSplit < data.Length) {
-                var segment = data.Substring(lastSplit);
-                if (!string.IsNullOrWhiteSpace(segment)) {
-                    segments.Add(segment);
-                }
-            }
-
-            // If we didn't find clear prefixes, try a more sophisticated approach
-            if (segments.Count <= 1) {
-                segments = SplitByEqualsPattern(data);
-            }
-
-            // Join segments with newlines
-            return string.Join("\n", segments.Where(s => !string.IsNullOrWhiteSpace(s)));
-        }
-
-        /// <summary>
-        /// Splits concatenated records by analyzing equals sign patterns
-        /// </summary>
-        /// <param name="data">The concatenated data</param>
-        /// <returns>List of potential record segments</returns>
-        private List<string> SplitByEqualsPattern(string data) {
-            var segments = new List<string>();
-            var currentSegment = new StringBuilder();
-            bool inValue = false;
-            int equalsCount = 0;
-
-            for (int i = 0; i < data.Length; i++) {
-                char c = data[i];
-                currentSegment.Append(c);
-
-                if (c == '=') {
-                    if (!inValue) {
-                        inValue = true;
-                        equalsCount++;
-                    }
-                } else if (inValue && char.IsLetter(c) && i > 0) {
-                    // Check if this might be the start of a new key (letter after completing a value)
-                    // Look ahead to see if there's an equals sign coming up
-                    bool isNewKey = false;
-                    for (int j = i; j < Math.Min(i + 50, data.Length); j++) {
-                        if (data[j] == '=') {
-                            isNewKey = true;
-                            break;
-                        }
-                        if (!char.IsLetterOrDigit(data[j]) && data[j] != '-' && data[j] != '_' && data[j] != '.') {
-                            break;
-                        }
-                    }
-
-                    if (isNewKey && currentSegment.Length > 1) {
-                        // Remove the current character from current segment and start a new one
-                        currentSegment.Length--;
-                        var segment = currentSegment.ToString().Trim();
-                        if (!string.IsNullOrWhiteSpace(segment)) {
-                            segments.Add(segment);
-                        }
-                        currentSegment.Clear();
-                        currentSegment.Append(c);
-                        inValue = false;
-                    }
-                }
-            }
-
-            // Add the last segment
-            var lastSegment = currentSegment.ToString().Trim();
-            if (!string.IsNullOrWhiteSpace(lastSegment)) {
-                segments.Add(lastSegment);
-            }
-
-            return segments;
-        }
-
-        /// <summary>
-        /// Counts occurrences of a substring in a string
-        /// </summary>
-        /// <param name="text">The text to search in</param>
-        /// <param name="pattern">The pattern to search for</param>
-        /// <returns>Number of occurrences</returns>
-        private int CountOccurrences(string text, string pattern) {
-            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(pattern)) return 0;
-
-            int count = 0;
-            int index = 0;
-            while ((index = text.IndexOf(pattern, index, StringComparison.OrdinalIgnoreCase)) >= 0) {
-                count++;
-                // Move forward by one to allow overlapping pattern detection
-                index += 1;
-            }
-            return count;
-        }
-
-        /// <summary>
-        /// More aggressive detection for obvious concatenation patterns
-        /// </summary>
-        /// <param name="data">The cleaned TXT record data</param>
-        /// <returns>True if obvious concatenation is detected</returns>
-        private bool HasObviousConcatenation(string data) {
-            if (string.IsNullOrWhiteSpace(data)) return false;
-
-            // Look for specific concatenation patterns that are obvious
-            var obviousPatterns = new[] {
-                "google-site-verification=",
-                "facebook-domain-verification=",
-                "apple-domain-verification=",
-                "v=spf1"
-            };
-
-            // If any pattern appears multiple times, it's definitely concatenated
-            foreach (var pattern in obviousPatterns) {
-                if (CountOccurrences(data, pattern) > 1) {
-                    return true;
-                }
-            }
-
-            // Check for pattern combinations that indicate concatenation
-            // e.g., if we have both SPF and Google verification, they should be separate records
-            bool hasSpf = data.IndexOf("v=spf1", StringComparison.Ordinal) >= 0;
-            bool hasGoogleVerification = data.IndexOf("google-site-verification=", StringComparison.Ordinal) >= 0;
-            bool hasFacebookVerification = data.IndexOf("facebook-domain-verification=", StringComparison.Ordinal) >= 0;
-            bool hasAppleVerification = data.IndexOf("apple-domain-verification=", StringComparison.Ordinal) >= 0;
-            bool hasMsVerification = data.IndexOf("MS=ms", StringComparison.Ordinal) >= 0;
-
-            // Count how many different verification types we have
-            int verificationTypes = 0;
-            if (hasSpf) verificationTypes++;
-            if (hasGoogleVerification) verificationTypes++;
-            if (hasFacebookVerification) verificationTypes++;
-            if (hasAppleVerification) verificationTypes++;
-            if (hasMsVerification) verificationTypes++;
-
-            // If we have multiple verification types in one "record", it's concatenated
-            if (verificationTypes >= 2) {
-                return true;
-            }
-
-            // Check for consecutive equals signs which often indicate concatenation
-            // This catches cases like "...valuekey=anothervalue"
-            int consecutiveEquals = 0;
-            for (int i = 0; i < data.Length - 1; i++) {
-                if (data[i] == '=' && char.IsLetter(data[i + 1])) {
-                    // Look ahead to see if there's another equals sign soon
-                    for (int j = i + 1; j < Math.Min(i + 50, data.Length); j++) {
-                        if (data[j] == '=') {
-                            consecutiveEquals++;
-                            break;
-                        }
-                        if (!char.IsLetterOrDigit(data[j]) && data[j] != '-' && data[j] != '_' && data[j] != '.') {
-                            break;
-                        }
-                    }
-                }
-            }
-
-            return consecutiveEquals >= 2;
-        }
     }
 }

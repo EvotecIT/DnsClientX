@@ -87,7 +87,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Performs synchronous TXT resolution for the specified endpoint.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -118,7 +118,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Performs synchronous TXT resolution returning only the first record.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -147,7 +147,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Performs synchronous TXT resolution returning all records.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -178,7 +178,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Performs asynchronous A record resolution for the specified endpoint.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -209,7 +209,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Synchronously resolves PTR records for reverse lookups.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -237,7 +237,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Resolves multiple domains synchronously for the given endpoint.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.Cloudflare)]
         public void ShouldWorkForMultipleDomainsSync(DnsEndpoint endpoint) {
             using var client = new ClientX(endpoint);
@@ -256,7 +256,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Resolves multiple record types synchronously for a single domain.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.Cloudflare)]
         public void ShouldWorkForMultipleTypesSync(DnsEndpoint endpoint) {
             using var client = new ClientX(endpoint);
@@ -275,7 +275,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Resolves the first A record synchronously for the given endpoint.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -302,7 +302,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Resolves all A records synchronously for the given endpoint.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
