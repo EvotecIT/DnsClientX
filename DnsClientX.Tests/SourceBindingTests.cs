@@ -11,23 +11,33 @@ namespace DnsClientX.Tests {
     /// </summary>
     [Collection("NoParallel")]
     public class SourceBindingTests {
-        /// <summary>UDP queries originate from the configured local address.</summary>
+        /// <summary>UDP queries originate from the configured local address and port.</summary>
         [Fact]
-        public async Task UdpUsesConfiguredLocalAddress() {
+        public async Task UdpUsesConfiguredLocalEndpoint() {
             using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
             int port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
+            int sourcePort = TestUtilities.GetFreeUdpPort();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            IPAddress? observedSource = null;
+            IPEndPoint? observedSource = null;
             Task responder = Task.Run(async () => {
-                UdpReceiveResult request = await server.ReceiveAsync();
-                observedSource = request.RemoteEndPoint.Address;
+#if NET5_0_OR_GREATER
+                UdpReceiveResult request = await server.ReceiveAsync(cts.Token);
+#else
+                Task<UdpReceiveResult> receiveTask = server.ReceiveAsync();
+                Task completed = await Task.WhenAny(receiveTask, Task.Delay(Timeout.Infinite, cts.Token));
+                if (completed != receiveTask) {
+                    throw new OperationCanceledException(cts.Token);
+                }
+                UdpReceiveResult request = await receiveTask;
+#endif
+                observedSource = request.RemoteEndPoint;
                 byte[] response = TestUtilities.CreateResponseFromQuery(request.Buffer);
                 await server.SendAsync(response, response.Length, request.RemoteEndPoint);
             }, cts.Token);
 
             var configuration = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
                 Port = port,
-                LocalEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.2"), 0),
+                LocalEndPoint = new IPEndPoint(IPAddress.Loopback, sourcePort),
                 TimeOut = 2000
             };
             using var client = new ClientX(configuration);
@@ -35,7 +45,8 @@ namespace DnsClientX.Tests {
             await responder;
 
             Assert.Equal(DnsResponseCode.NoError, result.Status);
-            Assert.Equal(IPAddress.Parse("127.0.0.2"), observedSource);
+            Assert.Equal(IPAddress.Loopback, observedSource!.Address);
+            Assert.Equal(sourcePort, observedSource.Port);
         }
 
         /// <summary>HTTP transports fail explicitly instead of silently ignoring LocalEndPoint.</summary>
