@@ -43,7 +43,7 @@ namespace DnsClientX.Tests {
             MethodInfo method = wireType.GetMethod("ProcessRecordData", BindingFlags.NonPublic | BindingFlags.Static)!;
             var result = (string)method.Invoke(null, new object?[] { Array.Empty<byte>(), 0, DnsRecordType.DS, rdata, (ushort)rdata.Length, 0L })!;
 
-            Assert.Equal("20326 RSASHA256 2 e06d44b80b8f1d39a95c0b0d7c65d08458e880409bbc683457104237c7f8ec8d", result);
+            Assert.Equal("20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D", result);
         }
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace DnsClientX.Tests {
             try {
                 Thread.CurrentThread.CurrentCulture = new CultureInfo(culture);
                 var result = (string)method.Invoke(null, new object?[] { Array.Empty<byte>(), 0, DnsRecordType.DS, rdata, (ushort)rdata.Length, 0L })!;
-                Assert.Equal("20326 RSASHA256 2 e06d44b80b8f1d39a95c0b0d7c65d08458e880409bbc683457104237c7f8ec8d", result);
+                Assert.Equal("20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D", result);
             } finally {
                 Thread.CurrentThread.CurrentCulture = original;
             }

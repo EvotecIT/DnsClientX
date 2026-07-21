@@ -51,7 +51,7 @@ namespace DnsClientX {
                 if (string.IsNullOrEmpty(value)) {
                     _name = value;
                 } else {
-                    _name = value.EndsWith(".") ? value.TrimEnd('.') : value;
+                    _name = value.EndsWith(".", StringComparison.Ordinal) ? value.TrimEnd('.') : value;
                 }
             }
         }
@@ -102,7 +102,7 @@ namespace DnsClientX {
                 string[] segments = DataStringsEscaped;
                 string combined = segments.Length == 0
                     ? Data
-                    : string.Concat(segments.Select(segment => segment.Trim('"')));
+                    : string.Concat(segments.Select(segment => UnescapePresentationText(segment.Trim('"'))));
                 return NormalizeLineEndings(combined).Replace("\r", string.Empty).Replace("\n", string.Empty);
             }
         }
@@ -222,18 +222,18 @@ namespace DnsClientX {
 
             // First, check if we have properly formatted data with quotes and spaces
             if (!string.IsNullOrEmpty(DataRaw) && DataRaw.Contains("\" \"")) {
-                var result = DataRaw.Replace("\" \"", string.Empty).Replace("\"", string.Empty);
+                var result = UnescapePresentationText(DataRaw.Replace("\" \"", string.Empty).Replace("\"", string.Empty));
                 return CleanupTxtRecordData(result);
             }
 
             // Remove quotes if present for analysis
             string cleanData = string.IsNullOrEmpty(DataRaw)
                 ? string.Empty
-                : DataRaw.Replace("\"", string.Empty);
+                : UnescapePresentationText(DataRaw.Replace("\"", string.Empty));
 
             // Check if the data appears to be concatenated (no line breaks but contains known patterns)
             // Improved detection: also check for obvious concatenation patterns
-            bool hasLineBreaks = cleanData.Contains("\n") || cleanData.Contains("\r");
+            bool hasLineBreaks = cleanData.IndexOf('\n') >= 0 || cleanData.IndexOf('\r') >= 0;
             bool isConcatenated = IsConcatenatedTxtRecord(cleanData);
             bool hasObvious = HasObviousConcatenation(cleanData);
 
@@ -251,10 +251,36 @@ namespace DnsClientX {
             return CleanupTxtRecordData(cleanData);
         }
 
+        private static string UnescapePresentationText(string value) {
+            if (string.IsNullOrEmpty(value) || value.IndexOf('\\') < 0) return value;
+            var builder = new StringBuilder(value.Length);
+            for (int i = 0; i < value.Length; i++) {
+                if (value[i] != '\\' || i + 1 >= value.Length) {
+                    builder.Append(value[i]);
+                    continue;
+                }
+
+                if (i + 3 < value.Length &&
+                    value[i + 1] >= '0' && value[i + 1] <= '9' &&
+                    value[i + 2] >= '0' && value[i + 2] <= '9' &&
+                    value[i + 3] >= '0' && value[i + 3] <= '9') {
+                    int octet = (value[i + 1] - '0') * 100 + (value[i + 2] - '0') * 10 + value[i + 3] - '0';
+                    if (octet <= byte.MaxValue) {
+                        builder.Append((char)octet);
+                        i += 3;
+                        continue;
+                    }
+                }
+
+                builder.Append(value[++i]);
+            }
+            return builder.ToString();
+        }
+
         private string ConvertCaaRecord() {
             // This is a CAA record. Cloudflare returns the data in HEX, so we need to convert it to text.
             // Other providers don't do this.
-            if (DataRaw.StartsWith("\\#")) {
+            if (DataRaw.StartsWith("\\#", StringComparison.Ordinal)) {
                 var parts = DataRaw.Split(' ')
                     .Where(part => !string.IsNullOrEmpty(part))
                     .Select(part => part.Trim())
@@ -308,7 +334,7 @@ namespace DnsClientX {
         private string ConvertLocRecord() {
             try {
                 byte[] rdata = Convert.FromBase64String(DataRaw);
-                return DnsWire.ProcessRecordData(Array.Empty<byte>(), 0, DnsRecordType.LOC, rdata, (ushort)rdata.Length, 0L);
+                return DnsWireRecordFormatter.Format(rdata, DnsRecordType.LOC, 0, (ushort)rdata.Length);
             } catch (FormatException) {
                 return DataRaw;
             }
@@ -344,7 +370,7 @@ namespace DnsClientX {
             // The data is in the format: 3 1 1 2b6e0f
             // The first byte is the certificate usage, the second byte is the selector, the third byte is the matching type, and the rest is the certificate association data
             byte[] parts;
-            if (DataRaw.StartsWith("\\#")) {
+            if (DataRaw.StartsWith("\\#", StringComparison.Ordinal)) {
                 // Handle hexadecimal format
                 parts = DataRaw.Split(' ')
                     .Skip(2) // Skip the first two parts
@@ -395,7 +421,7 @@ namespace DnsClientX {
             // NAPTR record (RFC 3403)
             // Handles Base64, Hex, or Plain Text DataRaw
             try {
-                if (DataRaw.StartsWith("\\#")) {
+                if (DataRaw.StartsWith("\\#", StringComparison.Ordinal)) {
                     // Hex Encoded (e.g., \# XX XX ...)
                     byte[] rdataHex = DataRaw.Split(' ')
                         .Skip(2) // Skip the "\\#" and the length byte
@@ -783,11 +809,11 @@ namespace DnsClientX {
 
             // Check for pattern combinations that indicate concatenation
             // e.g., if we have both SPF and Google verification, they should be separate records
-            bool hasSpf = data.Contains("v=spf1");
-            bool hasGoogleVerification = data.Contains("google-site-verification=");
-            bool hasFacebookVerification = data.Contains("facebook-domain-verification=");
-            bool hasAppleVerification = data.Contains("apple-domain-verification=");
-            bool hasMsVerification = data.Contains("MS=ms");
+            bool hasSpf = data.IndexOf("v=spf1", StringComparison.Ordinal) >= 0;
+            bool hasGoogleVerification = data.IndexOf("google-site-verification=", StringComparison.Ordinal) >= 0;
+            bool hasFacebookVerification = data.IndexOf("facebook-domain-verification=", StringComparison.Ordinal) >= 0;
+            bool hasAppleVerification = data.IndexOf("apple-domain-verification=", StringComparison.Ordinal) >= 0;
+            bool hasMsVerification = data.IndexOf("MS=ms", StringComparison.Ordinal) >= 0;
 
             // Count how many different verification types we have
             int verificationTypes = 0;

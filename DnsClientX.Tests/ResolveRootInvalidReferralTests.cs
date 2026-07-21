@@ -33,23 +33,12 @@ namespace DnsClientX.Tests {
             return string.Join(".", labels);
         }
 
-        private static byte[] CreateReferralResponse(string qname, string ns) {
+        private static byte[] CreateReferralResponse(byte[] query, string ns) {
+            byte[] headerAndQuestion = TestUtilities.CreateResponseFromQuery(query);
+            headerAndQuestion[8] = 0;
+            headerAndQuestion[9] = 1;
             using var ms = new System.IO.MemoryStream();
-            ushort id = 0x1234;
-            ms.WriteByte((byte)(id >> 8));
-            ms.WriteByte((byte)(id & 0xFF));
-            ushort flags = 0x8180;
-            ms.WriteByte((byte)(flags >> 8));
-            ms.WriteByte((byte)(flags & 0xFF));
-            ms.WriteByte(0); ms.WriteByte(1); // QDCOUNT
-            ms.WriteByte(0); ms.WriteByte(0); // ANCOUNT
-            ms.WriteByte(0); ms.WriteByte(1); // NSCOUNT
-            ms.WriteByte(0); ms.WriteByte(0); // ARCOUNT
-
-            byte[] qn = EncodeName(qname);
-            ms.Write(qn, 0, qn.Length);
-            ms.WriteByte(0); ms.WriteByte(1); // QTYPE A
-            ms.WriteByte(0); ms.WriteByte(1); // QCLASS IN
+            ms.Write(headerAndQuestion, 0, headerAndQuestion.Length);
 
             // authority record
             ms.WriteByte(0xC0); ms.WriteByte(0x0C); // pointer to qname
@@ -75,7 +64,7 @@ namespace DnsClientX.Tests {
                     } catch (SocketException) when (token.IsCancellationRequested) {
                         break;
                     }
-                    byte[] resp = CreateReferralResponse("example.com", referralNs);
+                    byte[] resp = CreateReferralResponse(result.Buffer, referralNs);
                     await udp.SendAsync(resp, resp.Length, result.RemoteEndPoint);
                 }
             } catch (ObjectDisposedException) when (token.IsCancellationRequested) {
@@ -103,8 +92,7 @@ namespace DnsClientX.Tests {
 
                 Assert.Empty(response.AnswersMinimal);
 
-                string authority = DecodeName(Convert.FromBase64String(response.Authorities.Single().DataRaw)) + ".";
-                Assert.Equal("invalid.", authority);
+                Assert.Equal("invalid", response.Authorities.Single().DataRaw.TrimEnd('.'));
                 Assert.Equal(1, response.RetryCount);
             } finally {
                 cts.Cancel();

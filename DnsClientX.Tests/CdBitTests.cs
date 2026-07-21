@@ -61,9 +61,11 @@ namespace DnsClientX.Tests {
             return queryBuffer;
         }
 
-        private static void AssertCdBit(byte[] query, string name, uint expectedTtl) {
+        private static void AssertCdBit(byte[] query, string name, bool expectEdns, uint expectedOptTtl = 0) {
+            Assert.Equal(0x10, query[3] & 0x10);
             int additionalCount = (query[10] << 8) | query[11];
-            Assert.Equal(1, additionalCount);
+            Assert.Equal(expectEdns ? 1 : 0, additionalCount);
+            if (!expectEdns) return;
 
             int offset = 12;
             foreach (var label in name.Split('.')) {
@@ -75,7 +77,7 @@ namespace DnsClientX.Tests {
             ushort type = (ushort)((query[offset + 1] << 8) | query[offset + 2]);
             Assert.Equal((ushort)DnsRecordType.OPT, type);
             uint ttl = (uint)((query[offset + 5] << 24) | (query[offset + 6] << 16) | (query[offset + 7] << 8) | query[offset + 8]);
-            Assert.Equal(expectedTtl, ttl);
+            Assert.Equal(expectedOptTtl, ttl);
         }
 
         /// <summary>
@@ -102,7 +104,7 @@ namespace DnsClientX.Tests {
                 cts.Token);
             byte[] query = await udpTask;
 
-            AssertCdBit(query, "example.com", 0x10u);
+            AssertCdBit(query, "example.com", expectEdns: false);
         }
 
         /// <summary>
@@ -128,7 +130,7 @@ namespace DnsClientX.Tests {
                 cts.Token);
             byte[] query = await tcpTask;
 
-            AssertCdBit(query, "example.com", 0x10u);
+            AssertCdBit(query, "example.com", expectEdns: false);
         }
 
         /// <summary>
@@ -148,7 +150,7 @@ namespace DnsClientX.Tests {
 
             byte[] query = await udpTask;
 
-            AssertCdBit(query, "example.com", 0x00008010u);
+            AssertCdBit(query, "example.com", expectEdns: true, expectedOptTtl: 0x00008000u);
         }
 
         /// <summary>
@@ -169,7 +171,7 @@ namespace DnsClientX.Tests {
 
             byte[] query = await udpTask;
 
-            AssertCdBit(query, "example.com", 0x00008010u);
+            AssertCdBit(query, "example.com", expectEdns: true, expectedOptTtl: 0x00008000u);
             Assert.True(client.EndpointConfiguration.CheckingDisabled);
         }
 
@@ -193,9 +195,9 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public void DotRequest_ShouldIncludeCdBit_WhenConfigured() {
-            var message = new DnsMessage("example.com", DnsRecordType.A, false, true, 4096, null, true, null);
+            var message = new DnsMessage("example.com", DnsRecordType.A, false, true, 4096, null, true);
             byte[] data = message.SerializeDnsWireFormat();
-            AssertCdBit(data, "example.com", 0x10u);
+            AssertCdBit(data, "example.com", expectEdns: true);
         }
 
         /// <summary>
@@ -203,9 +205,9 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public void DoqRequest_ShouldIncludeCdBit_WhenConfigured() {
-            var message = new DnsMessage("example.com", DnsRecordType.A, false, true, 4096, null, true, null);
+            var message = new DnsMessage("example.com", DnsRecordType.A, false, true, 4096, null, true);
             byte[] data = message.SerializeDnsWireFormat();
-            AssertCdBit(data, "example.com", 0x10u);
+            AssertCdBit(data, "example.com", expectEdns: true);
         }
     }
 }

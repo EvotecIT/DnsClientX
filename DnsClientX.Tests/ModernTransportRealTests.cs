@@ -38,7 +38,6 @@ namespace DnsClientX.Tests {
         /// </summary>
         [RealModernDnsTheory(DnsRequestFormat.DnsOverQuic)]
         [InlineData(DnsEndpoint.Quad9Quic, "dns.quad9.net")]
-        [InlineData(DnsEndpoint.CloudflareQuic, "1.1.1.1")]
         public async Task ShouldResolveAOverQuic(DnsEndpoint endpoint, string expectedResolverHost) {
             DnsResponse response = await ExecuteWithRetriesAsync(endpoint, DnsRequestFormat.DnsOverQuic);
 

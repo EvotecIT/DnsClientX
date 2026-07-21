@@ -1,18 +1,15 @@
 using System;
 using System.Buffers.Binary;
 using System.IO;
-using System.Collections.Generic;
-using System.Net;
-using System.Text;
-using System.Security.Cryptography;
 using System.Linq;
+using System.Security.Cryptography;
 
 namespace DnsClientX {
     /// <summary>
-    /// DnsMessage class
+    /// Represents one DNS query message.
     /// </summary>
-    public class DnsMessage {
-        private readonly string _name;
+    public sealed class DnsMessage {
+        private readonly byte[][] _labels;
         private readonly DnsRecordType _type;
         private readonly bool _recursionDesired;
         private readonly bool _requestDnsSec;
@@ -20,325 +17,145 @@ namespace DnsClientX {
         private readonly int _udpBufferSize;
         private readonly EdnsClientSubnetOption? _subnet;
         private readonly bool _checkingDisabled;
-        private readonly AsymmetricAlgorithm? _signingKey;
         private readonly EdnsOption[] _ednsOptions;
-
-        private static ushort CreateTransactionId() {
-            byte[] bytes = new byte[2];
-            using (var rng = RandomNumberGenerator.Create()) {
-                rng.GetBytes(bytes);
-            }
-            return BinaryPrimitives.ReadUInt16BigEndian(bytes);
-        }
+        private readonly ushort _queryClass;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="DnsMessage"/> class.
+        /// Initializes a DNS query with default recursion and EDNS settings.
         /// </summary>
-        /// <param name="name">The name.</param>
-        /// <param name="type">The type.</param>
-        /// <param name="requestDnsSec">if set to <c>true</c> [request DNS sec].</param>
         public DnsMessage(string name, DnsRecordType type, bool requestDnsSec)
             : this(name, type, new DnsMessageOptions(requestDnsSec, requestDnsSec)) {
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="DnsMessage"/> class with advanced options.
+        /// Initializes a DNS query with advanced wire options.
         /// </summary>
-        /// <param name="name">Domain name to query.</param>
-        /// <param name="type">Record type to query.</param>
-        /// <param name="requestDnsSec">Whether DNSSEC records should be requested.</param>
-        /// <param name="enableEdns">Enable EDNS OPT record.</param>
-        /// <param name="udpBufferSize">UDP buffer size for EDNS.</param>
-        /// <param name="subnet">Optional EDNS client subnet.</param>
-        /// <param name="checkingDisabled">Whether to set the CD bit in OPT TTL.</param>
-        /// <param name="signingKey">Optional key for DNS message signing.</param>
-        /// <param name="options">Additional EDNS options.</param>
-        public DnsMessage(string name, DnsRecordType type, bool requestDnsSec, bool enableEdns, int udpBufferSize, string? subnet, bool checkingDisabled, AsymmetricAlgorithm? signingKey, System.Collections.Generic.IEnumerable<EdnsOption>? options = null)
+        public DnsMessage(string name, DnsRecordType type, bool requestDnsSec, bool enableEdns,
+            int udpBufferSize, string? subnet, bool checkingDisabled,
+            System.Collections.Generic.IEnumerable<EdnsOption>? options = null)
             : this(name, type, new DnsMessageOptions(requestDnsSec, enableEdns, udpBufferSize,
-                string.IsNullOrEmpty(subnet) ? null : new EdnsClientSubnetOption(subnet!), checkingDisabled, signingKey, options)) {
+                string.IsNullOrEmpty(subnet) ? null : new EdnsClientSubnetOption(subnet!),
+                checkingDisabled, options)) {
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="DnsMessage"/> class with structured options.
+        /// Initializes a DNS query with structured options.
         /// </summary>
-        /// <param name="name">Domain name to query.</param>
-        /// <param name="type">Record type to query.</param>
-        /// <param name="options">Message options.</param>
         public DnsMessage(string name, DnsRecordType type, DnsMessageOptions options) {
-            _name = name;
+            Name = DnsWireNameCodec.Normalize(name);
+            _labels = DnsWireNameCodec.EncodeLabels(Name);
             _type = type;
             _recursionDesired = options.RecursionDesired;
             _requestDnsSec = options.RequestDnsSec;
             _ednsOptions = options.Options?.ToArray() ?? Array.Empty<EdnsOption>();
-            _enableEdns = options.EnableEdns || options.RequestDnsSec || options.Subnet != null || options.CheckingDisabled || _ednsOptions.Length > 0;
+            _enableEdns = options.EnableEdns || options.RequestDnsSec || options.Subnet != null || _ednsOptions.Length > 0;
+            if (_enableEdns && (options.UdpBufferSize < 512 || options.UdpBufferSize > ushort.MaxValue)) {
+                throw new ArgumentOutOfRangeException(nameof(options), "EDNS UDP buffer size must be between 512 and 65535 bytes.");
+            }
             _udpBufferSize = options.UdpBufferSize;
             _subnet = options.Subnet;
             _checkingDisabled = options.CheckingDisabled;
-            _signingKey = options.SigningKey;
+            _queryClass = options.QueryClass;
+            TransactionId = options.TransactionId ?? CreateTransactionId();
         }
 
         /// <summary>
-        /// Converts DNS message to base64url format
+        /// Gets the transaction identifier encoded in this message.
         /// </summary>
-        /// <returns></returns>
+        public ushort TransactionId { get; }
+
+        /// <summary>
+        /// Gets the normalized absolute query name.
+        /// </summary>
+        public string Name { get; }
+
+        /// <summary>
+        /// Gets the query record type.
+        /// </summary>
+        public DnsRecordType Type => _type;
+
+        /// <summary>
+        /// Gets the DNS question class. Internet (IN) is 1 and CHAOS is 3.
+        /// </summary>
+        public ushort QueryClass => _queryClass;
+
+        /// <summary>
+        /// Converts this message to unpadded base64url without changing its transaction ID.
+        /// </summary>
         public string ToBase64Url() {
+            string value = Convert.ToBase64String(SerializeDnsWireFormat());
+            return value.TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        }
+
+        /// <summary>
+        /// Serializes this message in DNS wire format.
+        /// </summary>
+        public byte[] SerializeDnsWireFormat() {
             using var stream = new MemoryStream();
+            WriteUInt16(stream, TransactionId);
 
-            // Temporary buffer
-            Span<byte> buffer = stackalloc byte[2];
+            ushort flags = 0;
+            if (_recursionDesired) flags |= 0x0100;
+            if (_checkingDisabled) flags |= 0x0010; // RFC 4035: CD is a DNS header flag.
+            WriteUInt16(stream, flags);
+            WriteUInt16(stream, 1); // QDCOUNT
+            WriteUInt16(stream, 0); // ANCOUNT
+            WriteUInt16(stream, 0); // NSCOUNT
+            WriteUInt16(stream, _enableEdns ? (ushort)1 : (ushort)0); // ARCOUNT
 
-            // Write the ID
-            ushort randomId = CreateTransactionId();
-            BinaryPrimitives.WriteUInt16BigEndian(buffer, randomId);
-            //BinaryPrimitives.WriteUInt16BigEndian(buffer, 0xABCD);
-            stream.Write(buffer.ToArray(), 0, buffer.Length);
-
-            //BinaryPrimitives.WriteUInt16BigEndian(buffer, 1);
-            //stream.Write(buffer.ToArray(), 0, buffer.Length);
-
-            // Write the flags
-            ushort headerFlags = _recursionDesired ? (ushort)0x0100 : (ushort)0x0000;
-            BinaryPrimitives.WriteUInt16BigEndian(buffer, headerFlags);
-            stream.Write(buffer.ToArray(), 0, buffer.Length);
-
-            // Write the flags
-            //BinaryPrimitives.WriteUInt16BigEndian(buffer, 0x0000);
-            //stream.Write(buffer.ToArray(), 0, buffer.Length);
-
-            // Write the question count
-            BinaryPrimitives.WriteUInt16BigEndian(buffer, 1);
-            stream.Write(buffer.ToArray(), 0, buffer.Length);
-
-            // Write the answer count
-            BinaryPrimitives.WriteUInt16BigEndian(buffer, 0);
-            stream.Write(buffer.ToArray(), 0, buffer.Length);
-
-            // Write the authority count
-            BinaryPrimitives.WriteUInt16BigEndian(buffer, 0);
-            stream.Write(buffer.ToArray(), 0, buffer.Length);
-
-            // Write the additional count
-            ushort additional = (ushort)((_enableEdns ? 1 : 0) + (_signingKey != null ? 1 : 0));
-            BinaryPrimitives.WriteUInt16BigEndian(buffer, additional);
-            stream.Write(buffer.ToArray(), 0, buffer.Length);
-
-            // Write the question name
-            foreach (var label in GetWireLabels(_name)) {
-                var labelBytes = Encoding.ASCII.GetBytes(label);
-                stream.WriteByte((byte)labelBytes.Length); // Write the length of the label
-                stream.Write(labelBytes, 0, labelBytes.Length);
+            foreach (byte[] label in _labels) {
+                stream.WriteByte((byte)label.Length);
+                stream.Write(label, 0, label.Length);
             }
-            stream.WriteByte(0); // End of name
-
-            // Write the question type
-            BinaryPrimitives.WriteUInt16BigEndian(buffer, (ushort)_type);
-            stream.Write(buffer.ToArray(), 0, buffer.Length);
-
-            // Write the question class
-            BinaryPrimitives.WriteUInt16BigEndian(buffer, 1);
-            stream.Write(buffer.ToArray(), 0, buffer.Length);
+            stream.WriteByte(0);
+            WriteUInt16(stream, (ushort)_type);
+            WriteUInt16(stream, QueryClass);
 
             if (_enableEdns) {
                 byte[] optionData = BuildOptions();
-                stream.WriteByte(0);
-                BinaryPrimitives.WriteUInt16BigEndian(buffer, (ushort)DnsRecordType.OPT);
-                stream.Write(buffer.ToArray(), 0, buffer.Length);
-                BinaryPrimitives.WriteUInt16BigEndian(buffer, (ushort)_udpBufferSize);
-                stream.Write(buffer.ToArray(), 0, buffer.Length);
-                Span<byte> ttl = stackalloc byte[4];
-                uint ttlFlags = 0u;
-                if (_requestDnsSec) ttlFlags |= 0x00008000u;
-                if (_checkingDisabled) ttlFlags |= 0x00000010u;
-                BinaryPrimitives.WriteUInt32BigEndian(ttl, ttlFlags);
-                stream.Write(ttl.ToArray(), 0, ttl.Length);
-                BinaryPrimitives.WriteUInt16BigEndian(buffer, (ushort)optionData.Length);
-                stream.Write(buffer.ToArray(), 0, buffer.Length);
-                if (optionData.Length > 0) {
-                    stream.Write(optionData, 0, optionData.Length);
-                }
+                stream.WriteByte(0); // OPT owner is the root name.
+                WriteUInt16(stream, (ushort)DnsRecordType.OPT);
+                WriteUInt16(stream, (ushort)_udpBufferSize);
+                uint optTtl = _requestDnsSec ? 0x00008000u : 0u; // DO is the only flag set in OPT.Z.
+                WriteUInt32(stream, optTtl);
+                WriteUInt16(stream, checked((ushort)optionData.Length));
+                stream.Write(optionData, 0, optionData.Length);
             }
 
-            if (_signingKey != null) {
-                byte[] toSign = stream.ToArray();
-                byte[] signature;
-                if (_signingKey is RSA rsa) {
-                    signature = rsa.SignData(toSign, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-                } else if (_signingKey is ECDsa ecdsa) {
-                    signature = ecdsa.SignData(toSign, HashAlgorithmName.SHA256);
-                } else {
-                    signature = Array.Empty<byte>();
-                }
-                stream.WriteByte(0);
-                BinaryPrimitives.WriteUInt16BigEndian(buffer, (ushort)DnsRecordType.SIG);
-                stream.Write(buffer.ToArray(), 0, buffer.Length);
-                BinaryPrimitives.WriteUInt16BigEndian(buffer, 255); // class ANY
-                stream.Write(buffer.ToArray(), 0, buffer.Length);
-                Span<byte> ttlSig = stackalloc byte[4];
-                BinaryPrimitives.WriteUInt32BigEndian(ttlSig, 0u);
-                stream.Write(ttlSig.ToArray(), 0, ttlSig.Length);
-                BinaryPrimitives.WriteUInt16BigEndian(buffer, (ushort)signature.Length);
-                stream.Write(buffer.ToArray(), 0, buffer.Length);
-                if (signature.Length > 0) {
-                    stream.Write(signature, 0, signature.Length);
-                }
-            }
-
-            // Convert to base64url format
-            var dnsMessageBytes = stream.ToArray();
-            if (dnsMessageBytes.Length == 0) {
-                return string.Empty;
-            }
-
-#if NETSTANDARD2_0 || NET472
-            string base64Url = Convert.ToBase64String(dnsMessageBytes)
-                .TrimEnd('=')
-                .Replace('+', '-')
-                .Replace('/', '_');
-
-            return base64Url;
-#else
-            int base64Length = ((dnsMessageBytes.Length + 2) / 3) * 4;
-            char[] base64 = new char[base64Length];
-            Convert.TryToBase64Chars(dnsMessageBytes, base64, out int charsWritten);
-
-            int padding = (3 - (dnsMessageBytes.Length % 3)) % 3;
-            int finalLength = charsWritten - padding;
-
-            return string.Create(finalLength, base64, static (span, value) => {
-                for (int i = 0; i < span.Length; i++) {
-                    char c = value[i];
-                    span[i] = c switch { '+' => '-', '/' => '_', _ => c };
-                }
-            });
-#endif
-        }
-
-        /// <summary>
-        /// Serializes the DNS wire format
-        /// </summary>
-        /// <returns></returns>
-        public byte[] SerializeDnsWireFormat() {
-            using (var ms = new MemoryStream()) {
-                // Transaction ID
-                ushort randomId = CreateTransactionId();
-                var bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)randomId));
-                ms.Write(bytes, 0, bytes.Length);
-
-                // Flags
-                short headerFlags = _recursionDesired ? (short)0x0100 : (short)0x0000; // Standard query (RD optional)
-                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder(headerFlags));
-                ms.Write(bytes, 0, bytes.Length);
-
-                // Questions
-                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)1));
-                ms.Write(bytes, 0, bytes.Length);
-
-                // Answer RRs
-                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)0));
-                ms.Write(bytes, 0, bytes.Length);
-
-                // Authority RRs
-                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)0));
-                ms.Write(bytes, 0, bytes.Length);
-
-                // Additional RRs
-                int additional = (_enableEdns ? 1 : 0) + (_signingKey != null ? 1 : 0);
-                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)additional));
-                ms.Write(bytes, 0, bytes.Length);
-
-                // Queries
-                foreach (var part in GetWireLabels(_name)) {
-                    ms.WriteByte((byte)part.Length);
-                    var partBytes = Encoding.ASCII.GetBytes(part);
-                    ms.Write(partBytes, 0, partBytes.Length);
-                }
-                ms.WriteByte((byte)0); // End of name
-
-                // Type
-                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)_type));
-                ms.Write(bytes, 0, bytes.Length);
-
-                // Class
-                bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)1)); // IN
-                ms.Write(bytes, 0, bytes.Length);
-
-                if (_enableEdns)
-                {
-                    byte[] optionData = BuildOptions();
-                    ms.WriteByte(0);
-                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)DnsRecordType.OPT));
-                    ms.Write(bytes, 0, bytes.Length);
-                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)_udpBufferSize));
-                    ms.Write(bytes, 0, bytes.Length);
-                    uint ttlFlags = 0u;
-                    if (_requestDnsSec) ttlFlags |= 0x00008000u;
-                    if (_checkingDisabled) ttlFlags |= 0x00000010u;
-                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((int)ttlFlags));
-                    ms.Write(bytes, 0, bytes.Length);
-                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)optionData.Length));
-                    ms.Write(bytes, 0, bytes.Length);
-                    if (optionData.Length > 0)
-                    {
-                        ms.Write(optionData, 0, optionData.Length);
-                    }
-                }
-
-                if (_signingKey != null)
-                {
-                    byte[] toSign = ms.ToArray();
-                    byte[] signature;
-                    if (_signingKey is RSA rsa)
-                    {
-                        signature = rsa.SignData(toSign, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-                    }
-                    else if (_signingKey is ECDsa ecdsa)
-                    {
-                        signature = ecdsa.SignData(toSign, HashAlgorithmName.SHA256);
-                    }
-                    else
-                    {
-                        signature = Array.Empty<byte>();
-                    }
-                    ms.WriteByte(0);
-                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)DnsRecordType.SIG));
-                    ms.Write(bytes, 0, bytes.Length);
-                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)255));
-                    ms.Write(bytes, 0, bytes.Length);
-                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder(0));
-                    ms.Write(bytes, 0, bytes.Length);
-                    bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)signature.Length));
-                    ms.Write(bytes, 0, bytes.Length);
-                    if (signature.Length > 0)
-                    {
-                        ms.Write(signature, 0, signature.Length);
-                    }
-                }
-
-                return ms.ToArray();
-            }
+            return stream.ToArray();
         }
 
         private byte[] BuildOptions() {
-            using var ms = new MemoryStream();
+            using var stream = new MemoryStream();
             if (_subnet != null) {
-                var ecs = new EcsOption(_subnet.Value.Subnet);
-                byte[] bytes = ecs.ToByteArray();
-                ms.Write(bytes, 0, bytes.Length);
+                byte[] bytes = new EcsOption(_subnet.Value.Subnet).ToByteArray();
+                stream.Write(bytes, 0, bytes.Length);
             }
-
-            foreach (var opt in _ednsOptions) {
-                byte[] bytes = opt.ToByteArray();
-                ms.Write(bytes, 0, bytes.Length);
+            foreach (EdnsOption option in _ednsOptions) {
+                byte[] bytes = option.ToByteArray();
+                stream.Write(bytes, 0, bytes.Length);
             }
-
-            return ms.ToArray();
+            return stream.ToArray();
         }
 
-        private static string[] GetWireLabels(string name) {
-            string normalizedName = name.TrimEnd('.');
-            return normalizedName.Length == 0
-                ? Array.Empty<string>()
-                : normalizedName.Split('.');
+        private static ushort CreateTransactionId() {
+            byte[] bytes = new byte[2];
+            using (RandomNumberGenerator rng = RandomNumberGenerator.Create()) {
+                rng.GetBytes(bytes);
+            }
+            return BinaryPrimitives.ReadUInt16BigEndian(bytes);
+        }
+
+        private static void WriteUInt16(Stream stream, ushort value) {
+            byte[] buffer = new byte[2];
+            BinaryPrimitives.WriteUInt16BigEndian(buffer, value);
+            stream.Write(buffer, 0, buffer.Length);
+        }
+
+        private static void WriteUInt32(Stream stream, uint value) {
+            byte[] buffer = new byte[4];
+            BinaryPrimitives.WriteUInt32BigEndian(buffer, value);
+            stream.Write(buffer, 0, buffer.Length);
         }
     }
 }

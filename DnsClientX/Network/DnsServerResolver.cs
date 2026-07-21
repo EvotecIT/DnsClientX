@@ -53,7 +53,8 @@ namespace DnsClientX {
             TimeSpan? staleTtl = null,
             bool failureBackoffEnabled = false,
             double failureBackoffFactor = 2.0,
-            TimeSpan? failureBackoffMaxTtl = null) {
+            TimeSpan? failureBackoffMaxTtl = null,
+            AddressFamily? preferredAddressFamily = null) {
             if (string.IsNullOrWhiteSpace(dnsServer)) {
                 return (null, "DNS server hostname is empty.");
             }
@@ -62,6 +63,7 @@ namespace DnsClientX {
                 return (parsed, null);
             }
 
+            string cacheKey = $"{preferredAddressFamily?.ToString() ?? "Any"}|{dnsServer}";
             var now = DateTimeOffset.UtcNow;
             var successCacheTtl = successTtl ?? DefaultSuccessTtl;
             var failureCacheTtl = failureTtl ?? DefaultFailureTtl;
@@ -69,7 +71,7 @@ namespace DnsClientX {
             CacheEntry? cached = null;
             var hasStale = false;
 
-            if (Cache.TryGetValue(dnsServer, out cached) && cached != null) {
+            if (Cache.TryGetValue(cacheKey, out cached) && cached != null) {
                 if (cached.ExpiresAt > now) {
                     var refreshed = new CacheEntry(
                         cached.Address,
@@ -78,17 +80,18 @@ namespace DnsClientX {
                         cached.StaleUntil,
                         now,
                         cached.FailureCount);
-                    Cache[dnsServer] = refreshed;
+                    Cache[cacheKey] = refreshed;
                     return (refreshed.Address, refreshed.Error);
                 }
                 hasStale = allowStale && cached.Address != null && cached.StaleUntil > now;
             }
 
             var resolver = Inflight.GetOrAdd(
-                dnsServer,
+                cacheKey,
                 _ => new Lazy<Task<CacheEntry>>(
                     () => ResolveAndCacheAsync(
                         dnsServer,
+                        cacheKey,
                         timeoutMilliseconds,
                         successCacheTtl,
                         failureCacheTtl,
@@ -96,6 +99,7 @@ namespace DnsClientX {
                         failureBackoffEnabled,
                         failureBackoffFactor,
                         failureBackoffMaxTtl,
+                        preferredAddressFamily,
                         cached,
                         hasStale),
                     LazyThreadSafetyMode.ExecutionAndPublication));
@@ -105,7 +109,7 @@ namespace DnsClientX {
                 return (entry.Address, entry.Error);
             } finally {
                 if (resolver.IsValueCreated && resolver.Value.IsCompleted) {
-                    Inflight.TryRemove(dnsServer, out _);
+                    Inflight.TryRemove(cacheKey, out _);
                 }
             }
         }
@@ -119,6 +123,7 @@ namespace DnsClientX {
 
         private static async Task<CacheEntry> ResolveAndCacheAsync(
             string dnsServer,
+            string cacheKey,
             int timeoutMilliseconds,
             TimeSpan successCacheTtl,
             TimeSpan failureCacheTtl,
@@ -126,6 +131,7 @@ namespace DnsClientX {
             bool failureBackoffEnabled,
             double failureBackoffFactor,
             TimeSpan? failureBackoffMaxTtl,
+            AddressFamily? preferredAddressFamily,
             CacheEntry? cached,
             bool hasStale) {
             var now = DateTimeOffset.UtcNow;
@@ -140,11 +146,11 @@ namespace DnsClientX {
                         failureCount++;
                         var failureExpiry = GetFailureExpiry(now, failureCacheTtl, failureBackoffEnabled, failureBackoffFactor, failureBackoffMaxTtl, failureCount);
                         if (hasStale && cached != null) {
-                            Cache[dnsServer] = new CacheEntry(cached.Address, error, failureExpiry, now.Add(staleCacheTtl), now, failureCount);
+                            Cache[cacheKey] = new CacheEntry(cached.Address, error, failureExpiry, now.Add(staleCacheTtl), now, failureCount);
                             TrimCache(now);
                             return new CacheEntry(cached.Address, null, failureExpiry, now.Add(staleCacheTtl), now, failureCount);
                         }
-                        Cache[dnsServer] = new CacheEntry(null, error, failureExpiry, failureExpiry, now, failureCount);
+                        Cache[cacheKey] = new CacheEntry(null, error, failureExpiry, failureExpiry, now, failureCount);
                         TrimCache(now);
                         return new CacheEntry(null, error, failureExpiry, failureExpiry, now, failureCount);
                     }
@@ -157,11 +163,11 @@ namespace DnsClientX {
                     failureCount++;
                     var failureExpiry = GetFailureExpiry(now, failureCacheTtl, failureBackoffEnabled, failureBackoffFactor, failureBackoffMaxTtl, failureCount);
                     if (hasStale && cached != null) {
-                        Cache[dnsServer] = new CacheEntry(cached.Address, error, failureExpiry, now.Add(staleCacheTtl), now, failureCount);
+                        Cache[cacheKey] = new CacheEntry(cached.Address, error, failureExpiry, now.Add(staleCacheTtl), now, failureCount);
                         TrimCache(now);
                         return new CacheEntry(cached.Address, null, failureExpiry, now.Add(staleCacheTtl), now, failureCount);
                     }
-                    Cache[dnsServer] = new CacheEntry(null, error, failureExpiry, failureExpiry, now, failureCount);
+                    Cache[cacheKey] = new CacheEntry(null, error, failureExpiry, failureExpiry, now, failureCount);
                     TrimCache(now);
                     return new CacheEntry(null, error, failureExpiry, failureExpiry, now, failureCount);
                 }
@@ -169,19 +175,22 @@ namespace DnsClientX {
                 IPAddress? ipv4 = null;
                 IPAddress? ipv6 = null;
                 foreach (var address in usable) {
-                    if (address.AddressFamily == AddressFamily.InterNetwork) {
+                    if (address.AddressFamily == AddressFamily.InterNetwork && ipv4 == null) {
                         ipv4 = address;
-                        break;
                     }
                     if (address.AddressFamily == AddressFamily.InterNetworkV6 && ipv6 == null) {
                         ipv6 = address;
                     }
                 }
 
-                var selected = ipv4 ?? ipv6 ?? usable[0];
+                var selected = preferredAddressFamily == AddressFamily.InterNetworkV6
+                    ? ipv6 ?? ipv4 ?? usable[0]
+                    : preferredAddressFamily == AddressFamily.InterNetwork
+                        ? ipv4 ?? ipv6 ?? usable[0]
+                        : ipv4 ?? ipv6 ?? usable[0];
                 failureCount = 0;
                 var entry = new CacheEntry(selected, null, now.Add(successCacheTtl), now.Add(staleCacheTtl), now, failureCount);
-                Cache[dnsServer] = entry;
+                Cache[cacheKey] = entry;
                 TrimCache(now);
                 return entry;
             } catch (OperationCanceledException) {
@@ -190,11 +199,11 @@ namespace DnsClientX {
                 failureCount++;
                 var failureExpiry = GetFailureExpiry(now, failureCacheTtl, failureBackoffEnabled, failureBackoffFactor, failureBackoffMaxTtl, failureCount);
                 if (hasStale && cached != null) {
-                    Cache[dnsServer] = new CacheEntry(cached.Address, ex.Message, failureExpiry, now.Add(staleCacheTtl), now, failureCount);
+                    Cache[cacheKey] = new CacheEntry(cached.Address, ex.Message, failureExpiry, now.Add(staleCacheTtl), now, failureCount);
                     TrimCache(now);
                     return new CacheEntry(cached.Address, null, failureExpiry, now.Add(staleCacheTtl), now, failureCount);
                 }
-                Cache[dnsServer] = new CacheEntry(null, ex.Message, failureExpiry, failureExpiry, now, failureCount);
+                Cache[cacheKey] = new CacheEntry(null, ex.Message, failureExpiry, failureExpiry, now, failureCount);
                 TrimCache(now);
                 return new CacheEntry(null, ex.Message, failureExpiry, failureExpiry, now, failureCount);
             }

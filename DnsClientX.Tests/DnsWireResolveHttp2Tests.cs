@@ -13,12 +13,12 @@ namespace DnsClientX.Tests {
     public class DnsWireResolveHttp2Tests {
         private class Http2Handler : HttpMessageHandler {
             public HttpRequestMessage? Request { get; private set; }
-            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
+            protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
                 Request = request;
-                byte[] responseBytes = { 0x00, 0x01, 0x81, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+                byte[] responseBytes = TestUtilities.CreateResponseFromQuery(await TestUtilities.ReadDnsQueryAsync(request));
                 var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(responseBytes) };
                 response.Version = HttpVersion.Version20;
-                return Task.FromResult(response);
+                return response;
             }
         }
 

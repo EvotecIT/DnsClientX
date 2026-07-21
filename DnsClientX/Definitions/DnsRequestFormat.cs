@@ -60,15 +60,15 @@ namespace DnsClientX {
         /// </remarks>
         DnsOverHttp3,
         /// <summary>
-        /// DNS over DNSCrypt using wire format.
+        /// Reserved DNSCrypt v2 format identifier. The core package does not implement this protocol.
         /// </summary>
         DnsCrypt,
         /// <summary>
-        /// DNS over DNSCrypt using a relay server.
+        /// Reserved DNSCrypt v2 relay format identifier. The core package does not implement this protocol.
         /// </summary>
         DnsCryptRelay,
         /// <summary>
-        /// Oblivious DNS over HTTPS (RFC 9230).
+        /// Reserved Oblivious DNS over HTTPS (RFC 9230) identifier. The core package does not implement HPKE relay/target handling.
         /// </summary>
         ObliviousDnsOverHttps,
         /// <summary>

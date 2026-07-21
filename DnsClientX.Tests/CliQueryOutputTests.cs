@@ -27,6 +27,9 @@ namespace DnsClientX.Tests {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
 #if NET5_0_OR_GREATER
             UdpReceiveResult result = await udp.ReceiveAsync(token);
+            response = (byte[])response.Clone();
+            response[0] = result.Buffer[0];
+            response[1] = result.Buffer[1];
             await udp.SendAsync(response, result.RemoteEndPoint, token);
 #else
             var receiveTask = udp.ReceiveAsync();
@@ -35,6 +38,9 @@ namespace DnsClientX.Tests {
                 throw new OperationCanceledException(token);
             }
             UdpReceiveResult result = receiveTask.Result;
+            response = (byte[])response.Clone();
+            response[0] = result.Buffer[0];
+            response[1] = result.Buffer[1];
             await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
 #endif
         }

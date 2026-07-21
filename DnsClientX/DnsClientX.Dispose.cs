@@ -21,6 +21,12 @@ namespace DnsClientX {
             set => System.Threading.Interlocked.Exchange(ref _disposalCount, value);
         }
 
+        private void ThrowIfDisposed() {
+            lock (_lock) {
+                if (_disposed) throw new ObjectDisposedException(nameof(ClientX));
+            }
+        }
+
         private bool TryAddDisposedClient(object client) {
             lock (_lock) {
                 return _disposedClients.Add(client);
@@ -49,8 +55,12 @@ namespace DnsClientX {
                     }
                     _disposed = true;
 
-                    clients = new List<HttpClient>(_clients.Values);
+                    clients = new List<HttpClient>(_managedClients);
+                    foreach (HttpClient mappedClient in _clients.Values) {
+                        if (!clients.Contains(mappedClient)) clients.Add(mappedClient);
+                    }
                     _clients.Clear();
+                    _managedClients.Clear();
 
                     mainClient = Client;
                     handlerLocal = handler;
@@ -58,6 +68,9 @@ namespace DnsClientX {
                     handler = null;
                 }
                 if (disposing) {
+#if NET8_0_OR_GREATER
+                    _quicConnectionPool.DisposeAsync().AsTask().GetAwaiter().GetResult();
+#endif
                     foreach (HttpClient client in clients) {
                         if (TryAddDisposedClient(client)) {
                             client.Dispose();
@@ -103,6 +116,9 @@ namespace DnsClientX {
             await Task.CompletedTask;
 #endif
             if (!_disposed) {
+#if NET8_0_OR_GREATER
+                await _quicConnectionPool.DisposeAsync().ConfigureAwait(false);
+#endif
                 HttpClientHandler? handlerLocal;
                 List<HttpClient> clients;
                 HttpClient? mainClient;
@@ -113,8 +129,12 @@ namespace DnsClientX {
                     }
                     _disposed = true;
 
-                    clients = new List<HttpClient>(_clients.Values);
+                    clients = new List<HttpClient>(_managedClients);
+                    foreach (HttpClient mappedClient in _clients.Values) {
+                        if (!clients.Contains(mappedClient)) clients.Add(mappedClient);
+                    }
                     _clients.Clear();
+                    _managedClients.Clear();
 
                     mainClient = Client;
                     handlerLocal = handler;
@@ -186,11 +206,5 @@ namespace DnsClientX {
             }
         }
 
-        /// <summary>
-        /// Finalizer to ensure unmanaged resources are released.
-        /// </summary>
-        ~ClientX() {
-            Dispose(disposing: false);
-        }
     }
 }

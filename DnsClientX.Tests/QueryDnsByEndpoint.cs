@@ -6,16 +6,11 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures TXT record queries succeed for the specified endpoint.
         /// </summary>
-        [InlineData(DnsEndpoint.CloudflareOdoh)]
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-#if DNS_OVER_QUIC
-        [InlineData(DnsEndpoint.CloudflareQuic)]
-        [InlineData(DnsEndpoint.GoogleQuic)]
-#endif
         [Theory]
         public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
             if (TestSkipHelpers.ShouldSkipEndpoint(endpoint)) return;
@@ -38,16 +33,11 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.CloudflareSecurity)]
         [InlineData(DnsEndpoint.CloudflareWireFormat)]
         [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
-        [InlineData(DnsEndpoint.CloudflareOdoh)]
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
 [InlineData(DnsEndpoint.GoogleWireFormatPost)]
 [InlineData(DnsEndpoint.OpenDNS)]
 [InlineData(DnsEndpoint.OpenDNSFamily)]
-#if DNS_OVER_QUIC
-[InlineData(DnsEndpoint.CloudflareQuic)]
-[InlineData(DnsEndpoint.GoogleQuic)]
-#endif
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             if (TestSkipHelpers.ShouldSkipEndpoint(endpoint)) return;
             var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, endpoint);
@@ -69,16 +59,11 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.CloudflareSecurity)]
         [InlineData(DnsEndpoint.CloudflareWireFormat)]
         [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
-        [InlineData(DnsEndpoint.CloudflareOdoh)]
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-#if DNS_OVER_QUIC
-        [InlineData(DnsEndpoint.CloudflareQuic)]
-        [InlineData(DnsEndpoint.GoogleQuic)]
-#endif
         public async Task ShouldWorkForPTR(DnsEndpoint endpoint) {
             if (TestSkipHelpers.ShouldSkipEndpoint(endpoint)) return;
             var response = await ClientX.QueryDns("1.1.1.1", DnsRecordType.PTR, endpoint);

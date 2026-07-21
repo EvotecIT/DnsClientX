@@ -94,16 +94,6 @@ namespace DnsClientX {
         public bool ResponseCache { get; set; }
 
         /// <summary>
-        /// Gets or sets the fallback cache expiration in seconds when TTL is unavailable.
-        /// </summary>
-        public int CacheExpirationSeconds { get; set; }
-
-        /// <summary>
-        /// Gets or sets the minimum cache TTL in seconds.
-        /// </summary>
-        public int MinCacheTtlSeconds { get; set; }
-
-        /// <summary>
         /// Gets or sets the maximum cache TTL in seconds.
         /// </summary>
         public int MaxCacheTtlSeconds { get; set; }

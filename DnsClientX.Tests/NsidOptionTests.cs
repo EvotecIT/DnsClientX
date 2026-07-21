@@ -12,7 +12,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public void SerializeDnsWireFormat_ShouldIncludeNsidOption() {
             var option = new NsidOption();
-            var message = new DnsMessage("example.com", DnsRecordType.A, false, true, 4096, null, false, null, new[] { option });
+            var message = new DnsMessage("example.com", DnsRecordType.A, false, true, 4096, null, false, new[] { option });
             byte[] data = message.SerializeDnsWireFormat();
 
             int offset = 12;

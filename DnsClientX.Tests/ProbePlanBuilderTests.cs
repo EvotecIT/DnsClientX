@@ -17,7 +17,7 @@ namespace DnsClientX.Tests {
         /// Ensures cloud resolver probing expands to the full transport family.
         /// </summary>
         [Fact]
-        public void BuildPlan_CloudflareProfile_ExpandsToAllCloudflareVariants() {
+        public void BuildPlan_CloudflareProfile_ExpandsToPublishedCloudflareVariants() {
             DnsEndpoint[] plan = ProbePlanBuilder.BuildPlan(DnsEndpoint.CloudflareWireFormatPost);
 
             Assert.Equal(
@@ -25,9 +25,7 @@ namespace DnsClientX.Tests {
                     DnsEndpoint.Cloudflare,
                     DnsEndpoint.CloudflareWireFormat,
                     DnsEndpoint.CloudflareWireFormatPost,
-                    DnsEndpoint.CloudflareJsonPost,
-                    DnsEndpoint.CloudflareQuic,
-                    DnsEndpoint.CloudflareOdoh
+                    DnsEndpoint.CloudflareJsonPost
                 },
                 plan);
         }

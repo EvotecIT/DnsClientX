@@ -9,7 +9,7 @@ using DnsClientX;
 namespace DnsClientX.PowerShell {
     /// <summary>
     /// <para type="synopsis">Resolves DNS records (A, AAAA, MX, TXT, …) over UDP, TCP, DoT, DoH, QUIC, or multicast with optional multi-resolver strategies.</para>
-    /// <para type="description">Supports single-provider queries, explicit servers with transport selection, multiple providers with FirstSuccess/FastestWins/SequentialAll/RoundRobin, direct resolver endpoints, DNSSEC, EDNS/ECS, concurrency control, and TTL-based response caching.</para>
+    /// <para type="description">Supports single-provider queries, explicit servers with transport selection, multiple providers with FirstSuccess/FastestWins/SequentialFallback/RoundRobin, direct resolver endpoints, DNSSEC, EDNS/ECS, concurrency control, and TTL-based response caching.</para>
     /// <example>
     ///  <para>Simple (system default)</para>
     ///  <code>Resolve-Dns -Name "example.com" -Type A</code>
@@ -40,7 +40,7 @@ namespace DnsClientX.PowerShell {
     /// </example>
     /// <example>
     ///  <para>Enable TTL-based response cache with bounds</para>
-    ///  <code>Resolve-Dns -Name 'example.com' -Type MX -DnsProvider Cloudflare,Google -ResponseCache -CacheExpirationSeconds 30 -MinCacheTtlSeconds 1 -MaxCacheTtlSeconds 3600</code>
+    ///  <code>Resolve-Dns -Name 'example.com' -Type MX -DnsProvider Cloudflare,Google -ResponseCache -MaxCacheTtlSeconds 3600</code>
     /// </example>
     /// <example>
     ///  <para>Query a specific server over DoH with explicit transport settings</para>
@@ -140,7 +140,7 @@ namespace DnsClientX.PowerShell {
 
         /// <summary>
         /// <para type="description">One or more predefined providers (DnsEndpoint enum) to expand into endpoints for the multi-resolver.</para>
-        /// <para type="description">This enables strategy control (FirstSuccess/FastestWins/SequentialAll) and other multi-resolver options.</para>
+        /// <para type="description">This enables strategy control (FirstSuccess/FastestWins/SequentialFallback) and other multi-resolver options.</para>
         /// </summary>
         [Alias("DnsProviders")]
         [Parameter(Mandatory = true, ParameterSetName = "ResolverDnsProvider")]
@@ -219,28 +219,6 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
         public SwitchParameter ResponseCache { get; set; }
-
-        /// <summary>
-        /// <para type="description">Optional override for default cache expiration when TTL is unavailable (seconds).</para>
-        /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
-        public int CacheExpirationSeconds { get; set; } = 0;
-
-        /// <summary>
-        /// <para type="description">Minimal TTL allowed for cached entries (seconds). 0 leaves library default.</para>
-        /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
-        public int MinCacheTtlSeconds { get; set; } = 0;
 
         /// <summary>
         /// <para type="description">Maximal TTL allowed for cached entries (seconds). 0 leaves library default.</para>
@@ -471,8 +449,6 @@ namespace DnsClientX.PowerShell {
                 FastestCacheMinutes = FastestCacheMinutes,
                 PerEndpointMaxInFlight = PerEndpointMaxInFlight,
                 ResponseCache = ResponseCache.IsPresent,
-                CacheExpirationSeconds = CacheExpirationSeconds,
-                MinCacheTtlSeconds = MinCacheTtlSeconds,
                 MaxCacheTtlSeconds = MaxCacheTtlSeconds,
                 AllServers = AllServers.IsPresent,
                 Fallback = Fallback.IsPresent,

@@ -107,11 +107,11 @@ namespace DnsClientX.Tests {
 
             Assert.Equal(2, delays.Count);
 
-            // With jitter disabled the retry helper uses delayMs << attempt,
+            // With jitter disabled the retry helper starts at delayMs and doubles,
             // so the two waits should clear progressively higher minimums even
             // if the host oversleeps under load.
-            Assert.InRange(delays[0], 80, 5000);
-            Assert.InRange(delays[1], 160, 10000);
+            Assert.InRange(delays[0], 40, 5000);
+            Assert.InRange(delays[1], 80, 10000);
         }
 
         /// <summary>

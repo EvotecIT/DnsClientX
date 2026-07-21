@@ -48,7 +48,7 @@ namespace DnsClientX.Tests {
             Type wireType = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWire")!;
             MethodInfo method = wireType.GetMethod("ProcessRecordData", BindingFlags.NonPublic | BindingFlags.Static)!;
             var result = (string)method.Invoke(null, new object?[] { Array.Empty<byte>(), 0, DnsRecordType.LOC, rdata, (ushort)rdata.Length, 0L })!;
-            Assert.Equal("0 0 0.000 N 0 0 0.000 E 0m 1m 10000m 10m", result);
+            Assert.Equal("0 0 0.000 N 0 0 0.000 E 0.00m 1.00m 10000.00m 10.00m", result);
         }
     }
 }

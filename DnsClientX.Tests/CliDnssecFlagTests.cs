@@ -12,6 +12,7 @@ namespace DnsClientX.Tests {
     /// <summary>
     /// Tests for CLI options that control DNSSEC flags on outbound queries.
     /// </summary>
+    [Collection("NoParallel")]
     public class CliDnssecFlagTests {
         private static byte[] CreateDnsHeader() {
             byte[] bytes = new byte[12];
@@ -32,6 +33,7 @@ namespace DnsClientX.Tests {
         }
 
         private static void AssertDoCdBits(byte[] query, string name) {
+            Assert.Equal(0x10, query[3] & 0x10);
             int additionalCount = (query[10] << 8) | query[11];
             Assert.Equal(1, additionalCount);
 
@@ -45,7 +47,7 @@ namespace DnsClientX.Tests {
             ushort type = (ushort)((query[offset + 1] << 8) | query[offset + 2]);
             Assert.Equal((ushort)DnsRecordType.OPT, type);
             uint ttl = (uint)((query[offset + 5] << 24) | (query[offset + 6] << 16) | (query[offset + 7] << 8) | query[offset + 8]);
-            Assert.Equal(0x00008010u, ttl);
+            Assert.Equal(0x00008000u, ttl);
         }
 
         /// <summary>
@@ -68,7 +70,7 @@ namespace DnsClientX.Tests {
                 Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", port.ToString());
                 Task<int> task = (Task<int>)main.Invoke(null, new object[] { new[] { "--dnssec", "--validate-dnssec", "example.com" } })!;
                 int exitCode = await task;
-                Assert.Equal(0, exitCode);
+                Assert.Equal(1, exitCode);
             } finally {
                 Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", null);
                 SystemInformation.SetDnsServerProvider(null);

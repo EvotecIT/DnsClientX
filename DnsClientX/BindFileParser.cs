@@ -147,7 +147,7 @@ namespace DnsClientX {
 
             while (enumerator.MoveNext()) {
                 var line = enumerator.Current.Trim();
-                if (string.IsNullOrEmpty(line) || line.StartsWith(";")) {
+                if (string.IsNullOrEmpty(line) || line.StartsWith(";", StringComparison.Ordinal)) {
                     continue;
                 }
 

@@ -17,26 +17,20 @@ namespace DnsClientX {
                 DnsEndpoint.Cloudflare or
                 DnsEndpoint.CloudflareWireFormat or
                 DnsEndpoint.CloudflareWireFormatPost or
-                DnsEndpoint.CloudflareJsonPost or
-                DnsEndpoint.CloudflareQuic or
-                DnsEndpoint.CloudflareOdoh => new[] {
+                DnsEndpoint.CloudflareJsonPost => new[] {
                     DnsEndpoint.Cloudflare,
                     DnsEndpoint.CloudflareWireFormat,
                     DnsEndpoint.CloudflareWireFormatPost,
-                    DnsEndpoint.CloudflareJsonPost,
-                    DnsEndpoint.CloudflareQuic,
-                    DnsEndpoint.CloudflareOdoh
+                    DnsEndpoint.CloudflareJsonPost
                 },
                 DnsEndpoint.Google or
                 DnsEndpoint.GoogleWireFormat or
                 DnsEndpoint.GoogleWireFormatPost or
-                DnsEndpoint.GoogleJsonPost or
-                DnsEndpoint.GoogleQuic => new[] {
+                DnsEndpoint.GoogleJsonPost => new[] {
                     DnsEndpoint.Google,
                     DnsEndpoint.GoogleWireFormat,
                     DnsEndpoint.GoogleWireFormatPost,
-                    DnsEndpoint.GoogleJsonPost,
-                    DnsEndpoint.GoogleQuic
+                    DnsEndpoint.GoogleJsonPost
                 },
                 DnsEndpoint.AdGuard or
                 DnsEndpoint.AdGuardFamily or
@@ -60,13 +54,6 @@ namespace DnsClientX {
                 DnsEndpoint.OpenDNSFamily => new[] {
                     DnsEndpoint.OpenDNS,
                     DnsEndpoint.OpenDNSFamily
-                },
-                DnsEndpoint.DnsCryptCloudflare or
-                DnsEndpoint.DnsCryptQuad9 or
-                DnsEndpoint.DnsCryptRelay => new[] {
-                    DnsEndpoint.DnsCryptCloudflare,
-                    DnsEndpoint.DnsCryptQuad9,
-                    DnsEndpoint.DnsCryptRelay
                 },
                 _ => new[] { endpoint }
             };

@@ -86,12 +86,12 @@ It provides querying multiple DNS Providers.
 | CloudflareWireFormatPost | ✓   |     |     |     |     |          |      |
 | CloudflareSecurity       | ✓   |     |     |     |     |          |      |
 | CloudflareFamily         | ✓   |     |     |     |     |          |      |
-| CloudflareQuic           |     | ✓   |     |     |     |          |      |
+| CloudflareQuic           |     | ❌  |     |     |     |          |      |
 | CloudflareOdoh           |     |     |     |     |     |          | ❌    |
 | Google                   | ✓   |     |     |     |     |          |      |
 | GoogleWireFormat         | ✓   |     |     |     |     |          |      |
 | GoogleWireFormatPost     | ✓   |     |     |     |     |          |      |
-| GoogleQuic               |     | ✓   |     |     |     |          |      |
+| GoogleQuic               |     | ❌  |     |     |     |          |      |
 | AdGuard                  | ✓   |     |     |     |     |          |      |
 | AdGuardFamily            | ✓   |     |     |     |     |          |      |
 | AdGuardNonFiltering      | ✓   |     |     |     |     |          |      |
@@ -107,6 +107,8 @@ It provides querying multiple DNS Providers.
 | DnsCryptRelay            |     |     |     |     |     | ❌        |      |
 | RootServer               |     |     |     | ✓   | ✓   |          |      |
 
+`CloudflareQuic`, `GoogleQuic`, `CloudflareOdoh`, and the DNSCrypt endpoint names are retained for source compatibility but fail explicitly: those providers do not publish the claimed DoQ service, or the protocol is not implemented. The core implements DoQ for published endpoints such as `Quad9Quic` without extra transport packages on modern .NET. ODoH and DNSCrypt v2 require dedicated protocol and cryptographic implementations and are intentionally outside the core package.
+
 If you want to learn about DNS:
 - https://www.cloudflare.com/learning/dns/what-is-dns/
 
@@ -120,12 +122,12 @@ If you want to learn about DNS:
   - No external dependencies
   - DoH3 and DoQ stay in the core package with no added NuGet transport dependencies
 - **.NET Standard 2.0** (Cross-platform compatibility)
-  - System.Text.Json (10.0.5)
-  - Microsoft.Bcl.AsyncInterfaces (10.0.5)
+  - System.Text.Json (10.0.9)
+  - Microsoft.Bcl.AsyncInterfaces (10.0.9)
 - **.NET Framework 4.7.2** (Windows only)
   - System.Net.Http (built-in)
-  - System.Text.Json (10.0.5)
-  - Microsoft.Bcl.AsyncInterfaces (10.0.5)
+  - System.Text.Json (10.0.9)
+  - Microsoft.Bcl.AsyncInterfaces (10.0.9)
   - Modern transports such as DoH3 and DoQ are exposed by the shared API surface but return unsupported at runtime
 
 ### Command Line Interface (DnsClientX.exe)
@@ -162,6 +164,8 @@ If you want to learn about DNS:
 - [x] Supports DNS over UDP, and switches to TCP if needed
 - [x] Supports DNS over TCP
 - [x] Supports DNSSEC
+- [x] Validates DNSSEC locally through root trust anchors, signed RRsets, and authenticated NSEC/NSEC3 denial proofs
+- [x] Authenticates RFC 2136 DNS UPDATE requests and responses with TSIG (HMAC-SHA-256/384/512 and SHA-1 compatibility)
 - [x] Supports multiple DNS record types
 - [x] Supports parallel queries
 - [x] No external dependencies on .NET 8 and .NET 10
@@ -493,9 +497,9 @@ The system DNS endpoints provide the most compatible and network-environment-awa
 > [!IMPORTANT]
 > This library is still in development and there are things that need to be done, tested and fixed.
 > If you would like to help, please do so by opening an issue or a pull request.
-> Things may and will change, as I'm not quite sure what I am doing :-)
+> The public API may change while protocol coverage and RFC conformance continue to mature.
 
-- [ ] [Add more providers](https://dnscrypt.info/public-servers/)
+- [ ] Evaluate a separate `DnsClientX.DnsCrypt` package with a dedicated DNSCrypt v2 implementation and provider catalog
 - [ ] Add more tests
 - [ ] Go thru all additional parameters and make sure they have proper responses
 
@@ -578,12 +582,12 @@ var responses = await client.Resolve(new[] { "example.com", "google.com" }, DnsR
 ```
 By default (`null`), DnsClientX keeps existing behavior and does not impose an explicit concurrency cap.
 
-## Multi-Resolver (Experimental)
+## Multi-Resolver
 
 DnsClientX includes a flexible multi-resolver that can query multiple endpoints using different strategies.
 
-- Strategies: FirstSuccess, FastestWins, SequentialAll
-- Transports: UDP, TCP, DoT, DoH
+- Strategies: FirstSuccess, FastestWins, SequentialFallback, RoundRobin
+- Transports: UDP, TCP, DoT, DoH, DoH3, and DoQ where supported by the target runtime and endpoint
 - Behaviors: per-query timeout, cancellation propagation, UDP→TCP fallback on truncation, TTL metrics
 
 Usage example:
@@ -601,12 +605,15 @@ var options = new MultiResolverOptions {
     RespectEndpointTimeout = true
 };
 
-IDnsMultiResolver mr = new DnsMultiResolver(endpoints, options);
+using var mr = new DnsMultiResolver(endpoints, options);
 var response = await mr.QueryAsync("example.com", DnsRecordType.A);
 Console.WriteLine($"RTT: {response.RoundTripTime.TotalMilliseconds} ms via {response.UsedTransport} @ {response.UsedEndpoint}");
 
 // Batch API (preserves input order, isolates failures)
 var results = await mr.QueryBatchAsync(new [] { "a.com", "b.com", "c.com" }, DnsRecordType.A);
+
+// Consensus/diagnostic API (one response per endpoint, in endpoint order)
+var allResponses = await mr.QueryAllAsync("example.com", DnsRecordType.DNSKEY);
 ```
 
 Notes:
@@ -618,7 +625,7 @@ Notes:
 
 - FirstSuccess: Races a bounded set of endpoints and returns the first success. Cancels losers.
 - FastestWins: Warms endpoints and prefers the one that produced the fastest successful response, caching the choice for a duration.
-- SequentialAll: Tries endpoints in order; returns first success or best error.
+- SequentialFallback: Tries endpoints in order; returns the first terminal response or best transport error.
 - RoundRobin: Distributes queries across endpoints to balance load. On failure, falls back to the first (or second) endpoint. Combine with MaxParallelism (global cap) and PerEndpointMaxInFlight (per-endpoint cap).
 
 ### Concurrency Control
@@ -634,17 +641,17 @@ Notes:
 ```csharp
 var opts = new MultiResolverOptions {
   EnableResponseCache = true,
-  CacheExpiration = TimeSpan.FromSeconds(30), // fallback if TTL not present
-  MinCacheTtl = TimeSpan.FromSeconds(1),
   MaxCacheTtl = TimeSpan.FromMinutes(60)
 };
 ```
+
+Positive answers use the lowest authoritative answer TTL. Negative `NoError`/`NXDomain` answers use the RFC 2308 minimum of the SOA TTL and SOA MINIMUM field. Responses without an authoritative cache lifetime are not cached; `MaxCacheTtl` can shorten, but never extend, that lifetime.
 
 - PowerShell:
 
 ```powershell
 Resolve-Dns -Name 'example.com' -Type A -DnsProvider Cloudflare,Google `
-  -ResolverStrategy FirstSuccess -ResponseCache -CacheExpirationSeconds 30 -MinCacheTtlSeconds 1 -MaxCacheTtlSeconds 3600
+  -ResolverStrategy FirstSuccess -ResponseCache -MaxCacheTtlSeconds 3600
 ```
 
 ### PowerShell Examples
@@ -869,10 +876,11 @@ var response = await client.Resolve("google.com", DnsRecordType.A,
     requestDnsSec: true,
     validateDnsSec: true);
 Console.WriteLine($"Authentic Data (AD): {response.AuthenticData}");
-Console.WriteLine(string.IsNullOrEmpty(response.Error)
-    ? "DNSSEC validation passed."
-    : $"DNSSEC validation failed: {response.Error}");
+Console.WriteLine($"Local DNSSEC status: {response.DnsSecValidationStatus}");
+Console.WriteLine(response.DnsSecValidationMessage);
 ```
+
+The resolver-provided `AuthenticData` flag and local validation are deliberately separate. `Secure` means DnsClientX built and verified a chain to a bundled root trust anchor; `Insecure` means a secure parent authenticated an unsigned delegation; `Bogus` is a cryptographic or proof failure; and `Indeterminate` means the response or supported algorithms were insufficient. The dependency-free validator embeds the current IANA root DS trust anchors; it does not yet implement RFC 5011 automated trust-anchor rollover, so applications with long-lived or independently managed trust stores should update DnsClientX when IANA changes the root anchors.
 
 #### Pattern-Based Queries
 ```csharp
@@ -892,21 +900,18 @@ response?.DisplayTable();
 
 #### Parallel Queries Across Multiple Providers
 ```csharp
-var endpoints = new[] {
+var providers = new[] {
     DnsEndpoint.Cloudflare,
     DnsEndpoint.Google,
     DnsEndpoint.Quad9
 };
-
-var tasks = endpoints.Select(async endpoint => {
-    using var client = new ClientX(endpoint);
-    return await client.Resolve("google.com", DnsRecordType.A);
-}).ToArray();
-
-var responses = await Task.WhenAll(tasks);
-foreach (var response in responses) {
-    response?.DisplayTable();
-}
+var endpoints = DnsResolverEndpointFactory.From(providers);
+using var resolver = new DnsMultiResolver(endpoints, new MultiResolverOptions {
+    Strategy = MultiResolverStrategy.FirstSuccess,
+    MaxParallelism = 3
+});
+var response = await resolver.QueryAsync("google.com", DnsRecordType.A);
+response.DisplayTable();
 ```
 
 #### Streaming Queries
@@ -937,10 +942,22 @@ var response = await ClientX.QueryDns("google.com", DnsRecordType.A,
     DnsEndpoint.CloudflareWireFormat);
 ```
 
+Browser/WASM and dependency-injected hosts can keep ownership of their HTTP handler while reusing DnsClientX parsing and response semantics:
+
+```csharp
+var response = await DnsJsonQueryClient.QueryAsync(
+    httpClient,
+    new Uri("https://dns.google/resolve"),
+    "google.com",
+    DnsRecordType.A,
+    requestDnsSec: true,
+    cancellationToken: cancellationToken);
+```
+
 #### DNS over QUIC (DoQ)
 ```csharp
 var response = await ClientX.QueryDns("google.com", DnsRecordType.A,
-    DnsEndpoint.CloudflareQuic);
+    DnsEndpoint.Quad9Quic);
 ```
 
 #### DNS over TCP/UDP
@@ -953,6 +970,18 @@ var response = await ClientX.QueryDns("google.com", DnsRecordType.A,
 var response = await ClientX.QueryDns("google.com", DnsRecordType.A,
     DnsEndpoint.SystemTcp);
 ```
+
+For authoritative, CHAOS-class, and EDNS diagnostics, construct the message explicitly and keep the shared transport and validation rules:
+
+```csharp
+var query = new DnsMessage("version.bind", DnsRecordType.TXT, new DnsMessageOptions(
+    RecursionDesired: false,
+    QueryClass: 3)); // CHAOS
+var result = await DnsWireQueryClient.QueryUdpAsync("192.0.2.53", 53, query);
+Console.WriteLine($"{result.Response.WireMessageLength} response bytes");
+```
+
+`DnsWireQueryClient` validates the source peer, transaction ID, QR/opcode, and echoed question before returning. It preserves the exact request/response bytes for protocol diagnostics while avoiding a second DNS transport implementation in consumers.
 
 #### Root Server Queries
 ```csharp
@@ -1405,12 +1434,10 @@ $Domain = 'example.com'
 Write-Host "=== DNS Security Assessment for $Domain ===" -ForegroundColor Cyan
 
 # DNSSEC validation
-$DnssecResult = Resolve-Dns -Name $Domain -Type A -DnsProvider Cloudflare -RequestDnsSec -ValidateDnsSec
+$DnssecResult = Resolve-Dns -Name $Domain -Type A -DnsProvider Cloudflare -ValidateDnsSec -FullResponse
 Write-Host "Authentic Data (AD): $($DnssecResult.AuthenticData)" -ForegroundColor $(if($DnssecResult.AuthenticData) { 'Green' } else { 'Yellow' })
-Write-Host "DNSSEC Validation: $(if([string]::IsNullOrEmpty($DnssecResult.Error)) { 'PASSED' } else { 'FAILED' })" -ForegroundColor $(if([string]::IsNullOrEmpty($DnssecResult.Error)) { 'Green' } else { 'Red' })
-if (-not [string]::IsNullOrEmpty($DnssecResult.Error)) {
-    Write-Host "Validation details: $($DnssecResult.Error)" -ForegroundColor Red
-}
+Write-Host "Local DNSSEC status: $($DnssecResult.DnsSecValidationStatus)"
+Write-Host "Validation details: $($DnssecResult.DnsSecValidationMessage)"
 
 # CAA Records
 Write-Host "`nCAA Records:" -ForegroundColor Yellow

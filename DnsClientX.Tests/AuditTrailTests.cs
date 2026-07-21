@@ -147,7 +147,8 @@ namespace DnsClientX.Tests {
             var first = await client.Resolve(name, DnsRecordType.A, retryOnTransient: false);
             var second = await client.Resolve(name, DnsRecordType.A, retryOnTransient: false);
 
-            Assert.Same(first, second);
+            Assert.NotSame(first, second);
+            Assert.Equal(first.Answers[0].DataRaw, second.Answers[0].DataRaw);
             Assert.Equal(1, handler.Calls);
             Assert.Equal(2, client.AuditTrail.Count);
 

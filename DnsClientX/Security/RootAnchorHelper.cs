@@ -12,6 +12,7 @@ namespace DnsClientX;
 /// </summary>
 internal static class RootAnchorHelper {
     private const string Url = "https://data.iana.org/root-anchors/root-anchors.xml";
+    private static readonly HttpClient SharedClient = new();
 
     /// <summary>
     /// Overrides the HTTP client used for downloading the anchor file. This is
@@ -24,9 +25,7 @@ internal static class RootAnchorHelper {
     /// </summary>
     /// <returns>Array of <see cref="RootDsRecord"/> entries.</returns>
     public static async Task<RootDsRecord[]> FetchLatestAsync() {
-        HttpClient? client = ClientOverride;
-        bool disposeClient = client is null;
-        client ??= new HttpClient();
+        HttpClient client = ClientOverride ?? SharedClient;
         try {
             string xml = await client.GetStringAsync(Url).ConfigureAwait(false);
             return ParseFromXml(xml);
@@ -34,10 +33,6 @@ internal static class RootAnchorHelper {
             Settings.Logger.WriteWarning(
                 "Failed to download root trust anchors: {0}", e.Message);
             return Array.Empty<RootDsRecord>();
-        } finally {
-            if (disposeClient) {
-                client.Dispose();
-            }
         }
     }
 

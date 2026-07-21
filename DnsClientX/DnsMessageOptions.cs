@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Security.Cryptography;
 
 namespace DnsClientX;
 
@@ -12,6 +11,7 @@ public readonly record struct DnsMessageOptions(
     int UdpBufferSize = 4096,
     EdnsClientSubnetOption? Subnet = null,
     bool CheckingDisabled = false,
-    AsymmetricAlgorithm? SigningKey = null,
     IEnumerable<EdnsOption>? Options = null,
-    bool RecursionDesired = true);
+    bool RecursionDesired = true,
+    ushort? TransactionId = null,
+    ushort QueryClass = 1);

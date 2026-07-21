@@ -12,7 +12,16 @@ namespace DnsClientX {
         ushort QuestionCount,
         ushort AnswerCount,
         ushort AuthorityCount,
-        ushort AdditionalCount);
+        ushort AdditionalCount,
+        ushort TransactionId,
+        bool IsResponse,
+        int OperationCode,
+        bool IsAuthoritativeAnswer,
+        bool AuthenticData,
+        bool CheckingDisabled);
+
+    /// <summary>Represents a parsed DNS question.</summary>
+    public readonly record struct DnsWireQuestionInfo(string Name, ushort Type, ushort Class);
 
     /// <summary>
     /// Represents basic EDNS (OPT) information extracted from a DNS message (wire format).
@@ -65,9 +74,38 @@ namespace DnsClientX {
 	                QuestionCount: qd,
 	                AnswerCount: an,
 	                AuthorityCount: ns,
-	                AdditionalCount: ar);
+	                AdditionalCount: ar,
+	                TransactionId: ReadUInt16At(data, 0),
+	                IsResponse: (flags & 0x8000) != 0,
+	                OperationCode: (flags >> 11) & 0x0F,
+	                IsAuthoritativeAnswer: (flags & 0x0400) != 0,
+	                AuthenticData: (flags & 0x0020) != 0,
+	                CheckingDisabled: (flags & 0x0010) != 0);
 
 	            return true;
+        }
+
+        /// <summary>Attempts to parse a question by zero-based index.</summary>
+        public static bool TryParseQuestion(byte[]? data, int index, out DnsWireQuestionInfo question) {
+            question = default;
+            if (data == null || data.Length < DnsHeaderLength || index < 0) return false;
+            ushort questionCount = ReadUInt16At(data, QuestionCountOffset);
+            if (index >= questionCount) return false;
+            try {
+                var reader = new DnsWireReader(data, DnsHeaderLength);
+                for (int i = 0; i <= index; i++) {
+                    string name = reader.ReadName();
+                    ushort type = reader.ReadUInt16();
+                    ushort queryClass = reader.ReadUInt16();
+                    if (i == index) {
+                        question = new DnsWireQuestionInfo(name.TrimEnd('.'), type, queryClass);
+                        return true;
+                    }
+                }
+            } catch (DnsClientException) {
+                return false;
+            }
+            return false;
         }
 
         /// <summary>
@@ -110,6 +148,7 @@ namespace DnsClientX {
             }
 
             int rrCount = an + ns + ar;
+            bool sawOpt = false;
             for (int i = 0; i < rrCount; i++) {
                 if (!TrySkipName(data, ref offset)) {
                     return false;
@@ -131,14 +170,16 @@ namespace DnsClientX {
                 }
 
                 if (type == (ushort)DnsRecordType.OPT) {
+                    if (i < an + ns || sawOpt) return false;
+                    sawOpt = true;
                     edns = new DnsWireEdnsInfo(Supported: true, UdpPayloadSize: rrClass);
-                    return true;
                 }
 
                 offset += rdlen;
             }
 
-            edns = new DnsWireEdnsInfo(Supported: false, UdpPayloadSize: 0);
+            if (offset != data.Length) return false;
+            if (!sawOpt) edns = new DnsWireEdnsInfo(Supported: false, UdpPayloadSize: 0);
             return true;
         }
 

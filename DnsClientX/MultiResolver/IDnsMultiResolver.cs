@@ -12,6 +12,11 @@ namespace DnsClientX {
         Task<DnsResponse> QueryAsync(string name, DnsRecordType type, CancellationToken ct = default);
 
         /// <summary>
+        /// Queries every configured endpoint and returns one response per endpoint in configuration order.
+        /// </summary>
+        Task<DnsResponse[]> QueryAllAsync(string name, DnsRecordType type, CancellationToken ct = default);
+
+        /// <summary>
         /// Queries multiple names of the same record type, preserving input order.
         /// </summary>
         Task<DnsResponse[]> QueryBatchAsync(string[] names, DnsRecordType type, CancellationToken ct = default);

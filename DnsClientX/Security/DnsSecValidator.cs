@@ -7,7 +7,10 @@ using System.Text;
 
 namespace DnsClientX {
     /// <summary>
-    /// Provides helper methods for validating DNSSEC responses against the built-in root trust anchors.
+    /// Provides compatibility helpers for inspecting DNSKEY, DS, and DNSKEY RRSIG material already
+    /// present in a response. For end-to-end DNSSEC answer and denial validation, use
+    /// <see cref="ClientX.Resolve(string,DnsRecordType,bool,bool,bool,bool,int,int,bool,bool,System.Threading.CancellationToken)"/>
+    /// with <c>validateDnsSec: true</c> and inspect <see cref="DnsResponse.DnsSecValidationStatus"/>.
     /// </summary>
     public static class DnsSecValidator {
         private readonly struct DnsKeyRecord {
@@ -65,6 +68,32 @@ namespace DnsClientX {
                 Signature = signature;
             }
         }
+
+        /// <summary>Computes the RFC 4034 key tag for DNSKEY presentation-format RDATA.</summary>
+        /// <param name="dnskeyRecord">DNSKEY RDATA in the form flags, protocol, algorithm, and Base64 key.</param>
+        /// <returns>The key tag, or zero when the value cannot be parsed.</returns>
+        public static ushort ComputeKeyTag(string dnskeyRecord) {
+            if (string.IsNullOrWhiteSpace(dnskeyRecord)) return 0;
+            string[] parts = dnskeyRecord.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 4 || !ushort.TryParse(parts[0], out ushort flags) ||
+                !byte.TryParse(parts[1], out byte protocol)) return 0;
+
+            DnsKeyAlgorithm algorithm;
+            if (Enum.TryParse(parts[2], true, out DnsKeyAlgorithm named)) {
+                algorithm = named;
+            } else if (byte.TryParse(parts[2], out byte numeric) &&
+                       Enum.IsDefined(typeof(DnsKeyAlgorithm), (int)numeric)) {
+                algorithm = (DnsKeyAlgorithm)numeric;
+            } else {
+                return 0;
+            }
+
+            try {
+                return ComputeKeyTag(flags, protocol, algorithm, Convert.FromBase64String(parts[3]));
+            } catch (FormatException) {
+                return 0;
+            }
+        }
         /// <summary>
         /// Validates the supplied <see cref="DnsResponse"/> against known root DS records.
         /// </summary>
@@ -117,14 +146,18 @@ namespace DnsClientX {
         }
 
         /// <summary>
-        /// Validates DNSSEC data by verifying DS records and RRSIG signatures for DNSKEY sets.
+        /// Inspects DNSSEC key material by verifying DS records and RRSIG signatures for DNSKEY sets
+        /// that are already present in the supplied response. This method does not fetch a chain of
+        /// trust and does not validate arbitrary answer RRsets or authenticated denial proofs.
         /// </summary>
         /// <param name="response">DNS response to validate.</param>
         /// <returns><c>true</c> when validation succeeds; otherwise <c>false</c>.</returns>
         public static bool ValidateChain(DnsResponse response) => ValidateChain(response, out _);
 
         /// <summary>
-        /// Validates DNSSEC data by verifying DS records and RRSIG signatures for DNSKEY sets.
+        /// Inspects DNSSEC key material by verifying DS records and RRSIG signatures for DNSKEY sets
+        /// that are already present in the supplied response. This method does not fetch a chain of
+        /// trust and does not validate arbitrary answer RRsets or authenticated denial proofs.
         /// </summary>
         /// <param name="response">DNS response to validate.</param>
         /// <param name="message">Detailed failure message when validation fails.</param>

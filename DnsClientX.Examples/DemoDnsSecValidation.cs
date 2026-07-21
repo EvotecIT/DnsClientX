@@ -7,7 +7,8 @@ namespace DnsClientX.Examples {
     internal class DemoDnsSecValidation {
         public static async Task Example() {
             using var client = new ClientX(DnsEndpoint.Cloudflare);
-            DnsResponse response = await client.Resolve("evotec.pl", DnsRecordType.DNSKEY, requestDnsSec: true, validateDnsSec: true);
+            DnsResponse response = await client.Resolve("cloudflare.com", DnsRecordType.A, validateDnsSec: true);
+            Settings.Logger.WriteInformation($"Local DNSSEC status: {response.DnsSecValidationStatus} ({response.DnsSecValidationMessage})");
             response.DisplayTable();
         }
     }

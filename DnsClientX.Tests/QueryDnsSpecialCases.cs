@@ -15,7 +15,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.CloudflareSecurity)]
         [InlineData(DnsEndpoint.CloudflareWireFormat)]
         [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
-        [InlineData(DnsEndpoint.CloudflareOdoh)]
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
