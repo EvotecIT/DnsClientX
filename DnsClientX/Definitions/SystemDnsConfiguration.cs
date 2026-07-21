@@ -70,7 +70,12 @@ namespace DnsClientX {
 
             var matches = policyRules
                 .Select(rule => rule.TryMatch(name, out string matchedNamespace, out int specificity)
-                    ? new { Rule = rule, Namespace = matchedNamespace, Specificity = specificity }
+                    ? new {
+                        Rule = rule,
+                        Namespace = matchedNamespace,
+                        CanonicalNamespace = SystemDnsPolicyRule.CanonicalizeNamespaceExpression(matchedNamespace),
+                        Specificity = specificity
+                    }
                     : null)
                 .Where(match => match != null)
                 .OrderByDescending(match => match!.Specificity)
@@ -80,7 +85,7 @@ namespace DnsClientX {
             var best = matches[0]!;
             var conflicts = matches
                 .Where(match => match!.Specificity == best.Specificity
-                    && match.Namespace.Equals(best.Namespace, StringComparison.OrdinalIgnoreCase))
+                    && match.CanonicalNamespace.Equals(best.CanonicalNamespace, StringComparison.OrdinalIgnoreCase))
                 .ToArray();
             if (conflicts.Length > 1) {
                 return new SystemDnsPolicyMatch(

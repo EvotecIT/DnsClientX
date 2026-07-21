@@ -107,6 +107,14 @@ namespace DnsClientX {
             return specificity >= 0;
         }
 
+        internal static string CanonicalizeNamespaceExpression(string value) {
+            string candidate = (value ?? string.Empty).Trim();
+            if (candidate == ".") return ".";
+            bool suffix = candidate.StartsWith(".", StringComparison.Ordinal);
+            string canonical = CanonicalizeDnsName(suffix ? candidate.Substring(1) : candidate);
+            return suffix ? "." + canonical : canonical;
+        }
+
         private static string CanonicalizeDnsName(string value) {
             string trimmed = (value ?? string.Empty).Trim().TrimEnd('.');
             if (trimmed.Length == 0) return string.Empty;

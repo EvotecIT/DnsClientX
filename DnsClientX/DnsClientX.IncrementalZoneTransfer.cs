@@ -124,6 +124,12 @@ namespace DnsClientX {
             }
 
             if (records[1].Type != DnsRecordType.SOA) {
+                for (int recordIndex = 1; recordIndex < records.Count - 1; recordIndex++) {
+                    if (records[recordIndex].Type == DnsRecordType.SOA) {
+                        throw new DnsClientException(
+                            "IXFR AXFR fallback contains an SOA record outside its opening and closing boundaries.");
+                    }
+                }
                 return new IncrementalZoneTransferResult(
                     IncrementalZoneTransferKind.FullTransfer,
                     current,

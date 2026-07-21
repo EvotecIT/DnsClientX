@@ -88,6 +88,24 @@ namespace DnsClientX.Tests {
             Assert.Equal(3, result.FullZoneRecords.Count);
         }
 
+        /// <summary>An AXFR fallback cannot contain an SOA between its opening and closing boundaries.</summary>
+        [Fact]
+        public async Task RejectsFullTransferFallbackWithIntermediateSoa() {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            TransferServer server = RunServer(BuildMessage("example.com",
+                Soa(4),
+                A("first.example.com", 192, 0, 2, 4),
+                Soa(3),
+                A("second.example.com", 192, 0, 2, 5),
+                Soa(4)), cts.Token);
+            using var client = CreateClient(server.Port);
+
+            DnsClientException error = await Assert.ThrowsAsync<DnsClientException>(
+                () => client.IncrementalZoneTransferAsync("example.com", 1, cts.Token));
+
+            Assert.Contains("outside", error.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
         /// <summary>Rejects gaps in the old-to-new SOA serial chain.</summary>
         [Fact]
         public async Task RejectsBrokenSerialChain() {

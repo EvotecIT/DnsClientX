@@ -68,6 +68,22 @@ namespace DnsClientX.Tests {
             Assert.Contains("Conflicting NRPT rules", match.Diagnostic);
         }
 
+        /// <summary>Equivalent Unicode and Punycode namespace spellings conflict deterministically.</summary>
+        [Fact]
+        public void ConflictingEquivalentIdnNamespaceRulesAreNotApplied() {
+            var configuration = CreateConfiguration(
+                Rule("unicode", ".münchen.example", "192.0.2.8"),
+                Rule("punycode", ".xn--mnchen-3ya.example", "192.0.2.9"));
+
+            SystemDnsPolicyMatch match = Assert.IsType<SystemDnsPolicyMatch>(
+                configuration.MatchPolicy("host.xn--mnchen-3ya.example"));
+
+            Assert.False(match.CanApply);
+            Assert.Contains("unicode", match.RuleId);
+            Assert.Contains("punycode", match.RuleId);
+            Assert.Contains("Conflicting NRPT rules", match.Diagnostic);
+        }
+
         /// <summary>A system query snapshot selects the policy-specific resolver.</summary>
         [Fact]
         public void SystemQuerySnapshotUsesPolicyResolver() {
