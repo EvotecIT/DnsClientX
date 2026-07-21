@@ -1,3 +1,4 @@
+using System.Net;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -73,6 +74,28 @@ namespace DnsClientX.Tests {
 
             Assert.Equal(2, response.Additional.Length);
             Assert.DoesNotContain(response.Additional, item => item.Name == "attacker.local");
+        }
+
+        /// <summary>IPv6 link-local multicast destinations carry the selected interface scope.</summary>
+        [Fact]
+        public void ScopesIpv6TargetToSelectedInterface() {
+            IPEndPoint target = DnsWireResolveMulticast.CreateTargetEndPoint(
+                IPAddress.Parse("ff02::fb"),
+                5353,
+                17);
+
+            Assert.Equal(17, target.Address.ScopeId);
+            Assert.Equal(5353, target.Port);
+        }
+
+        /// <summary>IPv4 multicast destinations are not rewritten with an IPv6 scope.</summary>
+        [Fact]
+        public void LeavesIpv4TargetUnscoped() {
+            IPAddress address = IPAddress.Parse("224.0.0.251");
+            IPEndPoint target = DnsWireResolveMulticast.CreateTargetEndPoint(address, 5353, 17);
+
+            Assert.Equal(address, target.Address);
+            Assert.Equal(5353, target.Port);
         }
     }
 }

@@ -6,7 +6,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Resolves the first TXT record for the specified endpoint.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -17,9 +17,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-
-
-
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
@@ -35,7 +32,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Resolves the first A record for the specified endpoint.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -46,9 +43,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-
-
-
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
@@ -64,7 +58,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Resolves the first TXT record synchronously for the specified endpoint.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -90,7 +84,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Resolves the first A record synchronously for the specified endpoint.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]

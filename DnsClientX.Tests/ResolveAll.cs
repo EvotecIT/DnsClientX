@@ -9,7 +9,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Resolves TXT records from the specified endpoint using asynchronous API.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -28,6 +28,7 @@ namespace DnsClientX.Tests {
         public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = await Client.ResolveAll("github.com", DnsRecordType.TXT);
+            Assert.NotEmpty(aAnswers);
             foreach (DnsAnswer answer in aAnswers) {
                 Assert.True(answer.Name == "github.com");
                 Assert.True((bool)(answer.Type == DnsRecordType.TXT));
@@ -38,7 +39,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Resolves A records from the specified endpoint using asynchronous API.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -49,9 +50,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-
-
-
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
 #if DNS_OVER_QUIC
@@ -60,6 +58,7 @@ namespace DnsClientX.Tests {
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = await Client.ResolveAll("evotec.pl", DnsRecordType.A);
+            Assert.NotEmpty(aAnswers);
             foreach (DnsAnswer answer in aAnswers) {
                 Assert.True(answer.Name == "evotec.pl");
                 Assert.True((bool)(answer.Type == DnsRecordType.A));
@@ -69,7 +68,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Resolves TXT records synchronously using the specified endpoint.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -88,6 +87,7 @@ namespace DnsClientX.Tests {
         public void ShouldWorkForTXT_Sync(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = Client.ResolveAllSync("github.com", DnsRecordType.TXT);
+            Assert.NotEmpty(aAnswers);
             foreach (DnsAnswer answer in aAnswers) {
                 Assert.True(answer.Name == "github.com");
                 Assert.True((bool)(answer.Type == DnsRecordType.TXT));
@@ -98,7 +98,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Resolves A records synchronously using the specified endpoint.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -117,6 +117,7 @@ namespace DnsClientX.Tests {
         public void ShouldWorkForA_Sync(DnsEndpoint endpoint) {
             using var Client = new ClientX(endpoint);
             DnsAnswer[] aAnswers = Client.ResolveAllSync("evotec.pl", DnsRecordType.A);
+            Assert.NotEmpty(aAnswers);
             foreach (DnsAnswer answer in aAnswers) {
                 Assert.True(answer.Name == "evotec.pl");
                 Assert.True((bool)(answer.Type == DnsRecordType.A));

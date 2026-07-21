@@ -81,7 +81,7 @@ namespace DnsClientX {
             using var client = CreateClient(multicastAddress, endpointConfiguration.MulticastInterfaceIndex);
             JoinGroup(client, multicastAddress, endpointConfiguration.MulticastInterfaceIndex);
             try {
-                var target = new IPEndPoint(multicastAddress, port);
+                IPEndPoint target = CreateTargetEndPoint(multicastAddress, port, endpointConfiguration.MulticastInterfaceIndex);
 #if NET5_0_OR_GREATER
                 await client.SendAsync(queryBytes, target, cancellationToken).ConfigureAwait(false);
 #else
@@ -251,6 +251,16 @@ namespace DnsClientX {
 #else
             client.JoinMulticastGroup(multicastAddress, 50);
 #endif
+        }
+
+        /// <summary>Creates a multicast destination, applying the selected interface as an IPv6 scope identifier.</summary>
+        internal static IPEndPoint CreateTargetEndPoint(IPAddress multicastAddress, int port, int? interfaceIndex) {
+            if (multicastAddress.AddressFamily == AddressFamily.InterNetworkV6 && interfaceIndex.HasValue) {
+                var scopedAddress = new IPAddress(multicastAddress.GetAddressBytes(), interfaceIndex.Value);
+                return new IPEndPoint(scopedAddress, port);
+            }
+
+            return new IPEndPoint(multicastAddress, port);
         }
 
         private static IPAddress? FindInterfaceAddress(AddressFamily family, int? interfaceIndex) {

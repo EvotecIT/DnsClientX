@@ -11,10 +11,12 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.GoogleWireFormatPost)]
         [InlineData(DnsEndpoint.OpenDNS)]
         [InlineData(DnsEndpoint.OpenDNSFamily)]
-        [Theory]
+        [RealDnsTheory]
         public async Task ShouldWorkForTXT(DnsEndpoint endpoint) {
             if (TestSkipHelpers.ShouldSkipEndpoint(endpoint)) return;
             var response = await ClientX.QueryDns("github.com", DnsRecordType.TXT, endpoint);
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.NotEmpty(response.Answers);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "github.com");
                 Assert.True(answer.Type == DnsRecordType.TXT);
@@ -25,7 +27,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures A record queries succeed for the specified endpoint.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -35,12 +37,14 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
         [InlineData(DnsEndpoint.Google)]
         [InlineData(DnsEndpoint.GoogleWireFormat)]
-[InlineData(DnsEndpoint.GoogleWireFormatPost)]
-[InlineData(DnsEndpoint.OpenDNS)]
-[InlineData(DnsEndpoint.OpenDNSFamily)]
+        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
+        [InlineData(DnsEndpoint.OpenDNS)]
+        [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldWorkForA(DnsEndpoint endpoint) {
             if (TestSkipHelpers.ShouldSkipEndpoint(endpoint)) return;
             var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, endpoint);
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.NotEmpty(response.Answers);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "evotec.pl");
                 Assert.True(answer.Type == DnsRecordType.A);
@@ -51,7 +55,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures reverse PTR lookups succeed for the specified endpoint.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -67,6 +71,8 @@ namespace DnsClientX.Tests {
         public async Task ShouldWorkForPTR(DnsEndpoint endpoint) {
             if (TestSkipHelpers.ShouldSkipEndpoint(endpoint)) return;
             var response = await ClientX.QueryDns("1.1.1.1", DnsRecordType.PTR, endpoint);
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.NotEmpty(response.Answers);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Data == "one.one.one.one");
                 Assert.True(answer.Name == "1.1.1.1.in-addr.arpa");

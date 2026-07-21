@@ -9,6 +9,7 @@ namespace DnsClientX.Tests {
     /// <summary>
     /// Tests disposal behavior of UDP clients.
     /// </summary>
+    [Collection("NoParallel")]
     public class UdpClientDisposeTests {
         private static byte[] CreateDnsHeader() {
             byte[] bytes = new byte[12];

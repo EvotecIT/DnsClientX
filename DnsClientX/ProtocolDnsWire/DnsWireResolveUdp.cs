@@ -154,9 +154,6 @@ namespace DnsClientX {
         /// <returns>Raw DNS response bytes.</returns>
         internal static async Task<byte[]> SendQueryOverUdp(UdpClient udpClient, byte[] query, IPAddress ipAddress, int port, int timeoutMilliseconds, CancellationToken cancellationToken, bool connect = true) {
             // The caller owns udpClient disposal; keep lifetime management in one place.
-            if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6) {
-                udpClient.Client.DualMode = true;
-            }
             if (connect) {
                 var serverEndpoint = new IPEndPoint(ipAddress, port);
                 udpClient.Connect(serverEndpoint);

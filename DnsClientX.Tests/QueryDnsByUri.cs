@@ -8,7 +8,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures TXT queries succeed when the endpoint is specified via URI.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData("https://1.1.1.1/dns-query", DnsRequestFormat.DnsOverHttpsJSON)]
         [InlineData("https://8.8.8.8/resolve", DnsRequestFormat.DnsOverHttpsJSON)]
         //[InlineData("https://9.9.9.11/dns-query", DnsRequestFormat.DnsOverHttps)]
@@ -16,6 +16,8 @@ namespace DnsClientX.Tests {
         public async Task ShouldWorkForTXT(string baseUri, DnsRequestFormat requestFormat) {
             Uri uri = new Uri(baseUri);
             var response = await ClientX.QueryDns("github.com", DnsRecordType.TXT, uri, requestFormat);
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.NotEmpty(response.Answers);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "github.com");
                 Assert.True(answer.Type == DnsRecordType.TXT);
@@ -26,7 +28,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures A record queries succeed when the endpoint is specified via URI.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData("https://1.1.1.1/dns-query", DnsRequestFormat.DnsOverHttpsJSON)]
         [InlineData("https://8.8.8.8/resolve", DnsRequestFormat.DnsOverHttpsJSON)]
         //[InlineData("https://9.9.9.10/dns-query", DnsRequestFormat.DnsOverHttps)]
@@ -35,6 +37,8 @@ namespace DnsClientX.Tests {
         public async Task ShouldWorkForA(string baseUri, DnsRequestFormat requestFormat) {
             Uri uri = new Uri(baseUri);
             var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, uri, requestFormat);
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.NotEmpty(response.Answers);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Name == "evotec.pl");
                 Assert.True(answer.Type == DnsRecordType.A);

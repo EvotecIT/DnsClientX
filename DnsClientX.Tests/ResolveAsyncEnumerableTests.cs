@@ -12,7 +12,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures multiple responses are yielded for multiple names and types.
         /// </summary>
-        [Fact]
+        [RealDnsFact]
         public async Task ResolveAsyncEnumerable_MultipleResponses() {
             using var client = new ClientX(DnsEndpoint.System);
             var names = new[] { "github.com", "microsoft.com" };
@@ -21,7 +21,9 @@ namespace DnsClientX.Tests {
 
             await foreach (var response in client.ResolveAsyncEnumerable(names, types, retryOnTransient: false)) {
                 Assert.NotNull(response);
+                Assert.Equal(DnsResponseCode.NoError, response.Status);
                 Assert.NotNull(response.Answers);
+                Assert.NotEmpty(response.Answers);
                 count++;
             }
 

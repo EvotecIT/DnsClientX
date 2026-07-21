@@ -9,6 +9,7 @@ namespace DnsClientX.Tests {
     /// <summary>
     /// Tests fallback behavior from UDP to TCP queries.
     /// </summary>
+    [Collection("NoParallel")]
     public class DnsWireFallbackTests {
         private static int GetFreeUdpPort() {
             using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);

@@ -6,7 +6,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Queries an invalid server expecting a timeout.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData("8.8.1.1", DnsRequestFormat.DnsOverUDP)]
         [InlineData("a1akam1.net", DnsRequestFormat.DnsOverUDP)]
         public async Task ShouldFailWithTimeout(string hostName, DnsRequestFormat requestFormat) {
@@ -18,7 +18,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Resolves using a <see cref="ClientX"/> instance pointing at an invalid server expecting failure.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData("8.8.1.1", DnsRequestFormat.DnsOverUDP)]
         [InlineData("a1akam1.net", DnsRequestFormat.DnsOverUDP)]
         public async Task ShouldFailWithTimeoutResolve(string hostName, DnsRequestFormat requestFormat) {

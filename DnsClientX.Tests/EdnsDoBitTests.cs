@@ -9,6 +9,7 @@ namespace DnsClientX.Tests {
     /// <summary>
     /// Tests for EDNS DO bit handling.
     /// </summary>
+    [Collection("NoParallel")]
     public class EdnsDoBitTests {
         private static byte[] CreateDnsHeader() {
             byte[] bytes = new byte[12];
