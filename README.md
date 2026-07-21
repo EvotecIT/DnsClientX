@@ -388,7 +388,7 @@ This behavior is by design and reflects the modern, distributed nature of intern
 - Windows and other .NET platforms enumerate every active interface. Interfaces are ordered by the native Windows interface metric when available, then by gateway presence and a stable interface order.
 - Unix-like systems can fall back to `/etc/resolv.conf`, including `nameserver`, `search`/`domain`, and `options ndots:n`.
 - Configured loopback and link-local resolvers are preserved because local forwarding stubs and IPv6 scoped DNS servers are valid. Unspecified and multicast addresses are rejected.
-- UDP clients reuse healthy connected sockets and automatically retry a truncated response over TCP when `UseTcpFallback` is enabled. TCP and DoT connections are currently per query.
+- UDP clients reuse healthy connected sockets and automatically retry a truncated response over TCP when `UseTcpFallback` is enabled. TCP and DoT clients reuse persistent RFC 7766 connections, pipeline bounded concurrent queries, and dispatch out-of-order responses by transaction ID.
 - There is no silent public-resolver substitution. Missing system DNS is an explicit configuration error unless the caller opts in to `SystemDnsFallback.PublicResolvers`.
 
 ```csharp
@@ -411,6 +411,8 @@ Console.WriteLine(string.Join(", ", discovered.SearchDomains));
 
 Search expansion is enabled by default for system endpoints and can be disabled with `Configuration.UseSystemSearchDomains`. A trailing dot is always treated as absolute, and PTR inputs are never search-expanded.
 
+Persistent TCP/DoT reuse is enabled by default. Set `EnableTcpConnectionReuse = false` only for compatibility diagnostics with a broken server. `MaxTcpQueriesPerConnection` bounds in-flight queries on one connection and defaults to 128. Caller cancellation removes only that transaction; late responses are consumed without completing another query.
+
 This direct DNS client does not delegate name resolution to the operating-system resolver service. In particular, it does not interpret Windows NRPT or every platform-specific per-namespace/VPN routing policy. If an application depends on those policies, choose the correct resolver explicitly or use the operating-system name-resolution API. Configure a `Configuration` instance before issuing concurrent queries; each query takes a defensive snapshot, but concurrent mutation of shared configuration is not a supported control plane.
 
 ## TO DO
@@ -420,9 +422,8 @@ This direct DNS client does not delegate name resolution to the operating-system
 > If you would like to help, please do so by opening an issue or a pull request.
 > The public API may change while protocol coverage and RFC conformance continue to mature.
 
-- [ ] Build the separately reviewed optional protocol packages described in [OPTIONAL-PROTOCOLS.md](OPTIONAL-PROTOCOLS.md); do not add cryptographic dependencies to the core package
-- [ ] Add more tests
-- [ ] Go thru all additional parameters and make sure they have proper responses
+- [ ] Complete the concrete stabilization, transport, cache, system-policy, zone, and DNSSEC work tracked in [PLAN.md](PLAN.md)
+- [ ] Build specialized cryptography and privacy protocols as separately reviewed optional packages; keep the core dependency-light
 
 ## Usage in .NET
 
@@ -1069,9 +1070,25 @@ DnsClientTelemetry.QueryCompleted += (_, query) =>
 
 `LocalEndPoint` is supported for UDP, TCP, DoT, and DoQ queries and for RFC 2136 updates through the shared TCP engine. HTTP-based transports reject it explicitly because `HttpClient` does not expose a portable per-query source binding. Modern targets also emit `ActivitySource` spans and `Meter` counters under the name `DnsClientX`; when no event, activity, or meter listener is attached, query telemetry does not allocate a scope.
 
+When response caching is enabled, `DnsResponse.ResponseSource` reports `Network`, `Cache`, or `CoalescedNetwork`. Exact-key concurrent misses share one in-flight query, but each caller receives an independent response clone. Canceling one waiter does not cancel the shared fetch.
+
 ### Library Comparison Benchmark
 
-`DnsClientX.Benchmarks` contains a BenchmarkDotNet comparison with DnsClient.NET. It uses a controlled loopback DNS responder by default so client overhead is not confused with Internet or resolver latency. To run against a resolver you control:
+`DnsClientX.Benchmarks` contains separate BenchmarkDotNet suites for the full wire parser, cache hit/miss paths, and a client comparison with DnsClient.NET. The client comparison uses a controlled loopback DNS responder by default so client overhead is not confused with Internet or resolver latency.
+
+Run benchmarks one process at a time so BenchmarkDotNet build artifacts do not contend with each other:
+
+```powershell
+# Discover or smoke-test the parser and cache suites.
+dotnet run -c Release --project .\DnsClientX.Benchmarks -- --list flat
+dotnet run -c Release --project .\DnsClientX.Benchmarks -- --filter '*DnsWireParserBenchmark*' --job Dry
+dotnet run -c Release --project .\DnsClientX.Benchmarks -- --filter '*DnsResponseCacheBenchmark*' --job Dry
+
+# Run the controlled loopback library comparison.
+dotnet run -c Release --project .\DnsClientX.Benchmarks -- --filter '*DnsLibraryNetworkBenchmark*'
+```
+
+To run the comparison against a resolver you control:
 
 ```powershell
 $env:DNS_BENCHMARK_SERVER = '192.0.2.53'
@@ -1081,6 +1098,17 @@ dotnet run -c Release --project .\DnsClientX.Benchmarks -- --filter '*DnsLibrary
 ```
 
 Both clients disable caching and retries, reuse their client instances, and perform one query per benchmark invocation. Treat lab results as environment-specific; use the loopback result for client overhead and the lab result only to detect material regressions under realistic network conditions.
+
+For concurrent scenarios, use the dependency-free `DnsClientX.LoadTests` runner rather than BenchmarkDotNet. It reports throughput, p50/p95/p99 latency, and failures for each requested concurrency level and can emit JSON for comparisons over time:
+
+```powershell
+dotnet run -c Release -f net10.0 --project .\DnsClientX.LoadTests -- `
+  --server 192.0.2.53 --name example.com --transport udp `
+  --concurrency 1,32,128 --requests 1000 --warmup 16 `
+  --json .\artifacts\dns-load.json
+```
+
+Use a resolver you own for sustained tests. The runner disables caching and retries, creates one reusable client per concurrency scenario, and returns a nonzero exit code when any request fails. Results compare complete query behavior; parser-only and cache-only costs belong in the microbenchmark suites above.
 
 ### Error Handling and Debugging
 

@@ -388,7 +388,8 @@ namespace DnsClientX {
                 configuration,
                 maxRetries: 1,
                 cancellationToken,
-                _udpClientPool).ConfigureAwait(false);
+                _udpClientPool,
+                configuration.EnableTcpConnectionReuse ? _streamConnectionPool : null).ConfigureAwait(false);
         }
 
         internal static Referral? FindReferral(

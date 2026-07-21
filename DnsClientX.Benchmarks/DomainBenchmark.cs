@@ -17,7 +17,10 @@ public class DomainBenchmark {
     private ClientX _doh = null!;
     private ClientX _doq = null!;
 
-    /// <summary>Creates one client per transport so the benchmark includes connection reuse.</summary>
+    /// <summary>
+    /// Creates one client per transport so HTTP, QUIC, TCP, and DoT can exercise their internal
+    /// connection-reuse paths across benchmark invocations.
+    /// </summary>
     [GlobalSetup]
     public void Setup() {
         _udp = new ClientX("1.1.1.1", DnsRequestFormat.DnsOverUDP);

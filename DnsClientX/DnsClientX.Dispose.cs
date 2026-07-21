@@ -48,6 +48,7 @@ namespace DnsClientX {
                     out HttpClient? mainClient)) return;
             if (disposing) {
                 _udpClientPool.Dispose();
+                _streamConnectionPool.Dispose();
 #if NET8_0_OR_GREATER
                 _quicConnectionPool.DisposeAsync().AsTask().GetAwaiter().GetResult();
 #endif
@@ -95,6 +96,7 @@ namespace DnsClientX {
                     out HttpClient? mainClient)) return;
 
             _udpClientPool.Dispose();
+            await _streamConnectionPool.DisposeAsync().ConfigureAwait(false);
 #if NET8_0_OR_GREATER
             await _quicConnectionPool.DisposeAsync().ConfigureAwait(false);
 #endif

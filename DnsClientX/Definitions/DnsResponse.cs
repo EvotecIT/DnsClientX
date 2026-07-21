@@ -44,6 +44,14 @@ namespace DnsClientX {
         [JsonIgnore]
         public int RetryCount { get; internal set; }
 
+        /// <summary>Gets whether this caller used the network, the response cache, or an identical in-flight query.</summary>
+        [JsonPropertyName("response_source")]
+        public DnsResponseSource ResponseSource { get; internal set; } = DnsResponseSource.Network;
+
+        /// <summary>Gets whether the response was served from the TTL-bounded response cache.</summary>
+        [JsonIgnore]
+        public bool ServedFromCache => ResponseSource == DnsResponseSource.Cache;
+
         /// <summary>
         /// Indicates whether the response was truncated. This can occur if the response is larger than the maximum size allowed by the transmission channel.
         /// This is typically false for DNS over HTTPS, as most providers support the maximum response size.

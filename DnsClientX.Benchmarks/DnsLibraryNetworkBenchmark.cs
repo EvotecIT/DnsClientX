@@ -103,50 +103,8 @@ public class DnsLibraryNetworkBenchmark {
         using CancellationTokenRegistration registration = cancellationToken.Register(server.Dispose);
         while (!cancellationToken.IsCancellationRequested) {
             UdpReceiveResult request = await server.ReceiveAsync().ConfigureAwait(false);
-            byte[] response = CreateAResponse(request.Buffer);
+            byte[] response = ControlledDnsMessages.CreateAResponse(request.Buffer);
             await server.SendAsync(response, response.Length, request.RemoteEndPoint).ConfigureAwait(false);
         }
-    }
-
-    private static byte[] CreateAResponse(byte[] query) {
-        int questionEnd = 12;
-        while (questionEnd < query.Length && query[questionEnd] != 0) {
-            int labelLength = query[questionEnd];
-            if (labelLength > 63 || questionEnd + labelLength >= query.Length) {
-                throw new InvalidOperationException("The controlled resolver received an invalid question name.");
-            }
-            questionEnd += labelLength + 1;
-        }
-        questionEnd += 5; // root label plus QTYPE and QCLASS
-        if (questionEnd > query.Length) throw new InvalidOperationException("The controlled resolver received a truncated question.");
-
-        var response = new byte[questionEnd + 16];
-        Buffer.BlockCopy(query, 0, response, 0, questionEnd);
-        response[2] = (byte)(response[2] | 0x80);
-        response[3] = (byte)(response[3] | 0x80);
-        response[6] = 0;
-        response[7] = 1;
-        response[8] = 0;
-        response[9] = 0;
-        response[10] = 0;
-        response[11] = 0;
-        int offset = questionEnd;
-        response[offset++] = 0xc0;
-        response[offset++] = 0x0c;
-        response[offset++] = 0;
-        response[offset++] = 1;
-        response[offset++] = 0;
-        response[offset++] = 1;
-        response[offset++] = 0;
-        response[offset++] = 0;
-        response[offset++] = 0;
-        response[offset++] = 60;
-        response[offset++] = 0;
-        response[offset++] = 4;
-        response[offset++] = 192;
-        response[offset++] = 0;
-        response[offset++] = 2;
-        response[offset] = 10;
-        return response;
     }
 }

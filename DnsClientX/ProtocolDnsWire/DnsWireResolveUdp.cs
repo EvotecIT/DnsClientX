@@ -23,9 +23,10 @@ namespace DnsClientX {
         /// <param name="maxRetries">Maximum number of retry attempts.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <param name="clientPool">Optional pool that reuses connected UDP sockets owned by a high-level client.</param>
+        /// <param name="streamConnectionPool">Optional owner for persistent TCP fallback connections.</param>
         /// <returns>The DNS response.</returns>
         /// <exception cref="ArgumentNullException"></exception>
-        internal static async Task<DnsResponse> ResolveWireFormatUdp(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, int maxRetries, CancellationToken cancellationToken, DnsUdpClientPool? clientPool = null) {
+        internal static async Task<DnsResponse> ResolveWireFormatUdp(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, int maxRetries, CancellationToken cancellationToken, DnsUdpClientPool? clientPool = null, DnsStreamConnectionPool? streamConnectionPool = null) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             var query = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration,
@@ -98,7 +99,7 @@ namespace DnsClientX {
                     if (response.IsTruncated && endpointConfiguration.UseTcpFallback) {
                         usedTcpFallback = true;
                         response = await DnsWireResolveTcp.ResolveWireFormatTcp(address.ToString(), port, name, type, requestDnsSec,
-                            validateDnsSec, debug, endpointConfiguration, cancellationToken).ConfigureAwait(false);
+                            validateDnsSec, debug, endpointConfiguration, cancellationToken, streamConnectionPool).ConfigureAwait(false);
                     }
                     response.AddServerDetails(endpointConfiguration, usedTcpFallback ? Transport.Tcp : Transport.Udp);
                     return response;

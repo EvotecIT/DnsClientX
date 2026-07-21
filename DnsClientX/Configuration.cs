@@ -191,6 +191,17 @@ namespace DnsClientX {
         public int MaxConnectionsPerServer { get; set; } = DefaultMaxConnectionsPerServer;
 
         /// <summary>
+        /// Gets or sets whether standard TCP and DoT queries reuse persistent RFC 7766 connections.
+        /// Disable only for compatibility diagnostics with a server that cannot support connection reuse.
+        /// </summary>
+        public bool EnableTcpConnectionReuse { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets the maximum number of pipelined DNS queries awaiting responses on one TCP or DoT connection.
+        /// </summary>
+        public int MaxTcpQueriesPerConnection { get; set; } = 128;
+
+        /// <summary>
         /// Optional cap for client-side query parallelism when resolving multiple names.
         /// When null, the library uses its current behavior (no explicit cap).
         /// When set to a positive value, array-based resolve helpers will limit
