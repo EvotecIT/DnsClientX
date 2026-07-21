@@ -183,6 +183,10 @@ namespace DnsClientX {
         [JsonIgnore]
         public DnsResolverEndpoint? UsedEndpoint { get; internal set; }
 
+        /// <summary>Gets the Windows NRPT rule applied to this response, when a system endpoint matched one.</summary>
+        [JsonIgnore]
+        public SystemDnsPolicyMatch? AppliedSystemDnsPolicy { get; internal set; }
+
         /// <summary>
         /// Measured round-trip time for the query.
         /// </summary>
@@ -324,6 +328,7 @@ namespace DnsClientX {
 
             ServerAddress = configuration.Hostname;
             UsedTransport = usedTransport ?? MapTransport(configuration.RequestFormat);
+            AppliedSystemDnsPolicy = configuration.AppliedSystemDnsPolicy;
 
             RefreshDerivedData(configuration.Port, configuration.RequestFormat);
         }

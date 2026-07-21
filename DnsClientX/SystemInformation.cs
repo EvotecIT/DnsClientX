@@ -16,10 +16,18 @@ namespace DnsClientX {
         private static readonly object DnsConfigurationLock = new();
         private static Lazy<SystemDnsConfiguration> cachedDnsConfiguration = CreateLazyConfiguration();
         private static Func<List<string>>? dnsServerProvider;
+        private static Func<SystemDnsPolicyDiscoveryResult>? dnsPolicyProvider;
 
         internal static void SetDnsServerProvider(Func<List<string>>? provider) {
             lock (DnsConfigurationLock) {
                 dnsServerProvider = provider;
+                cachedDnsConfiguration = CreateLazyConfiguration();
+            }
+        }
+
+        internal static void SetDnsPolicyProvider(Func<SystemDnsPolicyDiscoveryResult>? provider) {
+            lock (DnsConfigurationLock) {
+                dnsPolicyProvider = provider;
                 cachedDnsConfiguration = CreateLazyConfiguration();
             }
         }
@@ -49,7 +57,9 @@ namespace DnsClientX {
                 discovered.SearchDomains,
                 discovered.Ndots,
                 SystemDnsDiscoverySource.PublicFallback,
-                discovered.Error);
+                discovered.Error,
+                discovered.PolicyRules,
+                discovered.PolicyError);
         }
 
         /// <summary>
@@ -128,6 +138,13 @@ namespace DnsClientX {
         }
 
         private static SystemDnsConfiguration LoadDnsConfiguration() {
+            SystemDnsPolicyDiscoveryResult policyDiscovery;
+            try {
+                policyDiscovery = dnsPolicyProvider?.Invoke() ?? WindowsNrptPolicyReader.Discover();
+            } catch (Exception ex) {
+                policyDiscovery = new SystemDnsPolicyDiscoveryResult(Array.Empty<SystemDnsPolicyRule>(), ex.Message);
+            }
+
             Func<List<string>>? provider = dnsServerProvider;
             if (provider != null) {
                 try {
@@ -135,14 +152,18 @@ namespace DnsClientX {
                         provider.Invoke() ?? new List<string>(),
                         Array.Empty<string>(),
                         1,
-                        SystemDnsDiscoverySource.CustomProvider);
+                        SystemDnsDiscoverySource.CustomProvider,
+                        policyRules: policyDiscovery.Rules,
+                        policyError: policyDiscovery.Error);
                 } catch (Exception ex) {
                     return new SystemDnsConfiguration(
                         Array.Empty<string>(),
                         Array.Empty<string>(),
                         1,
                         SystemDnsDiscoverySource.CustomProvider,
-                        ex.Message);
+                        ex.Message,
+                        policyDiscovery.Rules,
+                        policyDiscovery.Error);
                 }
             }
 
@@ -213,11 +234,20 @@ namespace DnsClientX {
                     effectiveSearchDomains,
                     resolvConf.Ndots,
                     SystemDnsDiscoverySource.NetworkInterfaces,
-                    discoveryError);
+                    discoveryError,
+                    policyDiscovery.Rules,
+                    policyDiscovery.Error);
             }
 
             if (resolvConf.HasDnsServers) {
-                return resolvConf;
+                return new SystemDnsConfiguration(
+                    resolvConf.DnsServers,
+                    resolvConf.SearchDomains,
+                    resolvConf.Ndots,
+                    resolvConf.Source,
+                    resolvConf.Error,
+                    policyDiscovery.Rules,
+                    policyDiscovery.Error);
             }
 
             return new SystemDnsConfiguration(
@@ -225,7 +255,9 @@ namespace DnsClientX {
                 resolvConf.SearchDomains,
                 resolvConf.Ndots,
                 SystemDnsDiscoverySource.None,
-                discoveryError ?? resolvConf.Error ?? "No DNS servers were exposed by the operating system.");
+                discoveryError ?? resolvConf.Error ?? "No DNS servers were exposed by the operating system.",
+                policyDiscovery.Rules,
+                policyDiscovery.Error);
         }
 
         private static int GetInterfaceIndex(IPInterfaceProperties properties) {

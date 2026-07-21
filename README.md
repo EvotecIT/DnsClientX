@@ -383,12 +383,13 @@ This behavior is by design and reflects the modern, distributed nature of intern
 
 ## System DNS Discovery
 
-`DnsEndpoint.System` and `DnsEndpoint.SystemTcp` query the DNS servers exposed by the operating system. Discovery returns an immutable `SystemDnsConfiguration` containing the ordered server list, search suffixes, `ndots`, discovery source, and any discovery error.
+`DnsEndpoint.System` and `DnsEndpoint.SystemTcp` query the DNS servers exposed by the operating system. Discovery returns an immutable `SystemDnsConfiguration` containing the ordered server list, search suffixes, `ndots`, discovery source, effective Windows NRPT rules, and separate resolver/policy discovery errors.
 
 - Windows and other .NET platforms enumerate every active interface. Interfaces are ordered by the native Windows interface metric when available, then by gateway presence and a stable interface order.
 - Unix-like systems can fall back to `/etc/resolv.conf`, including `nameserver`, `search`/`domain`, and `options ndots:n`.
 - Configured loopback and link-local resolvers are preserved because local forwarding stubs and IPv6 scoped DNS servers are valid. Unspecified and multicast addresses are rejected.
 - UDP clients reuse healthy connected sockets and automatically retry a truncated response over TCP when `UseTcpFallback` is enabled. TCP and DoT clients reuse persistent RFC 7766 connections, pipeline bounded concurrent queries, and dispatch out-of-order responses by transaction ID.
+- On Windows, dependency-free NRPT discovery honors the Group Policy-over-local-policy precedence rule. Supported suffix, prefix, FQDN, and catch-all matches route through `GenericDNSServers`; `DNSSECValidationRequired` triggers local chain validation. Conflicts and DirectAccess, IPsec, wildcard/subnet, or auto-trigger VPN behavior fail explicitly instead of bypassing policy.
 - There is no silent public-resolver substitution. Missing system DNS is an explicit configuration error unless the caller opts in to `SystemDnsFallback.PublicResolvers`.
 
 ```csharp
@@ -407,13 +408,18 @@ var discovered = SystemInformation.GetDnsConfiguration(refresh: true);
 Console.WriteLine($"Source: {discovered.Source}; ndots: {discovered.Ndots}");
 Console.WriteLine(string.Join(", ", discovered.DnsServers));
 Console.WriteLine(string.Join(", ", discovered.SearchDomains));
+foreach (var rule in discovered.PolicyRules) {
+    Console.WriteLine($"NRPT {rule.Id}: {string.Join(", ", rule.Namespaces)} -> {string.Join(", ", rule.NameServers)}");
+}
 ```
 
 Search expansion is enabled by default for system endpoints and can be disabled with `Configuration.UseSystemSearchDomains`. A trailing dot is always treated as absolute, and PTR inputs are never search-expanded.
 
+NRPT enforcement is enabled by default for system endpoints and can be deliberately disabled with `Configuration.UseSystemDnsPolicies`. The applied match is available as `DnsResponse.AppliedSystemDnsPolicy`. DnsClientX reads policy directly and does not emulate Windows DirectAccess, VPN activation, or IPsec state; use the operating-system resolver API when those services own the policy.
+
 Persistent TCP/DoT reuse is enabled by default. Set `EnableTcpConnectionReuse = false` only for compatibility diagnostics with a broken server. `MaxTcpQueriesPerConnection` bounds in-flight queries on one connection and defaults to 128. Caller cancellation removes only that transaction; late responses are consumed without completing another query.
 
-This direct DNS client does not delegate name resolution to the operating-system resolver service. In particular, it does not interpret Windows NRPT or every platform-specific per-namespace/VPN routing policy. If an application depends on those policies, choose the correct resolver explicitly or use the operating-system name-resolution API. Configure a `Configuration` instance before issuing concurrent queries; each query takes a defensive snapshot, but concurrent mutation of shared configuration is not a supported control plane.
+This direct DNS client does not delegate name resolution to the operating-system resolver service and does not claim parity with every platform-specific resolver feature. Configure a `Configuration` instance before issuing concurrent queries; each query takes a defensive snapshot, but concurrent mutation of shared configuration is not a supported control plane.
 
 ## TO DO
 

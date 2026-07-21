@@ -43,6 +43,15 @@ namespace DnsClientX {
         public bool UseSystemSearchDomains { get; set; } = true;
 
         /// <summary>
+        /// Gets or sets whether system endpoints apply supported Windows NRPT resolver and DNSSEC policy.
+        /// Matching policies that require unsupported Windows services fail explicitly when this is enabled.
+        /// </summary>
+        public bool UseSystemDnsPolicies { get; set; } = true;
+
+        /// <summary>Gets the Windows NRPT match applied to this immutable query snapshot.</summary>
+        public SystemDnsPolicyMatch? AppliedSystemDnsPolicy { get; private set; }
+
+        /// <summary>
         /// Gets or sets the local network-interface index used for multicast DNS queries.
         /// A null value lets the operating system choose the interface.
         /// </summary>
@@ -404,6 +413,10 @@ namespace DnsClientX {
         /// calls cannot observe a hostname paired with another call's URI or port.
         /// </summary>
         internal Configuration CreateQuerySnapshot() {
+            return CreateQuerySnapshot(null);
+        }
+
+        internal Configuration CreateQuerySnapshot(string? queryName) {
             lock (selectionLock) {
                 SelectHostNameStrategyCore();
                 Configuration snapshot = (Configuration)MemberwiseClone();
@@ -411,8 +424,52 @@ namespace DnsClientX {
                 snapshot.LocalEndPoint = LocalEndPoint == null
                     ? null
                     : new IPEndPoint(LocalEndPoint.Address, LocalEndPoint.Port);
+                snapshot.ApplySystemDnsPolicy(queryName);
                 return snapshot;
             }
+        }
+
+        private void ApplySystemDnsPolicy(string? queryName) {
+            AppliedSystemDnsPolicy = null;
+            if (!UseSystemDnsPolicies
+                || string.IsNullOrWhiteSpace(queryName)
+                || (BuiltInEndpoint != DnsEndpoint.System && BuiltInEndpoint != DnsEndpoint.SystemTcp)
+                || SystemDnsConfiguration == null) {
+                return;
+            }
+
+            SystemDnsPolicyMatch? match = SystemDnsConfiguration.MatchPolicy(queryName!);
+            AppliedSystemDnsPolicy = match;
+            if (match == null || !match.CanApply || match.NameServers.Count == 0) return;
+
+            Hostname = SelectPolicyNameServer(match.NameServers);
+            BaseUri = null;
+            Port = 53;
+        }
+
+        private string SelectPolicyNameServer(IReadOnlyList<string> nameServers) {
+            int selectedIndex;
+            switch (SelectionStrategy) {
+                case DnsSelectionStrategy.Random:
+#if NET6_0_OR_GREATER
+                    selectedIndex = Random.Shared.Next(nameServers.Count);
+#else
+                    lock (_randLock) selectedIndex = _rand.Next(nameServers.Count);
+#endif
+                    break;
+                case DnsSelectionStrategy.Failover:
+                    selectedIndex = hostnameIndex % nameServers.Count;
+                    break;
+                default:
+                    selectedIndex = 0;
+                    break;
+            }
+
+            for (int offset = 0; offset < nameServers.Count; offset++) {
+                string candidate = nameServers[(selectedIndex + offset) % nameServers.Count];
+                if (!IsUnavailable(candidate)) return candidate;
+            }
+            return nameServers[selectedIndex];
         }
 
         private void SelectHostNameStrategyCore() {

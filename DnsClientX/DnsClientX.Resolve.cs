@@ -116,7 +116,7 @@ namespace DnsClientX {
 
             try {
                 // lets we execute valid dns host name strategy
-                Configuration queryConfiguration = queryConfigurationOverride ?? EndpointConfiguration.CreateQuerySnapshot();
+                Configuration queryConfiguration = queryConfigurationOverride ?? EndpointConfiguration.CreateQuerySnapshot(name);
                 if (queryConfiguration.LocalEndPoint != null && IsHttpBasedTransport(queryConfiguration.RequestFormat)) {
                     throw new NotSupportedException(
                         $"LocalEndPoint is not supported by {queryConfiguration.RequestFormat}. Use UDP, TCP, DoT, or DoQ for explicit source binding.");

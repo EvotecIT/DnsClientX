@@ -27,18 +27,27 @@ namespace DnsClientX {
             DnsResponse? bestNoDataResponse = null;
             foreach (string candidate in candidates) {
                 cancellationToken.ThrowIfCancellationRequested();
+                Configuration queryConfiguration = EndpointConfiguration.CreateQuerySnapshot(candidate);
+                SystemDnsPolicyMatch? policyMatch = queryConfiguration.AppliedSystemDnsPolicy;
+                if (policyMatch != null && !policyMatch.CanApply) {
+                    throw new NotSupportedException(
+                        $"Windows NRPT rule '{policyMatch.RuleId}' matched '{candidate}' but cannot be applied faithfully: {policyMatch.Diagnostic}");
+                }
+                bool effectiveRequestDnsSec = requestDnsSec || policyMatch?.DnsSecValidationRequired == true;
+                bool effectiveValidateDnsSec = validateDnsSec || policyMatch?.DnsSecValidationRequired == true;
                 try {
                     lastResponse = await ResolveInternal(
                         candidate,
                         type,
-                        requestDnsSec,
-                        validateDnsSec,
+                        effectiveRequestDnsSec,
+                        effectiveValidateDnsSec,
                         returnAllTypes,
                         maxRetries,
                         retryDelayMs,
                         typedRecords,
                         parseTypedTxtRecords,
-                        cancellationToken).ConfigureAwait(false);
+                        cancellationToken,
+                        queryConfigurationOverride: queryConfiguration).ConfigureAwait(false);
                 } catch (DnsClientException ex) when (ex.Response?.Status == DnsResponseCode.NXDomain) {
                     lastResponse = ex.Response;
                 }
