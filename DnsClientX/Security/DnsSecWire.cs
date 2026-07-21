@@ -196,12 +196,33 @@ namespace DnsClientX {
                     WriteCanonicalName(output, reader.ReadName());
                     WriteBytes(output, reader.ReadBytes(reader.End - reader.Position));
                     break;
+                // RFC 3597 records retain the original case of embedded names and prohibit
+                // compression. Validate every known name field, then preserve the RDATA bytes.
+                case DnsRecordType.IPSECKEY:
+                    ValidateIpsecKey(reader);
+                    return CopyRdata(message, record);
+                case DnsRecordType.HIP:
+                    ValidateHip(reader);
+                    return CopyRdata(message, record);
+                case DnsRecordType.TALINK:
+                    ValidateUncompressedNames(reader, 2, record.Type);
+                    return CopyRdata(message, record);
+                case DnsRecordType.LP:
+                    reader.Skip(2);
+                    ValidateUncompressedNames(reader, 1, record.Type);
+                    return CopyRdata(message, record);
                 case DnsRecordType.SVCB:
                 case DnsRecordType.HTTPS:
-                    WriteUInt16(output, reader.ReadUInt16());
-                    WriteCanonicalName(output, reader.ReadName());
-                    WriteBytes(output, reader.ReadBytes(reader.End - reader.Position));
-                    break;
+                    reader.Skip(2);
+                    ValidateUncompressedNames(reader, 1, record.Type, allowTrailingData: true);
+                    return CopyRdata(message, record);
+                case DnsRecordType.TKEY:
+                case DnsRecordType.TSIG:
+                    ValidateUncompressedNames(reader, 1, record.Type, allowTrailingData: true);
+                    return CopyRdata(message, record);
+                case DnsRecordType.AMTRELAY:
+                    ValidateAmtRelay(reader);
+                    return CopyRdata(message, record);
                 default:
                     WriteBytes(output, reader.ReadBytes(reader.End - reader.Position));
                     break;
@@ -232,6 +253,99 @@ namespace DnsClientX {
             byte length = reader.ReadByte();
             output.WriteByte(length);
             WriteBytes(output, reader.ReadBytes(length));
+        }
+
+        private static byte[] CopyRdata(byte[] message, DnsWireResourceRecord record) {
+            var value = new byte[record.RdataLength];
+            Buffer.BlockCopy(message, record.RdataOffset, value, 0, value.Length);
+            return value;
+        }
+
+        private static void ValidateIpsecKey(DnsWireReader reader) {
+            reader.ReadByte();
+            byte gatewayType = reader.ReadByte();
+            reader.ReadByte();
+            switch (gatewayType) {
+                case 0:
+                    break;
+                case 1:
+                    reader.Skip(4);
+                    break;
+                case 2:
+                    reader.Skip(16);
+                    break;
+                case 3:
+                    ReadUncompressedName(reader, DnsRecordType.IPSECKEY);
+                    break;
+                default:
+                    // RFC 3597 requires future name-bearing formats to prohibit compression. Preserve
+                    // an unknown gateway format byte-for-byte because its remaining fields are opaque.
+                    break;
+            }
+            reader.Skip(reader.End - reader.Position);
+        }
+
+        private static void ValidateHip(DnsWireReader reader) {
+            byte hitLength = reader.ReadByte();
+            reader.ReadByte();
+            ushort publicKeyLength = reader.ReadUInt16();
+            reader.Skip(hitLength);
+            reader.Skip(publicKeyLength);
+            while (!reader.IsAtEnd) ReadUncompressedName(reader, DnsRecordType.HIP);
+        }
+
+        private static void ValidateAmtRelay(DnsWireReader reader) {
+            reader.ReadByte();
+            byte relayType = (byte)(reader.ReadByte() & 0x7F);
+            switch (relayType) {
+                case 0:
+                    break;
+                case 1:
+                    reader.Skip(4);
+                    break;
+                case 2:
+                    reader.Skip(16);
+                    break;
+                case 3:
+                    ReadUncompressedName(reader, DnsRecordType.AMTRELAY);
+                    break;
+                default:
+                    // Undefined relay formats are opaque and are preserved per RFC 3597.
+                    reader.Skip(reader.End - reader.Position);
+                    return;
+            }
+            if (!reader.IsAtEnd) {
+                throw new DnsClientException($"{DnsRecordType.AMTRELAY} RDATA contains trailing data.");
+            }
+        }
+
+        private static void ValidateUncompressedNames(DnsWireReader reader, int count, DnsRecordType type,
+            bool allowTrailingData = false) {
+            for (int index = 0; index < count; index++) ReadUncompressedName(reader, type);
+            if (allowTrailingData) {
+                reader.Skip(reader.End - reader.Position);
+            } else if (!reader.IsAtEnd) {
+                throw new DnsClientException($"{type} RDATA contains trailing data.");
+            }
+        }
+
+        private static void ReadUncompressedName(DnsWireReader reader, DnsRecordType type) {
+            int expandedLength = 1;
+            while (true) {
+                byte length = reader.ReadByte();
+                if ((length & 0xC0) == 0xC0) {
+                    throw new DnsClientException($"{type} RDATA domain names must not use DNS compression.");
+                }
+                if ((length & 0xC0) != 0 || length > 63) {
+                    throw new DnsClientException($"{type} RDATA contains an invalid DNS label.");
+                }
+                if (length == 0) return;
+                expandedLength += length + 1;
+                if (expandedLength > 255) {
+                    throw new DnsClientException($"{type} RDATA contains a DNS name longer than 255 octets.");
+                }
+                reader.Skip(length);
+            }
         }
 
         private static void WriteCanonicalName(Stream output, string name) =>

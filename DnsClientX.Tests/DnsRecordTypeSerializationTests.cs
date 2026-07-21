@@ -12,6 +12,7 @@ namespace DnsClientX.Tests {
         [Theory]
         [InlineData(DnsRecordType.SVCB, 64)]
         [InlineData(DnsRecordType.HTTPS, 65)]
+        [InlineData(DnsRecordType.LP, 107)]
         public void SerializeDeserialize_RoundTrips(DnsRecordType type, int expected) {
             var answer = new DnsAnswer {
                 Name = "example.com",

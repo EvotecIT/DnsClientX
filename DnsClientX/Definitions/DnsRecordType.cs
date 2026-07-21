@@ -254,6 +254,10 @@ public enum DnsRecordType : ushort {
     /// </summary>
     HTTPS = 65,
     /// <summary>
+    /// Identifier-Locator Network Protocol locator pointer.
+    /// </summary>
+    LP = 107,
+    /// <summary>
     /// Transaction key.
     /// </summary>
     TKEY = 249,

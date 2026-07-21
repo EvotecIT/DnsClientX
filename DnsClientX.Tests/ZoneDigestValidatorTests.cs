@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -161,6 +162,63 @@ namespace DnsClientX.Tests {
                 BitConverter.ToString(actual).Replace("-", string.Empty).ToLowerInvariant());
         }
 
+        /// <summary>Post-RFC 3597 embedded names retain case in DNSSEC and ZONEMD canonical form.</summary>
+        [Theory]
+        [InlineData(DnsRecordType.IPSECKEY)]
+        [InlineData(DnsRecordType.HIP)]
+        [InlineData(DnsRecordType.TALINK)]
+        [InlineData(DnsRecordType.LP)]
+        [InlineData(DnsRecordType.SVCB)]
+        [InlineData(DnsRecordType.HTTPS)]
+        [InlineData(DnsRecordType.TKEY)]
+        [InlineData(DnsRecordType.TSIG)]
+        [InlineData(DnsRecordType.AMTRELAY)]
+        public void CanonicalRecord_PreservesCaseInModernUncompressedName(DnsRecordType type) {
+            byte[] target = NamePreservingCase("MiXeD.Example.com.");
+            byte[] rdata = ModernNameRdata(type, target);
+
+            ZoneCanonicalRecord record = Record(Zone, type, rdata);
+
+            Assert.Equal(rdata, record.CanonicalRdata);
+        }
+
+        /// <summary>Known modern name-bearing RDATA rejects prohibited pointers instead of hashing offsets.</summary>
+        [Theory]
+        [InlineData(DnsRecordType.IPSECKEY)]
+        [InlineData(DnsRecordType.HIP)]
+        [InlineData(DnsRecordType.TALINK)]
+        [InlineData(DnsRecordType.LP)]
+        [InlineData(DnsRecordType.SVCB)]
+        [InlineData(DnsRecordType.HTTPS)]
+        [InlineData(DnsRecordType.TKEY)]
+        [InlineData(DnsRecordType.TSIG)]
+        [InlineData(DnsRecordType.AMTRELAY)]
+        public void CanonicalRecord_RejectsCompressedModernNameRdata(DnsRecordType type) {
+            byte[] prefix = Name("target.example.com.");
+            byte[] rdata = CompressedModernRdata(type);
+            var message = new byte[prefix.Length + rdata.Length];
+            Buffer.BlockCopy(prefix, 0, message, 0, prefix.Length);
+            Buffer.BlockCopy(rdata, 0, message, prefix.Length, rdata.Length);
+            var wire = new DnsWireResourceRecord(Zone, type, 1, 3600, 3600, prefix.Length,
+                checked((ushort)rdata.Length), string.Empty);
+
+            DnsClientException exception = Assert.Throws<DnsClientException>(() =>
+                ZoneCanonicalRecord.Create(message, wire));
+
+            Assert.Contains("must not use DNS compression", exception.Message, StringComparison.Ordinal);
+        }
+
+        /// <summary>Legacy compression is expanded so pointer offsets never affect the digest.</summary>
+        [Fact]
+        public void CanonicalRecord_ExpandsLegacyCompressedNameIndependentlyOfPointerOffset() {
+            ZoneCanonicalRecord first = CompressedNameRecord(DnsRecordType.NS, "Ns1.Example.com.", 0);
+            ZoneCanonicalRecord second = CompressedNameRecord(DnsRecordType.NS, "Ns1.Example.com.", 19);
+
+            Assert.Equal(Name("ns1.example.com."), first.CanonicalRdata);
+            Assert.Equal(first.CanonicalRdata, second.CanonicalRdata);
+            Assert.Equal(first.CanonicalWire, second.CanonicalWire);
+        }
+
         private static ZoneCanonicalRecord[] BaseRecords(byte[]? address = null) {
             ZoneCanonicalRecord soa = Record(Zone, DnsRecordType.SOA, Soa(2026072101));
             return new[] {
@@ -222,6 +280,62 @@ namespace DnsClientX.Tests {
         }
 
         private static byte[] Name(string name) => DnsWireNameCodec.ToCanonicalWire(name);
+
+        private static byte[] NamePreservingCase(string name) {
+            using var output = new MemoryStream();
+            foreach (string label in name.TrimEnd('.').Split('.')) {
+                byte[] value = Encoding.ASCII.GetBytes(label);
+                output.WriteByte(checked((byte)value.Length));
+                output.Write(value, 0, value.Length);
+            }
+            output.WriteByte(0);
+            return output.ToArray();
+        }
+
+        private static byte[] CompressedModernRdata(DnsRecordType type) {
+            byte[] pointer = { 0xC0, 0x00 };
+            return ModernNameRdata(type, pointer);
+        }
+
+        private static byte[] ModernNameRdata(DnsRecordType type, byte[] name) {
+            switch (type) {
+                case DnsRecordType.IPSECKEY:
+                    return Combine(new byte[] { 10, 3, 2 }, name);
+                case DnsRecordType.HIP:
+                    return Combine(new byte[] { 0, 0, 0, 0 }, name);
+                case DnsRecordType.TALINK:
+                    return Combine(name, new byte[] { 0 });
+                case DnsRecordType.LP:
+                case DnsRecordType.SVCB:
+                case DnsRecordType.HTTPS:
+                    return Combine(new byte[] { 0, 1 }, name);
+                case DnsRecordType.AMTRELAY:
+                    return Combine(new byte[] { 10, 3 }, name);
+                case DnsRecordType.TKEY:
+                case DnsRecordType.TSIG:
+                    return name;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(type));
+            }
+        }
+
+        private static byte[] Combine(params byte[][] values) {
+            using var output = new MemoryStream();
+            foreach (byte[] value in values) output.Write(value, 0, value.Length);
+            return output.ToArray();
+        }
+
+        private static ZoneCanonicalRecord CompressedNameRecord(DnsRecordType type, string target,
+            int targetOffset) {
+            byte[] targetWire = NamePreservingCase(target);
+            int rdataOffset = targetOffset + targetWire.Length;
+            var message = new byte[rdataOffset + 2];
+            Buffer.BlockCopy(targetWire, 0, message, targetOffset, targetWire.Length);
+            message[rdataOffset] = (byte)(0xC0 | (targetOffset >> 8));
+            message[rdataOffset + 1] = (byte)targetOffset;
+            var wire = new DnsWireResourceRecord(Zone, type, 1, 3600, 3600, rdataOffset, 2, string.Empty);
+            return ZoneCanonicalRecord.Create(message, wire);
+        }
 
         private static void UInt32(Stream output, uint value) {
             output.WriteByte((byte)(value >> 24));
