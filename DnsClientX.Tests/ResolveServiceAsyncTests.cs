@@ -11,10 +11,10 @@ namespace DnsClientX.Tests {
     /// </summary>
     public class ResolveServiceAsyncTests {
         /// <summary>
-        /// Ensures SRV records are ordered by priority and weight as defined in the specification.
+        /// Ensures lower-priority SRV records are always attempted before higher-priority records.
         /// </summary>
         [Fact]
-        public async Task ShouldOrderByPriorityAndWeight() {
+        public async Task ShouldOrderByPriority() {
             var srvResponse = new DnsResponse {
                 Answers = new[] {
                     new DnsAnswer { Name = "_http._tcp.example.com", Type = DnsRecordType.SRV, DataRaw = "10 5 80 host1.example.com." },
@@ -23,14 +23,13 @@ namespace DnsClientX.Tests {
                 }
             };
 
-            using var client = new ClientX(DnsEndpoint.System);
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP);
             client.ResolverOverride = (name, type, ct) => Task.FromResult(srvResponse);
 
             var records = await client.ResolveServiceAsync("http", "tcp", "example.com");
             Assert.Equal(3, records.Length);
             Assert.Equal("host3.example.com", records[0].Target); // priority 5 first
-            Assert.Equal("host2.example.com", records[1].Target); // higher weight within same priority
-            Assert.Equal("host1.example.com", records[2].Target);
+            Assert.All(records.Skip(1), record => Assert.Equal(10, record.Priority));
         }
 
         /// <summary>
@@ -50,7 +49,7 @@ namespace DnsClientX.Tests {
                 Answers = new[] { new DnsAnswer { Name = "host.example.com", Type = DnsRecordType.AAAA, DataRaw = "::1" } }
             };
 
-            using var client = new ClientX(DnsEndpoint.System);
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP);
             client.ResolverOverride = (name, type, ct) => {
                 if (name == "_ldap._tcp.example.com" && type == DnsRecordType.SRV) return Task.FromResult(srvResponse);
                 if (name == "host.example.com" && type == DnsRecordType.A) return Task.FromResult(aResponse);
@@ -71,7 +70,7 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task ShouldReturnEmptyArrayWhenNoSrvRecords() {
-            using var client = new ClientX(DnsEndpoint.System);
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP);
             client.ResolverOverride = (name, type, ct) =>
                 Task.FromException<DnsResponse>(new DnsClientException(
                     "not found",

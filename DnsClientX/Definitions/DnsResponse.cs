@@ -126,6 +126,14 @@ namespace DnsClientX {
         public DnsAnswer[] Answers { get; set; } = Array.Empty<DnsAnswer>();
 
         /// <summary>
+        /// Remembers whether the complete, unprojected answer contained the requested RRset.
+        /// This keeps system search-list decisions correct after alias records are hidden from
+        /// the caller-facing answer projection.
+        /// </summary>
+        [JsonIgnore]
+        internal bool RequestedAnswerPresent { get; set; }
+
+        /// <summary>
         /// Minimum TTL across <see cref="Answers"/> (seconds).
         /// </summary>
         [JsonIgnore]
@@ -317,14 +325,20 @@ namespace DnsClientX {
             int effectivePort = port ?? (Questions != null && Questions.Length > 0 ? Questions[0].Port : 0);
             DnsRequestFormat effectiveFormat = requestFormat ??
                 (Questions != null && Questions.Length > 0 ? Questions[0].RequestFormat : default);
-            _answersMinimal = currentAnswers.Select(answer => new DnsAnswerMinimal {
-                Name = answer.Name,
-                TTL = answer.TTL,
-                Type = answer.Type,
-                Data = answer.Data,
-                Port = effectivePort,
-                RequestFormat = effectiveFormat
-            }).ToArray();
+            if (_answersMinimal.Length != currentAnswers.Length) {
+                _answersMinimal = new DnsAnswerMinimal[currentAnswers.Length];
+            }
+            for (int index = 0; index < currentAnswers.Length; index++) {
+                DnsAnswer answer = currentAnswers[index];
+                _answersMinimal[index] = new DnsAnswerMinimal {
+                    Name = answer.Name,
+                    TTL = answer.TTL,
+                    Type = answer.Type,
+                    Data = answer.Data,
+                    Port = effectivePort,
+                    RequestFormat = effectiveFormat
+                };
+            }
             ComputeTtlMetrics();
         }
 

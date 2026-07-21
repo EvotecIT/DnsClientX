@@ -48,32 +48,39 @@ namespace DnsClientX {
             bool parseTypedTxtRecords = false,
             CancellationToken cancellationToken = default) {
             ThrowIfDisposed();
-            _lastAuditEntryContext.Value = null;
-            if (retryOnTransient) {
-                try {
-                    Action<string>? onRetry = EnableAudit || EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover
-                        ? reason => HandleRetry(reason)
-                        : null;
+            using DnsClientTelemetry.DnsQueryTelemetryScope? telemetry = DnsClientTelemetry.StartQuery(name, type, EndpointConfiguration);
+            try {
+                _lastAuditEntryContext.Value = null;
+                DnsResponse response;
 
-                    return await RetryAsync(
-                        () => ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken),
-                        maxRetries,
-                        retryDelayMs,
-                        null,
-                        onRetry,
-                        true,
-                        cancellationToken).ConfigureAwait(false);
-                } catch (DnsClientException ex) when (ex.Response != null) {
-                    return ex.Response;
-                } finally {
-                    _lastAuditEntryContext.Value = null;
+                if (retryOnTransient) {
+                    try {
+                        Action<string>? onRetry = EnableAudit || EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover
+                            ? reason => HandleRetry(reason)
+                            : null;
+
+                        response = await RetryAsync(
+                            () => ResolveWithSystemSearchDomains(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken),
+                            maxRetries,
+                            retryDelayMs,
+                            null,
+                            onRetry,
+                            true,
+                            cancellationToken).ConfigureAwait(false);
+                    } catch (DnsClientException ex) when (ex.Response != null) {
+                        response = ex.Response;
+                    }
+                } else {
+                    response = await ResolveWithSystemSearchDomains(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken).ConfigureAwait(false);
                 }
-            } else {
-                try {
-                    return await ResolveInternal(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken).ConfigureAwait(false);
-                } finally {
-                    _lastAuditEntryContext.Value = null;
-                }
+
+                telemetry?.Complete(response);
+                return response;
+            } catch (Exception ex) {
+                telemetry?.Fail(ex);
+                throw;
+            } finally {
+                _lastAuditEntryContext.Value = null;
             }
         }
 
@@ -81,6 +88,10 @@ namespace DnsClientX {
             cancellationToken.ThrowIfCancellationRequested();
 
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
+            if (EndpointConfiguration.LocalEndPoint != null && IsHttpBasedTransport(EndpointConfiguration.RequestFormat)) {
+                throw new NotSupportedException(
+                    $"LocalEndPoint is not supported by {EndpointConfiguration.RequestFormat}. Use UDP, TCP, DoT, or DoQ for explicit source binding.");
+            }
             requestDnsSec = requestDnsSec || validateDnsSec;
             if (type == DnsRecordType.PTR) name = ConvertToPtrFormat(name);
             name = ConvertToPunycode(name);
@@ -104,22 +115,43 @@ namespace DnsClientX {
             try {
                 // lets we execute valid dns host name strategy
                 Configuration queryConfiguration = EndpointConfiguration.CreateQuerySnapshot();
+                if (queryConfiguration.LocalEndPoint != null && IsHttpBasedTransport(queryConfiguration.RequestFormat)) {
+                    throw new NotSupportedException(
+                        $"LocalEndPoint is not supported by {queryConfiguration.RequestFormat}. Use UDP, TCP, DoT, or DoQ for explicit source binding.");
+                }
                 CaptureAuditConfiguration(auditEntry, queryConfiguration);
 
-                // Get the HttpClient for the current strategy
-                HttpClient queryClient = GetClient(queryConfiguration);
-
-                string cacheKey = DnsCacheKeyBuilder.Build(queryConfiguration, name, type, requestDnsSec,
-                    validateDnsSec, returnAllTypes, typedRecords, parseTypedTxtRecords, MaxCacheTtl,
-                    IgnoreCertificateErrors);
-                if (!dnsSecMaterialQuery && _cacheEnabled && _cache.TryGet(cacheKey, out var cached)) {
-                    FinalizeAuditEntry(auditEntry, cached, stopwatch, servedFromCache: true);
-                    return cached;
+                string? cacheKey = null;
+                if (!dnsSecMaterialQuery && _cacheEnabled) {
+                    cacheKey = DnsCacheKeyBuilder.Build(queryConfiguration, name, type, requestDnsSec,
+                        validateDnsSec, returnAllTypes, typedRecords, parseTypedTxtRecords, MaxCacheTtl,
+                        IgnoreCertificateErrors);
+                    if (_cache.TryGet(cacheKey, out var cached)) {
+                        FinalizeAuditEntry(auditEntry, cached, stopwatch, servedFromCache: true);
+                        return cached;
+                    }
                 }
 
                 DnsResponse response;
                 bool wireValidationQuery = validateDnsSec || dnsSecMaterialQuery;
-                if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
+                if (queryConfiguration.BuiltInEndpoint == DnsEndpoint.RootServer) {
+                    if (queryConfiguration.IterativeMaxHops <= 0) {
+                        throw new ArgumentOutOfRangeException(nameof(queryConfiguration.IterativeMaxHops));
+                    }
+                    response = await ResolveFromRootCore(
+                        name,
+                        type,
+                        servers: null,
+                        queryConfiguration.IterativeMaxHops,
+                        queryConfiguration.Port,
+                        requestDnsSec,
+                        validateDnsSec,
+                        cancellationToken).ConfigureAwait(false);
+                } else {
+                    // Get the HTTP client only for transports that can use it. Root iteration stays
+                    // entirely on the shared wire engine and does not allocate an unused handler.
+                    HttpClient queryClient = GetClient(queryConfiguration);
+                    if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
                     response = wireValidationQuery
                         ? await queryClient.ResolveWireFormatGet(name, type, requestDnsSec, true, Debug, queryConfiguration, cancellationToken, useStandardDnsQueryPath: true).ConfigureAwait(false)
                         : await queryClient.ResolveJsonFormat(name, type, requestDnsSec, false, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
@@ -168,7 +200,7 @@ namespace DnsClientX {
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
                     response = await DnsWireResolveTcp.ResolveWireFormatTcp(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
-                    response = await DnsWireResolveUdp.ResolveWireFormatUdp(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, 1, cancellationToken).ConfigureAwait(false);
+                    response = await DnsWireResolveUdp.ResolveWireFormatUdp(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, 1, cancellationToken, _udpClientPool).ConfigureAwait(false);
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.Multicast) {
                     response = await DnsWireResolveMulticast.ResolveWireFormatMulticast(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsCrypt ||
@@ -177,7 +209,9 @@ namespace DnsClientX {
                 } else {
                     throw new DnsClientException($"Invalid RequestFormat: {queryConfiguration.RequestFormat}");
                 }
-                if (validateDnsSec && !dnsSecMaterialQuery) {
+                }
+                if (validateDnsSec && !dnsSecMaterialQuery
+                    && queryConfiguration.BuiltInEndpoint != DnsEndpoint.RootServer) {
                     var validator = new DnsSecValidationEngine((materialName, materialType, token) =>
                         ResolveInternal(materialName, materialType, requestDnsSec: true, validateDnsSec: false,
                             returnAllTypes: true, maxRetries: 1, retryDelayMs: retryDelayMs,
@@ -198,11 +232,7 @@ namespace DnsClientX {
                 TimeSpan cacheTtl = GetCacheTtl(response);
 
                 // Validate the complete wire answer first, then apply the caller's projection.
-                if (!returnAllTypes && response.Answers != null) {
-                    response.Answers = response.Answers.Where(x => x.Type == type).ToArray();
-                } else if (response.Answers == null) {
-                    response.Answers = Array.Empty<DnsAnswer>();
-                }
+                ApplyAnswerProjection(response, name, type, returnAllTypes);
 
                 if (typedRecords) {
                     response.TypedAnswers = response.Answers
@@ -217,7 +247,7 @@ namespace DnsClientX {
                     if (ttl > MaxCacheTtl) ttl = MaxCacheTtl;
 
                     if (ttl > TimeSpan.Zero) {
-                        _cache.Set(cacheKey, response, ttl);
+                        _cache.Set(cacheKey!, response, ttl);
                     }
                 }
 
@@ -238,6 +268,35 @@ namespace DnsClientX {
                 FinalizeAuditException(auditEntry, ex, stopwatch);
                 throw;
             }
+        }
+
+        internal static void ApplyAnswerProjection(
+            DnsResponse response,
+            string queryName,
+            DnsRecordType type,
+            bool returnAllTypes) {
+            response.RequestedAnswerPresent = HasRequestedAnswer(response, queryName, type);
+            DnsAnswer[] allAnswers = response.Answers ?? Array.Empty<DnsAnswer>();
+            if (returnAllTypes || type == DnsRecordType.ANY) {
+                response.Answers = allAnswers;
+                return;
+            }
+
+            int matchingCount = 0;
+            for (int index = 0; index < allAnswers.Length; index++) {
+                if (allAnswers[index].Type == type) matchingCount++;
+            }
+            if (matchingCount == allAnswers.Length) {
+                response.Answers = allAnswers;
+                return;
+            }
+
+            var matchingAnswers = new DnsAnswer[matchingCount];
+            int targetIndex = 0;
+            for (int index = 0; index < allAnswers.Length; index++) {
+                if (allAnswers[index].Type == type) matchingAnswers[targetIndex++] = allAnswers[index];
+            }
+            response.Answers = matchingAnswers;
         }
 
         private static TimeSpan GetCacheTtl(DnsResponse response) {
@@ -344,151 +403,6 @@ namespace DnsClientX {
             auditEntry.RetryReason = string.IsNullOrWhiteSpace(auditEntry.RetryReason)
                 ? detail
                 : $"{auditEntry.RetryReason}; {detail}";
-        }
-
-        // Generate jitter in a thread-safe manner across all supported
-        // frameworks. Use Random.Shared when available and fall back to
-        // a locked Random instance on older targets.
-#if NET6_0_OR_GREATER
-        private static int GetJitter(int max) => Random.Shared.Next(max);
-#else
-        private static readonly object _randLock = new();
-        private static readonly Random _rand = new();
-        private static int GetJitter(int max) {
-            if (max <= 0) return 0;
-            lock (_randLock) {
-                return _rand.Next(max);
-            }
-        }
-#endif
-
-        /// <summary>
-        /// Executes the provided asynchronous <paramref name="action"/> with retry logic.
-        /// </summary>
-        /// <typeparam name="T">Type returned by the action.</typeparam>
-        /// <param name="action">The asynchronous operation to execute.</param>
-        /// <param name="maxRetries">Maximum number of attempts before giving up.</param>
-        /// <param name="delayMs">Base delay between retries in milliseconds. The actual wait time grows exponentially with a random jitter.</param>
-        /// <param name="beforeRetry">Optional callback invoked before each retry attempt.</param>
-        /// <param name="onRetry">Optional callback invoked with a short reason describing why the retry was triggered.</param>
-        /// <param name="useJitter">Whether to randomize delays with jitter for exponential backoff.</param>
-        /// <param name="cancellationToken">Token used to cancel waits between retries.</param>
-        /// <remarks>
-        /// The method retries when a transient exception occurs or when a <see cref="DnsResponse"/>
-        /// returned by <paramref name="action"/> indicates a transient failure. Exponential backoff with
-        /// jitter is used between attempts. If the final result still signals a transient error, a
-        /// <see cref="DnsClientException"/> is thrown with the last response.
-        /// </remarks>
-        private static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetries = 3, int delayMs = 100, Action? beforeRetry = null, Action<string>? onRetry = null, bool useJitter = true, CancellationToken cancellationToken = default) {
-            if (maxRetries == 0)
-            {
-                var result = await action().ConfigureAwait(false);
-                if (result is DnsResponse dns)
-                {
-                    dns.RetryCount = 0;
-                }
-                return result;
-            }
-
-            Exception? lastException = null;
-            DnsClientException? lastDnsClientException = null;
-            T? lastResult = default;
-
-            for (int attempt = 1; attempt <= maxRetries; attempt++) {
-                try {
-                    var result = await action().ConfigureAwait(false);
-
-                    // Special handling for DnsResponse - check if it indicates a transient error
-                    if (result is DnsResponse response && IsTransientResponse(response)) {
-                        lastResult = result;
-                        if (attempt == maxRetries) {
-                            // Break out of the loop so the transient result can be evaluated below
-                            break;
-                        }
-
-                        onRetry?.Invoke(DescribeRetryReason(response));
-                        beforeRetry?.Invoke();
-                        int exponentialDelay = delayMs <= 0
-                            ? 0
-                            : (int)Math.Min((long)delayMs << (attempt - 1), int.MaxValue);
-                        int jitter = useJitter ? GetJitter(delayMs) : 0;
-                        await Task.Delay(exponentialDelay + jitter, cancellationToken).ConfigureAwait(false);
-                        continue;
-                    }
-
-                    // Success case or non-transient response
-                    if (result is DnsResponse success)
-                    {
-                        success.RetryCount = attempt - 1;
-                    }
-                    return result;
-                } catch (Exception ex) when (IsTransient(ex)) {
-                    lastException = ex;
-                    if (ex is DnsClientException dnsEx) {
-                        lastDnsClientException = dnsEx;
-                    }
-                    if (attempt == maxRetries) {
-                        // Break out of the loop so the last exception can be
-                        // thrown after retries
-                        break;
-                    }
-
-                    onRetry?.Invoke($"transient exception: {ex.GetType().Name}");
-                    beforeRetry?.Invoke();
-                    int exponentialDelay = delayMs <= 0
-                        ? 0
-                        : (int)Math.Min((long)delayMs << (attempt - 1), int.MaxValue);
-                    int jitter = useJitter ? GetJitter(delayMs) : 0;
-                    await Task.Delay(exponentialDelay + jitter, cancellationToken).ConfigureAwait(false);
-                    continue;
-                }
-            }
-
-            // After retries, rethrow the last DNS exception if captured
-            if (lastDnsClientException != null) {
-                throw lastDnsClientException;
-            }
-
-            // Rethrow any non-DNS transient exception captured
-            if (lastException != null) {
-                throw lastException;
-            }
-
-            // If the last result indicates a transient failure, surface it as an exception
-            if (lastResult is DnsResponse lastResponse && IsTransientResponse(lastResponse))
-            {
-                lastResponse.RetryCount = maxRetries - 1;
-                throw new DnsClientException("Transient DNS response after maximum retries.", lastResponse);
-            }
-
-            if (lastResult is DnsResponse finalResponse)
-            {
-                finalResponse.RetryCount = maxRetries - 1;
-            }
-            return lastResult!;
-        }
-
-        private static bool IsTransient(Exception ex) {
-            return DnsQueryDiagnostics.IsTransient(ex);
-        }
-
-        /// <summary>
-        /// Checks if a DnsResponse indicates a transient error that should be retried
-        /// </summary>
-        private static bool IsTransientResponse(DnsResponse response) {
-            return DnsQueryDiagnostics.IsTransient(response);
-        }
-
-        private static string DescribeRetryReason(DnsResponse response) {
-            if (response.IsTruncated) {
-                return "transient response: truncated";
-            }
-
-            if (response.ErrorCode != DnsQueryErrorCode.None) {
-                return $"transient response: {response.ErrorCode}";
-            }
-
-            return $"transient response: {response.Status}";
         }
 
         /// <summary>

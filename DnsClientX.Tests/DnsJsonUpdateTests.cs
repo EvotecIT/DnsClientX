@@ -35,7 +35,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public async Task UpdateRecordJsonPost_Add() {
             var handler = new JsonUpdateHandler();
-            using var clientX = new ClientX(DnsEndpoint.CloudflareJsonPost);
+            using var clientX = new ClientX(new Configuration(new System.Uri("https://resolver.example/update"), DnsRequestFormat.DnsOverHttpsJSONPOST));
             var httpClient = new HttpClient(handler) { BaseAddress = clientX.EndpointConfiguration.BaseUri };
             InjectClient(clientX, httpClient);
 
@@ -52,7 +52,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public async Task DeleteRecordJsonPost_Delete() {
             var handler = new JsonUpdateHandler();
-            using var clientX = new ClientX(DnsEndpoint.CloudflareJsonPost);
+            using var clientX = new ClientX(new Configuration(new System.Uri("https://resolver.example/update"), DnsRequestFormat.DnsOverHttpsJSONPOST));
             var httpClient = new HttpClient(handler) { BaseAddress = clientX.EndpointConfiguration.BaseUri };
             InjectClient(clientX, httpClient);
 

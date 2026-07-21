@@ -86,14 +86,14 @@ namespace DnsClientX.Tests {
                 DnsResponse response = await client.ResolveFromRoot(
                     "example.com",
                     servers: new[] { "127.0.0.1" },
-                    maxRetries: 2,
+                    maxHops: 2,
                     port: testPort,
                     cancellationToken: cts.Token);
 
                 Assert.Empty(response.AnswersMinimal);
 
                 Assert.Equal("invalid", response.Authorities.Single().DataRaw.TrimEnd('.'));
-                Assert.Equal(1, response.RetryCount);
+                Assert.Equal(0, response.RetryCount);
             } finally {
                 cts.Cancel();
                 await serverTask;

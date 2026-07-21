@@ -8,172 +8,276 @@ using System.Threading.Tasks;
 
 namespace DnsClientX {
     /// <summary>
-    /// Partial <see cref="ClientX"/> class containing service discovery helpers.
+    /// Partial <see cref="ClientX"/> class containing RFC 6763 service-discovery helpers.
     /// </summary>
-    /// <remarks>
-    /// These members implement <see href="https://www.rfc-editor.org/rfc/rfc6763">RFC 6763</see> lookups for browsing services.
-    /// </remarks>
     public partial class ClientX {
         internal Func<string, DnsRecordType, CancellationToken, Task<DnsResponse>>? ResolverOverride;
 
         /// <summary>
-        /// Resolves a DNS query specifically for service discovery, allowing tests to override the resolver.
+        /// Discovers all service types and instances advertised under a DNS domain.
         /// </summary>
-        /// <param name="name">The fully qualified domain name to query.</param>
-        /// <param name="type">The DNS record type.</param>
+        /// <param name="domain">Domain name to browse.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
-        private Task<DnsResponse> ResolveForSd(string name, DnsRecordType type, CancellationToken cancellationToken) {
-            if (ResolverOverride != null) {
-                return ResolverOverride(name, type, cancellationToken);
-            }
-
-            return Resolve(name, type, requestDnsSec: false, validateDnsSec: false, returnAllTypes: false, retryOnTransient: true, maxRetries: 3, retryDelayMs: 100, cancellationToken: cancellationToken);
-        }
-
-        /// <summary>
-        /// Discovers DNS-SD services under the specified domain.
-        /// </summary>
-        /// <param name="domain">Domain name to look up for advertised services.</param>
-        /// <param name="cancellationToken">Token used to cancel the operation.</param>
-        /// <returns>An array of discovered services or an empty array if none found.</returns>
-        /// <exception cref="ArgumentNullException">Thrown when <paramref name="domain"/> is null or whitespace.</exception>
+        /// <returns>The discovered service instances.</returns>
         public async Task<DnsService[]> DiscoverServices(string domain, CancellationToken cancellationToken = default) {
-            if (string.IsNullOrWhiteSpace(domain)) throw new ArgumentNullException(nameof(domain));
             var results = new List<DnsService>();
-            await foreach (var svc in EnumerateServicesAsync(domain, cancellationToken).ConfigureAwait(false)) {
-                results.Add(svc);
+            await foreach (DnsService service in EnumerateServicesAsync(domain, cancellationToken).ConfigureAwait(false)) {
+                results.Add(service);
             }
 
             return results.ToArray();
         }
 
         /// <summary>
-        /// Streams DNS-SD services discovered under the specified domain.
+        /// Discovers service types advertised through the RFC 6763 meta-query.
         /// </summary>
-        /// <param name="domain">Domain name to look up for advertised services.</param>
+        /// <param name="domain">Domain name to browse.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
-        /// <returns>
-        /// An asynchronous enumeration of <see cref="DnsService"/> instances
-        /// returned as soon as each service record is processed.
-        /// </returns>
-        /// <exception cref="ArgumentNullException">Thrown when <paramref name="domain"/> is null or whitespace.</exception>
+        /// <returns>Distinct fully qualified service types.</returns>
+        public async Task<string[]> DiscoverServiceTypesAsync(
+            string domain,
+            CancellationToken cancellationToken = default) {
+            string normalizedDomain = NormalizeDiscoveryDomain(domain, nameof(domain));
+            DnsResponse response = await ResolveDiscoveryRecordAsync(
+                $"_services._dns-sd._udp.{normalizedDomain}",
+                DnsRecordType.PTR,
+                cancellationToken).ConfigureAwait(false);
+
+            return GetAnswers(response, DnsRecordType.PTR)
+                .Select(GetPtrTarget)
+                .Where(value => value.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        /// <summary>
+        /// Streams all service instances advertised under a DNS domain.
+        /// </summary>
+        /// <param name="domain">Domain name to browse.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <returns>Service instances after their SRV and TXT records have been resolved.</returns>
         public async IAsyncEnumerable<DnsService> EnumerateServicesAsync(
             string domain,
             [EnumeratorCancellation] CancellationToken cancellationToken = default) {
-            if (string.IsNullOrWhiteSpace(domain)) throw new ArgumentNullException(nameof(domain));
-            string ptrQuery = $"_services._dns-sd._udp.{domain}";
-            var ptrResponse = await ResolveForSd(ptrQuery, DnsRecordType.PTR, cancellationToken).ConfigureAwait(false);
-            if (ptrResponse.Answers == null) yield break;
-
-            foreach (var ptr in ptrResponse.Answers.Where(a => a.Type == DnsRecordType.PTR)) {
-                string serviceDomain = ptr.Data.TrimEnd('.');
-                var srvResponse = await ResolveForSd(serviceDomain, DnsRecordType.SRV, cancellationToken).ConfigureAwait(false);
-                var txtResponse = await ResolveForSd(serviceDomain, DnsRecordType.TXT, cancellationToken).ConfigureAwait(false);
-
-                var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var txt in txtResponse.Answers?.Where(a => a.Type == DnsRecordType.TXT) ?? Array.Empty<DnsAnswer>()) {
-                    foreach (string part in txt.DataStringsEscaped) {
-                        var idx = part.IndexOf('=');
-                        if (idx > 0) {
-                            string key = part.Substring(0, idx);
-                            string val = part.Substring(idx + 1);
-                            metadata[key] = val;
-                        } else {
-                            metadata[part] = string.Empty;
-                        }
-                    }
-                }
-
-                foreach (var srv in srvResponse.Answers?.Where(a => a.Type == DnsRecordType.SRV) ?? Array.Empty<DnsAnswer>()) {
-                    var bits = srv.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (bits.Length == 4 &&
-                        int.TryParse(bits[0], out int priority) &&
-                        int.TryParse(bits[1], out int weight) &&
-                        int.TryParse(bits[2], out int port)) {
-                        string target = bits[3].TrimEnd('.');
-                        yield return new DnsService {
-                            ServiceName = serviceDomain,
-                            Target = target,
-                            Port = port,
-                            Priority = priority,
-                            Weight = weight,
-                            Metadata = metadata.Count > 0 ? new Dictionary<string, string>(metadata) : null
-                        };
-                    }
+            string normalizedDomain = NormalizeDiscoveryDomain(domain, nameof(domain));
+            string[] serviceTypes = await DiscoverServiceTypesAsync(normalizedDomain, cancellationToken).ConfigureAwait(false);
+            foreach (string serviceType in serviceTypes) {
+                await foreach (DnsService service in EnumerateServiceTypeAsync(serviceType, cancellationToken).ConfigureAwait(false)) {
+                    yield return service;
                 }
             }
         }
 
         /// <summary>
-        /// Resolves SRV records for a specific service and protocol under a domain.
+        /// Browses instances of one service and transport under a DNS domain.
         /// </summary>
-        /// <param name="service">Service name without leading underscore, e.g. <c>ldap</c>.</param>
-        /// <param name="protocol">Protocol name without leading underscore, e.g. <c>tcp</c>.</param>
+        /// <param name="service">Service label with or without the leading underscore.</param>
+        /// <param name="protocol">Transport label with or without the leading underscore.</param>
+        /// <param name="domain">Domain name to browse.</param>
+        /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <returns>The discovered service instances.</returns>
+        public async Task<DnsService[]> BrowseServicesAsync(
+            string service,
+            string protocol,
+            string domain,
+            CancellationToken cancellationToken = default) {
+            string serviceType = BuildServiceType(service, protocol, domain);
+            var results = new List<DnsService>();
+            await foreach (DnsService item in EnumerateServiceTypeAsync(serviceType, cancellationToken).ConfigureAwait(false)) {
+                results.Add(item);
+            }
+
+            return results.ToArray();
+        }
+
+        /// <summary>
+        /// Resolves SRV records for a service and returns them in RFC 2782 connection-attempt order.
+        /// </summary>
+        /// <param name="service">Service label with or without the leading underscore.</param>
+        /// <param name="protocol">Transport label with or without the leading underscore.</param>
         /// <param name="domain">Domain hosting the service.</param>
         /// <param name="resolveHosts">Whether to resolve A and AAAA records for each target.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
-        /// <returns>Ordered SRV records parsed from the response.</returns>
-        /// <exception cref="ArgumentNullException">Thrown when any parameter is null or whitespace.</exception>
+        /// <returns>SRV records ordered by priority and weighted random selection.</returns>
         public async Task<DnsSrvRecord[]> ResolveServiceAsync(
             string service,
             string protocol,
             string domain,
             bool resolveHosts = false,
             CancellationToken cancellationToken = default) {
-            if (string.IsNullOrWhiteSpace(service)) throw new ArgumentNullException(nameof(service));
-            if (string.IsNullOrWhiteSpace(protocol)) throw new ArgumentNullException(nameof(protocol));
-            if (string.IsNullOrWhiteSpace(domain)) throw new ArgumentNullException(nameof(domain));
-
-            if (!service.StartsWith("_", StringComparison.Ordinal)) service = "_" + service;
-            if (!protocol.StartsWith("_", StringComparison.Ordinal)) protocol = "_" + protocol;
-
-            string query = $"{service}.{protocol}.{domain}";
-            DnsResponse response;
-            try {
-                response = await ResolveForSd(query, DnsRecordType.SRV, cancellationToken).ConfigureAwait(false);
-            } catch (DnsClientException ex) when (ex.Response?.Status == DnsResponseCode.NXDomain || ex.Response?.Status == DnsResponseCode.NXRRSet) {
-                return Array.Empty<DnsSrvRecord>();
-            }
-            if (response.Answers == null) return Array.Empty<DnsSrvRecord>();
-
+            string query = BuildServiceType(service, protocol, domain);
+            DnsResponse response = await ResolveDiscoveryRecordAsync(query, DnsRecordType.SRV, cancellationToken).ConfigureAwait(false);
             var records = new List<DnsSrvRecord>();
-            foreach (var answer in response.Answers.Where(a => a.Type == DnsRecordType.SRV)) {
-                var parts = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length == 4 &&
-                    int.TryParse(parts[0], out int priority) &&
-                    int.TryParse(parts[1], out int weight) &&
-                    int.TryParse(parts[2], out int port)) {
-                    string target = parts[3].TrimEnd('.');
-                    IPAddress[]? addresses = null;
-                    if (resolveHosts) {
-                        var addr = new List<IPAddress>();
-                        var aRes = await ResolveForSd(target, DnsRecordType.A, cancellationToken).ConfigureAwait(false);
-                        if (aRes.Answers != null) {
-                            addr.AddRange(aRes.Answers.Where(a => a.Type == DnsRecordType.A)
-                                .Select(a => IPAddress.Parse(a.Data)));
-                        }
-                        var aaaaRes = await ResolveForSd(target, DnsRecordType.AAAA, cancellationToken).ConfigureAwait(false);
-                        if (aaaaRes.Answers != null) {
-                            addr.AddRange(aaaaRes.Answers.Where(a => a.Type == DnsRecordType.AAAA)
-                                .Select(a => IPAddress.Parse(a.Data)));
-                        }
-                        if (addr.Count > 0) addresses = addr.ToArray();
-                    }
+            foreach (DnsAnswer answer in GetAnswers(response, DnsRecordType.SRV)) {
+                if (!TryParseSrv(answer, out DnsSrvRecord? record) || record == null) {
+                    continue;
+                }
 
-                    records.Add(new DnsSrvRecord {
-                        Target = target,
-                        Port = port,
-                        Priority = priority,
-                        Weight = weight,
-                        Addresses = addresses
-                    });
+                if (resolveHosts && record.Target != ".") {
+                    record.Addresses = await ResolveServiceAddressesAsync(record.Target, cancellationToken).ConfigureAwait(false);
+                }
+
+                records.Add(record);
+            }
+
+            return DnsServiceSelection.OrderForConnection(records);
+        }
+
+        private async IAsyncEnumerable<DnsService> EnumerateServiceTypeAsync(
+            string serviceType,
+            [EnumeratorCancellation] CancellationToken cancellationToken) {
+            DnsResponse instanceResponse = await ResolveDiscoveryRecordAsync(
+                serviceType,
+                DnsRecordType.PTR,
+                cancellationToken).ConfigureAwait(false);
+            string[] instances = GetAnswers(instanceResponse, DnsRecordType.PTR)
+                .Select(GetPtrTarget)
+                .Where(value => value.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            foreach (string instance in instances) {
+                DnsResponse srvResponse = await ResolveDiscoveryRecordAsync(instance, DnsRecordType.SRV, cancellationToken).ConfigureAwait(false);
+                DnsResponse txtResponse = await ResolveDiscoveryRecordAsync(instance, DnsRecordType.TXT, cancellationToken).ConfigureAwait(false);
+                Dictionary<string, string>? metadata = ParseTxtMetadata(GetAnswers(txtResponse, DnsRecordType.TXT));
+
+                foreach (DnsAnswer answer in GetAnswers(srvResponse, DnsRecordType.SRV)) {
+                    if (TryParseSrv(answer, out DnsSrvRecord? record) && record != null) {
+                        yield return new DnsService {
+                            ServiceName = instance,
+                            ServiceType = serviceType,
+                            Target = record.Target,
+                            Port = record.Port,
+                            Priority = record.Priority,
+                            Weight = record.Weight,
+                            Metadata = metadata == null ? null : new Dictionary<string, string>(metadata, StringComparer.OrdinalIgnoreCase)
+                        };
+                    }
+                }
+            }
+        }
+
+        private Task<DnsResponse> ResolveForSd(
+            string name,
+            DnsRecordType type,
+            CancellationToken cancellationToken) {
+            if (ResolverOverride != null) {
+                return ResolverOverride(name, type, cancellationToken);
+            }
+
+            return Resolve(
+                name,
+                type,
+                requestDnsSec: false,
+                validateDnsSec: false,
+                returnAllTypes: true,
+                retryOnTransient: true,
+                maxRetries: 3,
+                retryDelayMs: 100,
+                cancellationToken: cancellationToken);
+        }
+
+        private async Task<DnsResponse> ResolveDiscoveryRecordAsync(
+            string name,
+            DnsRecordType type,
+            CancellationToken cancellationToken) {
+            try {
+                return await ResolveForSd(name, type, cancellationToken).ConfigureAwait(false);
+            } catch (DnsClientException ex) when (ex.Response?.Status == DnsResponseCode.NXDomain
+                || ex.Response?.Status == DnsResponseCode.NXRRSet) {
+                return ex.Response;
+            }
+        }
+
+        private async Task<IPAddress[]?> ResolveServiceAddressesAsync(
+            string target,
+            CancellationToken cancellationToken) {
+            var addresses = new List<IPAddress>();
+            foreach (DnsRecordType type in new[] { DnsRecordType.A, DnsRecordType.AAAA }) {
+                DnsResponse response = await ResolveDiscoveryRecordAsync(target, type, cancellationToken).ConfigureAwait(false);
+                foreach (DnsAnswer answer in GetAnswers(response, type)) {
+                    if (IPAddress.TryParse(answer.Data, out IPAddress? address)) {
+                        addresses.Add(address);
+                    }
                 }
             }
 
-            return records
-                .OrderBy(r => r.Priority)
-                .ThenByDescending(r => r.Weight)
-                .ToArray();
+            return addresses.Count == 0 ? null : addresses.Distinct().ToArray();
+        }
+
+        private static IEnumerable<DnsAnswer> GetAnswers(DnsResponse response, DnsRecordType type) {
+            return (response.Answers ?? Array.Empty<DnsAnswer>()).Where(answer => answer.Type == type);
+        }
+
+        private static Dictionary<string, string>? ParseTxtMetadata(IEnumerable<DnsAnswer> answers) {
+            var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (DnsAnswer answer in answers) {
+                foreach (string part in answer.DataStringsEscaped) {
+                    int equals = part.IndexOf('=');
+                    if (equals > 0) {
+                        metadata[part.Substring(0, equals)] = part.Substring(equals + 1);
+                    } else if (part.Length > 0) {
+                        metadata[part] = string.Empty;
+                    }
+                }
+            }
+
+            return metadata.Count == 0 ? null : metadata;
+        }
+
+        private static bool TryParseSrv(DnsAnswer answer, out DnsSrvRecord? record) {
+            record = null;
+            string[] parts = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length != 4
+                || !ushort.TryParse(parts[0], out ushort priority)
+                || !ushort.TryParse(parts[1], out ushort weight)
+                || !ushort.TryParse(parts[2], out ushort port)) {
+                return false;
+            }
+
+            record = new DnsSrvRecord {
+                Target = NormalizeDiscoveryName(parts[3]),
+                Port = port,
+                Priority = priority,
+                Weight = weight
+            };
+            return true;
+        }
+
+        private static string BuildServiceType(string service, string protocol, string domain) {
+            string normalizedService = NormalizeDiscoveryLabel(service, nameof(service));
+            string normalizedProtocol = NormalizeDiscoveryLabel(protocol, nameof(protocol));
+            string normalizedDomain = NormalizeDiscoveryDomain(domain, nameof(domain));
+            return $"_{normalizedService}._{normalizedProtocol}.{normalizedDomain}";
+        }
+
+        private static string NormalizeDiscoveryLabel(string value, string parameterName) {
+            if (string.IsNullOrWhiteSpace(value)) {
+                throw new ArgumentNullException(parameterName);
+            }
+
+            return value.Trim().Trim('_').Trim('.');
+        }
+
+        private static string NormalizeDiscoveryDomain(string value, string parameterName) {
+            if (string.IsNullOrWhiteSpace(value)) {
+                throw new ArgumentNullException(parameterName);
+            }
+
+            return value.Trim().Trim('.');
+        }
+
+        private static string NormalizeDiscoveryName(string value) {
+            return (value ?? string.Empty).Trim().TrimEnd('.');
+        }
+
+        private static string GetPtrTarget(DnsAnswer answer) {
+            string raw = (answer.DataRaw ?? string.Empty).Trim();
+            if (raw.Length > 0 && !raw.StartsWith("\\#", StringComparison.Ordinal)) {
+                return NormalizeDiscoveryName(raw);
+            }
+
+            return NormalizeDiscoveryName(answer.Data);
         }
     }
 }

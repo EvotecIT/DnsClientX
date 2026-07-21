@@ -30,7 +30,11 @@ namespace DnsClientX.Tests {
         private static async Task<int> RunUdpServerCapturePortAsync(int port, byte[] response, CancellationToken token) {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
             UdpReceiveResult result = await udp.ReceiveAsync();
-            await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
+            IPAddress responseAddress = result.RemoteEndPoint.Address.IsIPv4MappedToIPv6
+                ? result.RemoteEndPoint.Address.MapToIPv4()
+                : result.RemoteEndPoint.Address;
+            await udp.SendAsync(response, response.Length,
+                new IPEndPoint(responseAddress, result.RemoteEndPoint.Port));
             return result.RemoteEndPoint.Port;
         }
 

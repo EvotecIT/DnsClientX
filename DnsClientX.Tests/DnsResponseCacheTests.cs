@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -233,6 +234,31 @@ namespace DnsClientX.Tests {
             Assert.NotEqual(baseline, longer);
             Assert.NotEqual(baseline, insecure);
             Assert.NotEqual(baseline, differentTlsIdentity);
+        }
+
+        /// <summary>Cache entries never cross source address, interface, family, or fallback policy boundaries.</summary>
+        [Fact]
+        public void CacheKeySeparatesNetworkPathSelection() {
+            var configuration = new Configuration("192.0.2.53", DnsRequestFormat.DnsOverUDP);
+            string Key() => DnsCacheKeyBuilder.Build(configuration, "example.com", DnsRecordType.A,
+                false, false, false, false, false, TimeSpan.FromMinutes(1), false);
+            string baseline = Key();
+            configuration.LocalEndPoint = new IPEndPoint(IPAddress.Loopback, 0);
+            string sourceBound = Key();
+            configuration.LocalEndPoint = null;
+            configuration.MulticastInterfaceIndex = 4;
+            string interfaceBound = Key();
+            configuration.MulticastInterfaceIndex = null;
+            configuration.PreferredAddressFamily = AddressFamily.InterNetworkV6;
+            string ipv6Preferred = Key();
+            configuration.PreferredAddressFamily = null;
+            configuration.UseTcpFallback = false;
+            string fallbackDisabled = Key();
+
+            Assert.NotEqual(baseline, sourceBound);
+            Assert.NotEqual(baseline, interfaceBound);
+            Assert.NotEqual(baseline, ipv6Preferred);
+            Assert.NotEqual(baseline, fallbackDisabled);
         }
     }
 }

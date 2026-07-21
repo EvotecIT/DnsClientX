@@ -1,5 +1,4 @@
 using System.Net;
-using System.Reflection;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -8,9 +7,8 @@ namespace DnsClientX.Tests {
     /// </summary>
     public class FormatDnsAddressTests {
         private static string InvokeFormatDnsAddress(string ip) {
-            MethodInfo method = typeof(SystemInformation).GetMethod("FormatDnsAddress", BindingFlags.NonPublic | BindingFlags.Static)!;
             var address = IPAddress.Parse(ip);
-            return (string)method.Invoke(null, new object[] { address })!;
+            return SystemInformation.FormatDnsAddress(address);
         }
 
         /// <summary>
@@ -23,13 +21,13 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// IPv6 addresses should have zones removed and be wrapped in brackets.
+        /// IPv6 socket addresses should retain scopes and should not use URI-only brackets.
         /// </summary>
         [Theory]
-        [InlineData("2001:db8::1", "[2001:db8::1]")]
-        [InlineData("fe80::1%12", "[fe80::1]")]
-        [InlineData("::1", "[::1]")]
-        public void FormatIpv6_RemovesZoneAndAddsBrackets(string input, string expected) {
+        [InlineData("2001:db8::1", "2001:db8::1")]
+        [InlineData("fe80::1%12", "fe80::1%12")]
+        [InlineData("::1", "::1")]
+        public void FormatIpv6_PreservesSocketLiteral(string input, string expected) {
             var result = InvokeFormatDnsAddress(input);
             Assert.Equal(expected, result);
         }

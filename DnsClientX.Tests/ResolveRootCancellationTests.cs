@@ -4,7 +4,7 @@ using Xunit;
 
 namespace DnsClientX.Tests {
     /// <summary>
-    /// Tests cancellation behavior of <see cref="ClientX.ResolveFromRoot"/>.
+    /// Tests cancellation behavior of iterative resolution on <see cref="ClientX"/>.
     /// </summary>
     public class ResolveRootCancellationTests {
         /// <summary>

@@ -38,6 +38,9 @@ namespace DnsClientX {
             DnsQuicConnectionPool? connectionPool = null) {
             if (string.IsNullOrWhiteSpace(dnsServer)) throw new ArgumentNullException(nameof(dnsServer));
             if (string.IsNullOrWhiteSpace(name)) throw new ArgumentNullException(nameof(name));
+            if (HasConfiguredOption(endpointConfiguration, 11)) {
+                throw new DnsClientException("EDNS TCP Keepalive is prohibited on DNS over QUIC by RFC 9250.");
+            }
 
             DnsMessage query = CreatePaddedQuery(name, type, requestDnsSec, validateDnsSec, endpointConfiguration);
             byte[] queryBytes = query.SerializeDnsWireFormat();
@@ -90,6 +93,7 @@ namespace DnsClientX {
                 : endpointConfiguration.TlsServerName!;
             var options = new QuicClientConnectionOptions {
                 RemoteEndPoint = new IPEndPoint(address, port),
+                LocalEndPoint = endpointConfiguration.LocalEndPoint,
                 DefaultCloseErrorCode = 0,
                 DefaultStreamErrorCode = 0,
                 ClientAuthenticationOptions = new SslClientAuthenticationOptions {
@@ -100,12 +104,13 @@ namespace DnsClientX {
             };
 
             using var timeout = CreateTimeoutTokenSource(endpointConfiguration.TimeOut, cancellationToken);
-            string poolKey = $"{targetHost}:{port}";
+            string poolKey = $"{targetHost}:{port}|{endpointConfiguration.LocalEndPoint?.ToString() ?? "default"}";
             try {
                 if (connectionPool == null) {
                     QuicConnection connection = await QuicConnectionFactory(options, timeout.Token).ConfigureAwait(false);
                     try {
-                        return await QueryConnection(connection, payload, query, debug, endpointConfiguration, timeout.Token).ConfigureAwait(false);
+                        return await QueryConnection(connection, payload, query, debug, endpointConfiguration,
+                            timeout.Token, cancellationToken).ConfigureAwait(false);
                     } catch (DnsClientException) {
                         await CloseForProtocolViolationAsync(connection).ConfigureAwait(false);
                         throw;
@@ -117,7 +122,8 @@ namespace DnsClientX {
                 for (int attempt = 0; ; attempt++) {
                     QuicConnection connection = await connectionPool.GetAsync(poolKey, options, QuicConnectionFactory, timeout.Token).ConfigureAwait(false);
                     try {
-                        return await QueryConnection(connection, payload, query, debug, endpointConfiguration, timeout.Token).ConfigureAwait(false);
+                        return await QueryConnection(connection, payload, query, debug, endpointConfiguration,
+                            timeout.Token, cancellationToken).ConfigureAwait(false);
                     } catch (DnsClientException) {
                         await connectionPool.InvalidateAsync(poolKey, connection, CloseForProtocolViolationAsync).ConfigureAwait(false);
                         throw;
@@ -156,7 +162,8 @@ namespace DnsClientX {
         }
 
         private static async Task<DnsResponse> QueryConnection(QuicConnection connection, byte[] payload,
-            DnsMessage query, bool debug, Configuration configuration, CancellationToken cancellationToken) {
+            DnsMessage query, bool debug, Configuration configuration, CancellationToken cancellationToken,
+            CancellationToken callerCancellationToken) {
             QuicStream stream = await StreamFactory(connection, cancellationToken).ConfigureAwait(false);
             try {
                 await stream.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
@@ -167,6 +174,20 @@ namespace DnsClientX {
                 if (responseLength == 0) throw new DnsClientException("DoQ response declares a zero-length DNS message.");
                 var responseBytes = new byte[responseLength];
                 await DnsWire.ReadExactAsync(stream, responseBytes, 0, responseLength, cancellationToken).ConfigureAwait(false);
+                if (DnsWireMessageParser.TryContainsEdnsOption(responseBytes, 11, out bool hasKeepalive)
+                    && hasKeepalive) {
+                    throw new DnsClientException("A DoQ response contained the prohibited EDNS TCP Keepalive option.");
+                }
+                var trailing = new byte[1];
+                int trailingCount;
+                try {
+                    trailingCount = await stream.ReadAsync(trailing, 0, 1, cancellationToken).ConfigureAwait(false);
+                } catch (OperationCanceledException) when (!callerCancellationToken.IsCancellationRequested) {
+                    throw new DnsClientException("The DoQ response did not terminate its stream with FIN.");
+                }
+                if (trailingCount != 0) {
+                    throw new DnsClientException("A DoQ stream contained more than one DNS response message.");
+                }
                 DnsResponse response = await DnsWire.DeserializeDnsWireResponse(null, debug, responseBytes, query).ConfigureAwait(false);
                 response.AddServerDetails(configuration, Transport.Quic);
                 return response;
@@ -195,6 +216,14 @@ namespace DnsClientX {
             if (configuration.EdnsOptions?.Options == null) return false;
             foreach (EdnsOption option in configuration.EdnsOptions.Options) {
                 if (option.Code == 12) return true;
+            }
+            return false;
+        }
+
+        internal static bool HasConfiguredOption(Configuration configuration, ushort optionCode) {
+            if (configuration.EdnsOptions?.Options == null) return false;
+            foreach (EdnsOption option in configuration.EdnsOptions.Options) {
+                if (option.Code == optionCode) return true;
             }
             return false;
         }

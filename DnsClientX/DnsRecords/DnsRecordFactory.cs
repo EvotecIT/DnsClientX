@@ -123,7 +123,7 @@ public static class DnsRecordFactory {
                 return new DnameRecord(answer.Data.TrimEnd('.'));
             case DnsRecordType.LOC:
                 var loc = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (loc.Length >= 11 &&
+                if (loc.Length >= 12 &&
                     int.TryParse(loc[0], out var latDeg) &&
                     int.TryParse(loc[1], out var latMin) &&
                     double.TryParse(loc[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var latSec) &&

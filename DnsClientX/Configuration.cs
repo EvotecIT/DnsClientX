@@ -33,6 +33,29 @@ namespace DnsClientX {
         internal IReadOnlyList<string> Hostnames => hostnames;
 
         /// <summary>
+        /// Gets the operating-system resolver configuration when this endpoint represents system DNS.
+        /// </summary>
+        public SystemDnsConfiguration? SystemDnsConfiguration { get; private set; }
+
+        /// <summary>
+        /// Gets or sets whether unqualified names use operating-system search suffixes for system DNS endpoints.
+        /// </summary>
+        public bool UseSystemSearchDomains { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets the local network-interface index used for multicast DNS queries.
+        /// A null value lets the operating system choose the interface.
+        /// </summary>
+        public int? MulticastInterfaceIndex { get; set; }
+
+        /// <summary>
+        /// Gets or sets the local endpoint used to bind UDP, TCP, DNS-over-TLS, and DNS-over-QUIC sockets.
+        /// HTTP-based transports do not support this option and fail explicitly when it is set.
+        /// Use port zero to let the operating system allocate an ephemeral source port.
+        /// </summary>
+        public IPEndPoint? LocalEndPoint { get; set; }
+
+        /// <summary>
         /// Gets or sets the cooldown period for hosts marked as unavailable.
         /// </summary>
         public TimeSpan UnavailableCooldown { get; set; } = TimeSpan.FromMinutes(1);
@@ -105,6 +128,9 @@ namespace DnsClientX {
         /// </summary>
         public const int DefaultTimeout = 2000;
 
+        /// <summary>Default maximum number of referral and alias hops for iterative resolution.</summary>
+        public const int DefaultIterativeMaxHops = 32;
+
         /// <summary>
         /// Default connection limit per server for HTTP requests.
         /// </summary>
@@ -124,6 +150,12 @@ namespace DnsClientX {
         /// Time-out for DNS Query in milliseconds. Valid only for UDP (for now).
         /// </summary>
         public int TimeOut = DefaultTimeout;
+
+        /// <summary>
+        /// Gets or sets the maximum referral and alias hops used by the <see cref="DnsEndpoint.RootServer"/> profile.
+        /// This is independent of public retry-attempt settings.
+        /// </summary>
+        public int IterativeMaxHops { get; set; } = DefaultIterativeMaxHops;
 
         /// <summary>
         /// Sets the CD (Checking Disabled) flag on queries.
@@ -229,6 +261,11 @@ namespace DnsClientX {
         /// The port.
         /// </value>
         public int Port { get; set; }
+
+        /// <summary>
+        /// Gets the built-in resolver profile used to create this configuration, when applicable.
+        /// </summary>
+        public DnsEndpoint? BuiltInEndpoint { get; }
 
         private void ApplyPortToBaseUri() {
             if ((RequestFormat == DnsRequestFormat.DnsOverTLS || RequestFormat == DnsRequestFormat.DnsOverQuic) && BaseUri != null && BaseUri.Port != Port) {
@@ -360,6 +397,9 @@ namespace DnsClientX {
                 SelectHostNameStrategyCore();
                 Configuration snapshot = (Configuration)MemberwiseClone();
                 snapshot.EdnsOptions = EdnsOptions?.Clone();
+                snapshot.LocalEndPoint = LocalEndPoint == null
+                    ? null
+                    : new IPEndPoint(LocalEndPoint.Address, LocalEndPoint.Port);
                 return snapshot;
             }
         }
@@ -426,23 +466,31 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="endpoint">The DNS endpoint to use.</param>
         /// <param name="selectionStrategy">DNS Selection Strategy</param>
+        /// <param name="systemDnsFallback">Optional fallback used only when a system endpoint has no configured resolvers.</param>
         /// <exception cref="System.ArgumentException">Thrown when an invalid endpoint is provided.</exception>
-        public Configuration(DnsEndpoint endpoint, DnsSelectionStrategy selectionStrategy = DnsSelectionStrategy.First) {
+        /// <exception cref="InvalidOperationException">Thrown when a system endpoint has no configured resolver and no fallback was requested.</exception>
+        public Configuration(
+            DnsEndpoint endpoint,
+            DnsSelectionStrategy selectionStrategy = DnsSelectionStrategy.First,
+            SystemDnsFallback systemDnsFallback = SystemDnsFallback.None) {
+            BuiltInEndpoint = endpoint;
             List<string> hostnames;
             SelectionStrategy = selectionStrategy;
             string? baseUriFormat;
             switch (endpoint) {
                 case DnsEndpoint.System:
                     // Use the system's default DNS resolver
-                    hostnames = SystemInformation.GetDnsFromActiveNetworkCard();
+                    SystemDnsConfiguration = SystemInformation.GetDnsConfiguration(fallback: systemDnsFallback);
+                    hostnames = new List<string>(SystemDnsConfiguration.DnsServers);
                     RequestFormat = DnsRequestFormat.DnsOverUDP;
-                    baseUriFormat = "https://{0}/dns-query";
+                    baseUriFormat = null;
                     break;
                 case DnsEndpoint.SystemTcp:
                     // Use the system's default DNS resolver
-                    hostnames = SystemInformation.GetDnsFromActiveNetworkCard();
+                    SystemDnsConfiguration = SystemInformation.GetDnsConfiguration(fallback: systemDnsFallback);
+                    hostnames = new List<string>(SystemDnsConfiguration.DnsServers);
                     RequestFormat = DnsRequestFormat.DnsOverTCP;
-                    baseUriFormat = "https://{0}/dns-query";
+                    baseUriFormat = null;
                     break;
                 case DnsEndpoint.Cloudflare:
                     hostnames = ["1.1.1.1", "1.0.0.1"];
@@ -460,10 +508,7 @@ namespace DnsClientX {
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.CloudflareJsonPost:
-                    hostnames = new List<string> { "1.1.1.1", "1.0.0.1" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttpsJSONPOST;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
+                    throw new NotSupportedException("Cloudflare does not publish a JSON-over-POST DNS endpoint. Use CloudflareWireFormatPost for RFC 8484 POST.");
                 case DnsEndpoint.CloudflareSecurity:
                     hostnames = new List<string> { "1.1.1.2", "1.0.0.2" };
                     RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
@@ -495,25 +540,22 @@ namespace DnsClientX {
                     baseUriFormat = null;
                     break;
                 case DnsEndpoint.Google:
-                    hostnames = new List<string> { "8.8.8.8", "8.8.4.4" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
-                    baseUriFormat = "https://{0}/resolve";
+                    hostnames = new List<string> { "dns.google" };
+                    RequestFormat = DnsRequestFormat.DnsOverHttps;
+                    baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.GoogleWireFormat:
-                    hostnames = new List<string> { "8.8.8.8", "8.8.4.4" };
+                    hostnames = new List<string> { "dns.google" };
                     RequestFormat = DnsRequestFormat.DnsOverHttps;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.GoogleWireFormatPost:
-                    hostnames = new List<string> { "8.8.8.8", "8.8.4.4" };
+                    hostnames = new List<string> { "dns.google" };
                     RequestFormat = DnsRequestFormat.DnsOverHttpsWirePost;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.GoogleJsonPost:
-                    hostnames = new List<string> { "8.8.8.8", "8.8.4.4" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttpsJSONPOST;
-                    baseUriFormat = "https://{0}/resolve";
-                    break;
+                    throw new NotSupportedException("Google Public DNS does not publish a JSON-over-POST endpoint. Use GoogleWireFormatPost for RFC 8484 POST.");
                 case DnsEndpoint.GoogleQuic:
                     throw new NotSupportedException("Google Public DNS does not publish a DNS-over-QUIC resolver endpoint. Use Google DoH, DoH3, or DoT.");
                 case DnsEndpoint.AdGuard:
@@ -561,6 +603,12 @@ namespace DnsClientX {
                     RequestFormat = DnsRequestFormat.DnsOverHttps;
                     baseUriFormat = "https://{0}/dns-query";
                     break;
+                case DnsEndpoint.RootServer:
+                    hostnames = new List<string>(RootServers.Servers);
+                    RequestFormat = DnsRequestFormat.DnsOverUDP;
+                    RecursionDesired = false;
+                    baseUriFormat = null;
+                    break;
                 case DnsEndpoint.DnsCryptCloudflare:
                 case DnsEndpoint.DnsCryptQuad9:
                 case DnsEndpoint.DnsCryptRelay:
@@ -571,6 +619,10 @@ namespace DnsClientX {
 
             if (endpoint == DnsEndpoint.Custom && hostnames.Count == 0) {
                 throw new ArgumentException("At least one hostname must be specified for a custom endpoint.", nameof(endpoint));
+            }
+            if ((endpoint == DnsEndpoint.System || endpoint == DnsEndpoint.SystemTcp) && hostnames.Count == 0) {
+                throw new InvalidOperationException(
+                    "No DNS servers were exposed by the operating system. Configure an explicit resolver or opt in to SystemDnsFallback.PublicResolvers.");
             }
             // Select a hostname based on the selection strategy
             this.hostnames = hostnames;

@@ -173,6 +173,26 @@ namespace DnsClientX.Tests {
             Assert.Equal(1, handler.DisposeCount);
         }
 
+        /// <summary>Concurrent synchronous and asynchronous disposal share one atomic ownership transition.</summary>
+        [Fact]
+        public async Task Client_MixedDispose_CalledConcurrently_ShouldOnlyDisposeOnce() {
+            var handler = new TrackingHandler();
+            var customClient = new HttpClient(handler) { BaseAddress = new Uri("https://example.com") };
+            var clientX = new ClientX("example.com", DnsRequestFormat.DnsOverHttps);
+            var clientsField = typeof(ClientX).GetField("_clients", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var clients = (Dictionary<DnsSelectionStrategy, HttpClient>)clientsField.GetValue(clientX)!;
+            clients[clientX.EndpointConfiguration.SelectionStrategy] = customClient;
+            typeof(ClientX).GetField("Client", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(clientX, customClient);
+            typeof(ClientX).GetField("_handlerOwnedByClient", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(clientX, true);
+
+            await Task.WhenAll(
+                Task.Run(() => clientX.Dispose()),
+                Task.Run(() => clientX.DisposeAsync().AsTask()));
+
+            Assert.Equal(1, handler.DisposeCount);
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => clientX.Resolve("example.com"));
+        }
+
         /// <summary>
         /// Validates that the disposal counter is incremented when <see cref="ClientX.DisposeAsync()"/> is called.
         /// </summary>

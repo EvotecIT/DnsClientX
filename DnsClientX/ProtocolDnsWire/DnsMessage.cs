@@ -9,6 +9,11 @@ namespace DnsClientX {
     /// Represents one DNS query message.
     /// </summary>
     public sealed class DnsMessage {
+#if NET6_0_OR_GREATER
+#else
+        private static readonly object TransactionIdLock = new();
+        private static readonly RandomNumberGenerator TransactionIdGenerator = RandomNumberGenerator.Create();
+#endif
         private readonly byte[][] _labels;
         private readonly DnsRecordType _type;
         private readonly bool _recursionDesired;
@@ -139,23 +144,29 @@ namespace DnsClientX {
         }
 
         private static ushort CreateTransactionId() {
+#if NET6_0_OR_GREATER
+            Span<byte> bytes = stackalloc byte[2];
+            RandomNumberGenerator.Fill(bytes);
+            return BinaryPrimitives.ReadUInt16BigEndian(bytes);
+#else
             byte[] bytes = new byte[2];
-            using (RandomNumberGenerator rng = RandomNumberGenerator.Create()) {
-                rng.GetBytes(bytes);
+            lock (TransactionIdLock) {
+                TransactionIdGenerator.GetBytes(bytes);
             }
             return BinaryPrimitives.ReadUInt16BigEndian(bytes);
+#endif
         }
 
         private static void WriteUInt16(Stream stream, ushort value) {
-            byte[] buffer = new byte[2];
-            BinaryPrimitives.WriteUInt16BigEndian(buffer, value);
-            stream.Write(buffer, 0, buffer.Length);
+            stream.WriteByte((byte)(value >> 8));
+            stream.WriteByte((byte)value);
         }
 
         private static void WriteUInt32(Stream stream, uint value) {
-            byte[] buffer = new byte[4];
-            BinaryPrimitives.WriteUInt32BigEndian(buffer, value);
-            stream.Write(buffer, 0, buffer.Length);
+            stream.WriteByte((byte)(value >> 24));
+            stream.WriteByte((byte)(value >> 16));
+            stream.WriteByte((byte)(value >> 8));
+            stream.WriteByte((byte)value);
         }
     }
 }

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Net.Sockets;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -166,8 +167,22 @@ namespace DnsClientX {
             bool debug,
             Configuration configuration,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
-            using TcpClient tcpClient = DnsWireResolveTcp.TcpClientFactory();
-            await ConnectAsync(tcpClient, dnsServer, port, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
+            (IPAddress? address, string? resolveError) = await DnsServerResolver.ResolveAsync(
+                dnsServer,
+                timeoutMilliseconds,
+                cancellationToken,
+                configuration.DnsServerResolutionSuccessTtl,
+                configuration.DnsServerResolutionFailureTtl,
+                configuration.DnsServerResolutionAllowStale,
+                configuration.DnsServerResolutionStaleTtl,
+                configuration.DnsServerResolutionFailureBackoffEnabled,
+                configuration.DnsServerResolutionFailureBackoffFactor,
+                configuration.DnsServerResolutionFailureBackoffMaxTtl,
+                configuration.PreferredAddressFamily).ConfigureAwait(false);
+            if (address == null) throw new DnsClientException(resolveError ?? $"DNS server '{dnsServer}' could not be resolved.");
+            using TcpClient tcpClient = DnsWireResolveTcp.TcpClientFactory(address.AddressFamily);
+            SocketBinding.Bind(tcpClient.Client, configuration.LocalEndPoint, address.AddressFamily);
+            await ConnectAsync(tcpClient, address.ToString(), port, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
             NetworkStream stream = tcpClient.GetStream();
             try {
                     var lengthBytes = BitConverter.GetBytes((ushort)query.Length);

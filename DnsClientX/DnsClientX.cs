@@ -89,6 +89,7 @@ namespace DnsClientX {
 
         private static readonly DnsResponseCache _cache = new();
         private readonly bool _cacheEnabled;
+        private readonly DnsUdpClientPool _udpClientPool = new();
 #if NET8_0_OR_GREATER
         private readonly DnsQuicConnectionPool _quicConnectionPool = new();
 #endif
@@ -142,6 +143,7 @@ namespace DnsClientX {
         /// <param name="useTcpFallback">Falls back to TCP when UDP responses are truncated.</param>
         /// <param name="webProxy">Optional HTTP proxy.</param>
         /// <param name="maxConnectionsPerServer">Maximum number of concurrent connections per server.</param>
+        /// <param name="systemDnsFallback">Optional fallback used only when a system endpoint has no configured resolvers.</param>
         public ClientX(
             DnsEndpoint endpoint = DnsEndpoint.Cloudflare,
             DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First,
@@ -152,8 +154,9 @@ namespace DnsClientX {
             bool enableCache = false,
             bool useTcpFallback = true,
             IWebProxy? webProxy = null,
-            int maxConnectionsPerServer = Configuration.DefaultMaxConnectionsPerServer) {
-            EndpointConfiguration = new Configuration(endpoint, dnsSelectionStrategy) {
+            int maxConnectionsPerServer = Configuration.DefaultMaxConnectionsPerServer,
+            SystemDnsFallback systemDnsFallback = SystemDnsFallback.None) {
+            EndpointConfiguration = new Configuration(endpoint, dnsSelectionStrategy, systemDnsFallback) {
                 TimeOut = timeOutMilliseconds,
                 MaxConnectionsPerServer = maxConnectionsPerServer
             };

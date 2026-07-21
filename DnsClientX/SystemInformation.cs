@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Linq;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
@@ -11,287 +10,349 @@ using System.Threading;
 
 namespace DnsClientX {
     /// <summary>
-    /// Defines the class for getting system information.
+    /// Provides access to DNS resolver settings exposed by the operating system.
     /// </summary>
-    /// <remarks>
-    /// Methods in this class assist in obtaining DNS server details from the operating system.
-    /// </remarks>
-    public class SystemInformation {
-        private static Lazy<List<string>> cachedDnsServers = new(LoadDnsServers, LazyThreadSafetyMode.ExecutionAndPublication);
-        private static readonly object dnsServersLock = new();
+    public static class SystemInformation {
+        private static readonly object DnsConfigurationLock = new();
+        private static Lazy<SystemDnsConfiguration> cachedDnsConfiguration = CreateLazyConfiguration();
         private static Func<List<string>>? dnsServerProvider;
 
         internal static void SetDnsServerProvider(Func<List<string>>? provider) {
-            dnsServerProvider = provider;
-            cachedDnsServers = new Lazy<List<string>>(LoadDnsServers, LazyThreadSafetyMode.ExecutionAndPublication);
+            lock (DnsConfigurationLock) {
+                dnsServerProvider = provider;
+                cachedDnsConfiguration = CreateLazyConfiguration();
+            }
         }
 
         /// <summary>
-        /// Gets the DNS from active network card with improved cross-platform reliability.
-        /// The results are cached for subsequent calls unless <paramref name="refresh"/> is <c>true</c>.
+        /// Gets the DNS resolver configuration exposed by the operating system.
         /// </summary>
         /// <param name="refresh">Set to <c>true</c> to force cache refresh.</param>
-        /// <returns></returns>
-        public static List<string> GetDnsFromActiveNetworkCard(bool refresh = false) {
-            if (refresh || dnsServerProvider != null && !cachedDnsServers.IsValueCreated) {
-                var newLazy = new Lazy<List<string>>(LoadDnsServers, LazyThreadSafetyMode.ExecutionAndPublication);
-                lock (dnsServersLock) {
-                    if (refresh || dnsServerProvider != null && !cachedDnsServers.IsValueCreated) {
-                        cachedDnsServers = newLazy;
-                    }
+        /// <param name="fallback">Optional fallback used only when no system resolver was discovered.</param>
+        /// <returns>The discovered resolver configuration.</returns>
+        public static SystemDnsConfiguration GetDnsConfiguration(
+            bool refresh = false,
+            SystemDnsFallback fallback = SystemDnsFallback.None) {
+            if (refresh) {
+                lock (DnsConfigurationLock) {
+                    cachedDnsConfiguration = CreateLazyConfiguration();
                 }
             }
 
-            return new List<string>(cachedDnsServers.Value);
+            SystemDnsConfiguration discovered = cachedDnsConfiguration.Value;
+            if (discovered.HasDnsServers || fallback == SystemDnsFallback.None) {
+                return discovered;
+            }
+
+            return new SystemDnsConfiguration(
+                new[] { "1.1.1.1", "8.8.8.8" },
+                discovered.SearchDomains,
+                discovered.Ndots,
+                SystemDnsDiscoverySource.PublicFallback,
+                discovered.Error);
         }
 
-        private static List<string> LoadDnsServers() {
-            if (dnsServerProvider is not null) {
-                try {
-                    return DeduplicateDnsServers(dnsServerProvider.Invoke() ?? new List<string>());
-                } catch {
-                    return new List<string>();
-                }
-            }
-
-            var dnsServers = new List<string>();
-            bool debug = Environment.GetEnvironmentVariable("DNSCLIENTX_DEBUG_SYSTEMDNS") == "1";
-
-            void DebugPrint(string msg) { if (debug) Settings.Logger.WriteDebug($"[DnsClientX:SystemDNS] {msg}"); }
-
-            try {
-                DebugPrint("Starting DNS server discovery...");
-                var networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
-                DebugPrint($"Found {networkInterfaces.Length} network interfaces");
-
-                // First, try to find interfaces with both gateway and DNS servers
-                foreach (var networkInterface in networkInterfaces) {
-                    if (networkInterface.OperationalStatus == OperationalStatus.Up &&
-                        networkInterface.NetworkInterfaceType != NetworkInterfaceType.Loopback) {
-
-                        DebugPrint($"Checking interface: {networkInterface.Name} ({networkInterface.NetworkInterfaceType})");
-                        var properties = networkInterface.GetIPProperties();
-
-                        // Prefer interfaces with default gateways (internet-connected)
-                        if (properties.GatewayAddresses.Count > 0) {
-                            DebugPrint($"Interface {networkInterface.Name} has {properties.GatewayAddresses.Count} gateways");
-                            var dnsAddresses = properties.DnsAddresses;
-                            foreach (var dnsAddress in dnsAddresses) {
-                                var formattedAddress = FormatDnsAddress(dnsAddress);
-                                if (!string.IsNullOrWhiteSpace(formattedAddress)) {
-                                    if (IsValidDnsAddress(dnsAddress)) {
-                                        DebugPrint($"[Interface-Gateway] Found DNS: {dnsAddress} on interface {networkInterface.Name}");
-                                        dnsServers.Add(formattedAddress);
-                                    } else {
-                                        DebugPrint($"[Interface-Gateway] Filtered out DNS: {dnsAddress} on interface {networkInterface.Name}");
-                                    }
-                                }
-                            }
-
-                            // If we found DNS servers from an interface with gateway, use them
-                            if (dnsServers.Count > 0) {
-                                DebugPrint($"Using DNS servers from interface {networkInterface.Name} with gateway");
-                                break;
-                            }
-                        } else {
-                            DebugPrint($"Interface {networkInterface.Name} has no gateways");
-                        }
-                    } else {
-                        DebugPrint($"Skipping interface {networkInterface.Name} (Status: {networkInterface.OperationalStatus}, Type: {networkInterface.NetworkInterfaceType})");
-                    }
-                }
-
-                // If no DNS servers found from interfaces with gateways,
-                // try any active interface with DNS servers
-                if (dnsServers.Count == 0) {
-                    DebugPrint("No DNS servers found from interfaces with gateways, checking all active interfaces");
-                    foreach (var networkInterface in networkInterfaces) {
-                        if (networkInterface.OperationalStatus == OperationalStatus.Up &&
-                            networkInterface.NetworkInterfaceType != NetworkInterfaceType.Loopback) {
-
-                            DebugPrint($"Checking interface without gateway: {networkInterface.Name}");
-                            var properties = networkInterface.GetIPProperties();
-                            var dnsAddresses = properties.DnsAddresses;
-
-                            foreach (var dnsAddress in dnsAddresses) {
-                                var formattedAddress = FormatDnsAddress(dnsAddress);
-                                if (!string.IsNullOrWhiteSpace(formattedAddress)) {
-                                    if (IsValidDnsAddress(dnsAddress)) {
-                                        DebugPrint($"[Interface-Any] Found DNS: {dnsAddress} on interface {networkInterface.Name}");
-                                        dnsServers.Add(formattedAddress);
-                                    } else {
-                                        DebugPrint($"[Interface-Any] Filtered out DNS: {dnsAddress} on interface {networkInterface.Name}");
-                                    }
-                                }
-                            }
-
-                            if (dnsServers.Count > 0) {
-                                DebugPrint($"Using DNS servers from interface {networkInterface.Name}");
-                                break;
-                            }
-                        }
-                    }
-                }
-            } catch (Exception ex) {
-                DebugPrint($"Exception in network interface enumeration: {ex.Message}");
-                // If network interface enumeration fails, fall through to Unix/Linux fallback
-            }
-
-            // Unix/Linux fallback: try reading /etc/resolv.conf
-            if (dnsServers.Count == 0) {
-                DebugPrint("No DNS servers found from network interfaces, trying /etc/resolv.conf");
-                dnsServers.AddRange(ParseResolvConf("/etc/resolv.conf", DebugPrint));
-            }
-
-            // Final fallback: if no system DNS servers found, use well-known public DNS
-            if (dnsServers.Count == 0) {
-                DebugPrint("No system DNS found, using fallback public DNS: 1.1.1.1, 8.8.8.8");
-                dnsServers.Add(FormatDnsAddress(IPAddress.Parse("1.1.1.1"))); // Cloudflare Primary
-                dnsServers.Add(FormatDnsAddress(IPAddress.Parse("8.8.8.8"))); // Google Primary
-            }
-
-            dnsServers = dnsServers.Distinct().ToList();
-            DebugPrint($"Final DNS server list: {string.Join(", ", dnsServers)}");
-
-            return dnsServers;
+        /// <summary>
+        /// Gets system DNS server addresses in operating-system preference order.
+        /// </summary>
+        /// <param name="refresh">Set to <c>true</c> to force cache refresh.</param>
+        /// <param name="fallback">Optional fallback used only when no system resolver was discovered.</param>
+        /// <returns>A copy of the DNS server list.</returns>
+        public static List<string> GetDnsFromActiveNetworkCard(
+            bool refresh = false,
+            SystemDnsFallback fallback = SystemDnsFallback.None) {
+            return new List<string>(GetDnsConfiguration(refresh, fallback).DnsServers);
         }
 
-        internal static List<string> ParseResolvConf(string path, Action<string>? debugPrint = null) {
+        internal static SystemDnsConfiguration ParseResolvConf(
+            string path,
+            Action<string>? debugPrint = null) {
             var servers = new List<string>();
+            var searchDomains = new List<string>();
+            int ndots = 1;
 
             if (!File.Exists(path)) {
                 debugPrint?.Invoke($"Skipping {path}; file not found");
-                return servers;
+                return new SystemDnsConfiguration(servers, searchDomains, ndots, SystemDnsDiscoverySource.None);
             }
 
             debugPrint?.Invoke($"Reading {path}");
-
             try {
-                foreach (var line in File.ReadAllLines(path)) {
-                    var trimmed = line.Trim();
-                    if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#", StringComparison.Ordinal)) {
+                foreach (string rawLine in File.ReadAllLines(path)) {
+                    string line = StripInlineComment(rawLine).Trim();
+                    if (line.Length == 0) {
                         continue;
                     }
-                    if (trimmed.StartsWith("nameserver", StringComparison.OrdinalIgnoreCase)) {
-                        var parts = trimmed.Split(new char[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                        if (parts.Length > 1) {
-                            var address = parts[1];
-                            debugPrint?.Invoke($"[resolv.conf] Found nameserver: {address}");
-                            if (IPAddress.TryParse(address, out var ip)) {
-                                var formattedAddress = FormatDnsAddress(ip);
-                                if (!string.IsNullOrWhiteSpace(formattedAddress)) {
-                                    if (IsValidDnsAddress(ip)) {
-                                        debugPrint?.Invoke($"[resolv.conf] Accepted: {address}");
-                                        servers.Add(formattedAddress);
-                                    } else {
-                                        debugPrint?.Invoke($"[resolv.conf] Filtered out: {address}");
-                                    }
-                                }
-                            } else {
-                                debugPrint?.Invoke($"[resolv.conf] Not a valid IP: {address}");
+
+                    string[] parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length < 2) {
+                        continue;
+                    }
+
+                    if (parts[0].Equals("nameserver", StringComparison.OrdinalIgnoreCase)) {
+                        if (IPAddress.TryParse(parts[1], out IPAddress? address) && IsUsableDnsAddress(address)) {
+                            servers.Add(FormatDnsAddress(address));
+                        } else {
+                            debugPrint?.Invoke($"[resolv.conf] Ignoring invalid nameserver: {parts[1]}");
+                        }
+                    } else if (parts[0].Equals("search", StringComparison.OrdinalIgnoreCase)) {
+                        searchDomains.Clear();
+                        searchDomains.AddRange(parts.Skip(1));
+                    } else if (parts[0].Equals("domain", StringComparison.OrdinalIgnoreCase) && searchDomains.Count == 0) {
+                        searchDomains.Add(parts[1]);
+                    } else if (parts[0].Equals("options", StringComparison.OrdinalIgnoreCase)) {
+                        foreach (string option in parts.Skip(1)) {
+                            if (option.StartsWith("ndots:", StringComparison.OrdinalIgnoreCase)
+                                && int.TryParse(option.Substring("ndots:".Length), out int parsedNdots)) {
+                                ndots = Math.Max(0, Math.Min(15, parsedNdots));
                             }
                         }
                     }
                 }
+
+                return new SystemDnsConfiguration(
+                    servers,
+                    searchDomains,
+                    ndots,
+                    servers.Count > 0 || searchDomains.Count > 0
+                        ? SystemDnsDiscoverySource.ResolvConf
+                        : SystemDnsDiscoverySource.None);
             } catch (Exception ex) {
                 debugPrint?.Invoke($"Exception reading {path}: {ex.Message}");
-                // Ignore if file not accessible or other I/O errors
+                return new SystemDnsConfiguration(servers, searchDomains, ndots, SystemDnsDiscoverySource.None, ex.Message);
             }
-
-            return servers;
         }
 
-        private static List<string> DeduplicateDnsServers(IEnumerable<string> servers) {
-            var unique = new OrderedDictionary(StringComparer.Ordinal);
+        private static Lazy<SystemDnsConfiguration> CreateLazyConfiguration() {
+            return new Lazy<SystemDnsConfiguration>(LoadDnsConfiguration, LazyThreadSafetyMode.ExecutionAndPublication);
+        }
 
-            foreach (var server in servers) {
-                if (!unique.Contains(server)) {
-                    unique.Add(server, null);
+        private static SystemDnsConfiguration LoadDnsConfiguration() {
+            Func<List<string>>? provider = dnsServerProvider;
+            if (provider != null) {
+                try {
+                    return new SystemDnsConfiguration(
+                        provider.Invoke() ?? new List<string>(),
+                        Array.Empty<string>(),
+                        1,
+                        SystemDnsDiscoverySource.CustomProvider);
+                } catch (Exception ex) {
+                    return new SystemDnsConfiguration(
+                        Array.Empty<string>(),
+                        Array.Empty<string>(),
+                        1,
+                        SystemDnsDiscoverySource.CustomProvider,
+                        ex.Message);
                 }
             }
 
-            return unique.Keys.Cast<string>().ToList();
-        }
-
-        /// <summary>
-        /// Formats a DNS address properly, handling IPv6 zone identifiers and brackets.
-        /// </summary>
-        /// <param name="address">The IP address to format</param>
-        /// <returns>Properly formatted DNS address string</returns>
-        private static string FormatDnsAddress(IPAddress address) {
-            if (address == null) return string.Empty;
-
-            var addressString = address.ToString();
-
-            if (address.AddressFamily == AddressFamily.InterNetworkV6) {
-                // Remove zone identifier (e.g., %15) for IPv6 addresses
-                int zoneIndex = addressString.IndexOf('%');
-                if (zoneIndex > -1) {
-                    addressString = addressString.Substring(0, zoneIndex);
+            bool debug = Environment.GetEnvironmentVariable("DNSCLIENTX_DEBUG_SYSTEMDNS") == "1";
+            void DebugPrint(string message) {
+                if (debug) {
+                    Settings.Logger.WriteDebug($"[DnsClientX:SystemDNS] {message}");
                 }
-
-                // Normalize loopback address so it is always ::1
-                if (IPAddress.IPv6Loopback.Equals(address)) {
-                    addressString = "::1";
-                }
-
-                // Wrap IPv6 addresses in brackets for proper DNS formatting
-                addressString = $"[{addressString}]";
             }
 
-            return addressString;
+            string? discoveryError = null;
+            var candidates = new List<InterfaceDnsCandidate>();
+            var searchDomains = new List<string>();
+            try {
+                foreach (NetworkInterface networkInterface in NetworkInterface.GetAllNetworkInterfaces()) {
+                    if (networkInterface.OperationalStatus != OperationalStatus.Up
+                        || networkInterface.NetworkInterfaceType == NetworkInterfaceType.Loopback) {
+                        continue;
+                    }
+
+                    IPInterfaceProperties properties = networkInterface.GetIPProperties();
+                    int interfaceIndex = GetInterfaceIndex(properties);
+                    int metric = WindowsInterfaceMetric.TryGetMetric(interfaceIndex, out int discoveredMetric)
+                        ? discoveredMetric
+                        : int.MaxValue;
+                    bool hasGateway = properties.GatewayAddresses.Any(gateway =>
+                        IsUsableDnsAddress(gateway.Address));
+
+                    if (!string.IsNullOrWhiteSpace(properties.DnsSuffix)) {
+                        searchDomains.Add(properties.DnsSuffix);
+                    }
+
+                    int addressOrder = 0;
+                    foreach (IPAddress address in properties.DnsAddresses) {
+                        if (!IsUsableDnsAddress(address)) {
+                            DebugPrint($"Ignoring unusable DNS address {address} on {networkInterface.Name}");
+                            continue;
+                        }
+
+                        candidates.Add(new InterfaceDnsCandidate(
+                            FormatDnsAddress(address),
+                            hasGateway,
+                            metric,
+                            interfaceIndex,
+                            addressOrder++));
+                    }
+                }
+            } catch (Exception ex) {
+                discoveryError = ex.Message;
+                DebugPrint($"Network-interface discovery failed: {ex.Message}");
+            }
+
+            string[] interfaceServers = candidates
+                .OrderBy(candidate => candidate.Metric)
+                .ThenByDescending(candidate => candidate.HasGateway)
+                .ThenBy(candidate => candidate.InterfaceIndex)
+                .ThenBy(candidate => candidate.AddressOrder)
+                .Select(candidate => candidate.Address)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            SystemDnsConfiguration resolvConf = ParseResolvConf("/etc/resolv.conf", DebugPrint);
+            if (interfaceServers.Length > 0) {
+                IEnumerable<string> effectiveSearchDomains = searchDomains.Count > 0
+                    ? searchDomains
+                    : resolvConf.SearchDomains;
+                return new SystemDnsConfiguration(
+                    interfaceServers,
+                    effectiveSearchDomains,
+                    resolvConf.Ndots,
+                    SystemDnsDiscoverySource.NetworkInterfaces,
+                    discoveryError);
+            }
+
+            if (resolvConf.HasDnsServers) {
+                return resolvConf;
+            }
+
+            return new SystemDnsConfiguration(
+                Array.Empty<string>(),
+                resolvConf.SearchDomains,
+                resolvConf.Ndots,
+                SystemDnsDiscoverySource.None,
+                discoveryError ?? resolvConf.Error ?? "No DNS servers were exposed by the operating system.");
         }
 
-        /// <summary>
-        /// Validates if an IP address is suitable for use as a DNS server.
-        /// </summary>
-        /// <param name="address">The IP address to validate</param>
-        /// <returns>True if the address is valid for DNS use</returns>
-        private static bool IsValidDnsAddress(IPAddress address) {
-            if (address is null) {
+        private static int GetInterfaceIndex(IPInterfaceProperties properties) {
+            try {
+                return properties.GetIPv4Properties()?.Index
+                    ?? properties.GetIPv6Properties()?.Index
+                    ?? int.MaxValue;
+            } catch (NetworkInformationException) {
+                return int.MaxValue;
+            }
+        }
+
+        internal static bool IsUsableDnsAddress(IPAddress? address) {
+            if (address == null
+                || IPAddress.Any.Equals(address)
+                || IPAddress.IPv6Any.Equals(address)
+                || IPAddress.None.Equals(address)
+                || IPAddress.IPv6None.Equals(address)) {
                 return false;
             }
 
-            // Convert to string for pattern matching
-            string ipString = address.ToString();
+            byte[] bytes = address.GetAddressBytes();
+            return address.AddressFamily != AddressFamily.InterNetworkV6 || bytes[0] != 0xff;
+        }
 
-            // Filter out known problematic addresses
-            if (address.AddressFamily == AddressFamily.InterNetwork) {
-                // IPv4 filtering
+        internal static string FormatDnsAddress(IPAddress address) {
+            // IPAddress.TryParse and socket APIs accept scoped IPv6 literals directly. Brackets are URI syntax
+            // and would turn an otherwise valid resolver address into an unresolvable hostname here.
+            return address.ToString();
+        }
 
-                // Filter out link-local addresses (169.254.x.x)
-                if (ipString.StartsWith("169.254.", StringComparison.Ordinal)) return false;
+        private static string StripInlineComment(string line) {
+            int hash = line.IndexOf('#');
+            int semicolon = line.IndexOf(';');
+            int comment = hash < 0 ? semicolon : semicolon < 0 ? hash : Math.Min(hash, semicolon);
+            return comment < 0 ? line : line.Substring(0, comment);
+        }
 
-                // Filter out loopback addresses (127.x.x.x)
-                if (ipString.StartsWith("127.", StringComparison.Ordinal)) return false;
+        private sealed class InterfaceDnsCandidate {
+            internal InterfaceDnsCandidate(string address, bool hasGateway, int metric, int interfaceIndex, int addressOrder) {
+                Address = address;
+                HasGateway = hasGateway;
+                Metric = metric;
+                InterfaceIndex = interfaceIndex;
+                AddressOrder = addressOrder;
+            }
 
-                // Filter out macOS virtual network interface addresses (192.168.64.x)
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && ipString.StartsWith("192.168.64.", StringComparison.Ordinal)) {
-                    bool debug = Environment.GetEnvironmentVariable("DNSCLIENTX_DEBUG_SYSTEMDNS") == "1";
-                    if (debug) Settings.Logger.WriteDebug($"[DnsClientX:SystemDNS] Filtering out macOS virtual network DNS: {ipString}");
+            internal string Address { get; }
+            internal bool HasGateway { get; }
+            internal int Metric { get; }
+            internal int InterfaceIndex { get; }
+            internal int AddressOrder { get; }
+        }
+
+        private static class WindowsInterfaceMetric {
+            private const int ErrorSuccess = 0;
+
+            internal static bool TryGetMetric(int interfaceIndex, out int metric) {
+                metric = int.MaxValue;
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || interfaceIndex <= 0) {
                     return false;
                 }
 
-                return true;
-            } else if (address.AddressFamily == AddressFamily.InterNetworkV6) {
-                // IPv6 filtering
+                try {
+                    var row = new MibIpInterfaceRow {
+                        Family = (ushort)AddressFamily.InterNetwork,
+                        InterfaceIndex = (uint)interfaceIndex,
+                        ZoneIndices = new uint[16]
+                    };
+                    if (GetIpInterfaceEntry(ref row) == ErrorSuccess) {
+                        metric = row.Metric > int.MaxValue ? int.MaxValue : (int)row.Metric;
+                        return true;
+                    }
+                } catch (DllNotFoundException) {
+                    return false;
+                } catch (EntryPointNotFoundException) {
+                    return false;
+                }
 
-                // Filter out link-local addresses (fe80:)
-                if (ipString.StartsWith("fe80:", StringComparison.OrdinalIgnoreCase)) return false;
-
-                // Filter out site-local addresses (fec0: - deprecated)
-                if (ipString.StartsWith("fec0:", StringComparison.OrdinalIgnoreCase)) return false;
-
-                // Filter out multicast addresses (ff00:)
-                if (ipString.StartsWith("ff00:", StringComparison.OrdinalIgnoreCase)) return false;
-
-                // Filter out other multicast addresses starting with ff
-                if (ipString.StartsWith("ff", StringComparison.OrdinalIgnoreCase)) return false;
-
-                return true;
+                return false;
             }
 
-            return false;
+            [DllImport("iphlpapi.dll")]
+            private static extern int GetIpInterfaceEntry(ref MibIpInterfaceRow row);
+
+            [StructLayout(LayoutKind.Sequential)]
+            private struct MibIpInterfaceRow {
+                internal ushort Family;
+                internal ulong InterfaceLuid;
+                internal uint InterfaceIndex;
+                internal uint MaxReassemblySize;
+                internal ulong InterfaceIdentifier;
+                internal uint MinRouterAdvertisementInterval;
+                internal uint MaxRouterAdvertisementInterval;
+                internal byte AdvertisingEnabled;
+                internal byte ForwardingEnabled;
+                internal byte WeakHostSend;
+                internal byte WeakHostReceive;
+                internal byte UseAutomaticMetric;
+                internal byte UseNeighborUnreachabilityDetection;
+                internal byte ManagedAddressConfigurationSupported;
+                internal byte OtherStatefulConfigurationSupported;
+                internal byte AdvertiseDefaultRoute;
+                internal int RouterDiscoveryBehavior;
+                internal uint DadTransmits;
+                internal uint BaseReachableTime;
+                internal uint RetransmitTime;
+                internal uint PathMtuDiscoveryTimeout;
+                internal int LinkLocalAddressBehavior;
+                internal uint LinkLocalAddressTimeout;
+
+                [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
+                internal uint[] ZoneIndices;
+
+                internal uint SitePrefixLength;
+                internal uint Metric;
+                internal uint NlMtu;
+                internal byte Connected;
+                internal byte SupportsWakeUpPatterns;
+                internal byte SupportsNeighborDiscovery;
+                internal byte SupportsRouterDiscovery;
+                internal uint ReachableTime;
+                internal byte TransmitOffload;
+                internal byte ReceiveOffload;
+                internal byte DisableDefaultRoutes;
+            }
         }
     }
 }

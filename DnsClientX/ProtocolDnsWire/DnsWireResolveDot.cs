@@ -85,6 +85,7 @@ namespace DnsClientX {
                 if (address == null) throw new DnsClientException(resolveError ?? $"Host '{dnsServer}' resolved to no addresses.");
 
                 using var client = new TcpClient(address.AddressFamily);
+                SocketBinding.Bind(client.Client, endpointConfiguration.LocalEndPoint, address.AddressFamily);
                 await ConnectAsync(client, address, port, endpointConfiguration.TimeOut, cancellationToken).ConfigureAwait(false);
 
                 // Create a new SSL stream for the secure connection

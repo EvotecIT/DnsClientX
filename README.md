@@ -71,7 +71,7 @@ foreach (var answer in response.TypedAnswers!) {
 - **Non-typed**: Quick queries, simple data extraction, minimal processing
 - **Typed**: Complex applications, structured data processing, type safety, IntelliSense support
 
-Both approaches work with **all DNS record types** and **all query methods** - simply add `typedRecords: true` to any query to get strongly-typed results.
+The main `Resolve` APIs accept `typedRecords: true`. Supported records are returned as dedicated types; other records remain available as `UnknownRecord`, so opting into typed parsing never requires pretending an unsupported parser is complete.
 
 ## Supported DNS Providers
 
@@ -107,13 +107,13 @@ It provides querying multiple DNS Providers.
 | DnsCryptRelay            |     |     |     |     |     | ❌        |      |
 | RootServer               |     |     |     | ✓   | ✓   |          |      |
 
-`CloudflareQuic`, `GoogleQuic`, `CloudflareOdoh`, and the DNSCrypt endpoint names are retained for source compatibility but fail explicitly: those providers do not publish the claimed DoQ service, or the protocol is not implemented. The core implements DoQ for published endpoints such as `Quad9Quic` without extra transport packages on modern .NET. ODoH and DNSCrypt v2 require dedicated protocol and cryptographic implementations and are intentionally outside the core package.
+`CloudflareQuic`, `GoogleQuic`, `CloudflareJsonPost`, `GoogleJsonPost`, `CloudflareOdoh`, and the DNSCrypt endpoint names are retained for source compatibility but fail explicitly: the providers do not publish the claimed service, or the protocol is not implemented. The core implements DoQ for published endpoints such as `Quad9Quic` without extra transport packages on modern .NET. ODoH and DNSCrypt v2 require dedicated protocol and cryptographic implementations and are intentionally outside the core package.
 
 If you want to learn about DNS:
 - https://www.cloudflare.com/learning/dns/what-is-dns/
 
-> [!WARNING]
-> We try to unify the responses as much as possible for common use cases by translating on the fly. This is because different providers do not store it always the same way. If you find discrepancies please **open an issue** or better **pull request**.
+> [!NOTE]
+> DnsClientX normalizes presentation details such as trailing dots and TXT character-string concatenation, but preserves DNS resource-record boundaries. Resolver answers can legitimately differ because of cache state, anycast location, ECS, filtering policy, or propagation; comparison code should not assume every resolver returns an identical RRset at the same instant.
 
 ## Supported .NET Versions and Dependencies
 
@@ -122,12 +122,12 @@ If you want to learn about DNS:
   - No external dependencies
   - DoH3 and DoQ stay in the core package with no added NuGet transport dependencies
 - **.NET Standard 2.0** (Cross-platform compatibility)
-  - System.Text.Json (10.0.9)
-  - Microsoft.Bcl.AsyncInterfaces (10.0.9)
+  - System.Text.Json (10.0.10)
+  - Microsoft.Bcl.AsyncInterfaces (10.0.10)
 - **.NET Framework 4.7.2** (Windows only)
   - System.Net.Http (built-in)
-  - System.Text.Json (10.0.9)
-  - Microsoft.Bcl.AsyncInterfaces (10.0.9)
+  - System.Text.Json (10.0.10)
+  - Microsoft.Bcl.AsyncInterfaces (10.0.10)
   - Modern transports such as DoH3 and DoQ are exposed by the shared API surface but return unsupported at runtime
 
 ### Command Line Interface (DnsClientX.exe)
@@ -143,7 +143,7 @@ If you want to learn about DNS:
 
 ### Examples Project
 - **.NET 8.0** only
-- Spectre.Console (0.55.0) for enhanced console output
+- Spectre.Console (0.57.2) for enhanced console output
 
 ## Build Status
 
@@ -170,7 +170,7 @@ If you want to learn about DNS:
 - [x] Supports parallel queries
 - [x] No external dependencies on .NET 8 and .NET 10
 - [x] Minimal dependencies on .NET Standard 2.0 and .NET 4.7.2
-- [x] Implements IDisposable to release cached HttpClient resources
+- [x] Implements IDisposable/IAsyncDisposable to release cached HTTP, UDP, and QUIC transport resources
 - [x] Multi-line record data normalized to use `\n` line endings
 - [x] Supports DNS Service Discovery (DNS-SD)
 
@@ -309,7 +309,7 @@ Different DNS providers have distinct characteristics:
 | Provider            | Hostname                            | Request Format |
 | ------------------- | ----------------------------------- | -------------- |
 | Cloudflare          | `1.1.1.1` / `1.0.0.1`               | JSON           |
-| Google              | `8.8.8.8` / `8.8.4.4`               | JSON           |
+| Google              | `dns.google`                          | RFC 8484 wire  |
 | Quad9               | `dns.quad9.net`                     | Wire           |
 | OpenDNS             | `208.67.222.222` / `208.67.220.220` | Wire           |
 | AdGuard             | `dns.adguard.com`                   | Wire           |
@@ -381,116 +381,37 @@ When testing DNS resolution:
 
 This behavior is by design and reflects the modern, distributed nature of internet infrastructure. DnsClientX provides tools to work effectively with this reality while maintaining reliable DNS resolution.
 
-## System DNS Fallback Mechanism
+## System DNS Discovery
 
-DnsClientX provides robust system DNS resolution through `DnsEndpoint.System` (UDP) and `DnsEndpoint.SystemTcp` (TCP) endpoints. These endpoints automatically discover and use your system's configured DNS servers with intelligent cross-platform fallback behavior.
+`DnsEndpoint.System` and `DnsEndpoint.SystemTcp` query the DNS servers exposed by the operating system. Discovery returns an immutable `SystemDnsConfiguration` containing the ordered server list, search suffixes, `ndots`, discovery source, and any discovery error.
 
-### How System DNS Discovery Works
-
-#### 1. Windows and Cross-Platform (.NET)
-**Primary Method**: Network Interface Detection
-- Enumerates all active network interfaces using `NetworkInterface.GetAllNetworkInterfaces()`
-- **Prioritizes interfaces with default gateways** (internet-connected interfaces)
-- Extracts DNS server addresses from interface properties
-- Filters out invalid addresses (link-local, multicast, etc.)
-- **Fallback**: If no DNS servers found from gateway interfaces, checks all active interfaces
-
-#### 2. Unix/Linux Systems
-**Fallback Method**: `/etc/resolv.conf` Parsing
-- If network interface enumeration fails or returns no results
-- Reads and parses `/etc/resolv.conf` file
-- Extracts `nameserver` entries
-- Validates IP addresses and formats them properly
-- Handles both IPv4 and IPv6 addresses
-
-#### 3. Final Safety Net
-**Public DNS Fallback**: If no system DNS servers are discovered
-- **Cloudflare Primary**: `1.1.1.1`
-- **Google Primary**: `8.8.8.8`
-- Ensures DNS resolution always works, even in misconfigured environments
-
-### Address Validation and Formatting
-
-The system applies intelligent filtering to ensure reliable DNS servers:
-
-#### IPv4 Filtering
-- ✅ **Valid**: Public and private IP ranges
-- ❌ **Filtered**: Link-local addresses (`169.254.x.x`)
-- ❌ **Filtered**: Loopback addresses
-
-#### IPv6 Filtering
-- ✅ **Valid**: Global and unique local addresses
-- ❌ **Filtered**: Link-local addresses (`fe80::`)
-- ❌ **Filtered**: Multicast addresses
-- ❌ **Filtered**: Site-local addresses (`fec0::` - deprecated)
-- **Auto-formatting**: Removes zone identifiers (`%15`) and adds brackets (`[::1]`)
-
-### Protocol Support
-
-#### System UDP (`DnsEndpoint.System`)
-- **Primary protocol**: DNS over UDP (port 53)
-- **Automatic fallback**: Switches to TCP when UDP packet size limit exceeded
-- **Timeout**: 2000ms default (configurable)
-- **Best for**: General DNS queries, fastest response times
-
-#### System TCP (`DnsEndpoint.SystemTcp`)
-- **Primary protocol**: DNS over TCP (port 53)
-- **Connection management**: Efficient connection pooling
-- **Timeout**: 2000ms default (configurable)
-- **Best for**: Large responses, firewall-restricted environments
-
-### Platform-Specific Behavior
-
-| Platform             | Primary Method         | Fallback Method    | Final Fallback |
-| -------------------- | ---------------------- | ------------------ | -------------- |
-| **Windows**          | Network Interface APIs | *(Not applicable)* | Public DNS     |
-| **Linux**            | Network Interface APIs | `/etc/resolv.conf` | Public DNS     |
-| **macOS**            | Network Interface APIs | `/etc/resolv.conf` | Public DNS     |
-| **Docker/Container** | Network Interface APIs | `/etc/resolv.conf` | Public DNS     |
-
-### Example Usage
+- Windows and other .NET platforms enumerate every active interface. Interfaces are ordered by the native Windows interface metric when available, then by gateway presence and a stable interface order.
+- Unix-like systems can fall back to `/etc/resolv.conf`, including `nameserver`, `search`/`domain`, and `options ndots:n`.
+- Configured loopback and link-local resolvers are preserved because local forwarding stubs and IPv6 scoped DNS servers are valid. Unspecified and multicast addresses are rejected.
+- UDP clients reuse healthy connected sockets and automatically retry a truncated response over TCP when `UseTcpFallback` is enabled. TCP and DoT connections are currently per query.
+- There is no silent public-resolver substitution. Missing system DNS is an explicit configuration error unless the caller opts in to `SystemDnsFallback.PublicResolvers`.
 
 ```csharp
-// Use system DNS with UDP (auto-fallback to TCP)
-var response = await ClientX.QueryDns("google.com", DnsRecordType.A, DnsEndpoint.System);
+using var systemClient = new ClientX(new Configuration(DnsEndpoint.System));
+var response = await systemClient.Resolve("intranet", DnsRecordType.A);
 
-// Use system DNS with TCP only
-var response = await ClientX.QueryDns("google.com", DnsRecordType.A, DnsEndpoint.SystemTcp);
+// Explicit opt-in for applications that prefer availability over preserving
+// the local DNS trust and routing boundary.
+var configuration = new Configuration(
+    DnsEndpoint.System,
+    DnsSelectionStrategy.First,
+    SystemDnsFallback.PublicResolvers);
+using var fallbackClient = new ClientX(configuration);
 
-// Get system DNS servers programmatically (cached)
-var systemDnsServers = SystemInformation.GetDnsFromActiveNetworkCard();
-// Refresh the cache when network configuration changes
-var refreshedDnsServers = SystemInformation.GetDnsFromActiveNetworkCard(refresh: true);
+var discovered = SystemInformation.GetDnsConfiguration(refresh: true);
+Console.WriteLine($"Source: {discovered.Source}; ndots: {discovered.Ndots}");
+Console.WriteLine(string.Join(", ", discovered.DnsServers));
+Console.WriteLine(string.Join(", ", discovered.SearchDomains));
 ```
 
-### Advantages of System DNS
+Search expansion is enabled by default for system endpoints and can be disabled with `Configuration.UseSystemSearchDomains`. A trailing dot is always treated as absolute, and PTR inputs are never search-expanded.
 
-1. **Respects local configuration**: Uses DNS servers configured by network admin/DHCP
-2. **Corporate environment friendly**: Works with internal DNS servers and split-horizon DNS
-3. **VPN compatibility**: Automatically uses VPN-provided DNS servers
-4. **No external dependencies**: Works even when public DNS is blocked
-5. **Platform native**: Leverages OS-specific network configuration
-
-### Troubleshooting System DNS
-
-#### Common Issues and Solutions
-
-**"No DNS servers found"**
-- Check network connectivity (`ipconfig /all` on Windows, `cat /etc/resolv.conf` on Linux)
-- Verify network interfaces are up and have gateways
-- Falls back to public DNS (1.1.1.1, 8.8.8.8) automatically
-
-**"Slow response times"**
-- System DNS may be slower than public DNS providers
-- Consider using specific endpoints like `DnsEndpoint.Cloudflare` for better performance
-- Check if system DNS servers are geographically distant
-
-**"Resolution failures in containers"**
-- Ensure container has proper network configuration
-- Docker containers should inherit host DNS or have DNS configured
-- `/etc/resolv.conf` should be readable in Linux containers
-
-The system DNS endpoints provide the most compatible and network-environment-aware DNS resolution, making them excellent default choices for applications that need to work across diverse network configurations.
+This direct DNS client does not delegate name resolution to the operating-system resolver service. In particular, it does not interpret Windows NRPT or every platform-specific per-namespace/VPN routing policy. If an application depends on those policies, choose the correct resolver explicitly or use the operating-system name-resolution API. Configure a `Configuration` instance before issuing concurrent queries; each query takes a defensive snapshot, but concurrent mutation of shared configuration is not a supported control plane.
 
 ## TO DO
 
@@ -499,7 +420,7 @@ The system DNS endpoints provide the most compatible and network-environment-awa
 > If you would like to help, please do so by opening an issue or a pull request.
 > The public API may change while protocol coverage and RFC conformance continue to mature.
 
-- [ ] Evaluate a separate `DnsClientX.DnsCrypt` package with a dedicated DNSCrypt v2 implementation and provider catalog
+- [ ] Build the separately reviewed optional protocol packages described in [OPTIONAL-PROTOCOLS.md](OPTIONAL-PROTOCOLS.md); do not add cryptographic dependencies to the core package
 - [ ] Add more tests
 - [ ] Go thru all additional parameters and make sure they have proper responses
 
@@ -544,9 +465,10 @@ responses.DisplayTable();
 using var client = new ClientXBuilder()
     .WithEndpoint(DnsEndpoint.Cloudflare)
     .WithTimeout(5000)
-    .WithRetryCount(3)
     .WithUserAgent("MyApp/1.0")
     .Build();
+
+var response = await client.Resolve("example.com", maxRetries: 3);
 ```
 
 #### Custom HTTP Settings
@@ -880,7 +802,7 @@ Console.WriteLine($"Local DNSSEC status: {response.DnsSecValidationStatus}");
 Console.WriteLine(response.DnsSecValidationMessage);
 ```
 
-The resolver-provided `AuthenticData` flag and local validation are deliberately separate. `Secure` means DnsClientX built and verified a chain to a bundled root trust anchor; `Insecure` means a secure parent authenticated an unsigned delegation; `Bogus` is a cryptographic or proof failure; and `Indeterminate` means the response or supported algorithms were insufficient. The dependency-free validator embeds the current IANA root DS trust anchors; it does not yet implement RFC 5011 automated trust-anchor rollover, so applications with long-lived or independently managed trust stores should update DnsClientX when IANA changes the root anchors.
+The resolver-provided `AuthenticData` flag and local validation are deliberately separate. `Secure` means DnsClientX built and verified a chain to a bundled root trust anchor; `Insecure` means a secure parent authenticated an unsigned delegation; `Bogus` is a cryptographic or proof failure; and `Indeterminate` means the response or supported algorithms were insufficient. The dependency-free validator supports RSA/SHA-1 (algorithms 5 and 7, for compatibility), RSA/SHA-256, RSA/SHA-512, ECDSA P-256/SHA-256, and ECDSA P-384/SHA-384. Ed25519 and Ed448 are not implemented and therefore cannot produce `Secure`. The validator embeds the current IANA root DS trust anchors; it does not implement RFC 5011 automated trust-anchor rollover, so applications with independently managed or long-lived trust stores must monitor root-anchor updates.
 
 #### Pattern-Based Queries
 ```csharp
@@ -989,6 +911,18 @@ var response = await ClientX.QueryDns("google.com", DnsRecordType.A,
     DnsEndpoint.RootServer);
 ```
 
+`RootServer` performs non-recursive iteration from the configured A-M root hints. It follows the closest delegation, applies glue according to the responding authority's bailiwick, resolves missing name-server addresses independently, and follows bounded CNAME/DNAME chains. With `validateDnsSec: true`, validation fetches DNSKEY/DS material through the same iterative path and anchors it at the bundled root trust anchors.
+
+The profile goes through the normal `Resolve` retry, cache, audit, answer-projection, typed-record, PTR, and IDN pipeline. Referral and alias traversal has its own bound, independent of retry attempts:
+
+```csharp
+using var client = new ClientX(DnsEndpoint.RootServer);
+client.EndpointConfiguration.IterativeMaxHops = 40;
+var response = await client.Resolve("www.sidn.nl", validateDnsSec: true, typedRecords: true);
+```
+
+When an alias crosses authoritative packets or zones, each wire response is validated separately. DnsClientX does not combine signatures and RDATA offsets from different DNS messages or claim that an incomplete alias chain is secure.
+
 ### Performance and Reliability Features
 
 #### Latency Measurement
@@ -1000,10 +934,11 @@ Console.WriteLine($"Latency: {latency.TotalMilliseconds}ms");
 
 #### Retry Configuration
 ```csharp
-using var client = new ClientX(DnsEndpoint.Cloudflare) {
-    RetryCount = 3,
-    Timeout = TimeSpan.FromSeconds(5)
-};
+using var client = new ClientX(DnsEndpoint.Cloudflare, timeOutMilliseconds: 5000);
+var response = await client.Resolve(
+    "example.com",
+    maxRetries: 3,
+    retryDelayMs: 100);
 ```
 
 #### Fallback Strategies
@@ -1033,13 +968,17 @@ foreach (var endpoint in endpoints) {
 ```csharp
 using var client = new ClientX(DnsEndpoint.Cloudflare);
 
-// Discover all services in a domain
-var services = await client.DiscoverServices("example.com");
+// RFC 6763 meta-query: discover the advertised service types first.
+var serviceTypes = await client.DiscoverServiceTypesAsync("example.com");
+
+// Browse PTR instances of one service type, then resolve instance SRV/TXT data.
+var services = await client.BrowseServicesAsync("http", "tcp", "example.com");
 foreach (var service in services) {
-    Console.WriteLine($"Service: {service.ServiceName} -> {service.Target}:{service.Port}");
+    Console.WriteLine($"Instance: {service.InstanceName}");
+    Console.WriteLine($"Type: {service.ServiceType} -> {service.Target}:{service.Port}");
 }
 
-// Query specific service
+// Return SRV targets in RFC 2782 priority and weighted-random connection order.
 var srvRecords = await client.ResolveServiceAsync("ldap", "tcp", "example.com", resolveHosts: true);
 foreach (var srv in srvRecords) {
     Console.WriteLine($"Server: {srv.Target}:{srv.Port} (Priority: {srv.Priority})");
@@ -1066,26 +1005,82 @@ await foreach (var rrset in client.ZoneTransferStreamAsync("example.com")) {
 }
 ```
 
+#### Zone Master Files
+
+```csharp
+var parsed = DnsZoneFileParser.ParseFile("example.zone", new DnsZoneFileParseOptions {
+    Origin = "example.com",
+    AllowIncludes = true
+});
+
+foreach (var diagnostic in parsed.Diagnostics) {
+    Console.WriteLine(diagnostic);
+}
+
+if (parsed.Success) {
+    foreach (var record in parsed.Records) Console.WriteLine(record);
+}
+```
+
+The parser supports owner inheritance, `$ORIGIN`, compound TTL values, multiline records, quoted/comment-aware tokens, scoped relative `$INCLUDE`, common `$GENERATE` forms, and RFC 3597 `TYPE####` records. Includes are disabled by default; enabling them permits only link-free paths beneath the top-level zone directory (or `IncludeRootDirectory`). Rooted, out-of-root, symbolic-link, and reparse-point paths additionally require `AllowUnsafeIncludePaths = true` and should be used only with trusted zone files. Unsupported classes, excessive generation, overflow, and malformed input are reported as structured diagnostics instead of being silently reinterpreted. `BindFileParser` remains a compatibility adapter over this public parser.
+
 #### DNS Updates
 ```csharp
-using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) {
-    EndpointConfiguration = { Port = 5353 }
+var configuration = new Configuration("192.0.2.53", DnsRequestFormat.DnsOverTCP) {
+    TsigKey = TsigKey.FromBase64("update-key.example.com", "AQIDBAUGBwg=")
 };
+using var client = new ClientX(configuration);
 
 // Add a record
-await client.UpdateAsync("example.com", "www", DnsRecordType.A, "192.0.2.1", ttl: 300);
+await client.UpdateRecordAsync(
+    "example.com", "www.example.com", DnsRecordType.A, "192.0.2.1", ttl: 300);
 
-// Delete a record
-await client.UpdateAsync("example.com", "www", DnsRecordType.A, delete: true);
+// Delete the complete A RRset
+await client.DeleteRecordAsync("example.com", "www.example.com", DnsRecordType.A);
 ```
+
+RFC 2136 wire updates are accepted only for UDP/TCP-configured authoritative targets and are sent over TCP. DoH, DoT, DoQ, mDNS, and built-in recursive profiles are not silently reinterpreted as plaintext update endpoints. When a `TsigKey` is configured, DnsClientX signs the request and requires a valid chained TSIG on the response. The separate JSON POST update mode is a proprietary custom-endpoint API and does not support TSIG.
 
 ### Multicast DNS (mDNS)
 ```csharp
 using var client = new ClientX("224.0.0.251", DnsRequestFormat.Multicast) {
-    EndpointConfiguration = { Port = 5353 }
+    EndpointConfiguration = {
+        Port = 5353,
+        TimeOut = 1500,
+        MulticastInterfaceIndex = 12 // optional IPv6/IPv4 interface selection
+    }
 };
-var response = await client.Resolve("printer.local", DnsRecordType.A);
+var responses = await client.ResolveMulticastAllAsync("printer.local", DnsRecordType.A);
 ```
+
+The mDNS query uses transaction ID zero, clears RD, omits EDNS, and collects distinct valid responder messages for the configured timeout window. It is a bounded one-shot query, not a continuous RFC 6762 browser. `Resolve` is still available when a merged single response is more convenient.
+
+### Source Binding and Telemetry
+
+```csharp
+var configuration = new Configuration("192.0.2.53", DnsRequestFormat.DnsOverUDP) {
+    LocalEndPoint = new IPEndPoint(IPAddress.Parse("192.0.2.10"), 0)
+};
+using var client = new ClientX(configuration);
+
+DnsClientTelemetry.QueryCompleted += (_, query) =>
+    Console.WriteLine($"{query.Name} {query.Type}: {query.Status} in {query.Duration}");
+```
+
+`LocalEndPoint` is supported for UDP, TCP, DoT, and DoQ queries and for RFC 2136 updates through the shared TCP engine. HTTP-based transports reject it explicitly because `HttpClient` does not expose a portable per-query source binding. Modern targets also emit `ActivitySource` spans and `Meter` counters under the name `DnsClientX`; when no event, activity, or meter listener is attached, query telemetry does not allocate a scope.
+
+### Library Comparison Benchmark
+
+`DnsClientX.Benchmarks` contains a BenchmarkDotNet comparison with DnsClient.NET. It uses a controlled loopback DNS responder by default so client overhead is not confused with Internet or resolver latency. To run against a resolver you control:
+
+```powershell
+$env:DNS_BENCHMARK_SERVER = '192.0.2.53'
+$env:DNS_BENCHMARK_PORT = '53'
+$env:DNS_BENCHMARK_NAME = 'example.com'
+dotnet run -c Release --project .\DnsClientX.Benchmarks -- --filter '*DnsLibraryNetworkBenchmark*'
+```
+
+Both clients disable caching and retries, reuse their client instances, and perform one query per benchmark invocation. Treat lab results as environment-specific; use the loopback result for client overhead and the lab result only to detect material regressions under realistic network conditions.
 
 ### Error Handling and Debugging
 

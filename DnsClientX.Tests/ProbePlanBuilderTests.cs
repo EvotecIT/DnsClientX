@@ -24,8 +24,7 @@ namespace DnsClientX.Tests {
                 new[] {
                     DnsEndpoint.Cloudflare,
                     DnsEndpoint.CloudflareWireFormat,
-                    DnsEndpoint.CloudflareWireFormatPost,
-                    DnsEndpoint.CloudflareJsonPost
+                    DnsEndpoint.CloudflareWireFormatPost
                 },
                 plan);
         }

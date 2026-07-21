@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -13,10 +12,14 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public void DuplicateDnsServers_AreRemoved() {
-            MethodInfo method = typeof(SystemInformation).GetMethod("DeduplicateDnsServers", BindingFlags.NonPublic | BindingFlags.Static)!;
             var input = new List<string> { "1.1.1.1", "1.1.1.1", "[2001:db8::1]", "[2001:db8::1]" };
-            var result = (List<string>)method.Invoke(null, new object?[] { input })!;
-            Assert.Equal(new[] { "1.1.1.1", "[2001:db8::1]" }, result);
+            var configuration = new SystemDnsConfiguration(
+                input,
+                searchDomains: null,
+                ndots: 1,
+                SystemDnsDiscoverySource.CustomProvider);
+
+            Assert.Equal(new[] { "1.1.1.1", "[2001:db8::1]" }, configuration.DnsServers);
         }
 
         /// <summary>
@@ -24,10 +27,14 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public void DuplicateDnsServers_OrderIsPreserved() {
-            MethodInfo method = typeof(SystemInformation).GetMethod("DeduplicateDnsServers", BindingFlags.NonPublic | BindingFlags.Static)!;
             var input = new List<string> { "2.2.2.2", "1.1.1.1", "2.2.2.2", "[2001:db8::1]", "1.1.1.1" };
-            var result = (List<string>)method.Invoke(null, new object?[] { input })!;
-            Assert.Equal(new[] { "2.2.2.2", "1.1.1.1", "[2001:db8::1]" }, result);
+            var configuration = new SystemDnsConfiguration(
+                input,
+                searchDomains: null,
+                ndots: 1,
+                SystemDnsDiscoverySource.CustomProvider);
+
+            Assert.Equal(new[] { "2.2.2.2", "1.1.1.1", "[2001:db8::1]" }, configuration.DnsServers);
         }
 
         /// <summary>

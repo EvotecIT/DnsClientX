@@ -245,7 +245,7 @@ namespace DnsClientX {
         }
 
         /// <summary>
-        /// Filters DNS answers based on a string filter, with special handling for TXT records that may contain multiple lines.
+        /// Filters complete DNS resource records based on a string filter.
         /// </summary>
         /// <param name="answers">The DNS answers to filter.</param>
         /// <param name="filter">The filter string to search for.</param>
@@ -257,7 +257,6 @@ namespace DnsClientX {
 
         private DnsAnswer[] FilterAnswers(DnsAnswer[] answers, string filter, DnsRecordType type, bool includeAliases) {
             filter ??= string.Empty;
-            var filterLower = filter.ToLowerInvariant();
             var filteredAnswers = new List<DnsAnswer>();
 
             foreach (var answer in answers) {
@@ -275,28 +274,8 @@ namespace DnsClientX {
                     continue;
                 }
 
-                if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
-                    // For TXT records, check if any line contains the filter   
-                    var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-                    var matchingLines = lines.Where(line => line.ToLowerInvariant().Contains(filterLower)).ToArray();
-
-                    if (matchingLines.Length > 0) {
-                        // Create a new answer with only the matching lines
-                        var filteredAnswer = new DnsAnswer {
-                            Name = answer.Name,
-                            Type = answer.Type,
-                            TTL = answer.TTL,
-                            DataRaw = answer.DataRaw
-                        };
-                        // Override the Data property to return only matching lines
-                        filteredAnswer.SetFilteredData(string.Join("\n", matchingLines));
-                        filteredAnswers.Add(filteredAnswer);
-                    }
-                } else {
-                    // For non-TXT records, use the original logic
-                    if (answer.Data.ToLowerInvariant().Contains(filterLower)) {
-                        filteredAnswers.Add(answer);
-                    }
+                if (answer.Data.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0) {
+                    filteredAnswers.Add(answer);
                 }
             }
 
@@ -304,7 +283,7 @@ namespace DnsClientX {
         }
 
         /// <summary>
-        /// Filters DNS answers based on a regex filter, with special handling for TXT records that may contain multiple lines.
+        /// Filters complete DNS resource records based on a regular expression.
         /// </summary>
         /// <param name="answers">The DNS answers to filter.</param>
         /// <param name="regexFilter">The regex filter to match against.</param>
@@ -332,28 +311,8 @@ namespace DnsClientX {
                     continue;
                 }
 
-                if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
-                    // For TXT records, check if any line matches the regex
-                    var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-                    var matchingLines = lines.Where(line => regexFilter.IsMatch(line)).ToArray();
-
-                    if (matchingLines.Length > 0) {
-                        // Create a new answer with only the matching lines
-                        var filteredAnswer = new DnsAnswer {
-                            Name = answer.Name,
-                            Type = answer.Type,
-                            TTL = answer.TTL,
-                            DataRaw = answer.DataRaw
-                        };
-                        // Override the Data property to return only matching lines
-                        filteredAnswer.SetFilteredData(string.Join("\n", matchingLines));
-                        filteredAnswers.Add(filteredAnswer);
-                    }
-                } else {
-                    // For non-TXT records, use the original logic
-                    if (regexFilter.IsMatch(answer.Data)) {
-                        filteredAnswers.Add(answer);
-                    }
+                if (regexFilter.IsMatch(answer.Data)) {
+                    filteredAnswers.Add(answer);
                 }
             }
 
@@ -377,7 +336,6 @@ namespace DnsClientX {
             }
 
             filter ??= string.Empty;
-            var filterLower = filter.ToLowerInvariant();
             foreach (var answer in answers) {
                 if (string.IsNullOrEmpty(answer.Data)) {
                     continue;
@@ -392,16 +350,8 @@ namespace DnsClientX {
                     continue;
                 }
 
-                if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
-                    var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-                    var matchingLines = lines.Where(line => line.ToLowerInvariant().Contains(filterLower)).ToArray();
-                    if (matchingLines.Length > 0) {
-                        return true;
-                    }
-                } else {
-                    if (answer.Data.ToLowerInvariant().Contains(filterLower)) {
-                        return true;
-                    }
+                if (answer.Data.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0) {
+                    return true;
                 }
             }
             return false;
@@ -437,16 +387,8 @@ namespace DnsClientX {
                     continue;
                 }
 
-                if (type == DnsRecordType.TXT && answer.Type == DnsRecordType.TXT) {
-                    var lines = answer.Data.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-                    var matchingLines = lines.Where(line => regexFilter.IsMatch(line)).ToArray();
-                    if (matchingLines.Length > 0) {
-                        return true;
-                    }
-                } else {
-                    if (regexFilter.IsMatch(answer.Data)) {
-                        return true;
-                    }
+                if (regexFilter.IsMatch(answer.Data)) {
+                    return true;
                 }
             }
             return false;

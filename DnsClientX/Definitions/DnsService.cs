@@ -8,8 +8,17 @@ namespace DnsClientX {
     /// The information contained in this class matches data returned by the PTR and SRV records used in DNS Service Discovery.
     /// </remarks>
     public class DnsService {
-        /// <summary>Gets or sets the full PTR service name.</summary>
+        /// <summary>Gets or sets the full DNS-SD instance name returned by the service-type PTR record.</summary>
         public string ServiceName { get; set; } = string.Empty;
+
+        /// <summary>Gets or sets the full DNS-SD instance name.</summary>
+        public string InstanceName {
+            get => ServiceName;
+            set => ServiceName = value;
+        }
+
+        /// <summary>Gets or sets the service type, for example <c>_http._tcp.example.com</c>.</summary>
+        public string ServiceType { get; set; } = string.Empty;
 
         /// <summary>Gets or sets the target host of the service.</summary>
         public string Target { get; set; } = string.Empty;

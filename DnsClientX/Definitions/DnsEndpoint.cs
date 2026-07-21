@@ -52,9 +52,9 @@ namespace DnsClientX {
         [Description("Cloudflare's DNS-over-HTTPS endpoint using wire format with POST method.")]
         CloudflareWireFormatPost,
         /// <summary>
-        /// Cloudflare's DNS-over-HTTPS endpoint using JSON over POST method.
+        /// Reserved legacy value. Cloudflare does not publish a JSON-over-POST DNS endpoint.
         /// </summary>
-        [Description("Cloudflare's DNS-over-HTTPS endpoint using JSON over POST method.")]
+        [Description("Unsupported legacy value; Cloudflare does not publish JSON over POST. Use CloudflareWireFormatPost.")]
         CloudflareJsonPost,
         /// <summary>
         /// Google's DNS-over-HTTPS endpoint.
@@ -72,9 +72,9 @@ namespace DnsClientX {
         [Description("Google's DNS-over-HTTPS endpoint using wire format over POST method.")]
         GoogleWireFormatPost,
         /// <summary>
-        /// Google's DNS-over-HTTPS endpoint using JSON over POST method.
+        /// Reserved legacy value. Google Public DNS does not publish a JSON-over-POST endpoint.
         /// </summary>
-        [Description("Google's DNS-over-HTTPS endpoint using JSON over POST method.")]
+        [Description("Unsupported legacy value; Google does not publish JSON over POST. Use GoogleWireFormatPost.")]
         GoogleJsonPost,
         /// <summary>
         /// Quad9's DNS-over-HTTPS endpoint.

@@ -12,7 +12,8 @@ namespace DnsClientX.Tests {
         [Fact]
         public void PropertiesStoreValues() {
             var svc = new DnsService {
-                ServiceName = "_http._tcp.example.com",
+                InstanceName = "Web._http._tcp.example.com",
+                ServiceType = "_http._tcp.example.com",
                 Target = "host.example.com",
                 Port = 8080,
                 Priority = 1,
@@ -20,7 +21,8 @@ namespace DnsClientX.Tests {
                 Metadata = new Dictionary<string, string> { { "k", "v" } }
             };
 
-            Assert.Equal("_http._tcp.example.com", svc.ServiceName);
+            Assert.Equal("Web._http._tcp.example.com", svc.ServiceName);
+            Assert.Equal("_http._tcp.example.com", svc.ServiceType);
             Assert.Equal("host.example.com", svc.Target);
             Assert.Equal(8080, svc.Port);
             Assert.Equal(1, svc.Priority);

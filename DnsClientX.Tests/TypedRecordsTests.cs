@@ -163,6 +163,17 @@ namespace DnsClientX.Tests {
             Assert.Contains("include:example.com", typed.Mechanisms);
         }
 
+        /// <summary>Malformed LOC text must not be indexed past its available fields.</summary>
+        [Fact]
+        public void Factory_MalformedLoc_ReturnsUnknownRecord() {
+            var answer = new DnsAnswer {
+                Type = DnsRecordType.LOC,
+                DataRaw = "52 0 0 N 21 0 0 E 100m 1m 1m"
+            };
+
+            Assert.IsType<UnknownRecord>(DnsRecordFactory.Create(answer));
+        }
+
         /// <summary>
         /// Parses a TXT record containing key=value pairs.
         /// </summary>

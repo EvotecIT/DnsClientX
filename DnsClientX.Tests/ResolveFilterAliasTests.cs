@@ -16,7 +16,7 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Ensures alias answers are kept alongside matching TXT lines when enabled.
+        /// Ensures alias answers are kept alongside the complete matching TXT resource record.
         /// </summary>
         [Fact]
         public async Task ResolveFilter_IncludeAliases_KeepsCnameAndMatchingTxt() {
@@ -29,7 +29,8 @@ namespace DnsClientX.Tests {
             Assert.NotNull(response.Answers);
             Assert.Equal(2, response.Answers.Length);
             Assert.Contains(response.Answers, answer => answer.Type == DnsRecordType.CNAME);
-            Assert.Contains(response.Answers, answer => answer.Type == DnsRecordType.TXT && answer.Data == "v=spf1 include:example.com -all");
+            DnsAnswer txt = Assert.Single(response.Answers, answer => answer.Type == DnsRecordType.TXT);
+            Assert.Equal("v=spf1 include:example.com -all\nother=record", txt.DataRaw);
         }
 
         /// <summary>
