@@ -26,6 +26,33 @@ namespace DnsClientX {
             Configuration configuration,
             bool ignoreCertificateErrors,
             CancellationToken cancellationToken) {
+            if (configuration.RequestFormat != DnsRequestFormat.DnsOverTCP
+                && configuration.RequestFormat != DnsRequestFormat.DnsOverTLS) {
+                throw new NotSupportedException(
+                    $"Zone transfers require DnsOverTCP or DnsOverTLS, not {configuration.RequestFormat}.");
+            }
+            if (configuration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
+                if (ignoreCertificateErrors) {
+                    throw new InvalidOperationException(
+                        "XFR-over-TLS requires strict server authentication; IgnoreCertificateErrors cannot be enabled.");
+                }
+                if (!DnsTransportCapabilities.SupportsZoneTransferOverTls) {
+                    throw new PlatformNotSupportedException(
+                        DnsTransportCapabilities.ZoneTransferOverTlsUnsupportedMessage);
+                }
+            }
+
+#if NET8_0_OR_GREATER
+            string? authenticationName = null;
+            if (configuration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
+                authenticationName = configuration.TlsServerName
+                    ?? (Uri.CheckHostName(dnsServer) == UriHostNameType.Dns
+                        ? dnsServer
+                        : throw new InvalidOperationException(
+                            "XFR-over-TLS configured by IP address requires Configuration.TlsServerName for strict authentication."));
+            }
+#endif
+
             (IPAddress? address, string? resolveError) = await DnsServerResolver.ResolveAsync(
                 dnsServer,
                 timeoutMilliseconds,
@@ -49,27 +76,15 @@ namespace DnsClientX {
                 if (configuration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
                     return new DnsZoneTransferConnection(tcpClient, networkStream);
                 }
-                if (configuration.RequestFormat != DnsRequestFormat.DnsOverTLS) {
-                    throw new NotSupportedException(
-                        $"Zone transfers require DnsOverTCP or DnsOverTLS, not {configuration.RequestFormat}.");
-                }
-                if (ignoreCertificateErrors) {
-                    throw new InvalidOperationException("XFR-over-TLS requires strict server authentication; IgnoreCertificateErrors cannot be enabled.");
-                }
 
 #if NET8_0_OR_GREATER
-                string authenticationName = configuration.TlsServerName
-                    ?? (Uri.CheckHostName(dnsServer) == UriHostNameType.Dns
-                        ? dnsServer
-                        : throw new InvalidOperationException(
-                            "XFR-over-TLS configured by IP address requires Configuration.TlsServerName for strict authentication."));
                 var sslStream = new SslStream(
                     networkStream,
                     leaveInnerStreamOpen: false,
                     configuration.ZoneTransferServerCertificateValidationCallback);
                 var dotProtocol = new SslApplicationProtocol("dot");
                 var authenticationOptions = new SslClientAuthenticationOptions {
-                    TargetHost = authenticationName,
+                    TargetHost = authenticationName!,
                     EnabledSslProtocols = SslProtocols.Tls13,
                     ApplicationProtocols = new System.Collections.Generic.List<SslApplicationProtocol> {
                         dotProtocol

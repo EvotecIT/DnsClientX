@@ -48,8 +48,10 @@ namespace DnsClientX {
                 throw;
             } catch (OperationCanceledException) {
                 throw;
+            } catch (PlatformNotSupportedException) {
+                throw;
             } catch (Exception ex) {
-                throw new DnsClientException($"Zone transfer failed: {ex.Message}");
+                throw new DnsClientException($"Zone transfer failed: {ex.Message}", ex);
             }
 
             return results.ToArray();
@@ -139,10 +141,12 @@ namespace DnsClientX {
                 // corrupt the logical AXFR with duplicate RRsets. Retries are therefore safe only
                 // before the first yielded RRset.
                 if (yieldedAny || !(retryOnTransient && attempt < maxRetries - 1 && IsTransient(iterationException))) {
-                    if (iterationException is DnsClientException || iterationException is OperationCanceledException) {
+                    if (iterationException is DnsClientException
+                        || iterationException is OperationCanceledException
+                        || iterationException is PlatformNotSupportedException) {
                         throw iterationException;
                     }
-                    throw new DnsClientException($"Zone transfer failed: {iterationException.Message}");
+                    throw new DnsClientException($"Zone transfer failed: {iterationException.Message}", iterationException);
                 }
 
                 if (EndpointConfiguration.SelectionStrategy == DnsSelectionStrategy.Failover) {

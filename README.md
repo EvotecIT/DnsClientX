@@ -1053,6 +1053,14 @@ AXFR and IXFR accept only `DnsOverTCP` or `DnsOverTLS` endpoints and enforce con
 
 On .NET 8 or newer, `DnsOverTLS` zone transfers enforce RFC 9103 TLS 1.3 and the `dot` ALPN value. An IP endpoint requires `TlsServerName`; `IgnoreCertificateErrors` is rejected. Mutual TLS is available through `ZoneTransferClientCertificate`, and a narrowly scoped certificate callback can be supplied through `ZoneTransferServerCertificateValidationCallback` for private PKI or pinned lab endpoints. XFR-over-TLS is explicitly unsupported on older targets rather than downgraded to plaintext.
 
+On macOS, XFR-over-TLS requires .NET 10 or newer and the Network.framework TLS client. Enable it before the process performs any TLS work:
+
+```csharp
+AppContext.SetSwitch("System.Net.Security.UseNetworkFramework", true);
+```
+
+DnsClientX does not change this process-wide setting on the host's behalf. Check `DnsTransportCapabilities.SupportsZoneTransferOverTls` before selecting XFR-over-TLS.
+
 `ZoneDigestValidator` operates on canonical wire records preserved by `ZoneTransferAsync`; presentation-only `ZoneTransferResult` values are rejected. A matching digest establishes zone-data integrity, not origin authenticity. Authenticate the apex ZONEMD RRset separately with DNSSEC or use an authenticated transfer channel. Multi-message TSIG chaining for AXFR/IXFR is not implemented, so configuring the update-oriented `TsigKey` for a transfer fails explicitly instead of implying protection it does not provide.
 
 #### Zone Master Files

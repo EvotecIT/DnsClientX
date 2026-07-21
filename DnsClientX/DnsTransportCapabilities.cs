@@ -62,6 +62,46 @@ namespace DnsClientX {
         public static bool SupportsModernHttp => SupportsDnsOverHttp3;
 
         /// <summary>
+        /// Gets a value indicating whether the current target and runtime can provide RFC 9103
+        /// zone transfer over TLS with TLS 1.3 and the <c>dot</c> ALPN value.
+        /// </summary>
+        /// <remarks>
+        /// On macOS, .NET 10 client-side TLS 1.3 requires the process-wide
+        /// <c>System.Net.Security.UseNetworkFramework</c> AppContext switch to be enabled before
+        /// the first TLS operation. DnsClientX reports that boundary but does not change a host
+        /// application's process-wide TLS implementation.
+        /// </remarks>
+        public static bool SupportsZoneTransferOverTls {
+            get {
+#if NET8_0_OR_GREATER
+                if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux()) return true;
+                if (!OperatingSystem.IsMacOS()) return false;
+#if NET10_0_OR_GREATER
+                return AppContext.TryGetSwitch("System.Net.Security.UseNetworkFramework", out bool enabled)
+                    && enabled;
+#else
+                return false;
+#endif
+#else
+                return false;
+#endif
+            }
+        }
+
+        internal static string ZoneTransferOverTlsUnsupportedMessage {
+            get {
+#if NET8_0_OR_GREATER
+                if (OperatingSystem.IsMacOS()) {
+                    return "RFC 9103 XFR-over-TLS requires TLS 1.3 and the 'dot' ALPN value. "
+                        + "On macOS this requires .NET 10 or newer and the "
+                        + "System.Net.Security.UseNetworkFramework AppContext switch enabled before the first TLS operation.";
+                }
+#endif
+                return "RFC 9103 XFR-over-TLS requires the net8.0 or newer target and a runtime with TLS 1.3 and 'dot' ALPN support.";
+            }
+        }
+
+        /// <summary>
         /// Determines whether the given request format is supported by the current runtime.
         /// </summary>
         /// <param name="requestFormat">Request format to evaluate.</param>

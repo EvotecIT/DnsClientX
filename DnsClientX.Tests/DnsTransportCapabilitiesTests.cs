@@ -30,6 +30,30 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
+        /// Ensures RFC 9103 capability reporting includes the macOS Network.framework boundary.
+        /// </summary>
+        [Fact]
+        public void SupportsZoneTransferOverTls_ReportsCurrentRuntimeBoundary() {
+#if NET8_0_OR_GREATER
+            if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux()) {
+                Assert.True(DnsTransportCapabilities.SupportsZoneTransferOverTls);
+            } else if (OperatingSystem.IsMacOS()) {
+#if NET10_0_OR_GREATER
+                bool enabled = AppContext.TryGetSwitch(
+                    "System.Net.Security.UseNetworkFramework", out bool configured) && configured;
+                Assert.Equal(enabled, DnsTransportCapabilities.SupportsZoneTransferOverTls);
+#else
+                Assert.False(DnsTransportCapabilities.SupportsZoneTransferOverTls);
+#endif
+            } else {
+                Assert.False(DnsTransportCapabilities.SupportsZoneTransferOverTls);
+            }
+#else
+            Assert.False(DnsTransportCapabilities.SupportsZoneTransferOverTls);
+#endif
+        }
+
+        /// <summary>
         /// Ensures the user-facing capability report exposes modern transport entries.
         /// </summary>
         [Fact]

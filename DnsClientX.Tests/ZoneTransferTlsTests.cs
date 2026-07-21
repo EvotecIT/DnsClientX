@@ -12,11 +12,29 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
+    internal sealed class NonMacOsFactAttribute : FactAttribute {
+        public NonMacOsFactAttribute() {
+            if (OperatingSystem.IsMacOS()) {
+                Skip = "The in-process test requires server-side TLS 1.3, which .NET 10 does not provide on macOS.";
+            }
+        }
+    }
+
+    internal sealed class MacOsWithoutNetworkFrameworkFactAttribute : FactAttribute {
+        public MacOsWithoutNetworkFrameworkFactAttribute() {
+            if (!OperatingSystem.IsMacOS()) {
+                Skip = "This contract applies only to macOS.";
+            } else if (DnsTransportCapabilities.SupportsZoneTransferOverTls) {
+                Skip = "Network.framework TLS was enabled for this process.";
+            }
+        }
+    }
+
     /// <summary>Protects RFC 9103 TLS 1.3, ALPN, server authentication, and mutual TLS behavior.</summary>
     [Collection("NoParallel")]
     public class ZoneTransferTlsTests {
         /// <summary>An AXFR can use TLS 1.3 with dot ALPN and mutually authenticated certificates.</summary>
-        [Fact]
+        [NonMacOsFact]
         public async Task ZoneTransferAsync_UsesAuthenticatedTls13AndDotAlpn() {
             using X509Certificate2 serverCertificate = Certificate("localhost", serverAuthentication: true);
             using X509Certificate2 clientCertificate = Certificate("zone-transfer-client", serverAuthentication: false);
@@ -75,6 +93,22 @@ namespace DnsClientX.Tests {
             Assert.Equal(SslProtocols.Tls13, negotiatedProtocol);
             Assert.Equal(new SslApplicationProtocol("dot"), negotiatedApplicationProtocol);
             Assert.True(observedClientCertificate);
+        }
+
+        /// <summary>macOS reports the required Network.framework opt-in before opening a connection.</summary>
+        [MacOsWithoutNetworkFrameworkFact]
+        public async Task ZoneTransferAsync_OnMacWithoutNetworkFramework_ReportsRequirement() {
+            var configuration = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTLS) {
+                Port = 853,
+                TlsServerName = "localhost"
+            };
+            using var client = new ClientX(configuration);
+
+            PlatformNotSupportedException exception = await Assert.ThrowsAsync<PlatformNotSupportedException>(
+                () => client.ZoneTransferAsync("example.com", retryOnTransient: false));
+
+            Assert.Contains("System.Net.Security.UseNetworkFramework", exception.Message,
+                StringComparison.Ordinal);
         }
 
         private static X509Certificate2 Certificate(string commonName, bool serverAuthentication) {
