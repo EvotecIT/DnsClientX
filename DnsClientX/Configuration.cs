@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
+using System.Net.Security;
 
 namespace DnsClientX {
     /// <summary>
@@ -222,6 +224,26 @@ namespace DnsClientX {
         /// Gets or sets the TSIG key used to authenticate RFC 2136 DNS UPDATE requests and responses.
         /// </summary>
         public TsigKey? TsigKey { get; set; }
+
+        /// <summary>
+        /// Gets or sets the client certificate offered for mutual authentication during RFC 9103 XFR-over-TLS.
+        /// </summary>
+        public X509Certificate2? ZoneTransferClientCertificate { get; set; }
+
+        /// <summary>
+        /// Gets or sets an optional strict server-certificate validator for XFR-over-TLS, such as an SPKI pin.
+        /// The platform trust validator is used when this is null.
+        /// </summary>
+        public RemoteCertificateValidationCallback? ZoneTransferServerCertificateValidationCallback { get; set; }
+
+        /// <summary>Gets or sets the maximum number of DNS messages accepted in one zone transfer.</summary>
+        public int MaxZoneTransferMessages { get; set; } = 100000;
+
+        /// <summary>Gets or sets the maximum number of resource records accepted in one zone transfer.</summary>
+        public int MaxZoneTransferRecords { get; set; } = 1000000;
+
+        /// <summary>Gets or sets the maximum cumulative wire bytes accepted in one zone transfer.</summary>
+        public long MaxZoneTransferBytes { get; set; } = 256L * 1024L * 1024L;
 
         /// <summary>
         /// Gets or sets the UDP buffer size used when sending EDNS queries.

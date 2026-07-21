@@ -31,7 +31,7 @@ namespace DnsClientX.Tests {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTCP) { Port = port };
             var enumerable = (IAsyncEnumerable<ZoneTransferResult>)method.Invoke(null, new object[] {
-                new byte[] { 0, 0 }, (ushort)0, "example.com", "127.0.0.1", port, 200, false, config, cts.Token
+                new byte[] { 0, 0 }, (ushort)0, "example.com", "127.0.0.1", port, 200, false, config, false, cts.Token
             })!;
             var callTask = Task.Run(async () => {
                 await foreach (var _ in enumerable) { }

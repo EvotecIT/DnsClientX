@@ -110,6 +110,10 @@ public enum DnsRecordType : ushort {
     /// </summary>
     SIG = 24,
     /// <summary>
+    /// X.400 mail mapping information (obsolete).
+    /// </summary>
+    PX = 26,
+    /// <summary>
     /// IPv6 address.
     /// </summary>
     AAAA = 28,
@@ -117,6 +121,10 @@ public enum DnsRecordType : ushort {
     /// Location information.
     /// </summary>
     LOC = 29,
+    /// <summary>
+    /// Next domain record (obsolete, replaced by NSEC).
+    /// </summary>
+    NXT = 30,
     /// <summary>
     /// Server selection.
     /// </summary>

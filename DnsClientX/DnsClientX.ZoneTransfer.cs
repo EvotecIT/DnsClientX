@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Net.Sockets;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -102,6 +100,7 @@ namespace DnsClientX {
             }
 
             Configuration queryConfiguration = EndpointConfiguration.CreateQuerySnapshot();
+            ValidateZoneTransferConfiguration(queryConfiguration);
 
             var query = new DnsMessage(zone, DnsRecordType.AXFR, new DnsMessageOptions(
                 CheckingDisabled: queryConfiguration.CheckingDisabled,
@@ -111,7 +110,7 @@ namespace DnsClientX {
             for (int attempt = 0; attempt < maxRetries; attempt++) {
                 cancellationToken.ThrowIfCancellationRequested();
                 bool yieldedAny = false;
-                await using var enumerator = SendAxfrOverTcp(queryBytes, query.TransactionId, zone, queryConfiguration.Hostname!, queryConfiguration.Port, queryConfiguration.TimeOut, Debug, queryConfiguration, cancellationToken).GetAsyncEnumerator(cancellationToken);
+                await using var enumerator = SendAxfrOverTcp(queryBytes, query.TransactionId, zone, queryConfiguration.Hostname!, queryConfiguration.Port, queryConfiguration.TimeOut, Debug, queryConfiguration, IgnoreCertificateErrors, cancellationToken).GetAsyncEnumerator(cancellationToken);
                 Exception? iterationException = null;
 
                 while (true) {
@@ -166,25 +165,12 @@ namespace DnsClientX {
             int timeoutMilliseconds,
             bool debug,
             Configuration configuration,
+            bool ignoreCertificateErrors,
             [EnumeratorCancellation] CancellationToken cancellationToken) {
-            (IPAddress? address, string? resolveError) = await DnsServerResolver.ResolveAsync(
-                dnsServer,
-                timeoutMilliseconds,
-                cancellationToken,
-                configuration.DnsServerResolutionSuccessTtl,
-                configuration.DnsServerResolutionFailureTtl,
-                configuration.DnsServerResolutionAllowStale,
-                configuration.DnsServerResolutionStaleTtl,
-                configuration.DnsServerResolutionFailureBackoffEnabled,
-                configuration.DnsServerResolutionFailureBackoffFactor,
-                configuration.DnsServerResolutionFailureBackoffMaxTtl,
-                configuration.PreferredAddressFamily).ConfigureAwait(false);
-            if (address == null) throw new DnsClientException(resolveError ?? $"DNS server '{dnsServer}' could not be resolved.");
-            using TcpClient tcpClient = DnsWireResolveTcp.TcpClientFactory(address.AddressFamily);
-            SocketBinding.Bind(tcpClient.Client, configuration.LocalEndPoint, address.AddressFamily);
-            await ConnectAsync(tcpClient, address.ToString(), port, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
-            NetworkStream stream = tcpClient.GetStream();
-            try {
+            await using DnsZoneTransferConnection connection = await DnsZoneTransferConnection.ConnectAsync(
+                dnsServer, port, timeoutMilliseconds, configuration, ignoreCertificateErrors, cancellationToken)
+                .ConfigureAwait(false);
+            Stream stream = connection.Stream;
                     var lengthBytes = BitConverter.GetBytes((ushort)query.Length);
                     if (BitConverter.IsLittleEndian) {
                         Array.Reverse(lengthBytes);
@@ -208,14 +194,17 @@ namespace DnsClientX {
 
                     var lenBuf = new byte[2];
                     var current = new List<DnsAnswer>();
+                    var currentCanonical = new List<ZoneCanonicalRecord>();
                     int soaCount = 0;
                     bool sawClosing = false;
-                    bool extraAfterClosing = false;
                     bool received = false;
                     bool started = false;
                     int index = 0;
                     DnsAnswer? lastRecord = null;
                     DnsAnswer? openingSoa = null;
+                    int messageCount = 0;
+                    int recordCount = 0;
+                    long transferredBytes = 0;
 
                     while (true) {
                         try {
@@ -232,6 +221,14 @@ namespace DnsClientX {
                             Array.Reverse(lenBuf);
                         }
                         int length = BitConverter.ToUInt16(lenBuf, 0);
+                        messageCount++;
+                        transferredBytes += length + 2L;
+                        if (messageCount > configuration.MaxZoneTransferMessages) {
+                            throw new DnsClientException($"Zone transfer exceeded the configured {configuration.MaxZoneTransferMessages} message limit.");
+                        }
+                        if (transferredBytes > configuration.MaxZoneTransferBytes) {
+                            throw new DnsClientException($"Zone transfer exceeded the configured {configuration.MaxZoneTransferBytes} byte limit.");
+                        }
                         var responseBuffer = new byte[length];
                         await ReadExactWithTimeoutAsync(stream, responseBuffer, 0, length, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
 
@@ -254,19 +251,21 @@ namespace DnsClientX {
                         }
 
                         var answers = response.Answers;
-                        if (sawClosing) {
-                            if (answers != null && answers.Length > 0) {
-                                throw new DnsClientException("Zone transfer incomplete: closing SOA record not last.");
-                            }
-                            extraAfterClosing = true;
-                            continue;
-                        }
-
                         if (answers == null) {
                             continue;
                         }
+                        if (response.WireAnswers.Length != answers.Length) {
+                            throw new DnsClientException("Zone transfer wire records did not align with projected answers.");
+                        }
 
-                        foreach (var rec in answers) {
+                        for (int answerIndex = 0; answerIndex < answers.Length; answerIndex++) {
+                            DnsAnswer rec = answers[answerIndex];
+                            ZoneCanonicalRecord canonicalRecord = ZoneCanonicalRecord.Create(
+                                response.WireMessage, response.WireAnswers[answerIndex]);
+                            recordCount++;
+                            if (recordCount > configuration.MaxZoneTransferRecords) {
+                                throw new DnsClientException($"Zone transfer exceeded the configured {configuration.MaxZoneTransferRecords} record limit.");
+                            }
                             if (soaCount >= 2) {
                                 throw new DnsClientException("Zone transfer incomplete: closing SOA record not last.");
                             }
@@ -282,14 +281,20 @@ namespace DnsClientX {
                                 openingSoa = rec;
                             }
 
-                            if (current.Count == 0 || (current[0].Name == rec.Name && current[0].Type == rec.Type)) {
+                            if (current.Count == 0 ||
+                                (string.Equals(DnsWireNameCodec.Canonical(current[0].Name),
+                                    DnsWireNameCodec.Canonical(rec.Name), StringComparison.Ordinal)
+                                 && current[0].Type == rec.Type)) {
                                 current.Add(rec);
+                                currentCanonical.Add(canonicalRecord);
                             } else {
                                 bool opening = index == 0 && current[0].Type == DnsRecordType.SOA;
                                 bool closing = sawClosing && current[0].Type == DnsRecordType.SOA;
-                                yield return new ZoneTransferResult(current.ToArray(), opening, closing, index++);
+                                yield return new ZoneTransferResult(current.ToArray(), currentCanonical.ToArray(), opening, closing, index++);
                                 current.Clear();
+                                currentCanonical.Clear();
                                 current.Add(rec);
+                                currentCanonical.Add(canonicalRecord);
                             }
 
                             lastRecord = rec;
@@ -302,31 +307,37 @@ namespace DnsClientX {
                                         throw new DnsClientException("Zone transfer closing SOA does not match the opening SOA.");
                                     }
                                     sawClosing = true;
+                                    if (answerIndex != answers.Length - 1) {
+                                        throw new DnsClientException("Zone transfer incomplete: closing SOA record not last.");
+                                    }
                                 }
                             }
+                        }
+
+                        if (sawClosing) {
+                            if (current.Count > 0) {
+                                yield return new ZoneTransferResult(current.ToArray(), currentCanonical.ToArray(), index == 0, true, index);
+                            }
+                            yield break;
                         }
                     }
 
                     if (current.Count > 0 && started) {
                         bool opening = index == 0 && current[0].Type == DnsRecordType.SOA;
                         bool closing = sawClosing && current[0].Type == DnsRecordType.SOA;
-                        yield return new ZoneTransferResult(current.ToArray(), opening, closing, index++);
+                        yield return new ZoneTransferResult(current.ToArray(), currentCanonical.ToArray(), opening, closing, index++);
                     }
 
                     if (soaCount == 0) {
                         throw new DnsClientException("Zone transfer returned no opening SOA record.");
                     }
 
-                    if (soaCount < 2 || extraAfterClosing || lastRecord == null || lastRecord.Value.Type != DnsRecordType.SOA) {
+                    if (soaCount < 2 || lastRecord == null || lastRecord.Value.Type != DnsRecordType.SOA) {
                         throw new DnsClientException("Zone transfer incomplete: closing SOA record missing.");
                     }
-                } finally {
-                    stream.Close();
-                    stream.Dispose();
-                }
         }
 
-        private static async Task ReadExactWithTimeoutAsync(NetworkStream stream, byte[] buffer, int offset, int count, int timeoutMilliseconds, CancellationToken cancellationToken) {
+        private static async Task ReadExactWithTimeoutAsync(Stream stream, byte[] buffer, int offset, int count, int timeoutMilliseconds, CancellationToken cancellationToken) {
             var readTask = DnsWire.ReadExactAsync(stream, buffer, offset, count, cancellationToken);
             var timeoutTask = Task.Delay(timeoutMilliseconds, cancellationToken);
             if (await Task.WhenAny(readTask, timeoutTask).ConfigureAwait(false) == timeoutTask) {
@@ -336,40 +347,20 @@ namespace DnsClientX {
             await readTask.ConfigureAwait(false);
         }
 
-        private static async Task ConnectAsync(TcpClient tcpClient, string host, int port, int timeoutMilliseconds, CancellationToken cancellationToken) {
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            if (timeoutMilliseconds <= 0) {
-                linkedCts.Cancel();
-            } else {
-                linkedCts.CancelAfter(timeoutMilliseconds);
+        private static void ValidateZoneTransferConfiguration(Configuration configuration) {
+            if (configuration.RequestFormat != DnsRequestFormat.DnsOverTCP
+                && configuration.RequestFormat != DnsRequestFormat.DnsOverTLS) {
+                throw new NotSupportedException(
+                    $"Zone transfers require DnsOverTCP or DnsOverTLS, not {configuration.RequestFormat}.");
             }
-#if NET5_0_OR_GREATER
-            try {
-                await tcpClient.ConnectAsync(host, port, linkedCts.Token).ConfigureAwait(false);
-            } catch (OperationCanceledException) {
-                try {
-                    tcpClient.Close();
-                } catch {
-                    // Ignore exceptions during Close() as disposal may happen elsewhere
-                }
-                cancellationToken.ThrowIfCancellationRequested();
-                throw new TimeoutException($"Connection to {host}:{port} timed out after {timeoutMilliseconds} milliseconds.");
+            if (configuration.MaxZoneTransferMessages <= 0) throw new ArgumentOutOfRangeException(nameof(configuration.MaxZoneTransferMessages));
+            if (configuration.MaxZoneTransferRecords <= 0) throw new ArgumentOutOfRangeException(nameof(configuration.MaxZoneTransferRecords));
+            if (configuration.MaxZoneTransferBytes <= 0) throw new ArgumentOutOfRangeException(nameof(configuration.MaxZoneTransferBytes));
+            if (configuration.TsigKey != null) {
+                throw new NotSupportedException(
+                    "Multi-message AXFR/IXFR TSIG chaining is not implemented. Use RFC 9103 mutual TLS or an endpoint ACL rather than assuming the UPDATE-only TSIG setting protects a transfer.");
             }
-#else
-            var connectTask = tcpClient.ConnectAsync(host, port);
-            var delayTask = Task.Delay(Timeout.Infinite, linkedCts.Token);
-            var completed = await Task.WhenAny(connectTask, delayTask).ConfigureAwait(false);
-            if (completed != connectTask) {
-                try {
-                    tcpClient.Close();
-                } catch {
-                    // Ignore exceptions during Close() as disposal may happen elsewhere
-                }
-                cancellationToken.ThrowIfCancellationRequested();
-                throw new TimeoutException($"Connection to {host}:{port} timed out after {timeoutMilliseconds} milliseconds.");
-            }
-            await connectTask.ConfigureAwait(false);
-#endif
         }
+
     }
 }

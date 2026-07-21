@@ -82,7 +82,7 @@ The current end-to-end goal is deliberately ordered so correctness and measureme
 - [x] Implement RFC 7766 persistent TCP and DoT connection reuse, pipelining, response correlation, cancellation, and bounded recovery
 - [x] Add exact-key cache single-flight and explicit cache/network provenance without crossing configuration or DNSSEC policy boundaries
 - [x] Discover Windows NRPT rules and route only matching namespaces through validated policy-aware resolvers, with explicit unsupported/error states
-- [ ] Add IXFR, DNS zone transfer over TLS, and ZONEMD validation with bounded transfer and integrity contracts
+- [x] Add IXFR, DNS zone transfer over TLS, and ZONEMD validation with bounded transfer and integrity contracts
 - [ ] Add QNAME minimization and RFC 5011 trust-anchor lifecycle management to iterative DNSSEC resolution
 - [ ] Put Ed25519/Ed448 DNSSEC verification in a separately versioned optional package so the dependency-light core remains unchanged
 

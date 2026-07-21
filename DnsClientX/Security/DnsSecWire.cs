@@ -151,6 +151,11 @@ namespace DnsClientX {
                     WriteUInt16(output, reader.ReadUInt16());
                     WriteCanonicalName(output, reader.ReadName());
                     break;
+                case DnsRecordType.PX:
+                    WriteUInt16(output, reader.ReadUInt16());
+                    WriteCanonicalName(output, reader.ReadName());
+                    WriteCanonicalName(output, reader.ReadName());
+                    break;
                 case DnsRecordType.SOA:
                     WriteCanonicalName(output, reader.ReadName());
                     WriteCanonicalName(output, reader.ReadName());
@@ -165,6 +170,14 @@ namespace DnsClientX {
                     WriteBytes(output, reader.ReadBytes(6));
                     WriteCanonicalName(output, reader.ReadName());
                     break;
+                case DnsRecordType.A6:
+                    byte prefixLength = reader.ReadByte();
+                    if (prefixLength > 128) throw new DnsClientException("A6 prefix length exceeds 128 bits.");
+                    output.WriteByte(prefixLength);
+                    int suffixLength = (128 - prefixLength + 7) / 8;
+                    WriteBytes(output, reader.ReadBytes(suffixLength));
+                    if (prefixLength != 0) WriteCanonicalName(output, reader.ReadName());
+                    break;
                 case DnsRecordType.NAPTR:
                     WriteBytes(output, reader.ReadBytes(4));
                     CopyCharacterString(reader, output);
@@ -173,6 +186,13 @@ namespace DnsClientX {
                     WriteCanonicalName(output, reader.ReadName());
                     break;
                 case DnsRecordType.NSEC:
+                case DnsRecordType.NXT:
+                    WriteCanonicalName(output, reader.ReadName());
+                    WriteBytes(output, reader.ReadBytes(reader.End - reader.Position));
+                    break;
+                case DnsRecordType.SIG:
+                case DnsRecordType.RRSIG:
+                    WriteBytes(output, reader.ReadBytes(18));
                     WriteCanonicalName(output, reader.ReadName());
                     WriteBytes(output, reader.ReadBytes(reader.End - reader.Position));
                     break;

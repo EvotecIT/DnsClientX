@@ -13,6 +13,16 @@ namespace DnsClientX {
             IsOpening = isOpening;
             IsClosing = isClosing;
             Index = index;
+            CanonicalRecords = Array.Empty<ZoneCanonicalRecord>();
+        }
+
+        internal ZoneTransferResult(DnsAnswer[] records, ZoneCanonicalRecord[] canonicalRecords,
+            bool isOpening, bool isClosing, int index) {
+            Records = records;
+            CanonicalRecords = canonicalRecords;
+            IsOpening = isOpening;
+            IsClosing = isClosing;
+            Index = index;
         }
 
         /// <summary>Records contained in this chunk.</summary>
@@ -26,6 +36,8 @@ namespace DnsClientX {
 
         /// <summary>Zero-based sequence number of this chunk.</summary>
         public int Index { get; }
+
+        internal ZoneCanonicalRecord[] CanonicalRecords { get; }
 
         /// <summary>
         /// Gets the SOA record when <see cref="IsOpening"/> or <see cref="IsClosing"/> is true; otherwise, <c>null</c>.

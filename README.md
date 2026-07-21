@@ -995,7 +995,7 @@ foreach (var srv in srvRecords) {
 }
 ```
 
-#### Zone Transfer (AXFR)
+#### Zone Transfer (AXFR, IXFR, XFR-over-TLS, and ZONEMD)
 ```csharp
 // Full zone transfer
 using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) {
@@ -1010,7 +1010,21 @@ foreach (var rrset in zoneRecords) {
 await foreach (var rrset in client.ZoneTransferStreamAsync("example.com")) {
     Console.WriteLine($"Received: {string.Join(", ", rrset)}");
 }
+
+// Atomic RFC 1995 incremental transfer. The server can return no change,
+// ordered delete/add deltas, or a complete AXFR-style fallback.
+var changes = await client.IncrementalZoneTransferAsync("example.com", currentSerial: 2026072100);
+
+// Validate an RFC 8976 SIMPLE-SCHEME SHA-384/SHA-512 digest over the complete AXFR.
+var digest = ZoneDigestValidator.Validate("example.com", zoneRecords);
+Console.WriteLine($"{digest.Status}: {digest.Message}");
 ```
+
+AXFR and IXFR accept only `DnsOverTCP` or `DnsOverTLS` endpoints and enforce configurable message, record, byte, and per-I/O time limits. Streaming AXFR retries only before exposing the first chunk, so a failed transfer cannot replay a duplicate prefix. IXFR is returned only after the complete serial chain is validated and is therefore safe for an application to apply atomically.
+
+On .NET 8 or newer, `DnsOverTLS` zone transfers enforce RFC 9103 TLS 1.3 and the `dot` ALPN value. An IP endpoint requires `TlsServerName`; `IgnoreCertificateErrors` is rejected. Mutual TLS is available through `ZoneTransferClientCertificate`, and a narrowly scoped certificate callback can be supplied through `ZoneTransferServerCertificateValidationCallback` for private PKI or pinned lab endpoints. XFR-over-TLS is explicitly unsupported on older targets rather than downgraded to plaintext.
+
+`ZoneDigestValidator` operates on canonical wire records preserved by `ZoneTransferAsync`; presentation-only `ZoneTransferResult` values are rejected. A matching digest establishes zone-data integrity, not origin authenticity. Authenticate the apex ZONEMD RRset separately with DNSSEC or use an authenticated transfer channel. Multi-message TSIG chaining for AXFR/IXFR is not implemented, so configuring the update-oriented `TsigKey` for a transfer fails explicitly instead of implying protection it does not provide.
 
 #### Zone Master Files
 
