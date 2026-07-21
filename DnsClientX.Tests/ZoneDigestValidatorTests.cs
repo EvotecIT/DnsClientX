@@ -104,6 +104,39 @@ namespace DnsClientX.Tests {
             Assert.Contains("wire-preserving", validation.Message, StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>A valid prefix cannot authenticate a transfer whose closing SOA was never received.</summary>
+        [Fact]
+        public void Validate_RejectsTransferWithoutClosingBoundary() {
+            ZoneCanonicalRecord[] records = BaseRecords();
+            byte[] digest = ZoneDigestValidator.ComputeDigest(Zone, records, 1);
+            records = WithZoneMd(records, ZoneMd(2026072101, 1, 1, digest));
+            ZoneTransferResult complete = Transfer(records)[0];
+            var incomplete = new ZoneTransferResult(complete.Records, complete.CanonicalRecords,
+                isOpening: true, isClosing: false, index: 0);
+
+            ZoneDigestValidationResult result = ZoneDigestValidator.Validate(Zone, new[] { incomplete });
+
+            Assert.Equal(ZoneDigestValidationStatus.Invalid, result.Status);
+            Assert.Contains("complete AXFR", result.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Chunk gaps cannot be hidden by collecting only selected pieces of a transfer.</summary>
+        [Fact]
+        public void Validate_RejectsNonContiguousTransferChunks() {
+            ZoneCanonicalRecord[] records = BaseRecords();
+            var opening = new ZoneTransferResult(
+                new[] { new DnsAnswer { Name = Zone, Type = DnsRecordType.SOA } },
+                new[] { records[0] }, true, false, 0);
+            var closing = new ZoneTransferResult(
+                new[] { new DnsAnswer { Name = Zone, Type = DnsRecordType.SOA } },
+                new[] { records[records.Length - 1] }, false, true, 2);
+
+            ZoneDigestValidationResult result = ZoneDigestValidator.Validate(Zone, new[] { opening, closing });
+
+            Assert.Equal(ZoneDigestValidationStatus.Invalid, result.Status);
+            Assert.Contains("complete AXFR", result.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
         /// <summary>The RFC 8976 Appendix A.1 published test vector prevents self-consistent implementation errors.</summary>
         [Fact]
         public void ComputeDigest_MatchesRfc8976SimpleExample() {

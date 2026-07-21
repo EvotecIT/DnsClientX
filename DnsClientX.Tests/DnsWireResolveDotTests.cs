@@ -17,17 +17,7 @@ namespace DnsClientX.Tests {
     /// </summary>
     [Collection("NoParallel")]
     public class DnsWireResolveDotTests {
-        private static int GetFreePort() {
-            TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
-            listener.Start();
-            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            listener.Stop();
-            return port;
-        }
-
-        private static async Task RunInvalidTlsServerAsync(int port, CancellationToken token) {
-            TcpListener listener = new TcpListener(IPAddress.Loopback, port);
-            listener.Start();
+        private static async Task RunInvalidTlsServerAsync(TcpListener listener, CancellationToken token) {
             try {
 #if NET8_0_OR_GREATER
                 using TcpClient client = await listener.AcceptTcpClientAsync(token);
@@ -44,9 +34,8 @@ namespace DnsClientX.Tests {
         }
 
 #if NET6_0_OR_GREATER
-        private static async Task RunStallingTlsServerAsync(X509Certificate2 cert, int port, CancellationToken token) {
-            TcpListener listener = new TcpListener(IPAddress.Loopback, port);
-            listener.Start();
+        private static async Task RunStallingTlsServerAsync(X509Certificate2 cert, TcpListener listener,
+            CancellationToken token) {
             try {
 #if NET8_0_OR_GREATER
                 using TcpClient client = await listener.AcceptTcpClientAsync(token);
@@ -69,9 +58,11 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task ResolveWireFormatDoT_ShouldWrapAuthenticationException() {
-            int port = GetFreePort();
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var serverTask = RunInvalidTlsServerAsync(port, cts.Token);
+            var serverTask = RunInvalidTlsServerAsync(listener, cts.Token);
 
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTLS) { Port = port };
 
@@ -93,7 +84,9 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task ResolveWireFormatDoT_ShouldHonorConfiguredReadTimeout() {
-            int port = GetFreePort();
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             using RSA rsa = RSA.Create(2048);
             var request = new CertificateRequest("CN=localhost", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             using X509Certificate2 baseCert = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
@@ -109,7 +102,7 @@ namespace DnsClientX.Tests {
 #endif
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var serverTask = RunStallingTlsServerAsync(cert, port, cts.Token);
+            var serverTask = RunStallingTlsServerAsync(cert, listener, cts.Token);
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTLS) {
                 Port = port,
                 TimeOut = 150

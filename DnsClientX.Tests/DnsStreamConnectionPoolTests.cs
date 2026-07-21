@@ -240,6 +240,169 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>A canceled request keeps its transaction ID reserved until the late response is drained.</summary>
+        [Fact]
+        public async Task CancelledTransactionIdIsNotReusedBeforeLateResponse() {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var firstReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseLateResponse = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task server = Task.Run(async () => {
+                using TcpClient connection = await AcceptAsync(listener, guard.Token);
+                NetworkStream stream = connection.GetStream();
+                byte[] firstQuery = await ReadFrameAsync(stream, guard.Token);
+                firstReceived.TrySetResult(true);
+
+                Task<byte[]> secondRead = ReadFrameAsync(stream, guard.Token);
+                await releaseLateResponse.Task;
+                Assert.False(secondRead.IsCompleted,
+                    "The canceled transaction ID was reused before its late response was drained.");
+                await WriteFrameAsync(stream, TestUtilities.CreateResponseFromQuery(firstQuery), guard.Token);
+
+                byte[] secondQuery = await secondRead;
+                await WriteFrameAsync(stream, TestUtilities.CreateResponseFromQuery(secondQuery), guard.Token);
+            }, guard.Token);
+
+            try {
+                using var pool = new DnsStreamConnectionPool();
+                byte[] firstQuery = new DnsMessage("old.example", DnsRecordType.A,
+                    new DnsMessageOptions(TransactionId: 0x4242)).SerializeDnsWireFormat();
+                byte[] secondQuery = new DnsMessage("new.example", DnsRecordType.A,
+                    new DnsMessageOptions(TransactionId: 0x4242)).SerializeDnsWireFormat();
+                using var cancellation = new CancellationTokenSource();
+                Task<byte[]> first = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
+                    firstQuery, 5000, 2, cancellation.Token);
+                await firstReceived.Task;
+                cancellation.Cancel();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
+
+                Task<byte[]> second = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
+                    secondQuery, 5000, 2, guard.Token);
+                await Task.Delay(100, guard.Token);
+                releaseLateResponse.TrySetResult(true);
+
+                byte[] response = await second;
+                DnsResponse parsed = await DnsWire.DeserializeDnsWireFormat(null, false, response);
+                Assert.Equal("new.example", Assert.Single(parsed.Questions).Name);
+                await server;
+            } finally {
+                releaseLateResponse.TrySetResult(true);
+                listener.Stop();
+            }
+        }
+
+        /// <summary>Canceling behind the write gate leaves already-sent work and the shared stream intact.</summary>
+        [Fact]
+        public async Task QueuedWriteCancellationDoesNotFaultSharedConnection() {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var firstWriteStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFirstWrite = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int accepted = 0;
+            int writes = 0;
+            Task server = Task.Run(async () => {
+                using TcpClient connection = await AcceptAsync(listener, guard.Token);
+                Interlocked.Increment(ref accepted);
+                NetworkStream stream = connection.GetStream();
+                for (int index = 0; index < 2; index++) {
+                    byte[] query = await ReadFrameAsync(stream, guard.Token);
+                    await WriteFrameAsync(stream, TestUtilities.CreateResponseFromQuery(query), guard.Token);
+                }
+            }, guard.Token);
+
+            try {
+                using var pool = new DnsStreamConnectionPool(writeOverride: async (stream, frame, token) => {
+                    if (Interlocked.Increment(ref writes) == 1) {
+                        firstWriteStarted.TrySetResult(true);
+                        await WaitForSignalAsync(releaseFirstWrite.Task, token);
+                    }
+                    await stream.WriteAsync(frame, 0, frame.Length, token);
+                    await stream.FlushAsync(token);
+                });
+                byte[] firstQuery = new DnsMessage("first.example", DnsRecordType.A,
+                    new DnsMessageOptions(TransactionId: 0x1001)).SerializeDnsWireFormat();
+                byte[] canceledQuery = new DnsMessage("cancel.example", DnsRecordType.A,
+                    new DnsMessageOptions(TransactionId: 0x1002)).SerializeDnsWireFormat();
+                byte[] thirdQuery = new DnsMessage("third.example", DnsRecordType.A,
+                    new DnsMessageOptions(TransactionId: 0x1003)).SerializeDnsWireFormat();
+
+                Task<byte[]> first = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
+                    firstQuery, 5000, 3, guard.Token);
+                await firstWriteStarted.Task;
+                using var cancellation = new CancellationTokenSource();
+                Task<byte[]> canceled = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
+                    canceledQuery, 5000, 3, cancellation.Token);
+                cancellation.Cancel();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => canceled);
+
+                releaseFirstWrite.TrySetResult(true);
+                await first;
+                byte[] thirdResponse = await pool.QueryTcpAsync(IPAddress.Loopback, port, null,
+                    thirdQuery, 5000, 3, guard.Token);
+                await server;
+
+                DnsResponse parsed = await DnsWire.DeserializeDnsWireFormat(null, false, thirdResponse);
+                Assert.Equal("third.example", Assert.Single(parsed.Questions).Name);
+                Assert.Equal(1, Volatile.Read(ref accepted));
+                Assert.Equal(2, Volatile.Read(ref writes));
+            } finally {
+                releaseFirstWrite.TrySetResult(true);
+                listener.Stop();
+            }
+        }
+
+        /// <summary>Concurrent retries replace a failed connection once without disposing the fresh replacement.</summary>
+        [Fact]
+        public async Task ConcurrentRetryKeepsFreshReplacementConnection() {
+            const int QueryCount = 12;
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            int accepted = 0;
+            Task server = Task.Run(async () => {
+                using (TcpClient failed = await AcceptAsync(listener, guard.Token)) {
+                    Interlocked.Increment(ref accepted);
+                    NetworkStream stream = failed.GetStream();
+                    for (int index = 0; index < QueryCount; index++) {
+                        await ReadFrameAsync(stream, guard.Token);
+                    }
+                }
+
+                using TcpClient replacement = await AcceptAsync(listener, guard.Token);
+                Interlocked.Increment(ref accepted);
+                NetworkStream replacementStream = replacement.GetStream();
+                for (int index = 0; index < QueryCount; index++) {
+                    byte[] query = await ReadFrameAsync(replacementStream, guard.Token);
+                    await WriteFrameAsync(replacementStream, TestUtilities.CreateResponseFromQuery(query), guard.Token);
+                }
+            }, guard.Token);
+
+            try {
+                using var pool = new DnsStreamConnectionPool();
+                var queries = new Task<byte[]>[QueryCount];
+                for (int index = 0; index < QueryCount; index++) {
+                    byte[] query = new DnsMessage($"retry-{index}.example", DnsRecordType.A,
+                        new DnsMessageOptions(TransactionId: checked((ushort)(0x2000 + index))))
+                        .SerializeDnsWireFormat();
+                    queries[index] = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
+                        query, 10000, QueryCount, guard.Token);
+                }
+
+                byte[][] responses = await Task.WhenAll(queries);
+                await server;
+
+                Assert.Equal(QueryCount, responses.Length);
+                Assert.Equal(2, Volatile.Read(ref accepted));
+            } finally {
+                listener.Stop();
+            }
+        }
+
 #if NET6_0_OR_GREATER
         /// <summary>DoT uses the same pipelined response-correlation engine over one authenticated stream.</summary>
         [Fact]
@@ -367,6 +530,12 @@ namespace DnsClientX.Tests {
             var message = new byte[count];
             await TestUtilities.ReadExactlyAsync(stream, message, message.Length, cancellationToken);
             return message;
+        }
+
+        private static async Task WaitForSignalAsync(Task signal, CancellationToken cancellationToken) {
+            Task completed = await Task.WhenAny(signal, Task.Delay(Timeout.Infinite, cancellationToken));
+            if (completed != signal) throw new OperationCanceledException(cancellationToken);
+            await signal;
         }
 
         private static async Task WriteFrameAsync(Stream stream, byte[] message,

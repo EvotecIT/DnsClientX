@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net;
@@ -58,20 +59,24 @@ namespace DnsClientX {
                     DnsStreamConnection connection = _connections.GetOrAdd(key,
                         item => new DnsStreamConnection(item, _connectOverride, _writeOverride));
                     if (Volatile.Read(ref _disposed) != 0) {
-                        if (_connections.TryRemove(key, out DnsStreamConnection? removed)) removed.Dispose();
+                        if (TryRemoveConnection(key, connection)) connection.Dispose();
                         ThrowIfDisposed();
                     }
                     try {
                         return await connection.QueryAsync(
                                 query, timeoutMilliseconds, cancellationToken, deadline.Token)
                             .ConfigureAwait(false);
-                    } catch (DnsStreamConnectionException exception) when (attempt == 0
-                        && !cancellationToken.IsCancellationRequested
-                        && !deadline.IsCancellationRequested) {
-                        firstFailure = exception;
-                        if (_connections.TryRemove(key, out DnsStreamConnection? removed)) {
-                            removed.Dispose();
+                    } catch (DnsStreamConnectionException exception) {
+                        connection.Retire(exception);
+                        TryRemoveConnection(key, connection);
+                        if (attempt == 0
+                            && !cancellationToken.IsCancellationRequested
+                            && !deadline.IsCancellationRequested
+                            && IsRetryableConnectionFailure(exception)) {
+                            firstFailure = exception;
+                            continue;
                         }
+                        throw;
                     }
                 }
                 throw firstFailure ?? new DnsStreamConnectionException("The DNS stream query failed after reconnecting.");
@@ -88,6 +93,17 @@ namespace DnsClientX {
 
         private void ThrowIfDisposed() {
             if (Volatile.Read(ref _disposed) != 0) throw new ObjectDisposedException(nameof(DnsStreamConnectionPool));
+        }
+
+        private bool TryRemoveConnection(PoolKey key, DnsStreamConnection connection) =>
+            ((ICollection<KeyValuePair<PoolKey, DnsStreamConnection>>)_connections).Remove(
+                new KeyValuePair<PoolKey, DnsStreamConnection>(key, connection));
+
+        private static bool IsRetryableConnectionFailure(Exception exception) {
+            for (Exception? current = exception; current != null; current = current.InnerException) {
+                if (current is AuthenticationException) return false;
+            }
+            return true;
         }
 
         public void Dispose() {
@@ -167,6 +183,7 @@ namespace DnsClientX {
             private CancellationTokenSource? _lifetime;
             private Task? _readerTask;
             private int _faulted;
+            private int _retired;
             private int _disposed;
 
             internal DnsStreamConnection(PoolKey key,
@@ -180,7 +197,7 @@ namespace DnsClientX {
 
             internal async Task<byte[]> QueryAsync(byte[] query, int timeoutMilliseconds,
                 CancellationToken cancellationToken, CancellationToken deadlineToken) {
-                ThrowIfDisposed();
+                ThrowIfUnavailable();
                 await _capacity.WaitAsync(deadlineToken).ConfigureAwait(false);
                 try {
                     await EnsureConnectedAsync(timeoutMilliseconds, deadlineToken).ConfigureAwait(false);
@@ -189,15 +206,17 @@ namespace DnsClientX {
                         .ConfigureAwait(false);
 
                     try {
-                        await WriteQueryAsync(query, timeoutMilliseconds, deadlineToken).ConfigureAwait(false);
+                        await WriteQueryAsync(query, timeoutMilliseconds, deadlineToken, pending).ConfigureAwait(false);
                     } catch (OperationCanceledException) when (deadlineToken.IsCancellationRequested) {
-                        _pending.TryRemove(transactionId, out _);
                         pending.Completion.TrySetCanceled();
-                        Fault(new DnsStreamConnectionException(
-                            "Writing the framed DNS query was canceled before it completed."));
+                        if (pending.WriteStarted) {
+                            Fault(new DnsStreamConnectionException(
+                                "Writing the framed DNS query was canceled after the stream write began."));
+                        } else if (TryRemovePending(transactionId, pending)) {
+                            pending.ReleaseReservation();
+                        }
                         throw;
                     } catch (Exception exception) {
-                        _pending.TryRemove(transactionId, out _);
                         var failure = ToConnectionException(exception, "Writing the framed DNS query failed.");
                         pending.Completion.TrySetException(failure);
                         Fault(failure);
@@ -210,9 +229,9 @@ namespace DnsClientX {
                         return await pending.Completion.Task.ConfigureAwait(false);
                     }
 
-                    if (_pending.TryRemove(transactionId, out PendingQuery? removed)) {
-                        removed.Completion.TrySetCanceled();
-                    }
+                    // Keep the ID reserved until its late reply is consumed. Reusing it while the
+                    // earlier reply is still in flight could dispatch stale data to a later query.
+                    pending.Completion.TrySetCanceled();
                     cancellationToken.ThrowIfCancellationRequested();
                     deadlineToken.ThrowIfCancellationRequested();
                     throw new TimeoutException($"The DNS stream query timed out after {timeoutMilliseconds} milliseconds.");
@@ -228,22 +247,23 @@ namespace DnsClientX {
                     if (_pending.TryAdd(transactionId, pending)) return pending;
                     if (_pending.TryGetValue(transactionId, out PendingQuery? existing)) {
                         try {
-                            await WaitWithCancellationAsync(existing.Completion.Task, cancellationToken)
+                            await WaitWithCancellationAsync(existing.ReservationReleased.Task, cancellationToken)
                                 .ConfigureAwait(false);
                         } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
                             throw;
                         } catch {
-                            // The transaction ID becomes reusable after the earlier request completes or fails.
+                            // Reservation release is a signal only; retry the atomic dictionary reservation.
                         }
                     }
                 }
             }
 
             private async Task EnsureConnectedAsync(int timeoutMilliseconds, CancellationToken cancellationToken) {
+                ThrowIfUnavailable();
                 if (_stream != null && Volatile.Read(ref _faulted) == 0) return;
                 await _connectGate.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try {
-                    ThrowIfDisposed();
+                    ThrowIfUnavailable();
                     if (_stream != null && Volatile.Read(ref _faulted) == 0) return;
                     CloseTransport();
 
@@ -288,7 +308,7 @@ namespace DnsClientX {
             }
 
             private async Task WriteQueryAsync(byte[] query, int timeoutMilliseconds,
-                CancellationToken cancellationToken) {
+                CancellationToken cancellationToken, PendingQuery pending) {
                 await _writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try {
                     Stream stream = _stream ?? throw new DnsStreamConnectionException("The DNS stream is not connected.");
@@ -296,6 +316,7 @@ namespace DnsClientX {
                     frame[0] = (byte)(query.Length >> 8);
                     frame[1] = (byte)query.Length;
                     Buffer.BlockCopy(query, 0, frame, 2, query.Length);
+                    pending.MarkWriteStarted();
                     if (_writeOverride == null) {
                         await WaitWithTimeoutAsync(
                             stream.WriteAsync(frame, 0, frame.Length, cancellationToken),
@@ -327,6 +348,7 @@ namespace DnsClientX {
                         ushort transactionId = (ushort)((response[0] << 8) | response[1]);
                         if (_pending.TryRemove(transactionId, out PendingQuery? pending)) {
                             pending.Completion.TrySetResult(response);
+                            pending.ReleaseReservation();
                         }
                         // An unmatched response can be a late response for a canceled/timed-out query.
                         // It is consumed but cannot complete another transaction.
@@ -339,11 +361,14 @@ namespace DnsClientX {
             }
 
             private void Fault(DnsStreamConnectionException exception) {
+                Volatile.Write(ref _retired, 1);
                 if (Interlocked.Exchange(ref _faulted, 1) != 0) return;
                 CloseTransport();
                 foreach (var item in _pending) {
-                    if (_pending.TryRemove(item.Key, out PendingQuery? pending)) {
+                    if (TryRemovePending(item.Key, item.Value)) {
+                        PendingQuery pending = item.Value;
                         pending.Completion.TrySetException(exception);
+                        pending.ReleaseReservation();
                     }
                 }
             }
@@ -363,13 +388,24 @@ namespace DnsClientX {
                 if (Volatile.Read(ref _disposed) != 0) throw new ObjectDisposedException(nameof(DnsStreamConnection));
             }
 
+            private void ThrowIfUnavailable() {
+                ThrowIfDisposed();
+                if (Volatile.Read(ref _retired) != 0) {
+                    throw new DnsStreamConnectionException("The DNS stream connection has been retired after a transport failure.");
+                }
+            }
+
+            internal void Retire(DnsStreamConnectionException exception) => Fault(exception);
+
             public void Dispose() {
                 if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
                 CloseTransport();
                 var exception = new ObjectDisposedException(nameof(DnsStreamConnection));
                 foreach (var item in _pending) {
-                    if (_pending.TryRemove(item.Key, out PendingQuery? pending)) {
+                    if (TryRemovePending(item.Key, item.Value)) {
+                        PendingQuery pending = item.Value;
                         pending.Completion.TrySetException(exception);
+                        pending.ReleaseReservation();
                     }
                 }
                 // Queries may still be unwinding and releasing these semaphores. Their managed
@@ -435,9 +471,19 @@ namespace DnsClientX {
             private static DnsStreamConnectionException ToConnectionException(Exception exception, string message) =>
                 exception as DnsStreamConnectionException ?? new DnsStreamConnectionException(message, exception);
 
+            private bool TryRemovePending(ushort transactionId, PendingQuery pending) =>
+                ((ICollection<KeyValuePair<ushort, PendingQuery>>)_pending).Remove(
+                    new KeyValuePair<ushort, PendingQuery>(transactionId, pending));
+
             private sealed class PendingQuery {
+                private int _writeStarted;
                 internal TaskCompletionSource<byte[]> Completion { get; } =
                     new(TaskCreationOptions.RunContinuationsAsynchronously);
+                internal TaskCompletionSource<bool> ReservationReleased { get; } =
+                    new(TaskCreationOptions.RunContinuationsAsynchronously);
+                internal bool WriteStarted => Volatile.Read(ref _writeStarted) != 0;
+                internal void MarkWriteStarted() => Volatile.Write(ref _writeStarted, 1);
+                internal void ReleaseReservation() => ReservationReleased.TrySetResult(true);
             }
         }
     }

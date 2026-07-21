@@ -18,8 +18,8 @@ namespace DnsClientX.Tests {
         /// <summary>An AXFR can use TLS 1.3 with dot ALPN and mutually authenticated certificates.</summary>
         [Fact]
         public async Task ZoneTransferAsync_UsesAuthenticatedTls13AndDotAlpn() {
-            using X509Certificate2 serverCertificate = Certificate("localhost");
-            using X509Certificate2 clientCertificate = Certificate("zone-transfer-client");
+            using X509Certificate2 serverCertificate = Certificate("localhost", serverAuthentication: true);
+            using X509Certificate2 clientCertificate = Certificate("zone-transfer-client", serverAuthentication: false);
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -77,13 +77,17 @@ namespace DnsClientX.Tests {
             Assert.True(observedClientCertificate);
         }
 
-        private static X509Certificate2 Certificate(string commonName) {
+        private static X509Certificate2 Certificate(string commonName, bool serverAuthentication) {
             using RSA rsa = RSA.Create(2048);
             var request = new CertificateRequest($"CN={commonName}", rsa, HashAlgorithmName.SHA256,
                 RSASignaturePadding.Pkcs1);
             request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, false));
             request.CertificateExtensions.Add(new X509KeyUsageExtension(
                 X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, false));
+            var usages = new OidCollection {
+                new Oid(serverAuthentication ? "1.3.6.1.5.5.7.3.1" : "1.3.6.1.5.5.7.3.2")
+            };
+            request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(usages, false));
             using X509Certificate2 temporary = request.CreateSelfSigned(
                 DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
             byte[] pfx = temporary.Export(X509ContentType.Pfx);

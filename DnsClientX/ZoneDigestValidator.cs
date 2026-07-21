@@ -23,6 +23,9 @@ namespace DnsClientX {
                                     chunk.CanonicalRecords.Length != chunk.Records.Length)) {
                 return Invalid("ZONEMD validation requires a complete wire-preserving result returned by ClientX.ZoneTransferAsync.");
             }
+            if (!IsCompleteTransfer(apex, chunks)) {
+                return Invalid("ZONEMD validation requires a complete AXFR from its opening SOA through the matching closing SOA.");
+            }
 
             ZoneCanonicalRecord[] records = chunks.SelectMany(chunk => chunk.CanonicalRecords).ToArray();
             ZoneCanonicalRecord[] soaRecords = records.Where(record =>
@@ -99,6 +102,24 @@ namespace DnsClientX {
             if (record.Type == DnsRecordType.ZONEMD) return true;
             return record.Type == DnsRecordType.RRSIG && record.CanonicalRdata.Length >= 2 &&
                    ReadUInt16(record.CanonicalRdata, 0) == (ushort)DnsRecordType.ZONEMD;
+        }
+
+        private static bool IsCompleteTransfer(string apex, ZoneTransferResult[] chunks) {
+            if (!chunks[0].IsOpening || !chunks[chunks.Length - 1].IsClosing) return false;
+            if (chunks.Count(chunk => chunk.IsOpening) != 1 || chunks.Count(chunk => chunk.IsClosing) != 1) {
+                return false;
+            }
+            for (int index = 0; index < chunks.Length; index++) {
+                if (chunks[index].Index != index || chunks[index].CanonicalRecords.Length == 0) return false;
+            }
+
+            ZoneCanonicalRecord opening = chunks[0].CanonicalRecords[0];
+            ZoneCanonicalRecord closing = chunks[chunks.Length - 1].CanonicalRecords[
+                chunks[chunks.Length - 1].CanonicalRecords.Length - 1];
+            return opening.Type == DnsRecordType.SOA && closing.Type == DnsRecordType.SOA
+                && string.Equals(opening.Name, apex, StringComparison.Ordinal)
+                && string.Equals(closing.Name, apex, StringComparison.Ordinal)
+                && opening.CanonicalWire.SequenceEqual(closing.CanonicalWire);
         }
 
         private static bool IsWithinZone(string name, string apex) {
