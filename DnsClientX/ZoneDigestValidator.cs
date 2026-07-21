@@ -123,12 +123,7 @@ namespace DnsClientX {
         }
 
         private static bool IsWithinZone(string name, string apex) {
-            string canonicalName = DnsWireNameCodec.Canonical(name);
-            if (apex == ".") return true;
-            return string.Equals(canonicalName, apex, StringComparison.Ordinal)
-                || (canonicalName.Length > apex.Length
-                    && canonicalName.EndsWith(apex, StringComparison.Ordinal)
-                    && canonicalName[canonicalName.Length - apex.Length - 1] == '.');
+            return DnsWireNameCodec.IsSubdomainOrEqual(name, apex);
         }
 
         private static bool TryReadSoaSerial(byte[] rdata, out uint serial) {

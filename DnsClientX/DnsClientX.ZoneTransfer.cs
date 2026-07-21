@@ -264,6 +264,10 @@ namespace DnsClientX {
 
                         for (int answerIndex = 0; answerIndex < answers.Length; answerIndex++) {
                             DnsAnswer rec = answers[answerIndex];
+                            if (!DnsWireNameCodec.IsSubdomainOrEqual(rec.Name, expectedZone)) {
+                                throw new DnsClientException(
+                                    $"Zone transfer returned owner '{rec.Name}' outside the requested zone '{expectedZone}'.");
+                            }
                             ZoneCanonicalRecord canonicalRecord = ZoneCanonicalRecord.Create(
                                 response.WireMessage, response.WireAnswers[answerIndex]);
                             recordCount++;

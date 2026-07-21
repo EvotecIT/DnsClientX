@@ -82,6 +82,10 @@ namespace DnsClientX {
                     if (records.Count >= configuration.MaxZoneTransferRecords) {
                         throw new DnsClientException($"Incremental zone transfer exceeded the configured {configuration.MaxZoneTransferRecords} record limit.");
                     }
+                    if (!DnsWireNameCodec.IsSubdomainOrEqual(answer.Name, zone)) {
+                        throw new DnsClientException(
+                            $"Incremental zone transfer returned owner '{answer.Name}' outside the requested zone '{zone}'.");
+                    }
                     if (openingSoa == null) {
                         if (answer.Type != DnsRecordType.SOA
                             || !SameName(answer.Name, zone)) {

@@ -51,6 +51,50 @@ namespace DnsClientX.Tests {
             Assert.Equal("192.0.2.80", Assert.Single(response.Answers).DataRaw);
         }
 
+        /// <summary>A glueless referral retains every name-server address and both address families before failover.</summary>
+        [Fact]
+        public async Task ResolveFromRoot_RetainsAllGluelessReferralAddresses() {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            int port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
+            var observed = new List<(string Name, DnsRecordType Type)>();
+            Task responder = Task.Run(async () => {
+                for (int index = 0; index < 6; index++) {
+                    UdpReceiveResult received = await ReceiveAsync(server, timeout.Token);
+                    (string name, DnsRecordType type) = ReadQuestion(received.Buffer);
+                    observed.Add((name, type));
+                    byte[] response = index switch {
+                        0 => ReferralWithoutGlue(received.Buffer, "example.com",
+                            "ns1.example.com", "ns2.example.com"),
+                        1 => Address(received.Buffer, "ns1.example.com", new byte[] { 192, 0, 2, 1 }),
+                        2 => NoData(received.Buffer, "example.com"),
+                        3 => Address(received.Buffer, "ns2.example.com", new byte[] { 127, 0, 0, 1 }),
+                        4 => NoData(received.Buffer, "example.com"),
+                        _ => Address(received.Buffer, "www.example.com", new byte[] { 192, 0, 2, 80 })
+                    };
+                    await SendAsync(server, response, received.RemoteEndPoint, timeout.Token);
+                }
+            }, timeout.Token);
+
+            using var client = new ClientX();
+            client.EndpointConfiguration.EnableQNameMinimization = false;
+            client.EndpointConfiguration.TimeOut = 100;
+            DnsResponse response = await client.ResolveFromRoot(
+                "www.example.com", DnsRecordType.A, new[] { "127.0.0.1" },
+                maxHops: 10, port: port, cancellationToken: timeout.Token);
+            await responder;
+
+            Assert.Equal(new[] {
+                ("www.example.com", DnsRecordType.A),
+                ("ns1.example.com", DnsRecordType.A),
+                ("ns1.example.com", DnsRecordType.AAAA),
+                ("ns2.example.com", DnsRecordType.A),
+                ("ns2.example.com", DnsRecordType.AAAA),
+                ("www.example.com", DnsRecordType.A)
+            }, observed);
+            Assert.Equal("192.0.2.80", Assert.Single(response.Answers).DataRaw);
+        }
+
         private static (string Name, DnsRecordType Type) ReadQuestion(byte[] message) {
             int offset = 12;
             string name = ReadName(message, ref offset);
@@ -62,6 +106,15 @@ namespace DnsClientX.Tests {
             using var output = HeaderAndQuestion(query, flags: 0x8000, answers: 0, authorities: 1, additional: 1);
             Resource(output, zone, DnsRecordType.NS, Name(nameServer));
             Resource(output, nameServer, DnsRecordType.A, new byte[] { 127, 0, 0, 1 });
+            return output.ToArray();
+        }
+
+        private static byte[] ReferralWithoutGlue(byte[] query, string zone, params string[] nameServers) {
+            using var output = HeaderAndQuestion(query, flags: 0x8000, answers: 0,
+                authorities: checked((ushort)nameServers.Length), additional: 0);
+            foreach (string nameServer in nameServers) {
+                Resource(output, zone, DnsRecordType.NS, Name(nameServer));
+            }
             return output.ToArray();
         }
 

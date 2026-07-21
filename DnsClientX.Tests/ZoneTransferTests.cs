@@ -228,6 +228,27 @@ namespace DnsClientX.Tests {
             Assert.Contains("requested zone", error.Message, StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>Every AXFR answer owner must belong to the requested zone.</summary>
+        [Fact]
+        public async Task ZoneTransferAsync_RejectsRecordOutsideRequestedZone() {
+            byte[] soa = BuildSoaRdata();
+            byte[] response = BuildMessage("example.com",
+                ("example.com", DnsRecordType.SOA, soa),
+                ("outside.test", DnsRecordType.A, new byte[] { 192, 0, 2, 1 }),
+                ("example.com", DnsRecordType.SOA, soa));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var server = RunAxfrServerAsync(new[] { response }, cts.Token);
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) {
+                EndpointConfiguration = { Port = server.Port }
+            };
+
+            DnsClientException error = await Assert.ThrowsAsync<DnsClientException>(
+                () => client.ZoneTransferAsync("example.com"));
+            await server.Task;
+
+            Assert.Contains("outside the requested zone", error.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
         /// <summary>The closing SOA must be the same zone version as the opening SOA.</summary>
         [Fact]
         public async Task ZoneTransferAsync_RejectsMismatchedClosingSoa() {

@@ -335,6 +335,7 @@ namespace DnsClientX {
             RootResolutionState state,
             CancellationToken cancellationToken) {
             var addresses = new List<string>();
+            var nameServersWithGlue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (string nameServer in referral.NameServers) {
                 string[] glueAddresses = GetInBailiwickGlueAddresses(
                     referral.BailiwickZone,
@@ -342,18 +343,16 @@ namespace DnsClientX {
                     referral.Response.Additional);
                 if (glueAddresses.Length > 0) {
                     addresses.AddRange(glueAddresses);
+                    nameServersWithGlue.Add(nameServer);
                 }
             }
 
-            if (addresses.Count > 0) {
-                return addresses.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-            }
-
             foreach (string nameServer in referral.NameServers) {
+                if (nameServersWithGlue.Contains(nameServer)) {
+                    continue;
+                }
                 if (state.NameServerAddressCache.TryGetValue(nameServer, out string[]? cachedAddresses)) {
-                    if (cachedAddresses.Length > 0) {
-                        return cachedAddresses;
-                    }
+                    addresses.AddRange(cachedAddresses);
                     continue;
                 }
 
@@ -378,24 +377,19 @@ namespace DnsClientX {
                                 resolvedAddresses.Add(address.ToString());
                             }
                         }
-                        if (resolvedAddresses.Count > 0) {
-                            break;
-                        }
                     }
 
                     string[] result = resolvedAddresses
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToArray();
                     state.NameServerAddressCache[nameServer] = result;
-                    if (result.Length > 0) {
-                        return result;
-                    }
+                    addresses.AddRange(result);
                 } finally {
                     state.ActiveNameServerLookups.Remove(nameServer);
                 }
             }
 
-            return Array.Empty<string>();
+            return addresses.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         }
 
         internal static string[] GetInBailiwickGlueAddresses(
@@ -533,11 +527,7 @@ namespace DnsClientX {
         }
 
         private static bool IsSubdomainOrEqual(string name, string parent) {
-            string normalizedName = name.TrimEnd('.');
-            string normalizedParent = parent.TrimEnd('.');
-            return normalizedParent.Length == 0
-                || normalizedName.Equals(normalizedParent, StringComparison.OrdinalIgnoreCase)
-                || normalizedName.EndsWith("." + normalizedParent, StringComparison.OrdinalIgnoreCase);
+            return DnsWireNameCodec.IsSubdomainOrEqual(name, string.IsNullOrWhiteSpace(parent) ? "." : parent);
         }
 
         private static bool IsStrictSubdomain(string name, string parent) {

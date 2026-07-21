@@ -106,6 +106,20 @@ namespace DnsClientX.Tests {
             Assert.Contains("outside", error.Message, StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>Every IXFR answer owner must belong to the requested zone.</summary>
+        [Fact]
+        public async Task RejectsRecordOutsideRequestedZone() {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            TransferServer server = RunServer(BuildMessage("example.com",
+                Soa(4), A("outside.test", 192, 0, 2, 1), Soa(4)), cts.Token);
+            using var client = CreateClient(server.Port);
+
+            DnsClientException error = await Assert.ThrowsAsync<DnsClientException>(
+                () => client.IncrementalZoneTransferAsync("example.com", 1, cts.Token));
+
+            Assert.Contains("outside the requested zone", error.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
         /// <summary>Rejects gaps in the old-to-new SOA serial chain.</summary>
         [Fact]
         public async Task RejectsBrokenSerialChain() {
