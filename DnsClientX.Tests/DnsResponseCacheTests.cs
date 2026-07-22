@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,6 +13,7 @@ namespace DnsClientX.Tests {
     /// <summary>
     /// Tests for the <see cref="DnsResponseCache"/> class.
     /// </summary>
+    [Collection("NoParallel")]
     public class DnsResponseCacheTests {
         /// <summary>
         /// Ensures cache items can be stored and retrieved.
@@ -85,6 +87,28 @@ namespace DnsClientX.Tests {
             }
         }
 
+        private sealed class GatedJsonResponseHandler : HttpMessageHandler {
+            private readonly string _json;
+            private readonly TaskCompletionSource<bool> _entered =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> _release =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private int _requestCount;
+
+            internal GatedJsonResponseHandler(string json) => _json = json;
+            internal Task Entered => _entered.Task;
+            internal int RequestCount => Volatile.Read(ref _requestCount);
+            internal void Release() => _release.TrySetResult(true);
+
+            protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+                CancellationToken cancellationToken) {
+                Interlocked.Increment(ref _requestCount);
+                _entered.TrySetResult(true);
+                await _release.Task.ConfigureAwait(false);
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(_json) };
+            }
+        }
+
         private static void InjectClient(ClientX client, HttpClient httpClient) {
             var clientsField = typeof(ClientX).GetField("_clients", BindingFlags.NonPublic | BindingFlags.Instance)!;
             var clients = (Dictionary<DnsSelectionStrategy, HttpClient>)clientsField.GetValue(client)!;
@@ -121,6 +145,63 @@ namespace DnsClientX.Tests {
             var dict = dictField.GetValue(cache)!;
             int count = (int)dict.GetType().GetProperty("Count")!.GetValue(dict)!;
             return count == 0;
+        }
+
+        /// <summary>Concurrent exact-key misses share one network operation and return isolated clones.</summary>
+        [Fact]
+        public async Task ExactKeyMissesUseSingleFlightWithExplicitProvenance() {
+            ClientX.ResetResponseCacheForTests();
+            const string json = "{\"Status\":0,\"Question\":[{\"name\":\"single.example\",\"type\":1}],\"Answer\":[{\"name\":\"single.example\",\"type\":1,\"TTL\":60,\"data\":\"192.0.2.1\"}]}";
+            var handler = new GatedJsonResponseHandler(json);
+            using var client = new ClientX("https://resolver.example/dns-query",
+                DnsRequestFormat.DnsOverHttpsJSON, enableCache: true);
+            InjectClient(client, new HttpClient(handler) { BaseAddress = client.EndpointConfiguration.BaseUri });
+
+            Task<DnsResponse>[] tasks = Enumerable.Range(0, 32)
+                .Select(_ => client.Resolve("single.example", retryOnTransient: false))
+                .ToArray();
+            await handler.Entered;
+            await Task.Delay(50);
+            handler.Release();
+            DnsResponse[] responses = await Task.WhenAll(tasks);
+
+            Assert.Equal(1, handler.RequestCount);
+            Assert.Contains(responses, response => response.ResponseSource == DnsResponseSource.Network);
+            Assert.Contains(responses, response => response.ResponseSource == DnsResponseSource.CoalescedNetwork);
+            responses[0].Answers[0].DataRaw = "203.0.113.99";
+            Assert.All(responses.Skip(1), response => Assert.Equal("192.0.2.1", response.Answers[0].DataRaw));
+
+            DnsResponse cached = await client.Resolve("single.example", retryOnTransient: false);
+            Assert.Equal(DnsResponseSource.Cache, cached.ResponseSource);
+            Assert.True(cached.ServedFromCache);
+            Assert.Equal(1, handler.RequestCount);
+        }
+
+        /// <summary>Canceling one waiter does not cancel the shared network operation or poison the cached result.</summary>
+        [Fact]
+        public async Task CallerCancellationDoesNotCancelSharedFlight() {
+            ClientX.ResetResponseCacheForTests();
+            const string json = "{\"Status\":0,\"Question\":[{\"name\":\"cancel.example\",\"type\":1}],\"Answer\":[{\"name\":\"cancel.example\",\"type\":1,\"TTL\":60,\"data\":\"192.0.2.2\"}]}";
+            var handler = new GatedJsonResponseHandler(json);
+            using var client = new ClientX("https://resolver.example/dns-query",
+                DnsRequestFormat.DnsOverHttpsJSON, enableCache: true);
+            InjectClient(client, new HttpClient(handler) { BaseAddress = client.EndpointConfiguration.BaseUri });
+            using var callerCancellation = new CancellationTokenSource();
+
+            Task<DnsResponse> cancelled = client.Resolve("cancel.example", retryOnTransient: false,
+                cancellationToken: callerCancellation.Token);
+            await handler.Entered;
+            Task<DnsResponse> survivor = client.Resolve("cancel.example", retryOnTransient: false);
+            callerCancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => cancelled);
+            handler.Release();
+
+            DnsResponse response = await survivor;
+            DnsResponse cached = await client.Resolve("cancel.example", retryOnTransient: false);
+
+            Assert.Equal(DnsResponseSource.CoalescedNetwork, response.ResponseSource);
+            Assert.Equal(DnsResponseSource.Cache, cached.ResponseSource);
+            Assert.Equal(1, handler.RequestCount);
         }
 
         /// <summary>
@@ -259,6 +340,31 @@ namespace DnsClientX.Tests {
             Assert.NotEqual(baseline, interfaceBound);
             Assert.NotEqual(baseline, ipv6Preferred);
             Assert.NotEqual(baseline, fallbackDisabled);
+        }
+
+        /// <summary>Locally validated entries cannot cross optional verifier instance boundaries.</summary>
+        [Fact]
+        public void CacheKeySeparatesDnsSecSignatureVerifiers() {
+            var configuration = new Configuration("192.0.2.53", DnsRequestFormat.DnsOverUDP);
+            string Key(bool validateDnsSec) => DnsCacheKeyBuilder.Build(configuration, "example.com", DnsRecordType.A,
+                true, validateDnsSec, false, false, false, TimeSpan.FromMinutes(1), false);
+            string withoutVerifier = Key(validateDnsSec: true);
+            string unvalidated = Key(validateDnsSec: false);
+            configuration.DnsSecSignatureVerifier = new FakeSignatureVerifier();
+            string firstVerifier = Key(validateDnsSec: true);
+            string unvalidatedWithVerifier = Key(validateDnsSec: false);
+            configuration.DnsSecSignatureVerifier = new FakeSignatureVerifier();
+            string secondVerifier = Key(validateDnsSec: true);
+
+            Assert.NotEqual(withoutVerifier, firstVerifier);
+            Assert.NotEqual(firstVerifier, secondVerifier);
+            Assert.Equal(unvalidated, unvalidatedWithVerifier);
+        }
+
+        private sealed class FakeSignatureVerifier : IDnsSecSignatureVerifier {
+            public string Name => "test";
+            public bool SupportsAlgorithm(DnsKeyAlgorithm algorithm) => false;
+            public bool Verify(DnsKeyAlgorithm algorithm, byte[] publicKey, byte[] data, byte[] signature) => false;
         }
     }
 }

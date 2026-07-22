@@ -9,16 +9,16 @@
     FunctionsToExport    = @()
     GUID                 = '77fa806c-70b7-48d9-8b88-942ed73f24ed'
     HelpInfoURI          = 'https://github.com/EvotecIT/DnsClientX/blob/master/README.md'
-    ModuleVersion        = '2.0.0'
+    ModuleVersion        = '2.1.0'
     PowerShellVersion    = '5.1'
     PrivateData          = @{
         PSData = @{
-            IconUri    = 'https://raw.githubusercontent.com/EvotecIT/DnsClientX/master/Assets/Icons/DnsClientX3_128x128.png'
-            ProjectUri = 'https://github.com/EvotecIT/DnsClientX'
-            Tags       = @('Windows', 'MacOS', 'Linux')
-            RequireLicenseAcceptance = $false
+            IconUri                    = 'https://raw.githubusercontent.com/EvotecIT/DnsClientX/master/Assets/Icons/DnsClientX3_128x128.png'
+            ProjectUri                 = 'https://github.com/EvotecIT/DnsClientX'
+            Tags                       = @('Windows', 'MacOS', 'Linux')
+            RequireLicenseAcceptance   = $false
             ExternalModuleDependencies = @()
-}
+        }
     }
     RootModule           = 'DnsClientX.psm1'
     RequiredModules      = @()

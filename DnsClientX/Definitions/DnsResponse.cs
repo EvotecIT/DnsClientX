@@ -44,6 +44,14 @@ namespace DnsClientX {
         [JsonIgnore]
         public int RetryCount { get; internal set; }
 
+        /// <summary>Gets whether this caller used the network, the response cache, or an identical in-flight query.</summary>
+        [JsonPropertyName("response_source")]
+        public DnsResponseSource ResponseSource { get; internal set; } = DnsResponseSource.Network;
+
+        /// <summary>Gets whether the response was served from the TTL-bounded response cache.</summary>
+        [JsonIgnore]
+        public bool ServedFromCache => ResponseSource == DnsResponseSource.Cache;
+
         /// <summary>
         /// Indicates whether the response was truncated. This can occur if the response is larger than the maximum size allowed by the transmission channel.
         /// This is typically false for DNS over HTTPS, as most providers support the maximum response size.
@@ -131,7 +139,7 @@ namespace DnsClientX {
         /// the caller-facing answer projection.
         /// </summary>
         [JsonIgnore]
-        internal bool RequestedAnswerPresent { get; set; }
+        public bool RequestedAnswerPresent { get; internal set; }
 
         /// <summary>
         /// Minimum TTL across <see cref="Answers"/> (seconds).
@@ -174,6 +182,21 @@ namespace DnsClientX {
         /// </summary>
         [JsonIgnore]
         public DnsResolverEndpoint? UsedEndpoint { get; internal set; }
+
+        /// <summary>Gets the Windows NRPT rule applied to this response, when a system endpoint matched one.</summary>
+        [JsonIgnore]
+        public SystemDnsPolicyMatch? AppliedSystemDnsPolicy { get; internal set; }
+
+        /// <summary>Gets the number of delegation-discovery queries protected by RFC 9156 QNAME minimization.</summary>
+        [JsonIgnore]
+        public int QNameMinimizedQueryCount { get; internal set; }
+
+        /// <summary>
+        /// Gets the number of times iterative resolution had to reveal the complete question early
+        /// because a server did not return a usable referral for a minimized question.
+        /// </summary>
+        [JsonIgnore]
+        public int QNameMinimizationFallbackCount { get; internal set; }
 
         /// <summary>
         /// Measured round-trip time for the query.
@@ -316,6 +339,7 @@ namespace DnsClientX {
 
             ServerAddress = configuration.Hostname;
             UsedTransport = usedTransport ?? MapTransport(configuration.RequestFormat);
+            AppliedSystemDnsPolicy = configuration.AppliedSystemDnsPolicy;
 
             RefreshDerivedData(configuration.Port, configuration.RequestFormat);
         }

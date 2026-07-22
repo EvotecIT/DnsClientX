@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
+using System.Net.Security;
 
 namespace DnsClientX {
     /// <summary>
@@ -41,6 +43,15 @@ namespace DnsClientX {
         /// Gets or sets whether unqualified names use operating-system search suffixes for system DNS endpoints.
         /// </summary>
         public bool UseSystemSearchDomains { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets whether system endpoints apply supported Windows NRPT resolver and DNSSEC policy.
+        /// Matching policies that require unsupported Windows services fail explicitly when this is enabled.
+        /// </summary>
+        public bool UseSystemDnsPolicies { get; set; } = true;
+
+        /// <summary>Gets the Windows NRPT match applied to this immutable query snapshot.</summary>
+        public SystemDnsPolicyMatch? AppliedSystemDnsPolicy { get; private set; }
 
         /// <summary>
         /// Gets or sets the local network-interface index used for multicast DNS queries.
@@ -158,6 +169,25 @@ namespace DnsClientX {
         public int IterativeMaxHops { get; set; } = DefaultIterativeMaxHops;
 
         /// <summary>
+        /// Gets or sets whether iterative root resolution uses RFC 9156 QNAME minimization while
+        /// discovering delegation points. The complete name and requested type are sent only to
+        /// the authoritative zone, except when a broken delegation requires an explicit fallback.
+        /// </summary>
+        public bool EnableQNameMinimization { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets an optional path for persistent RFC 5011 root trust-anchor state.
+        /// When null, validation uses only the immutable anchors bundled with this release.
+        /// </summary>
+        public string? Rfc5011TrustAnchorStorePath { get; set; }
+
+        /// <summary>
+        /// Gets or sets an optional thread-safe verifier for DNSSEC algorithms not implemented by
+        /// the dependency-free core, such as Ed25519 and Ed448.
+        /// </summary>
+        public IDnsSecSignatureVerifier? DnsSecSignatureVerifier { get; set; }
+
+        /// <summary>
         /// Sets the CD (Checking Disabled) flag on queries.
         /// </summary>
         public bool CheckingDisabled { get; set; }
@@ -191,6 +221,17 @@ namespace DnsClientX {
         public int MaxConnectionsPerServer { get; set; } = DefaultMaxConnectionsPerServer;
 
         /// <summary>
+        /// Gets or sets whether standard TCP and DoT queries reuse persistent RFC 7766 connections.
+        /// Disable only for compatibility diagnostics with a server that cannot support connection reuse.
+        /// </summary>
+        public bool EnableTcpConnectionReuse { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets the maximum number of pipelined DNS queries awaiting responses on one TCP or DoT connection.
+        /// </summary>
+        public int MaxTcpQueriesPerConnection { get; set; } = 128;
+
+        /// <summary>
         /// Optional cap for client-side query parallelism when resolving multiple names.
         /// When null, the library uses its current behavior (no explicit cap).
         /// When set to a positive value, array-based resolve helpers will limit
@@ -202,6 +243,26 @@ namespace DnsClientX {
         /// Gets or sets the TSIG key used to authenticate RFC 2136 DNS UPDATE requests and responses.
         /// </summary>
         public TsigKey? TsigKey { get; set; }
+
+        /// <summary>
+        /// Gets or sets the client certificate offered for mutual authentication during RFC 9103 XFR-over-TLS.
+        /// </summary>
+        public X509Certificate2? ZoneTransferClientCertificate { get; set; }
+
+        /// <summary>
+        /// Gets or sets an optional strict server-certificate validator for XFR-over-TLS, such as an SPKI pin.
+        /// The platform trust validator is used when this is null.
+        /// </summary>
+        public RemoteCertificateValidationCallback? ZoneTransferServerCertificateValidationCallback { get; set; }
+
+        /// <summary>Gets or sets the maximum number of DNS messages accepted in one zone transfer.</summary>
+        public int MaxZoneTransferMessages { get; set; } = 100000;
+
+        /// <summary>Gets or sets the maximum number of resource records accepted in one zone transfer.</summary>
+        public int MaxZoneTransferRecords { get; set; } = 1000000;
+
+        /// <summary>Gets or sets the maximum cumulative wire bytes accepted in one zone transfer.</summary>
+        public long MaxZoneTransferBytes { get; set; } = 256L * 1024L * 1024L;
 
         /// <summary>
         /// Gets or sets the UDP buffer size used when sending EDNS queries.
@@ -393,6 +454,10 @@ namespace DnsClientX {
         /// calls cannot observe a hostname paired with another call's URI or port.
         /// </summary>
         internal Configuration CreateQuerySnapshot() {
+            return CreateQuerySnapshot(null);
+        }
+
+        internal Configuration CreateQuerySnapshot(string? queryName) {
             lock (selectionLock) {
                 SelectHostNameStrategyCore();
                 Configuration snapshot = (Configuration)MemberwiseClone();
@@ -400,8 +465,52 @@ namespace DnsClientX {
                 snapshot.LocalEndPoint = LocalEndPoint == null
                     ? null
                     : new IPEndPoint(LocalEndPoint.Address, LocalEndPoint.Port);
+                snapshot.ApplySystemDnsPolicy(queryName);
                 return snapshot;
             }
+        }
+
+        private void ApplySystemDnsPolicy(string? queryName) {
+            AppliedSystemDnsPolicy = null;
+            if (!UseSystemDnsPolicies
+                || string.IsNullOrWhiteSpace(queryName)
+                || (BuiltInEndpoint != DnsEndpoint.System && BuiltInEndpoint != DnsEndpoint.SystemTcp)
+                || SystemDnsConfiguration == null) {
+                return;
+            }
+
+            SystemDnsPolicyMatch? match = SystemDnsConfiguration.MatchPolicy(queryName!);
+            AppliedSystemDnsPolicy = match;
+            if (match == null || !match.CanApply || match.NameServers.Count == 0) return;
+
+            Hostname = SelectPolicyNameServer(match.NameServers);
+            BaseUri = null;
+            Port = 53;
+        }
+
+        private string SelectPolicyNameServer(IReadOnlyList<string> nameServers) {
+            int selectedIndex;
+            switch (SelectionStrategy) {
+                case DnsSelectionStrategy.Random:
+#if NET6_0_OR_GREATER
+                    selectedIndex = Random.Shared.Next(nameServers.Count);
+#else
+                    lock (_randLock) selectedIndex = _rand.Next(nameServers.Count);
+#endif
+                    break;
+                case DnsSelectionStrategy.Failover:
+                    selectedIndex = hostnameIndex % nameServers.Count;
+                    break;
+                default:
+                    selectedIndex = 0;
+                    break;
+            }
+
+            for (int offset = 0; offset < nameServers.Count; offset++) {
+                string candidate = nameServers[(selectedIndex + offset) % nameServers.Count];
+                if (!IsUnavailable(candidate)) return candidate;
+            }
+            return nameServers[selectedIndex];
         }
 
         private void SelectHostNameStrategyCore() {

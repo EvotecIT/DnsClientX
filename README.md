@@ -383,12 +383,13 @@ This behavior is by design and reflects the modern, distributed nature of intern
 
 ## System DNS Discovery
 
-`DnsEndpoint.System` and `DnsEndpoint.SystemTcp` query the DNS servers exposed by the operating system. Discovery returns an immutable `SystemDnsConfiguration` containing the ordered server list, search suffixes, `ndots`, discovery source, and any discovery error.
+`DnsEndpoint.System` and `DnsEndpoint.SystemTcp` query the DNS servers exposed by the operating system. Discovery returns an immutable `SystemDnsConfiguration` containing the ordered server list, search suffixes, `ndots`, discovery source, effective Windows NRPT rules, and separate resolver/policy discovery errors.
 
 - Windows and other .NET platforms enumerate every active interface. Interfaces are ordered by the native Windows interface metric when available, then by gateway presence and a stable interface order.
 - Unix-like systems can fall back to `/etc/resolv.conf`, including `nameserver`, `search`/`domain`, and `options ndots:n`.
 - Configured loopback and link-local resolvers are preserved because local forwarding stubs and IPv6 scoped DNS servers are valid. Unspecified and multicast addresses are rejected.
-- UDP clients reuse healthy connected sockets and automatically retry a truncated response over TCP when `UseTcpFallback` is enabled. TCP and DoT connections are currently per query.
+- UDP clients reuse healthy connected sockets and automatically retry a truncated response over TCP when `UseTcpFallback` is enabled. TCP and DoT clients reuse persistent RFC 7766 connections, pipeline bounded concurrent queries, and dispatch out-of-order responses by transaction ID.
+- On Windows, dependency-free NRPT discovery honors the Group Policy-over-local-policy precedence rule. Supported suffix, prefix, FQDN, and catch-all matches route through `GenericDNSServers`; `DNSSECValidationRequired` triggers local chain validation. Punycode IDN policy is supported, while Windows-only UTF-8 IDN modes, conflicts, DirectAccess, IPsec, wildcard/subnet, and auto-trigger VPN behavior fail explicitly instead of bypassing policy.
 - There is no silent public-resolver substitution. Missing system DNS is an explicit configuration error unless the caller opts in to `SystemDnsFallback.PublicResolvers`.
 
 ```csharp
@@ -407,11 +408,18 @@ var discovered = SystemInformation.GetDnsConfiguration(refresh: true);
 Console.WriteLine($"Source: {discovered.Source}; ndots: {discovered.Ndots}");
 Console.WriteLine(string.Join(", ", discovered.DnsServers));
 Console.WriteLine(string.Join(", ", discovered.SearchDomains));
+foreach (var rule in discovered.PolicyRules) {
+    Console.WriteLine($"NRPT {rule.Id}: {string.Join(", ", rule.Namespaces)} -> {string.Join(", ", rule.NameServers)}");
+}
 ```
 
 Search expansion is enabled by default for system endpoints and can be disabled with `Configuration.UseSystemSearchDomains`. A trailing dot is always treated as absolute, and PTR inputs are never search-expanded.
 
-This direct DNS client does not delegate name resolution to the operating-system resolver service. In particular, it does not interpret Windows NRPT or every platform-specific per-namespace/VPN routing policy. If an application depends on those policies, choose the correct resolver explicitly or use the operating-system name-resolution API. Configure a `Configuration` instance before issuing concurrent queries; each query takes a defensive snapshot, but concurrent mutation of shared configuration is not a supported control plane.
+NRPT enforcement is enabled by default for system endpoints and can be deliberately disabled with `Configuration.UseSystemDnsPolicies`. The applied match is available as `DnsResponse.AppliedSystemDnsPolicy`. DnsClientX reads policy directly and does not emulate Windows DirectAccess, VPN activation, or IPsec state; use the operating-system resolver API when those services own the policy.
+
+Persistent TCP/DoT reuse is enabled by default. Set `EnableTcpConnectionReuse = false` only for compatibility diagnostics with a broken server. `MaxTcpQueriesPerConnection` bounds in-flight queries on one connection and defaults to 128. The configured timeout covers capacity, connection, transaction-ID reservation, write, and response waits. Caller cancellation removes only that transaction; late responses are consumed without completing another query.
+
+This direct DNS client does not delegate name resolution to the operating-system resolver service and does not claim parity with every platform-specific resolver feature. Configure a `Configuration` instance before issuing concurrent queries; each query takes a defensive snapshot, but concurrent mutation of shared configuration is not a supported control plane.
 
 ## TO DO
 
@@ -420,9 +428,8 @@ This direct DNS client does not delegate name resolution to the operating-system
 > If you would like to help, please do so by opening an issue or a pull request.
 > The public API may change while protocol coverage and RFC conformance continue to mature.
 
-- [ ] Build the separately reviewed optional protocol packages described in [OPTIONAL-PROTOCOLS.md](OPTIONAL-PROTOCOLS.md); do not add cryptographic dependencies to the core package
-- [ ] Add more tests
-- [ ] Go thru all additional parameters and make sure they have proper responses
+- [ ] Complete the concrete stabilization, transport, cache, system-policy, zone, and DNSSEC work tracked in [PLAN.md](PLAN.md)
+- [ ] Build specialized cryptography and privacy protocols as separately reviewed optional packages; keep the core dependency-light
 
 ## Usage in .NET
 
@@ -802,7 +809,36 @@ Console.WriteLine($"Local DNSSEC status: {response.DnsSecValidationStatus}");
 Console.WriteLine(response.DnsSecValidationMessage);
 ```
 
-The resolver-provided `AuthenticData` flag and local validation are deliberately separate. `Secure` means DnsClientX built and verified a chain to a bundled root trust anchor; `Insecure` means a secure parent authenticated an unsigned delegation; `Bogus` is a cryptographic or proof failure; and `Indeterminate` means the response or supported algorithms were insufficient. The dependency-free validator supports RSA/SHA-1 (algorithms 5 and 7, for compatibility), RSA/SHA-256, RSA/SHA-512, ECDSA P-256/SHA-256, and ECDSA P-384/SHA-384. Ed25519 and Ed448 are not implemented and therefore cannot produce `Secure`. The validator embeds the current IANA root DS trust anchors; it does not implement RFC 5011 automated trust-anchor rollover, so applications with independently managed or long-lived trust stores must monitor root-anchor updates.
+The resolver-provided `AuthenticData` flag and local validation are deliberately separate. `Secure` means DnsClientX built and verified a chain to a configured root trust anchor; `Insecure` means a secure parent authenticated an unsigned delegation; `Bogus` is a cryptographic or proof failure; and `Indeterminate` means the response, trust state, or supported algorithms were insufficient. The dependency-free validator supports RSA/SHA-1 (algorithms 5 and 7, for compatibility), RSA/SHA-256, and RSA/SHA-512 on every target. The .NET 8 and .NET 10 assets also support ECDSA P-256/SHA-256 and ECDSA P-384/SHA-384. Ed25519 and Ed448 are supplied by the optional package below rather than claimed by the core.
+
+Install `DnsClientX.DnsSec.EdDsa` when RFC 8080 algorithms 15 and 16 are required. It is separately versioned and is the only DnsClientX package that depends on `BouncyCastle.Cryptography`:
+
+```csharp
+using DnsClientX.DnsSec.EdDsa;
+
+using var client = new ClientX(DnsEndpoint.RootServer);
+client.EndpointConfiguration.UseEdDsaDnsSec();
+
+DnsResponse response = await client.Resolve("signed.example", DnsRecordType.A,
+    requestDnsSec: true, validateDnsSec: true);
+```
+
+The extension verifier participates in the same chain validation, cache isolation, and `Secure`/`Bogus`/`Indeterminate` semantics as the built-in algorithms. Merely referencing the package does not enable it; configuration is explicit per client.
+
+The root-server profile enables RFC 9156 QNAME minimization by default. It asks for one delegation label at a time with type `NS`, continues through authoritative NODATA responses without revealing the final name, and sends the complete name and requested type only after reaching the authoritative zone. `DnsResponse.QNameMinimizedQueryCount` and `QNameMinimizationFallbackCount` make both the privacy protection and any compatibility downgrade visible. Set `Configuration.EnableQNameMinimization = false` only for controlled compatibility diagnostics.
+
+RFC 5011 trust-anchor maintenance is opt-in because durable state belongs to the application. Configure a private, durable file and schedule explicit refreshes:
+
+```csharp
+using var client = new ClientX(DnsEndpoint.RootServer);
+client.EndpointConfiguration.Rfc5011TrustAnchorStorePath = "dnssec/root-anchors.json";
+
+DnsSecTrustAnchorRefreshResult refresh = await client.RefreshRootTrustAnchorsAsync();
+if (!refresh.Succeeded) throw new InvalidOperationException(refresh.Response.DnsSecValidationMessage);
+Console.WriteLine($"Refresh again by {refresh.Snapshot!.NextRefreshUtc:O}");
+```
+
+The state machine enforces the 30-day add hold-down plus original DNSKEY TTL, requires a validated post-deadline observation, resets absent pending keys, preserves missing active keys, immediately and permanently honors a key's verified self-revocation, and retains revoked tombstones through the 30-day remove hold-down. State writes replace a same-directory temporary file atomically; malformed state and clock rollback fail closed. No background timer is hidden inside `ClientX`: the application must call `RefreshRootTrustAnchorsAsync` by `NextRefreshUtc` and retry failed refreshes according to its scheduler. Without a configured store, the immutable IANA public-key anchors bundled with the package remain the validation boundary.
 
 #### Pattern-Based Queries
 ```csharp
@@ -988,7 +1024,7 @@ foreach (var srv in srvRecords) {
 }
 ```
 
-#### Zone Transfer (AXFR)
+#### Zone Transfer (AXFR, IXFR, XFR-over-TLS, and ZONEMD)
 ```csharp
 // Full zone transfer
 using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) {
@@ -1003,7 +1039,29 @@ foreach (var rrset in zoneRecords) {
 await foreach (var rrset in client.ZoneTransferStreamAsync("example.com")) {
     Console.WriteLine($"Received: {string.Join(", ", rrset)}");
 }
+
+// Atomic RFC 1995 incremental transfer. The server can return no change,
+// ordered delete/add deltas, or a complete AXFR-style fallback.
+var changes = await client.IncrementalZoneTransferAsync("example.com", currentSerial: 2026072100);
+
+// Validate an RFC 8976 SIMPLE-SCHEME SHA-384/SHA-512 digest over the complete AXFR.
+var digest = ZoneDigestValidator.Validate("example.com", zoneRecords);
+Console.WriteLine($"{digest.Status}: {digest.Message}");
 ```
+
+AXFR and IXFR accept only `DnsOverTCP` or `DnsOverTLS` endpoints and enforce configurable message, record, byte, and per-I/O time limits. Streaming AXFR retries only before exposing the first chunk, so a failed transfer cannot replay a duplicate prefix. IXFR is returned only after the complete serial chain is validated and is therefore safe for an application to apply atomically.
+
+On .NET 8 or newer, `DnsOverTLS` zone transfers enforce RFC 9103 TLS 1.3 and the `dot` ALPN value. An IP endpoint requires `TlsServerName`; `IgnoreCertificateErrors` is rejected. Mutual TLS is available through `ZoneTransferClientCertificate`, and a narrowly scoped certificate callback can be supplied through `ZoneTransferServerCertificateValidationCallback` for private PKI or pinned lab endpoints. XFR-over-TLS is explicitly unsupported on older targets rather than downgraded to plaintext.
+
+On macOS, XFR-over-TLS requires .NET 10 or newer and the Network.framework TLS client. Enable it before the process performs any TLS work:
+
+```csharp
+AppContext.SetSwitch("System.Net.Security.UseNetworkFramework", true);
+```
+
+DnsClientX does not change this process-wide setting on the host's behalf. Check `DnsTransportCapabilities.SupportsZoneTransferOverTls` before selecting XFR-over-TLS.
+
+`ZoneDigestValidator` operates on canonical wire records preserved by `ZoneTransferAsync`; presentation-only `ZoneTransferResult` values are rejected. A matching digest establishes zone-data integrity, not origin authenticity. Authenticate the apex ZONEMD RRset separately with DNSSEC or use an authenticated transfer channel. Multi-message TSIG chaining for AXFR/IXFR is not implemented, so configuring the update-oriented `TsigKey` for a transfer fails explicitly instead of implying protection it does not provide.
 
 #### Zone Master Files
 
@@ -1069,9 +1127,25 @@ DnsClientTelemetry.QueryCompleted += (_, query) =>
 
 `LocalEndPoint` is supported for UDP, TCP, DoT, and DoQ queries and for RFC 2136 updates through the shared TCP engine. HTTP-based transports reject it explicitly because `HttpClient` does not expose a portable per-query source binding. Modern targets also emit `ActivitySource` spans and `Meter` counters under the name `DnsClientX`; when no event, activity, or meter listener is attached, query telemetry does not allocate a scope.
 
+When response caching is enabled, `DnsResponse.ResponseSource` reports `Network`, `Cache`, or `CoalescedNetwork`. Exact-key concurrent misses share one in-flight query, but each caller receives an independent response clone. Canceling one waiter does not cancel the shared fetch.
+
 ### Library Comparison Benchmark
 
-`DnsClientX.Benchmarks` contains a BenchmarkDotNet comparison with DnsClient.NET. It uses a controlled loopback DNS responder by default so client overhead is not confused with Internet or resolver latency. To run against a resolver you control:
+`DnsClientX.Benchmarks` contains separate BenchmarkDotNet suites for the full wire parser, cache hit/miss paths, and a client comparison with DnsClient.NET. The client comparison uses a controlled loopback DNS responder by default so client overhead is not confused with Internet or resolver latency.
+
+Run benchmarks one process at a time so BenchmarkDotNet build artifacts do not contend with each other:
+
+```powershell
+# Discover or smoke-test the parser and cache suites.
+dotnet run -c Release --project .\DnsClientX.Benchmarks -- --list flat
+dotnet run -c Release --project .\DnsClientX.Benchmarks -- --filter '*DnsWireParserBenchmark*' --job Dry
+dotnet run -c Release --project .\DnsClientX.Benchmarks -- --filter '*DnsResponseCacheBenchmark*' --job Dry
+
+# Run the controlled loopback library comparison.
+dotnet run -c Release --project .\DnsClientX.Benchmarks -- --filter '*DnsLibraryNetworkBenchmark*'
+```
+
+To run the comparison against a resolver you control:
 
 ```powershell
 $env:DNS_BENCHMARK_SERVER = '192.0.2.53'
@@ -1081,6 +1155,17 @@ dotnet run -c Release --project .\DnsClientX.Benchmarks -- --filter '*DnsLibrary
 ```
 
 Both clients disable caching and retries, reuse their client instances, and perform one query per benchmark invocation. Treat lab results as environment-specific; use the loopback result for client overhead and the lab result only to detect material regressions under realistic network conditions.
+
+For concurrent scenarios, use the dependency-free `DnsClientX.LoadTests` runner rather than BenchmarkDotNet. It reports throughput, p50/p95/p99 latency, and failures for each requested concurrency level and can emit JSON for comparisons over time:
+
+```powershell
+dotnet run -c Release -f net10.0 --project .\DnsClientX.LoadTests -- `
+  --server 192.0.2.53 --name example.com --transport udp `
+  --concurrency 1,32,128 --requests 1000 --warmup 16 `
+  --json .\artifacts\dns-load.json
+```
+
+Use a resolver you own for sustained tests. The runner disables caching and retries, creates one reusable client per concurrency scenario, and returns a nonzero exit code when any request fails. A `NoError` RCODE counts as success only when no response error is present and the complete pre-projection answer contains the requested RRset; missing or dropped answers are reported separately. Results compare complete query behavior; parser-only and cache-only costs belong in the microbenchmark suites above.
 
 ### Error Handling and Debugging
 

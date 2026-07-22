@@ -22,9 +22,10 @@ namespace DnsClientX {
         /// <param name="debug"></param>
         /// <param name="endpointConfiguration">Provide configuration so it can be added to Question for display purposes</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
+        /// <param name="connectionPool">Optional persistent connection owner.</param>
         /// <returns>The DNS response.</returns>
         /// <exception cref="ArgumentNullException"></exception>
-        internal static async Task<DnsResponse> ResolveWireFormatTcp(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, CancellationToken cancellationToken) {
+        internal static async Task<DnsResponse> ResolveWireFormatTcp(string dnsServer, int port, string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug, Configuration endpointConfiguration, CancellationToken cancellationToken, DnsStreamConnectionPool? connectionPool = null) {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
 
             var query = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration,
@@ -78,13 +79,22 @@ namespace DnsClientX {
 
             try {
                 // Send the DNS query over TCP and receive the response
-                var responseBuffer = await SendQueryOverTcp(
-                    queryBytes,
-                    address.ToString(),
-                    port,
-                    endpointConfiguration.TimeOut,
-                    cancellationToken,
-                    endpointConfiguration.LocalEndPoint).ConfigureAwait(false);
+                byte[] responseBuffer = connectionPool == null
+                    ? await SendQueryOverTcp(
+                        queryBytes,
+                        address.ToString(),
+                        port,
+                        endpointConfiguration.TimeOut,
+                        cancellationToken,
+                        endpointConfiguration.LocalEndPoint).ConfigureAwait(false)
+                    : await connectionPool.QueryTcpAsync(
+                        address,
+                        port,
+                        endpointConfiguration.LocalEndPoint,
+                        queryBytes,
+                        endpointConfiguration.TimeOut,
+                        endpointConfiguration.MaxTcpQueriesPerConnection,
+                        cancellationToken).ConfigureAwait(false);
 
                 // Deserialize the response from DNS wire format
                 var response = await DnsWire.DeserializeDnsWireResponse(null, debug, responseBuffer, query).ConfigureAwait(false);
@@ -249,6 +259,7 @@ namespace DnsClientX {
             try {
                 await tcpClient.ConnectAsync(host, port, linkedCts.Token).ConfigureAwait(false);
             } catch (OperationCanceledException) {
+                tcpClient.Close();
                 cancellationToken.ThrowIfCancellationRequested();
                 throw new TimeoutException($"Connection to {host}:{port} timed out after {timeoutMilliseconds} milliseconds.");
             }
@@ -258,6 +269,7 @@ namespace DnsClientX {
 
             var completed = await Task.WhenAny(connectTask, delayTask).ConfigureAwait(false);
             if (completed != connectTask) {
+                tcpClient.Close();
                 cancellationToken.ThrowIfCancellationRequested();
                 throw new TimeoutException($"Connection to {host}:{port} timed out after {timeoutMilliseconds} milliseconds.");
             }

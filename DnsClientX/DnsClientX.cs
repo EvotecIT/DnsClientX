@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Authentication;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DnsClientX {
     /// <summary>
@@ -88,8 +89,11 @@ namespace DnsClientX {
         private readonly HashSet<HttpClient> _managedClients = new HashSet<HttpClient>();
 
         private static readonly DnsResponseCache _cache = new();
+        private static readonly ConcurrentDictionary<string, Lazy<Task<DnsResponse>>> _cacheInflight =
+            new(StringComparer.Ordinal);
         private readonly bool _cacheEnabled;
         private readonly DnsUdpClientPool _udpClientPool = new();
+        private readonly DnsStreamConnectionPool _streamConnectionPool = new();
 #if NET8_0_OR_GREATER
         private readonly DnsQuicConnectionPool _quicConnectionPool = new();
 #endif
@@ -103,6 +107,11 @@ namespace DnsClientX {
         /// Gets or sets the maximal TTL allowed for cached responses.
         /// </summary>
         public TimeSpan MaxCacheTtl { get; set; } = TimeSpan.FromHours(1);
+
+        internal static void ResetResponseCacheForTests() {
+            _cache.Clear();
+            _cacheInflight.Clear();
+        }
 
         /// <summary>
         /// Gets or sets a value indicating whether audit logging is enabled.

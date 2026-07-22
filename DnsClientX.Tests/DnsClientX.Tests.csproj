@@ -4,9 +4,9 @@
         <AssemblyTitle>DnsClientX Tests</AssemblyTitle>
         <Title>DnsClientX Unit Tests</Title>
         <Description>Unit tests for DnsClientX DNS library.</Description>
-        <VersionPrefix>2.0.0</VersionPrefix>
-        <AssemblyVersion>2.0.0</AssemblyVersion>
-        <FileVersion>2.0.0</FileVersion>
+        <VersionPrefix>2.1.0</VersionPrefix>
+        <AssemblyVersion>2.1.0</AssemblyVersion>
+        <FileVersion>2.1.0</FileVersion>
         <Company>Evotec</Company>
         <Authors>Przemyslaw Klys</Authors>
         <Copyright>(c) 2011 - 2025 Przemyslaw Klys @ Evotec. All rights reserved.</Copyright>
@@ -45,7 +45,10 @@
 
     <ItemGroup>
         <ProjectReference Include="..\DnsClientX\DnsClientX.csproj" />
+        <ProjectReference Include="..\DnsClientX.DnsSec.EdDsa\DnsClientX.DnsSec.EdDsa.csproj" />
         <ProjectReference Include="..\DnsClientX.Cli\DnsClientX.Cli.csproj" />
+        <ProjectReference Include="..\DnsClientX.LoadTests\DnsClientX.LoadTests.csproj"
+            Condition="'$(TargetFramework)' != 'net472'" />
     </ItemGroup>
 
     <ItemGroup>

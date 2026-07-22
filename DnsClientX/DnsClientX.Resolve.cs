@@ -84,10 +84,11 @@ namespace DnsClientX {
             }
         }
 
-        private async Task<DnsResponse> ResolveInternal(string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool returnAllTypes, int maxRetries, int retryDelayMs, bool typedRecords, bool parseTypedTxtRecords, CancellationToken cancellationToken, bool dnsSecMaterialQuery = false) {
+        private async Task<DnsResponse> ResolveInternal(string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool returnAllTypes, int maxRetries, int retryDelayMs, bool typedRecords, bool parseTypedTxtRecords, CancellationToken cancellationToken, bool dnsSecMaterialQuery = false, Configuration? queryConfigurationOverride = null, bool bypassSingleFlight = false, bool suppressAudit = false) {
             cancellationToken.ThrowIfCancellationRequested();
 
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
+            string inputName = name;
             if (EndpointConfiguration.LocalEndPoint != null && IsHttpBasedTransport(EndpointConfiguration.RequestFormat)) {
                 throw new NotSupportedException(
                     $"LocalEndPoint is not supported by {EndpointConfiguration.RequestFormat}. Use UDP, TCP, DoT, or DoQ for explicit source binding.");
@@ -96,7 +97,7 @@ namespace DnsClientX {
             if (type == DnsRecordType.PTR) name = ConvertToPtrFormat(name);
             name = ConvertToPunycode(name);
 
-            var auditEntry = EnableAudit ? new AuditEntry(name, type) { StartedAtUtc = DateTimeOffset.UtcNow } : null;
+            var auditEntry = !suppressAudit && EnableAudit ? new AuditEntry(name, type) { StartedAtUtc = DateTimeOffset.UtcNow } : null;
             var stopwatch = Stopwatch.StartNew();
 
             // Allow tests to override the resolver to avoid network calls.
@@ -104,6 +105,7 @@ namespace DnsClientX {
                 try {
                     CaptureAuditConfiguration(auditEntry);
                     var overrideResponse = await ResolverOverride(name, type, cancellationToken).ConfigureAwait(false);
+                    overrideResponse.ResponseSource = DnsResponseSource.Network;
                     FinalizeAuditEntry(auditEntry, overrideResponse, stopwatch);
                     return overrideResponse;
                 } catch (Exception ex) {
@@ -114,10 +116,14 @@ namespace DnsClientX {
 
             try {
                 // lets we execute valid dns host name strategy
-                Configuration queryConfiguration = EndpointConfiguration.CreateQuerySnapshot();
+                Configuration queryConfiguration = queryConfigurationOverride ?? EndpointConfiguration.CreateQuerySnapshot(name);
                 if (queryConfiguration.LocalEndPoint != null && IsHttpBasedTransport(queryConfiguration.RequestFormat)) {
                     throw new NotSupportedException(
                         $"LocalEndPoint is not supported by {queryConfiguration.RequestFormat}. Use UDP, TCP, DoT, or DoQ for explicit source binding.");
+                }
+                if (queryConfiguration.EnableTcpConnectionReuse && queryConfiguration.MaxTcpQueriesPerConnection <= 0) {
+                    throw new ArgumentOutOfRangeException(nameof(queryConfiguration.MaxTcpQueriesPerConnection),
+                        "MaxTcpQueriesPerConnection must be greater than zero when connection reuse is enabled.");
                 }
                 CaptureAuditConfiguration(auditEntry, queryConfiguration);
 
@@ -127,9 +133,33 @@ namespace DnsClientX {
                         validateDnsSec, returnAllTypes, typedRecords, parseTypedTxtRecords, MaxCacheTtl,
                         IgnoreCertificateErrors);
                     if (_cache.TryGet(cacheKey, out var cached)) {
+                        cached.ResponseSource = DnsResponseSource.Cache;
                         FinalizeAuditEntry(auditEntry, cached, stopwatch, servedFromCache: true);
                         return cached;
                     }
+                }
+
+                if (cacheKey != null && !bypassSingleFlight) {
+                    var candidate = new Lazy<Task<DnsResponse>>(
+                        () => ResolveInternal(inputName, type, requestDnsSec, validateDnsSec, returnAllTypes,
+                            maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords,
+                            CancellationToken.None, dnsSecMaterialQuery, queryConfiguration,
+                            bypassSingleFlight: true, suppressAudit: true),
+                        LazyThreadSafetyMode.ExecutionAndPublication);
+                    Lazy<Task<DnsResponse>> flight = _cacheInflight.GetOrAdd(cacheKey, candidate);
+                    bool ownsFlight = ReferenceEquals(candidate, flight);
+                    Task<DnsResponse> flightTask = flight.Value;
+                    _ = RemoveCacheFlightWhenCompletedAsync(cacheKey, flight, flightTask);
+                    DnsResponse shared = await WaitForSharedResponseAsync(flightTask, cancellationToken)
+                        .ConfigureAwait(false);
+                    DnsResponse result = shared.Clone();
+                    if (!ownsFlight) result.ResponseSource = DnsResponseSource.CoalescedNetwork;
+                    FinalizeAuditEntry(auditEntry, result, stopwatch,
+                        result.Status != DnsResponseCode.NoError || !string.IsNullOrEmpty(result.Error)
+                            ? new DnsClientException(result.Error ?? "DNS query failed", result)
+                            : null,
+                        servedFromCache: result.ResponseSource == DnsResponseSource.Cache);
+                    return result;
                 }
 
                 DnsResponse response;
@@ -146,6 +176,9 @@ namespace DnsClientX {
                         queryConfiguration.Port,
                         requestDnsSec,
                         validateDnsSec,
+                        queryConfiguration.EnableQNameMinimization,
+                        queryConfiguration.Rfc5011TrustAnchorStorePath,
+                        queryConfiguration.DnsSecSignatureVerifier,
                         cancellationToken).ConfigureAwait(false);
                 } else {
                     // Get the HTTP client only for transports that can use it. Root iteration stays
@@ -181,7 +214,8 @@ namespace DnsClientX {
                     throw new DnsClientException("DNS over gRPC is not supported on this platform.");
 #endif
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
-                    response = await DnsWireResolveDot.ResolveWireFormatDoT(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, IgnoreCertificateErrors, cancellationToken).ConfigureAwait(false);
+                    response = await DnsWireResolveDot.ResolveWireFormatDoT(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, IgnoreCertificateErrors, cancellationToken,
+                        queryConfiguration.EnableTcpConnectionReuse ? _streamConnectionPool : null).ConfigureAwait(false);
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverQuic) {
 #if NET8_0_OR_GREATER
                 if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) {
@@ -198,9 +232,11 @@ namespace DnsClientX {
                     throw new DnsClientException("DNS over QUIC is not supported on this platform.");
 #endif
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
-                    response = await DnsWireResolveTcp.ResolveWireFormatTcp(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                    response = await DnsWireResolveTcp.ResolveWireFormatTcp(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken,
+                        queryConfiguration.EnableTcpConnectionReuse ? _streamConnectionPool : null).ConfigureAwait(false);
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
-                    response = await DnsWireResolveUdp.ResolveWireFormatUdp(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, 1, cancellationToken, _udpClientPool).ConfigureAwait(false);
+                    response = await DnsWireResolveUdp.ResolveWireFormatUdp(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, 1, cancellationToken, _udpClientPool,
+                        queryConfiguration.EnableTcpConnectionReuse ? _streamConnectionPool : null).ConfigureAwait(false);
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.Multicast) {
                     response = await DnsWireResolveMulticast.ResolveWireFormatMulticast(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsCrypt ||
@@ -216,7 +252,9 @@ namespace DnsClientX {
                         ResolveInternal(materialName, materialType, requestDnsSec: true, validateDnsSec: false,
                             returnAllTypes: true, maxRetries: 1, retryDelayMs: retryDelayMs,
                             typedRecords: false, parseTypedTxtRecords: false, cancellationToken: token,
-                            dnsSecMaterialQuery: true));
+                            dnsSecMaterialQuery: true),
+                        trustAnchorStorePath: queryConfiguration.Rfc5011TrustAnchorStorePath,
+                        signatureVerifier: queryConfiguration.DnsSecSignatureVerifier);
                     DnsSecValidationResult validation = await validator.ValidateAsync(response, name, type, cancellationToken).ConfigureAwait(false);
                     response.DnsSecValidationStatus = validation.Status;
                     response.DnsSecValidationMessage = validation.Message;
@@ -251,6 +289,8 @@ namespace DnsClientX {
                     }
                 }
 
+                response.ResponseSource = DnsResponseSource.Network;
+
                 FinalizeAuditEntry(
                     auditEntry,
                     response,
@@ -267,6 +307,29 @@ namespace DnsClientX {
             } catch (Exception ex) {
                 FinalizeAuditException(auditEntry, ex, stopwatch);
                 throw;
+            }
+        }
+
+        private static async Task<DnsResponse> WaitForSharedResponseAsync(Task<DnsResponse> task,
+            CancellationToken cancellationToken) {
+            if (task.IsCompleted) return await task.ConfigureAwait(false);
+            Task completed = await Task.WhenAny(task, Task.Delay(Timeout.Infinite, cancellationToken))
+                .ConfigureAwait(false);
+            if (completed != task) throw new OperationCanceledException(cancellationToken);
+            return await task.ConfigureAwait(false);
+        }
+
+        private static async Task RemoveCacheFlightWhenCompletedAsync(string key,
+            Lazy<Task<DnsResponse>> flight, Task<DnsResponse> task) {
+            try {
+                await task.ConfigureAwait(false);
+            } catch {
+                // Every waiter observes the original failure. Removal only controls future attempts.
+            } finally {
+                if (_cacheInflight.TryGetValue(key, out Lazy<Task<DnsResponse>>? current) &&
+                    ReferenceEquals(current, flight)) {
+                    _cacheInflight.TryRemove(key, out _);
+                }
             }
         }
 

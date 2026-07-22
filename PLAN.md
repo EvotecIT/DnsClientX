@@ -73,6 +73,21 @@ The project already has strong foundations:
 
 The next phase should focus on protocol completeness, sharper resolver operations, and a small DNS-only policy model.
 
+## Active 2.x Engineering Plan
+
+The current end-to-end goal is deliberately ordered so correctness and measurement land before deeper protocol work:
+
+- [x] Stabilize public behavior with authoritative-divergence fixtures, an adversarial parser corpus, and claims tied to reproducible evidence
+- [x] Maintain parser/cache microbenchmarks plus a separate controlled concurrency runner for 1/32/128-query scenarios
+- [x] Implement RFC 7766 persistent TCP and DoT connection reuse, pipelining, response correlation, cancellation, and bounded recovery
+- [x] Add exact-key cache single-flight and explicit cache/network provenance without crossing configuration or DNSSEC policy boundaries
+- [x] Discover Windows NRPT rules and route only matching namespaces through validated policy-aware resolvers, with explicit unsupported/error states
+- [x] Add IXFR, DNS zone transfer over TLS, and ZONEMD validation with bounded transfer and integrity contracts
+- [x] Add QNAME minimization and RFC 5011 trust-anchor lifecycle management to iterative DNSSEC resolution
+- [x] Put Ed25519/Ed448 DNSSEC verification in a separately versioned optional package so the dependency-light core remains unchanged
+
+Each capability must include focused contracts, cross-target validation, honest CLI/PowerShell/docs exposure where applicable, packaged-artifact proof, and consumer validation before release. Network benchmarks are environment evidence, not universal performance claims.
+
 ## Roadmap
 
 ## Phase 1: Protocol Completeness

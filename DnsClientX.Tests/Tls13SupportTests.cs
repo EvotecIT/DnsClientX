@@ -15,34 +15,30 @@ namespace DnsClientX.Tests {
     /// Tests verifying TLS 1.3 support for DNS over TLS.
     /// </summary>
     public class Tls13SupportTests {
-        private static int GetFreePort() {
-            TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
-            listener.Start();
-            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            listener.Stop();
-            return port;
-        }
-
-        private static async Task<SslProtocols> RunTls13ServerAsync(X509Certificate2 cert, int port, CancellationToken token) {
-            TcpListener listener = new TcpListener(IPAddress.Loopback, port);
-            listener.Start();
+        private static async Task<SslProtocols> RunTls13ServerAsync(X509Certificate2 cert,
+            TcpListener listener, CancellationToken token) {
+            try {
 #if NET8_0_OR_GREATER
-            using TcpClient client = await listener.AcceptTcpClientAsync(token);
+                using TcpClient client = await listener.AcceptTcpClientAsync(token);
 #else
-            using TcpClient client = await listener.AcceptTcpClientAsync();
+                using TcpClient client = await listener.AcceptTcpClientAsync();
 #endif
-            using var sslStream = new SslStream(client.GetStream(), false);
-            await sslStream.AuthenticateAsServerAsync(cert, false, SslProtocols.Tls13, false);
-            listener.Stop();
-            return sslStream.SslProtocol;
+                using var sslStream = new SslStream(client.GetStream(), false);
+                await sslStream.AuthenticateAsServerAsync(cert, false, SslProtocols.Tls13, false);
+                return sslStream.SslProtocol;
+            } finally {
+                listener.Stop();
+            }
         }
 
         /// <summary>
         /// Starts a TLS 1.3 server and ensures the client negotiates TLS 1.3.
         /// </summary>
-        [Fact]
+        [NonMacOsFact]
         public async Task ResolveWireFormatDoT_UsesTls13WhenAvailable() {
-            int port = GetFreePort();
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             using RSA rsa = RSA.Create(2048);
             var request = new CertificateRequest("CN=localhost", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             using X509Certificate2 baseCert = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
@@ -58,20 +54,15 @@ namespace DnsClientX.Tests {
 #endif
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var serverTask = RunTls13ServerAsync(cert, port, cts.Token);
+            var serverTask = RunTls13ServerAsync(cert, listener, cts.Token);
 
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTLS) { Port = port };
 
             await Assert.ThrowsAsync<DnsClientException>(async () =>
                 await DnsWireResolveDot.ResolveWireFormatDoT("127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, true, cts.Token));
 
-            try {
-                var protocol = await serverTask;
-                Assert.Equal(SslProtocols.Tls13, protocol);
-            } catch (Exception ex) when (ex is PlatformNotSupportedException || ex is AuthenticationException) {
-                Console.WriteLine($"Skipping TLS 1.3 test: {ex.Message}");
-                return;
-            }
+            var protocol = await serverTask;
+            Assert.Equal(SslProtocols.Tls13, protocol);
         }
     }
 }

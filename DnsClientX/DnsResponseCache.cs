@@ -101,6 +101,12 @@ namespace DnsClientX {
             }
         }
 
+        /// <summary>Clears cached entries and insertion-order bookkeeping.</summary>
+        internal void Clear() {
+            _cache.Clear();
+            while (_insertionOrder.TryDequeue(out _)) { }
+        }
+
         /// <inheritdoc/>
         public void Dispose() {
             if (_disposed) {

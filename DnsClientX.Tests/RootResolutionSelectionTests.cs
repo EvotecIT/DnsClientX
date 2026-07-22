@@ -15,6 +15,36 @@ namespace DnsClientX.Tests {
             Assert.Equal("example.com", ClientX.NormalizeIterativeName("example.com."));
         }
 
+        /// <summary>RFC 9156 reveals one additional label at each delegation and preserves the final question.</summary>
+        [Theory]
+        [InlineData("", "com", DnsRecordType.NS, false)]
+        [InlineData("com", "example.com", DnsRecordType.NS, false)]
+        [InlineData("example.com", "www.example.com", DnsRecordType.NS, false)]
+        [InlineData("www.example.com", "api.www.example.com", DnsRecordType.NS, false)]
+        [InlineData("api.www.example.com", "api.www.example.com", DnsRecordType.AAAA, true)]
+        public void SelectIterativeQuestion_MinimizesDelegationDiscovery(string bailiwick,
+            string expectedName, DnsRecordType expectedType, bool expectedFinal) {
+            ClientX.IterativeQuestion question = ClientX.SelectIterativeQuestion(
+                "api.www.example.com", DnsRecordType.AAAA, bailiwick, enabled: true);
+
+            Assert.Equal(expectedName, question.Name);
+            Assert.Equal(expectedType, question.Type);
+            Assert.Equal(expectedFinal, question.IsFinal);
+        }
+
+        /// <summary>Disabling minimization and inconsistent referral state both fail safely to the original question.</summary>
+        [Theory]
+        [InlineData("com", false)]
+        [InlineData("unrelated.test", true)]
+        public void SelectIterativeQuestion_UsesFullQuestionWhenRequired(string bailiwick, bool enabled) {
+            ClientX.IterativeQuestion question = ClientX.SelectIterativeQuestion(
+                "www.example.com", DnsRecordType.A, bailiwick, enabled);
+
+            Assert.Equal("www.example.com", question.Name);
+            Assert.Equal(DnsRecordType.A, question.Type);
+            Assert.True(question.IsFinal);
+        }
+
         /// <summary>
         /// The closest authority ancestor is selected and unrelated authority data is ignored.
         /// </summary>
@@ -36,7 +66,7 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Glue is accepted only when the name server itself is inside the delegated zone.
+        /// Glue is accepted only when the name server itself is inside the responding parent's zone.
         /// </summary>
         [Fact]
         public void GetInBailiwickGlueAddresses_RejectsOutOfBailiwickData() {
@@ -47,11 +77,11 @@ namespace DnsClientX.Tests {
             ];
 
             string[] accepted = ClientX.GetInBailiwickGlueAddresses(
-                "child.example",
+                "example",
                 "ns.child.example",
                 additional);
             string[] rejected = ClientX.GetInBailiwickGlueAddresses(
-                "child.example",
+                "example",
                 "ns.external.test",
                 additional);
 
@@ -60,16 +90,16 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Root-server additional data is inside the root authority's bailiwick and can bootstrap a TLD delegation.
+        /// RFC 9471 sibling glue remains usable when it is inside the responding root zone.
         /// </summary>
         [Fact]
-        public void GetInBailiwickGlueAddresses_AcceptsRootBootstrapData() {
+        public void GetInBailiwickGlueAddresses_AcceptsRootSiblingGlue() {
             DnsAnswer[] additional = [
                 Answer("l.gtld-servers.net", DnsRecordType.A, "192.41.162.30")
             ];
 
             string[] accepted = ClientX.GetInBailiwickGlueAddresses(
-                string.Empty,
+                ".",
                 "l.gtld-servers.net",
                 additional);
 
@@ -114,6 +144,22 @@ namespace DnsClientX.Tests {
 
             Assert.Null(ClientX.FindAliasTarget(response, "old.example"));
             Assert.Equal("www.new.example", ClientX.FindAliasTarget(response, "www.old.example"));
+        }
+
+        /// <summary>RFC 9156 keeps DS on the parent side instead of following the child cut.</summary>
+        [Fact]
+        public void SelectIterativeQuestion_AsksParentForFinalDs() {
+            ClientX.IterativeQuestion fromRoot = ClientX.SelectIterativeQuestion(
+                "child.example", DnsRecordType.DS, ".", enabled: true);
+            ClientX.IterativeQuestion fromParent = ClientX.SelectIterativeQuestion(
+                "child.example", DnsRecordType.DS, "example", enabled: true);
+
+            Assert.Equal("example", fromRoot.Name);
+            Assert.Equal(DnsRecordType.NS, fromRoot.Type);
+            Assert.False(fromRoot.IsFinal);
+            Assert.Equal("child.example", fromParent.Name);
+            Assert.Equal(DnsRecordType.DS, fromParent.Type);
+            Assert.True(fromParent.IsFinal);
         }
 
         private static DnsAnswer Answer(string name, DnsRecordType type, string data) {

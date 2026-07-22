@@ -49,6 +49,16 @@ namespace DnsClientX {
 
         internal static string Canonical(string name) => Normalize(name).ToLowerInvariant();
 
+        internal static bool IsSubdomainOrEqual(string name, string parent) {
+            string canonicalName = Canonical(name);
+            string canonicalParent = Canonical(parent);
+            if (canonicalParent == ".") return true;
+            return string.Equals(canonicalName, canonicalParent, StringComparison.Ordinal)
+                || (canonicalName.Length > canonicalParent.Length
+                    && canonicalName.EndsWith(canonicalParent, StringComparison.Ordinal)
+                    && canonicalName[canonicalName.Length - canonicalParent.Length - 1] == '.');
+        }
+
         internal static byte[] ToCanonicalWire(string name) {
             if (name == null) throw new ArgumentNullException(nameof(name));
             if (name.IndexOf('\\') >= 0) return EscapedPresentationToCanonicalWire(name);

@@ -40,10 +40,16 @@ namespace DnsClientX {
             return true;
         }
 
-        internal static bool IsSupportedAlgorithm(byte algorithm) =>
-            algorithm == 5 || algorithm == 7 || algorithm == 8 || algorithm == 10 || algorithm == 13 || algorithm == 14;
+        internal static bool IsSupportedAlgorithm(byte algorithm, IDnsSecSignatureVerifier? extension = null) {
+            if (algorithm == 5 || algorithm == 7 || algorithm == 8 || algorithm == 10) return true;
+#if NET5_0_OR_GREATER
+            if (algorithm == 13 || algorithm == 14) return true;
+#endif
+            return extension?.SupportsAlgorithm((DnsKeyAlgorithm)algorithm) == true;
+        }
 
-        internal static bool Verify(DnsSecKey key, byte[] data, byte[] signature) {
+        internal static bool Verify(DnsSecKey key, byte[] data, byte[] signature,
+            IDnsSecSignatureVerifier? extension = null) {
             try {
                 switch (key.Algorithm) {
                     case 5:
@@ -75,9 +81,10 @@ namespace DnsClientX {
                         }
 #endif
                     default:
-                        return false;
+                        return extension?.SupportsAlgorithm((DnsKeyAlgorithm)key.Algorithm) == true
+                            && extension.Verify((DnsKeyAlgorithm)key.Algorithm, key.PublicKey, data, signature);
                 }
-            } catch (CryptographicException) {
+            } catch (Exception exception) when (exception is CryptographicException || exception is ArgumentException) {
                 return false;
             }
         }

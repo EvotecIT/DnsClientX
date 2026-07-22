@@ -78,8 +78,10 @@ namespace DnsClientX {
             int port,
             bool requestDnsSec,
             bool validateDnsSec,
-            CancellationToken cancellationToken) {
+            CancellationToken cancellationToken,
+            Configuration? queryConfiguration = null) {
             ThrowIfDisposed();
+            queryConfiguration ??= EndpointConfiguration.CreateQuerySnapshot(name);
             using DnsClientTelemetry.DnsQueryTelemetryScope? telemetry = DnsClientTelemetry.StartQuery(name, type, EndpointConfiguration);
             try {
                 DnsResponse response = await ResolveFromRootCore(
@@ -90,6 +92,9 @@ namespace DnsClientX {
                     port,
                     requestDnsSec,
                     validateDnsSec,
+                    queryConfiguration.EnableQNameMinimization,
+                    queryConfiguration.Rfc5011TrustAnchorStorePath,
+                    queryConfiguration.DnsSecSignatureVerifier,
                     cancellationToken).ConfigureAwait(false);
                 telemetry?.Complete(response);
                 return response;
@@ -107,6 +112,9 @@ namespace DnsClientX {
             int port,
             bool requestDnsSec,
             bool validateDnsSec,
+            bool enableQNameMinimization,
+            string? trustAnchorStorePath,
+            IDnsSecSignatureVerifier? signatureVerifier,
             CancellationToken cancellationToken) {
             if (string.IsNullOrWhiteSpace(name)) throw new ArgumentNullException(nameof(name));
             if (maxHops <= 0) throw new ArgumentOutOfRangeException(nameof(maxHops));
@@ -122,7 +130,12 @@ namespace DnsClientX {
                 .ToArray();
             if (rootServers.Length == 0) throw new ArgumentException("At least one root-server seed is required.", nameof(servers));
 
-            var state = new RootResolutionState(rootServers, maxHops, port, requestDnsSec || validateDnsSec);
+            var state = new RootResolutionState(
+                rootServers,
+                maxHops,
+                port,
+                requestDnsSec || validateDnsSec,
+                enableQNameMinimization);
             string normalizedName = NormalizeIterativeName(name);
             DnsResponse response = await ResolveIteratively(
                 normalizedName,
@@ -130,16 +143,24 @@ namespace DnsClientX {
                 rootServers,
                 state,
                 cancellationToken).ConfigureAwait(false);
+            response.QNameMinimizedQueryCount = state.MinimizedQueryCount;
+            response.QNameMinimizationFallbackCount = state.MinimizationFallbackCount;
             if (validateDnsSec) {
                 var validator = new DnsSecValidationEngine(async (materialName, materialType, token) => {
-                    var materialState = new RootResolutionState(rootServers, maxHops, port, requestDnsSec: true);
+                    var materialState = new RootResolutionState(
+                        rootServers,
+                        maxHops,
+                        port,
+                        requestDnsSec: true,
+                        enableQNameMinimization);
                     return await ResolveIteratively(
                         NormalizeIterativeName(materialName),
                         materialType,
                         rootServers,
                         materialState,
                         token).ConfigureAwait(false);
-                });
+                }, trustAnchorStorePath: trustAnchorStorePath,
+                    signatureVerifier: signatureVerifier);
                 DnsSecValidationResult validation = DnsSecValidationResult.Indeterminate(
                     "The iterative resolver did not retain a terminal DNSSEC validation segment.");
                 IReadOnlyList<RootDnsSecSegment> segments = state.ValidationSegments.Count == 0
@@ -194,28 +215,64 @@ namespace DnsClientX {
 
             try {
                 IReadOnlyList<string> currentServers = startingServers;
-                string currentBailiwick = string.Empty;
+                string currentBailiwick = ".";
                 DnsResponse? lastResponse = null;
+                bool rejectedNonAuthoritativeTerminal = false;
                 while (state.Hops < state.MaxHops) {
                     Referral? referral = null;
+                    bool advancedMinimization = false;
                     foreach (string server in currentServers) {
                         cancellationToken.ThrowIfCancellationRequested();
+                        IterativeQuestion question = SelectIterativeQuestion(
+                            name, type, currentBailiwick, state.EnableQNameMinimization);
                         DnsResponse response = await QueryAuthoritativeServer(
                             server,
                             state.Port,
-                            name,
-                            type,
+                            question.Name,
+                            question.Type,
                             state.RequestDnsSec,
                             cancellationToken).ConfigureAwait(false);
+                        if (!question.IsFinal) state.MinimizedQueryCount++;
                         lastResponse = response;
 
-                        if (HasRequestedAnswer(response, name, type)) {
+                        if (!question.IsFinal) {
+                            Referral? minimizedReferral = FindReferral(response, name, currentBailiwick);
+                            if (minimizedReferral != null) {
+                                referral = minimizedReferral;
+                                break;
+                            }
+
+                            if (response.Status == DnsResponseCode.NoError
+                                && response.IsAuthoritativeAnswer) {
+                                // An authenticated/authoritative NODATA result means there is no zone cut at
+                                // this candidate. Keep the same servers and reveal just one more label.
+                                currentBailiwick = question.Name;
+                                state.Hops++;
+                                advancedMinimization = true;
+                                break;
+                            }
+
+                            // RFC 9156 permits a full-question fallback for incompatible authorities.
+                            // Record the privacy downgrade rather than silently claiming full minimization.
+                            state.MinimizationFallbackCount++;
+                            response = await QueryAuthoritativeServer(
+                                server,
+                                state.Port,
+                                name,
+                                type,
+                                state.RequestDnsSec,
+                                cancellationToken).ConfigureAwait(false);
+                            lastResponse = response;
+                        }
+
+                        bool hasRequestedAnswer = HasRequestedAnswer(response, name, type);
+                        string? aliasTarget = FindAliasTarget(response, name);
+                        if (response.IsAuthoritativeAnswer && hasRequestedAnswer) {
                             state.ValidationSegments.Add(new RootDnsSecSegment(response, name, type, aliasOnly: false));
                             return response;
                         }
 
-                        string? aliasTarget = FindAliasTarget(response, name);
-                        if (aliasTarget != null) {
+                        if (response.IsAuthoritativeAnswer && aliasTarget != null) {
                             state.ValidationSegments.Add(new RootDnsSecSegment(response, name, type, aliasOnly: true));
                             state.Hops++;
                             DnsResponse aliasResponse = await ResolveIteratively(
@@ -224,9 +281,7 @@ namespace DnsClientX {
                                 state.RootServers,
                                 state,
                                 cancellationToken).ConfigureAwait(false);
-                            if (!HasRequestedAnswer(aliasResponse, aliasTarget, type)
-                                && !aliasResponse.IsAuthoritativeAnswer
-                                && !HasNegativeSoa(aliasResponse)
+                            if (!aliasResponse.IsAuthoritativeAnswer
                                 && aliasResponse.Status == DnsResponseCode.NoError
                                 && string.IsNullOrEmpty(aliasResponse.Error)) {
                                 aliasResponse.Status = DnsResponseCode.ServerFailure;
@@ -235,11 +290,16 @@ namespace DnsClientX {
                             return MergeAliasResponse(response, aliasResponse);
                         }
 
-                        if (response.IsAuthoritativeAnswer
-                            || response.Status == DnsResponseCode.NXDomain
-                            || HasNegativeSoa(response)) {
+                        if (response.IsAuthoritativeAnswer) {
                             state.ValidationSegments.Add(new RootDnsSecSegment(response, name, type, aliasOnly: false));
                             return response;
+                        }
+
+                        if (hasRequestedAnswer
+                            || aliasTarget != null
+                            || response.Status == DnsResponseCode.NXDomain
+                            || HasNegativeSoa(response)) {
+                            rejectedNonAuthoritativeTerminal = true;
                         }
 
                         Referral? candidate = FindReferral(response, name, currentBailiwick);
@@ -249,7 +309,13 @@ namespace DnsClientX {
                         }
                     }
 
+                    if (advancedMinimization) continue;
+
                     if (referral == null) {
+                        if (rejectedNonAuthoritativeTerminal) {
+                            return CreateRootFailure(name, type,
+                                "Iterative resolution rejected a non-authoritative terminal response.");
+                        }
                         return lastResponse ?? CreateRootFailure(name, type, "No authoritative server returned a usable response.");
                     }
 
@@ -278,25 +344,24 @@ namespace DnsClientX {
             RootResolutionState state,
             CancellationToken cancellationToken) {
             var addresses = new List<string>();
+            var nameServersWithGlue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (string nameServer in referral.NameServers) {
                 string[] glueAddresses = GetInBailiwickGlueAddresses(
-                    referral.BailiwickZone,
+                    referral.RespondingZone,
                     nameServer,
                     referral.Response.Additional);
                 if (glueAddresses.Length > 0) {
                     addresses.AddRange(glueAddresses);
+                    nameServersWithGlue.Add(nameServer);
                 }
             }
 
-            if (addresses.Count > 0) {
-                return addresses.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-            }
-
             foreach (string nameServer in referral.NameServers) {
+                if (nameServersWithGlue.Contains(nameServer)) {
+                    continue;
+                }
                 if (state.NameServerAddressCache.TryGetValue(nameServer, out string[]? cachedAddresses)) {
-                    if (cachedAddresses.Length > 0) {
-                        return cachedAddresses;
-                    }
+                    addresses.AddRange(cachedAddresses);
                     continue;
                 }
 
@@ -321,36 +386,38 @@ namespace DnsClientX {
                                 resolvedAddresses.Add(address.ToString());
                             }
                         }
-                        if (resolvedAddresses.Count > 0) {
-                            break;
-                        }
                     }
 
                     string[] result = resolvedAddresses
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToArray();
                     state.NameServerAddressCache[nameServer] = result;
-                    if (result.Length > 0) {
-                        return result;
-                    }
+                    addresses.AddRange(result);
                 } finally {
                     state.ActiveNameServerLookups.Remove(nameServer);
                 }
             }
 
-            return Array.Empty<string>();
+            return addresses.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         }
 
         internal static string[] GetInBailiwickGlueAddresses(
-            string zone,
+            string respondingZone,
             string nameServer,
             IEnumerable<DnsAnswer>? additional) {
-            if (!IsSubdomainOrEqual(nameServer, zone)) {
+            // RFC 9471 sibling glue can be required to break cyclic dependencies. The
+            // trust boundary is therefore the responding parent's zone, not only the
+            // delegated child. Names outside that parent zone are resolved independently.
+            if (!IsSubdomainOrEqual(nameServer, respondingZone)) {
                 return Array.Empty<string>();
             }
 
+            string canonicalNameServer = DnsWireNameCodec.Canonical(nameServer);
             return (additional ?? Array.Empty<DnsAnswer>())
-                .Where(answer => answer.Name.TrimEnd('.').Equals(nameServer, StringComparison.OrdinalIgnoreCase))
+                .Where(answer => string.Equals(
+                    DnsWireNameCodec.Canonical(answer.Name),
+                    canonicalNameServer,
+                    StringComparison.Ordinal))
                 .Where(answer => answer.Type == DnsRecordType.A || answer.Type == DnsRecordType.AAAA)
                 .Select(answer => IPAddress.TryParse(answer.Data, out IPAddress? address) ? address.ToString() : null)
                 .Where(address => address != null)
@@ -388,13 +455,14 @@ namespace DnsClientX {
                 configuration,
                 maxRetries: 1,
                 cancellationToken,
-                _udpClientPool).ConfigureAwait(false);
+                _udpClientPool,
+                configuration.EnableTcpConnectionReuse ? _streamConnectionPool : null).ConfigureAwait(false);
         }
 
         internal static Referral? FindReferral(
             DnsResponse response,
             string queryName,
-            string respondingBailiwick = "") {
+            string respondingZone = ".") {
             IGrouping<string, DnsAnswer>? group = (response.Authorities ?? Array.Empty<DnsAnswer>())
                 .Where(answer => answer.Type == DnsRecordType.NS)
                 .Where(answer => IsSubdomainOrEqual(queryName, answer.Name.TrimEnd('.')))
@@ -412,7 +480,7 @@ namespace DnsClientX {
                 .ToArray();
             return nameServers.Length == 0
                 ? null
-                : new Referral(group.Key, nameServers, response, respondingBailiwick);
+                : new Referral(group.Key, nameServers, response, respondingZone);
         }
 
         internal static string? FindAliasTarget(DnsResponse response, string queryName) {
@@ -475,11 +543,7 @@ namespace DnsClientX {
         }
 
         private static bool IsSubdomainOrEqual(string name, string parent) {
-            string normalizedName = name.TrimEnd('.');
-            string normalizedParent = parent.TrimEnd('.');
-            return normalizedParent.Length == 0
-                || normalizedName.Equals(normalizedParent, StringComparison.OrdinalIgnoreCase)
-                || normalizedName.EndsWith("." + normalizedParent, StringComparison.OrdinalIgnoreCase);
+            return DnsWireNameCodec.IsSubdomainOrEqual(name, string.IsNullOrWhiteSpace(parent) ? "." : parent);
         }
 
         private static bool IsStrictSubdomain(string name, string parent) {
@@ -492,6 +556,29 @@ namespace DnsClientX {
 
         private static int LabelCount(string name) {
             return name.Trim('.').Length == 0 ? 0 : name.Trim('.').Split('.').Length;
+        }
+
+        internal static IterativeQuestion SelectIterativeQuestion(string name, DnsRecordType type,
+            string currentBailiwick, bool enabled) {
+            string normalizedName = NormalizeIterativeName(name);
+            if (!enabled || normalizedName == ".") return new IterativeQuestion(normalizedName, type, true);
+            string normalizedBailiwick = NormalizeIterativeName(
+                string.IsNullOrWhiteSpace(currentBailiwick) ? "." : currentBailiwick);
+            if (normalizedBailiwick != "." && !IsSubdomainOrEqual(normalizedName, normalizedBailiwick)) {
+                return new IterativeQuestion(normalizedName, type, true);
+            }
+
+            string[] labels = normalizedName.Split('.');
+            int bailiwickLabels = normalizedBailiwick == "." ? 0 : LabelCount(normalizedBailiwick);
+            if (bailiwickLabels >= labels.Length) return new IterativeQuestion(normalizedName, type, true);
+            // RFC 9156 step 3: DS data belongs to the parent side of a zone cut. Once the
+            // closest known authority is exactly one label above QNAME, ask that parent the
+            // original DS question instead of following an NS referral to the child.
+            if (type == DnsRecordType.DS && bailiwickLabels + 1 == labels.Length) {
+                return new IterativeQuestion(normalizedName, type, true);
+            }
+            string minimizedName = string.Join(".", labels.Skip(labels.Length - bailiwickLabels - 1));
+            return new IterativeQuestion(minimizedName, DnsRecordType.NS, false);
         }
 
         private static DnsResponse CreateRootFailure(string name, DnsRecordType type, string error) {
@@ -513,12 +600,14 @@ namespace DnsClientX {
                 int maxHops,
                 int port,
                 bool requestDnsSec,
+                bool enableQNameMinimization,
                 Dictionary<string, string[]>? nameServerAddressCache = null,
                 HashSet<string>? activeNameServerLookups = null) {
                 RootServers = rootServers;
                 MaxHops = maxHops;
                 Port = port;
                 RequestDnsSec = requestDnsSec;
+                EnableQNameMinimization = enableQNameMinimization;
                 NameServerAddressCache = nameServerAddressCache
                     ?? new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
                 ActiveNameServerLookups = activeNameServerLookups
@@ -529,7 +618,10 @@ namespace DnsClientX {
             internal int MaxHops { get; }
             internal int Port { get; }
             internal bool RequestDnsSec { get; }
+            internal bool EnableQNameMinimization { get; }
             internal int Hops { get; set; }
+            internal int MinimizedQueryCount { get; set; }
+            internal int MinimizationFallbackCount { get; set; }
             internal HashSet<string> ActiveQueries { get; } = new(StringComparer.OrdinalIgnoreCase);
             internal HashSet<string> VisitedReferrals { get; } = new(StringComparer.OrdinalIgnoreCase);
             internal Dictionary<string, string[]> NameServerAddressCache { get; }
@@ -542,9 +634,21 @@ namespace DnsClientX {
                     MaxHops,
                     Port,
                     RequestDnsSec,
+                    EnableQNameMinimization,
                     NameServerAddressCache,
                     ActiveNameServerLookups);
             }
+        }
+
+        internal readonly struct IterativeQuestion {
+            internal IterativeQuestion(string name, DnsRecordType type, bool isFinal) {
+                Name = name;
+                Type = type;
+                IsFinal = isFinal;
+            }
+            internal string Name { get; }
+            internal DnsRecordType Type { get; }
+            internal bool IsFinal { get; }
         }
 
         private sealed class RootDnsSecSegment {
@@ -566,17 +670,17 @@ namespace DnsClientX {
                 string zone,
                 string[] nameServers,
                 DnsResponse response,
-                string bailiwickZone) {
+                string respondingZone) {
                 Zone = zone;
                 NameServers = nameServers;
                 Response = response;
-                BailiwickZone = bailiwickZone;
+                RespondingZone = string.IsNullOrWhiteSpace(respondingZone) ? "." : respondingZone;
             }
 
             internal string Zone { get; }
             internal string[] NameServers { get; }
             internal DnsResponse Response { get; }
-            internal string BailiwickZone { get; }
+            internal string RespondingZone { get; }
         }
     }
 }
