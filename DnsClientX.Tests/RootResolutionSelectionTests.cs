@@ -66,7 +66,7 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Glue is accepted only when the name server itself is inside the delegated zone.
+        /// Glue is accepted only when the name server itself is inside the responding parent's zone.
         /// </summary>
         [Fact]
         public void GetInBailiwickGlueAddresses_RejectsOutOfBailiwickData() {
@@ -77,11 +77,11 @@ namespace DnsClientX.Tests {
             ];
 
             string[] accepted = ClientX.GetInBailiwickGlueAddresses(
-                "child.example",
+                "example",
                 "ns.child.example",
                 additional);
             string[] rejected = ClientX.GetInBailiwickGlueAddresses(
-                "child.example",
+                "example",
                 "ns.external.test",
                 additional);
 
@@ -90,16 +90,16 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Root-server additional data is inside the root authority's bailiwick and can bootstrap a TLD delegation.
+        /// RFC 9471 sibling glue remains usable when it is inside the responding root zone.
         /// </summary>
         [Fact]
-        public void GetInBailiwickGlueAddresses_AcceptsRootBootstrapData() {
+        public void GetInBailiwickGlueAddresses_AcceptsRootSiblingGlue() {
             DnsAnswer[] additional = [
                 Answer("l.gtld-servers.net", DnsRecordType.A, "192.41.162.30")
             ];
 
             string[] accepted = ClientX.GetInBailiwickGlueAddresses(
-                string.Empty,
+                ".",
                 "l.gtld-servers.net",
                 additional);
 

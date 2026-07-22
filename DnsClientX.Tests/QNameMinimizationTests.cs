@@ -95,6 +95,99 @@ namespace DnsClientX.Tests {
             Assert.Equal("192.0.2.80", Assert.Single(response.Answers).DataRaw);
         }
 
+        /// <summary>Additional addresses outside a non-root parent's zone are ignored and resolved independently.</summary>
+        [Fact]
+        public async Task ResolveFromRoot_RejectsOutOfBailiwickReferralAddress() {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            int port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
+            var observed = new List<(string Name, DnsRecordType Type)>();
+            Task responder = Task.Run(async () => {
+                for (int index = 0; index < 5; index++) {
+                    UdpReceiveResult received = await ReceiveAsync(server, timeout.Token);
+                    (string name, DnsRecordType type) = ReadQuestion(received.Buffer);
+                    observed.Add((name, type));
+                    byte[] response = index switch {
+                        0 => ReferralWithAdditionalAddress(received.Buffer, "test",
+                            "ns.test", new byte[] { 127, 0, 0, 1 }),
+                        1 => ReferralWithAdditionalAddress(received.Buffer, "child.test",
+                            "ns.external.invalid", new byte[] { 192, 0, 2, 1 }),
+                        2 => Address(received.Buffer, "ns.external.invalid", new byte[] { 127, 0, 0, 1 }),
+                        3 => NoData(received.Buffer, "external.invalid"),
+                        _ => Address(received.Buffer, "www.child.test", new byte[] { 192, 0, 2, 80 })
+                    };
+                    await SendAsync(server, response, received.RemoteEndPoint, timeout.Token);
+                }
+            }, timeout.Token);
+
+            using var client = new ClientX();
+            client.EndpointConfiguration.EnableQNameMinimization = false;
+            client.EndpointConfiguration.TimeOut = 100;
+            DnsResponse response = await client.ResolveFromRoot(
+                "www.child.test", DnsRecordType.A, new[] { "127.0.0.1" },
+                maxHops: 10, port: port, cancellationToken: timeout.Token);
+            await responder;
+
+            Assert.Equal(new[] {
+                ("www.child.test", DnsRecordType.A),
+                ("www.child.test", DnsRecordType.A),
+                ("ns.external.invalid", DnsRecordType.A),
+                ("ns.external.invalid", DnsRecordType.AAAA),
+                ("www.child.test", DnsRecordType.A)
+            }, observed);
+            Assert.Equal("192.0.2.80", Assert.Single(response.Answers).DataRaw);
+        }
+
+        /// <summary>A non-authoritative matching answer cannot terminate iterative resolution.</summary>
+        [Fact]
+        public async Task ResolveFromRoot_RejectsNonAuthoritativeRequestedAnswer() {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            int port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
+            Task responder = Task.Run(async () => {
+                UdpReceiveResult received = await ReceiveAsync(server, timeout.Token);
+                byte[] response = NonAuthoritativeAddress(received.Buffer,
+                    "www.example.com", new byte[] { 192, 0, 2, 80 });
+                await SendAsync(server, response, received.RemoteEndPoint, timeout.Token);
+            }, timeout.Token);
+
+            using var client = new ClientX();
+            client.EndpointConfiguration.EnableQNameMinimization = false;
+            DnsResponse response = await client.ResolveFromRoot(
+                "www.example.com", DnsRecordType.A, new[] { "127.0.0.1" },
+                maxHops: 10, port: port, cancellationToken: timeout.Token);
+            await responder;
+
+            Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
+            Assert.Empty(response.Answers);
+            Assert.Contains("non-authoritative", response.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>A non-authoritative alias cannot redirect iterative resolution.</summary>
+        [Fact]
+        public async Task ResolveFromRoot_RejectsNonAuthoritativeAliasAnswer() {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            int port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
+            Task responder = Task.Run(async () => {
+                UdpReceiveResult received = await ReceiveAsync(server, timeout.Token);
+                byte[] response = NonAuthoritativeAlias(received.Buffer,
+                    "www.example.com", "target.example.com");
+                await SendAsync(server, response, received.RemoteEndPoint, timeout.Token);
+            }, timeout.Token);
+
+            using var client = new ClientX();
+            client.EndpointConfiguration.EnableQNameMinimization = false;
+            DnsResponse response = await client.ResolveFromRoot(
+                "www.example.com", DnsRecordType.A, new[] { "127.0.0.1" },
+                maxHops: 10, port: port, cancellationToken: timeout.Token);
+            await responder;
+
+            Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
+            Assert.Empty(response.Answers);
+            Assert.Contains("non-authoritative", response.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
         private static (string Name, DnsRecordType Type) ReadQuestion(byte[] message) {
             int offset = 12;
             string name = ReadName(message, ref offset);
@@ -115,6 +208,26 @@ namespace DnsClientX.Tests {
             foreach (string nameServer in nameServers) {
                 Resource(output, zone, DnsRecordType.NS, Name(nameServer));
             }
+            return output.ToArray();
+        }
+
+        private static byte[] ReferralWithAdditionalAddress(byte[] query, string zone,
+            string nameServer, byte[] address) {
+            using var output = HeaderAndQuestion(query, flags: 0x8000, answers: 0, authorities: 1, additional: 1);
+            Resource(output, zone, DnsRecordType.NS, Name(nameServer));
+            Resource(output, nameServer, DnsRecordType.A, address);
+            return output.ToArray();
+        }
+
+        private static byte[] NonAuthoritativeAddress(byte[] query, string owner, byte[] address) {
+            using var output = HeaderAndQuestion(query, flags: 0x8000, answers: 1, authorities: 0, additional: 0);
+            Resource(output, owner, DnsRecordType.A, address);
+            return output.ToArray();
+        }
+
+        private static byte[] NonAuthoritativeAlias(byte[] query, string owner, string target) {
+            using var output = HeaderAndQuestion(query, flags: 0x8000, answers: 1, authorities: 0, additional: 0);
+            Resource(output, owner, DnsRecordType.CNAME, Name(target));
             return output.ToArray();
         }
 

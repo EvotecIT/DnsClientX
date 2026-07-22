@@ -215,8 +215,9 @@ namespace DnsClientX {
 
             try {
                 IReadOnlyList<string> currentServers = startingServers;
-                string currentBailiwick = string.Empty;
+                string currentBailiwick = ".";
                 DnsResponse? lastResponse = null;
+                bool rejectedNonAuthoritativeTerminal = false;
                 while (state.Hops < state.MaxHops) {
                     Referral? referral = null;
                     bool advancedMinimization = false;
@@ -242,7 +243,7 @@ namespace DnsClientX {
                             }
 
                             if (response.Status == DnsResponseCode.NoError
-                                && (response.IsAuthoritativeAnswer || HasNegativeSoa(response))) {
+                                && response.IsAuthoritativeAnswer) {
                                 // An authenticated/authoritative NODATA result means there is no zone cut at
                                 // this candidate. Keep the same servers and reveal just one more label.
                                 currentBailiwick = question.Name;
@@ -264,13 +265,14 @@ namespace DnsClientX {
                             lastResponse = response;
                         }
 
-                        if (HasRequestedAnswer(response, name, type)) {
+                        bool hasRequestedAnswer = HasRequestedAnswer(response, name, type);
+                        string? aliasTarget = FindAliasTarget(response, name);
+                        if (response.IsAuthoritativeAnswer && hasRequestedAnswer) {
                             state.ValidationSegments.Add(new RootDnsSecSegment(response, name, type, aliasOnly: false));
                             return response;
                         }
 
-                        string? aliasTarget = FindAliasTarget(response, name);
-                        if (aliasTarget != null) {
+                        if (response.IsAuthoritativeAnswer && aliasTarget != null) {
                             state.ValidationSegments.Add(new RootDnsSecSegment(response, name, type, aliasOnly: true));
                             state.Hops++;
                             DnsResponse aliasResponse = await ResolveIteratively(
@@ -279,9 +281,7 @@ namespace DnsClientX {
                                 state.RootServers,
                                 state,
                                 cancellationToken).ConfigureAwait(false);
-                            if (!HasRequestedAnswer(aliasResponse, aliasTarget, type)
-                                && !aliasResponse.IsAuthoritativeAnswer
-                                && !HasNegativeSoa(aliasResponse)
+                            if (!aliasResponse.IsAuthoritativeAnswer
                                 && aliasResponse.Status == DnsResponseCode.NoError
                                 && string.IsNullOrEmpty(aliasResponse.Error)) {
                                 aliasResponse.Status = DnsResponseCode.ServerFailure;
@@ -290,11 +290,16 @@ namespace DnsClientX {
                             return MergeAliasResponse(response, aliasResponse);
                         }
 
-                        if (response.IsAuthoritativeAnswer
-                            || response.Status == DnsResponseCode.NXDomain
-                            || HasNegativeSoa(response)) {
+                        if (response.IsAuthoritativeAnswer) {
                             state.ValidationSegments.Add(new RootDnsSecSegment(response, name, type, aliasOnly: false));
                             return response;
+                        }
+
+                        if (hasRequestedAnswer
+                            || aliasTarget != null
+                            || response.Status == DnsResponseCode.NXDomain
+                            || HasNegativeSoa(response)) {
+                            rejectedNonAuthoritativeTerminal = true;
                         }
 
                         Referral? candidate = FindReferral(response, name, currentBailiwick);
@@ -307,6 +312,10 @@ namespace DnsClientX {
                     if (advancedMinimization) continue;
 
                     if (referral == null) {
+                        if (rejectedNonAuthoritativeTerminal) {
+                            return CreateRootFailure(name, type,
+                                "Iterative resolution rejected a non-authoritative terminal response.");
+                        }
                         return lastResponse ?? CreateRootFailure(name, type, "No authoritative server returned a usable response.");
                     }
 
@@ -338,7 +347,7 @@ namespace DnsClientX {
             var nameServersWithGlue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (string nameServer in referral.NameServers) {
                 string[] glueAddresses = GetInBailiwickGlueAddresses(
-                    referral.BailiwickZone,
+                    referral.RespondingZone,
                     nameServer,
                     referral.Response.Additional);
                 if (glueAddresses.Length > 0) {
@@ -393,15 +402,22 @@ namespace DnsClientX {
         }
 
         internal static string[] GetInBailiwickGlueAddresses(
-            string zone,
+            string respondingZone,
             string nameServer,
             IEnumerable<DnsAnswer>? additional) {
-            if (!IsSubdomainOrEqual(nameServer, zone)) {
+            // RFC 9471 sibling glue can be required to break cyclic dependencies. The
+            // trust boundary is therefore the responding parent's zone, not only the
+            // delegated child. Names outside that parent zone are resolved independently.
+            if (!IsSubdomainOrEqual(nameServer, respondingZone)) {
                 return Array.Empty<string>();
             }
 
+            string canonicalNameServer = DnsWireNameCodec.Canonical(nameServer);
             return (additional ?? Array.Empty<DnsAnswer>())
-                .Where(answer => answer.Name.TrimEnd('.').Equals(nameServer, StringComparison.OrdinalIgnoreCase))
+                .Where(answer => string.Equals(
+                    DnsWireNameCodec.Canonical(answer.Name),
+                    canonicalNameServer,
+                    StringComparison.Ordinal))
                 .Where(answer => answer.Type == DnsRecordType.A || answer.Type == DnsRecordType.AAAA)
                 .Select(answer => IPAddress.TryParse(answer.Data, out IPAddress? address) ? address.ToString() : null)
                 .Where(address => address != null)
@@ -446,7 +462,7 @@ namespace DnsClientX {
         internal static Referral? FindReferral(
             DnsResponse response,
             string queryName,
-            string respondingBailiwick = "") {
+            string respondingZone = ".") {
             IGrouping<string, DnsAnswer>? group = (response.Authorities ?? Array.Empty<DnsAnswer>())
                 .Where(answer => answer.Type == DnsRecordType.NS)
                 .Where(answer => IsSubdomainOrEqual(queryName, answer.Name.TrimEnd('.')))
@@ -464,7 +480,7 @@ namespace DnsClientX {
                 .ToArray();
             return nameServers.Length == 0
                 ? null
-                : new Referral(group.Key, nameServers, response, respondingBailiwick);
+                : new Referral(group.Key, nameServers, response, respondingZone);
         }
 
         internal static string? FindAliasTarget(DnsResponse response, string queryName) {
@@ -654,17 +670,17 @@ namespace DnsClientX {
                 string zone,
                 string[] nameServers,
                 DnsResponse response,
-                string bailiwickZone) {
+                string respondingZone) {
                 Zone = zone;
                 NameServers = nameServers;
                 Response = response;
-                BailiwickZone = bailiwickZone;
+                RespondingZone = string.IsNullOrWhiteSpace(respondingZone) ? "." : respondingZone;
             }
 
             internal string Zone { get; }
             internal string[] NameServers { get; }
             internal DnsResponse Response { get; }
-            internal string BailiwickZone { get; }
+            internal string RespondingZone { get; }
         }
     }
 }
