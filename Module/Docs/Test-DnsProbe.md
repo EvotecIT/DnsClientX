@@ -13,17 +13,17 @@ Runs a single DNS query against each candidate, highlights answer mismatches, ap
 ## SYNTAX
 ### DnsProvider (Default)
 ```powershell
-Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] [-DnsProvider <DnsEndpoint>] [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-RequireConsensus] [-MinConsensusPercent <int>] [-MinSuccessCount <int>] [-MinSuccessPercent <int>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] [-DnsProvider <DnsEndpoint>] [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-RequireConsensus] [-MinConsensusPercent <Int32>] [-MinSuccessCount <Int32>] [-MinSuccessPercent <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ### ResolverEndpoint
 ```powershell
-Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-RequireConsensus] [-MinConsensusPercent <int>] [-MinSuccessCount <int>] [-MinSuccessPercent <int>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-RequireConsensus] [-MinConsensusPercent <Int32>] [-MinSuccessCount <Int32>] [-MinSuccessPercent <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ### ResolverSelection
 ```powershell
-Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] -ResolverSelectionPath <string> [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-RequireConsensus] [-MinConsensusPercent <int>] [-MinSuccessCount <int>] [-MinSuccessPercent <int>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] -ResolverSelectionPath <string> [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-RequireConsensus] [-MinConsensusPercent <Int32>] [-MinSuccessCount <Int32>] [-MinSuccessPercent <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -77,7 +77,7 @@ Accept wildcard characters: False
 Require the leading answer group to reach at least this consensus percentage.
 
 ```yaml
-Type: Nullable`1
+Type: Int32
 Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
 Aliases: None
 Possible values:
@@ -93,7 +93,7 @@ Accept wildcard characters: False
 Require at least this many successful probe candidates.
 
 ```yaml
-Type: Nullable`1
+Type: Int32
 Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
 Aliases: None
 Possible values:
@@ -109,7 +109,7 @@ Accept wildcard characters: False
 Require at least this successful probe percentage across all candidates.
 
 ```yaml
-Type: Nullable`1
+Type: Int32
 Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
 Aliases: None
 Possible values:

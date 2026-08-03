@@ -13,17 +13,17 @@ Returns one object per candidate with latency, success rate, answer consistency,
 ## SYNTAX
 ### DnsProvider (Default)
 ```powershell
-Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-Attempts <int>] [-MaxConcurrency <int>] [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-MinSuccessPercent <int>] [-MinSuccessfulCandidates <int>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-Attempts <int>] [-MaxConcurrency <int>] [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-MinSuccessPercent <Int32>] [-MinSuccessfulCandidates <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ### ResolverEndpoint
 ```powershell
-Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-Attempts <int>] [-MaxConcurrency <int>] [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-MinSuccessPercent <int>] [-MinSuccessfulCandidates <int>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-Attempts <int>] [-MaxConcurrency <int>] [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-MinSuccessPercent <Int32>] [-MinSuccessfulCandidates <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ### ResolverSelection
 ```powershell
-Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] -ResolverSelectionPath <string> [-Attempts <int>] [-MaxConcurrency <int>] [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-MinSuccessPercent <int>] [-MinSuccessfulCandidates <int>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] -ResolverSelectionPath <string> [-Attempts <int>] [-MaxConcurrency <int>] [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-MinSuccessPercent <Int32>] [-MinSuccessfulCandidates <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -109,7 +109,7 @@ Accept wildcard characters: False
 Require a minimum number of healthy candidates with at least one successful query.
 
 ```yaml
-Type: Nullable`1
+Type: Int32
 Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
 Aliases: None
 Possible values:
@@ -125,7 +125,7 @@ Accept wildcard characters: False
 Require a minimum overall successful query percentage for the run to pass policy.
 
 ```yaml
-Type: Nullable`1
+Type: Int32
 Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
 Aliases: None
 Possible values:
