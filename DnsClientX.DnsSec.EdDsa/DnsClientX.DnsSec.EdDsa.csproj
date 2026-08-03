@@ -28,7 +28,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\DnsClientX\DnsClientX.csproj" />
-    <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" Pack="True" PackagePath="\" />
