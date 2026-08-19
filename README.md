@@ -122,12 +122,12 @@ If you want to learn about DNS:
   - No external dependencies
   - DoH3 and DoQ stay in the core package with no added NuGet transport dependencies
 - **.NET Standard 2.0** (Cross-platform compatibility)
-  - System.Text.Json (10.0.10)
-  - Microsoft.Bcl.AsyncInterfaces (10.0.10)
+  - System.Text.Json (10.0.11)
+  - Microsoft.Bcl.AsyncInterfaces (10.0.11)
 - **.NET Framework 4.7.2** (Windows only)
   - System.Net.Http (built-in)
-  - System.Text.Json (10.0.10)
-  - Microsoft.Bcl.AsyncInterfaces (10.0.10)
+  - System.Text.Json (10.0.11)
+  - Microsoft.Bcl.AsyncInterfaces (10.0.11)
   - Modern transports such as DoH3 and DoQ are exposed by the shared API surface but return unsupported at runtime
 
 ### Command Line Interface (DnsClientX.exe)
