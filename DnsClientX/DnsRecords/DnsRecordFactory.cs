@@ -14,52 +14,53 @@ public static class DnsRecordFactory {
     /// <param name="parseTypedTxtRecords">Whether to parse TXT records into specialized types (DMARC, SPF, etc.). When false, returns simple TXT records.</param>
     /// <returns>Typed record instance or <c>null</c> if the type is not supported.</returns>
     public static object? Create(DnsAnswer answer, bool parseTypedTxtRecords = false) {
+        string data = answer.Data;
         switch (answer.Type) {
             case DnsRecordType.A:
-                if (IPAddress.TryParse(answer.Data, out var ip4)) {
+                if (IPAddress.TryParse(data, out var ip4)) {
                     return new ARecord(ip4);
                 }
                 break;
             case DnsRecordType.AAAA:
-                if (IPAddress.TryParse(answer.Data, out var ip6)) {
+                if (IPAddress.TryParse(data, out var ip6)) {
                     return new AAAARecord(ip6);
                 }
                 break;
             case DnsRecordType.CNAME:
-                return new CNameRecord(answer.Data.TrimEnd('.'));
+                return new CNameRecord(data.TrimEnd('.'));
             case DnsRecordType.MX:
-                var parts = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var parts = data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length == 2 && int.TryParse(parts[0], out int pref)) {
                     return new MxRecord(pref, parts[1].TrimEnd('.'));
                 }
                 break;
             case DnsRecordType.NS:
-                return new NsRecord(answer.Data.TrimEnd('.'));
+                return new NsRecord(data.TrimEnd('.'));
             case DnsRecordType.PTR:
-                return new PtrRecord(answer.Data.TrimEnd('.'));
+                return new PtrRecord(data.TrimEnd('.'));
             case DnsRecordType.TXT:
             case DnsRecordType.SPF:
                 if (!parseTypedTxtRecords) {
-                    return new TxtRecord(answer.DataStrings);
+                    return new TxtRecord(data);
                 }
-                if (DmarcRecord.TryParse(answer.Data, out var dmarc)) {
+                if (DmarcRecord.TryParse(data, out var dmarc)) {
                     return dmarc;
                 }
-                if (DkimRecord.TryParse(answer.Data, out var dkim)) {
+                if (DkimRecord.TryParse(data, out var dkim)) {
                     return dkim;
                 }
-                if (SpfRecord.TryParse(answer.Data, out var spf)) {
+                if (SpfRecord.TryParse(data, out var spf)) {
                     return spf;
                 }
-                if (DomainVerificationRecord.TryParse(answer.Data, out var verify)) {
+                if (DomainVerificationRecord.TryParse(data, out var verify)) {
                     return verify;
                 }
-                if (KeyValueTxtRecord.TryParse(answer.Data, out var kv)) {
+                if (KeyValueTxtRecord.TryParse(data, out var kv)) {
                     return kv;
                 }
-                return new TxtRecord(answer.DataStrings);
+                return new TxtRecord(data);
             case DnsRecordType.SOA:
-                var soa = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var soa = data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (soa.Length == 7 &&
                     uint.TryParse(soa[2], out var serial) &&
                     uint.TryParse(soa[3], out var refresh) &&
@@ -70,7 +71,7 @@ public static class DnsRecordFactory {
                 }
                 break;
             case DnsRecordType.SRV:
-                var srv = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var srv = data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (srv.Length == 4 &&
                     ushort.TryParse(srv[0], out var prio) &&
                     ushort.TryParse(srv[1], out var weight) &&
@@ -79,7 +80,7 @@ public static class DnsRecordFactory {
                 }
                 break;
             case DnsRecordType.DNSKEY:
-                var dnskey = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var dnskey = data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (dnskey.Length >= 4 &&
                     ushort.TryParse(dnskey[0], out var flags) &&
                     byte.TryParse(dnskey[1], out var protocol) &&
@@ -88,7 +89,7 @@ public static class DnsRecordFactory {
                 }
                 break;
             case DnsRecordType.DS:
-                var ds = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var ds = data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (ds.Length >= 4 &&
                     ushort.TryParse(ds[0], out var keyTag) &&
                     Enum.TryParse<DnsKeyAlgorithm>(ds[1], true, out var dsAlg) &&
@@ -97,13 +98,13 @@ public static class DnsRecordFactory {
                 }
                 break;
             case DnsRecordType.CAA:
-                var caa = answer.Data.Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
+                var caa = data.Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
                 if (caa.Length == 3 && byte.TryParse(caa[0], out var flag)) {
                     return new CaaRecord(flag, caa[1], caa[2].Trim('"'));
                 }
                 break;
             case DnsRecordType.TLSA:
-                var tlsa = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var tlsa = data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (tlsa.Length >= 4 &&
                     byte.TryParse(tlsa[0], out var cu) &&
                     byte.TryParse(tlsa[1], out var selector) &&
@@ -112,17 +113,22 @@ public static class DnsRecordFactory {
                 }
                 break;
             case DnsRecordType.NAPTR:
-                var naptr = answer.Data.Split(new[] { ' ' }, 6, StringSplitOptions.RemoveEmptyEntries);
-                if (naptr.Length >= 6 &&
-                    ushort.TryParse(naptr[0], out var order) &&
-                    ushort.TryParse(naptr[1], out var preference)) {
-                    return new NaptrRecord(order, preference, naptr[2].Trim('"'), naptr[3].Trim('"'), naptr[4].Trim('"'), naptr[5].TrimEnd('.'));
+                var naptr = DnsPresentationFormat.Tokenize(data, out bool complete);
+                if (complete && naptr.Count == 6 &&
+                    ushort.TryParse(naptr[0].Value, out var order) &&
+                    ushort.TryParse(naptr[1].Value, out var preference)) {
+                    string replacement = naptr[5].Value;
+                    return new NaptrRecord(order, preference,
+                        DnsPresentationFormat.Unescape(naptr[2].Value),
+                        DnsPresentationFormat.Unescape(naptr[3].Value),
+                        DnsPresentationFormat.Unescape(naptr[4].Value),
+                        replacement == "." ? "." : replacement.TrimEnd('.'));
                 }
                 break;
             case DnsRecordType.DNAME:
-                return new DnameRecord(answer.Data.TrimEnd('.'));
+                return new DnameRecord(data.TrimEnd('.'));
             case DnsRecordType.LOC:
-                var loc = answer.Data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var loc = data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (loc.Length >= 12 &&
                     int.TryParse(loc[0], out var latDeg) &&
                     int.TryParse(loc[1], out var latMin) &&
@@ -142,8 +148,8 @@ public static class DnsRecordFactory {
                 }
                 break;
             default:
-                return new UnknownRecord(answer.Data);
+                return new UnknownRecord(data);
         }
-        return new UnknownRecord(answer.Data);
+        return new UnknownRecord(data);
     }
 }

@@ -33,6 +33,15 @@ namespace DnsClientX.Tests {
             Assert.Equal("www.google.com", answer.Data);
         }
 
+        /// <summary>Presentation names that happen to be Base64 must not be decoded as opaque bytes.</summary>
+        [Theory]
+        [InlineData("mail", "mail")]
+        [InlineData("MAIL.", "mail")]
+        [InlineData(".", ".")]
+        public void PtrPresentationIsNotGuessedAsBase64(string raw, string expected) {
+            Assert.Equal(expected, new DnsAnswer { Type = DnsRecordType.PTR, DataRaw = raw }.Data);
+        }
+
         /// <summary>
         /// Tests parsing of base64 encoded NAPTR record data.
         /// </summary>
@@ -55,4 +64,3 @@ namespace DnsClientX.Tests {
         }
     }
 }
-

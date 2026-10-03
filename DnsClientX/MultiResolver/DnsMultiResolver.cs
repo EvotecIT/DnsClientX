@@ -329,6 +329,8 @@ namespace DnsClientX {
                 }
             } catch (OperationCanceledException oce) when (!ct.IsCancellationRequested) {
                 response = MakeError(ep, name, type, DnsQueryErrorCode.Timeout, oce.Message, oce);
+            } catch (OperationCanceledException) {
+                throw;
             } catch (SocketException se) {
                 response = MakeError(ep, name, type, DnsQueryErrorCode.Network, se.Message, se);
             } catch (DnsClientException dce) {
@@ -352,7 +354,8 @@ namespace DnsClientX {
 
         private static void StampResponse(DnsResolverEndpoint ep, DnsResponse response, TimeSpan rtt) {
             if (response == null) return;
-            response.UsedTransport = ep.Transport;
+            // The core has already recorded actual transport, including UDP-to-TCP fallback.
+            if (string.IsNullOrEmpty(response.ServerAddress)) response.UsedTransport = ep.Transport;
             response.UsedEndpoint = ep;
             response.RoundTripTime = rtt;
             response.ComputeTtlMetrics();

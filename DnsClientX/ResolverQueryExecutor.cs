@@ -138,6 +138,8 @@ namespace DnsClientX {
                     Response = response,
                     Elapsed = response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : stopwatch.Elapsed
                 };
+            } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                throw;
             } catch (Exception ex) {
                 stopwatch.Stop();
                 return new ResolverQueryAttemptResult {

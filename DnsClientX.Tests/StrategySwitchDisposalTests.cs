@@ -64,7 +64,7 @@ public class StrategySwitchDisposalTests {
             var advance = typeof(Configuration).GetMethod("AdvanceToNextHostname", BindingFlags.NonPublic | BindingFlags.Instance)!;
 
             Configuration firstConfiguration = client.EndpointConfiguration.CreateQuerySnapshot();
-            var firstClient = (HttpClient)getClient.Invoke(client, new object[] { firstConfiguration })!;
+            var firstClient = (HttpClient)getClient.Invoke(client, new object?[] { firstConfiguration, null })!;
             Uri? firstBaseAddress = firstClient.BaseAddress;
             string? firstHostname = client.EndpointConfiguration.Hostname;
 
@@ -74,7 +74,7 @@ public class StrategySwitchDisposalTests {
             Assert.NotEqual(firstHostname, client.EndpointConfiguration.Hostname);
 
             Configuration secondConfiguration = client.EndpointConfiguration.CreateQuerySnapshot();
-            var secondClient = (HttpClient)getClient.Invoke(client, new object[] { secondConfiguration })!;
+            var secondClient = (HttpClient)getClient.Invoke(client, new object?[] { secondConfiguration, null })!;
 
             Assert.Same(firstClient, secondClient);
             Assert.Equal(firstBaseAddress, secondClient.BaseAddress);

@@ -99,6 +99,22 @@ namespace DnsClientX.Tests {
             Assert.Equal(DnsRequestFormat.DnsOverUDP, snapshot.RequestFormat);
         }
 
+        /// <summary>Failover walks the effective NRPT resolver set independently of the base resolver count.</summary>
+        [Fact]
+        public void PolicyFailoverCyclesEveryRuleResolverWithOneBaseResolver() {
+            var rule = new SystemDnsPolicyRule("route", SystemDnsPolicySource.Local,
+                new[] { ".corp.example" }, new[] { "192.0.2.10", "192.0.2.11" },
+                dnsSecValidationRequired: false, isSupported: true, diagnostic: null);
+            SystemInformation.SetDnsPolicyProvider(() => new SystemDnsPolicyDiscoveryResult(new[] { rule }));
+            var endpoint = new Configuration(DnsEndpoint.System, DnsSelectionStrategy.Failover);
+            Assert.Equal("192.0.2.10", endpoint.CreateQuerySnapshot("host.corp.example").Hostname);
+            endpoint.AdvanceToNextHostname();
+            Assert.Equal("192.0.2.11", endpoint.CreateQuerySnapshot("host.corp.example").Hostname);
+            endpoint.AdvanceToNextHostname();
+            Assert.Equal("192.0.2.10", endpoint.CreateQuerySnapshot("host.corp.example").Hostname);
+            Assert.Equal("192.0.2.53", endpoint.CreateQuerySnapshot("outside.example").Hostname);
+        }
+
         /// <summary>DirectAccess behavior is surfaced instead of being simulated.</summary>
         [Fact]
         public void DirectAccessRuleIsReportedUnsupported() {

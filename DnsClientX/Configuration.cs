@@ -31,6 +31,7 @@ namespace DnsClientX {
         private readonly object selectionLock = new();
         private string? baseUriFormat;
         private int hostnameIndex;
+        private uint policyHostnameIndex;
 
         internal IReadOnlyList<string> Hostnames => hostnames;
 
@@ -373,6 +374,8 @@ namespace DnsClientX {
 
         internal void AdvanceToNextHostname() {
             lock (selectionLock) {
+                // Policy routes may have several resolvers even when the base list has one.
+                policyHostnameIndex++;
                 if (hostnames.Count <= 1) {
                     return;
                 }
@@ -499,7 +502,7 @@ namespace DnsClientX {
 #endif
                     break;
                 case DnsSelectionStrategy.Failover:
-                    selectedIndex = hostnameIndex % nameServers.Count;
+                    selectedIndex = (int)(policyHostnameIndex % (uint)nameServers.Count);
                     break;
                 default:
                     selectedIndex = 0;

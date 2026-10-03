@@ -1,0 +1,147 @@
+#if NET8_0_OR_GREATER
+using System.Net;
+using System.Net.Security;
+using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+
+namespace DnsClientX.Tests;
+
+/// <summary>Exercises certificate policy through real TLS connections and the shared response cache.</summary>
+[Collection("NoParallel")]
+public sealed class CertificatePolicyBoundaryTests {
+    /// <summary>Policy changes must govern subsequent requests, including previously pooled connections.</summary>
+    [Fact]
+    public async Task ChangingPolicyCannotPopulateOrReadStrictCacheWithUnauthenticatedData() {
+        ClientX.ResetResponseCacheForTests();
+        await using var server = new UntrustedHttpsServer();
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        using var client = new ClientX(server.Configuration(), ignoreCertificateErrors: true, enableCache: true);
+        client.IgnoreCertificateErrors = false;
+        var rejected = await client.Resolve("tls-policy.example", retryOnTransient: false, cancellationToken: deadline.Token);
+        Assert.Equal(DnsResponseCode.ServerFailure, rejected.Status);
+        Assert.Empty(rejected.Answers);
+
+        using var strictReader = new ClientX(server.Configuration(), enableCache: true);
+        var separate = await strictReader.Resolve("tls-policy.example", retryOnTransient: false, cancellationToken: deadline.Token);
+        Assert.Equal(DnsResponseCode.ServerFailure, separate.Status);
+        Assert.False(separate.ServedFromCache);
+        Assert.Equal(0, server.RequestCount);
+
+        client.IgnoreCertificateErrors = true;
+        var accepted = await client.Resolve("tls-policy.example", retryOnTransient: false, cancellationToken: deadline.Token);
+        Assert.Equal(DnsResponseCode.NoError, accepted.Status);
+        Assert.Equal("192.0.2.99", Assert.Single(accepted.Answers).Data);
+        Assert.Equal(1, server.RequestCount);
+        client.IgnoreCertificateErrors = false;
+        var afterConnectionReuse = await client.Resolve("tls-policy.example", retryOnTransient: false, cancellationToken: deadline.Token);
+        Assert.Equal(DnsResponseCode.ServerFailure, afterConnectionReuse.Status);
+        Assert.False(afterConnectionReuse.ServedFromCache);
+        Assert.Equal(1, server.RequestCount);
+        ClientX.ResetResponseCacheForTests();
+    }
+
+    /// <summary>A strict query cannot join a permissive flight, and changing policy cannot retire an active request.</summary>
+    [Fact]
+    public async Task InflightOperationRetainsItsPolicyWithoutSharingAcrossPolicies() {
+        ClientX.ResetResponseCacheForTests();
+        await using var server = new UntrustedHttpsServer(gated: true);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        using var client = new ClientX(server.Configuration(), ignoreCertificateErrors: true, enableCache: true);
+        Task<DnsResponse> permissive = client.Resolve("tls-flight.example", retryOnTransient: false, cancellationToken: deadline.Token);
+        await server.Entered.WaitAsync(deadline.Token);
+        client.IgnoreCertificateErrors = false;
+        DnsResponse strict;
+        try {
+            strict = await client.Resolve("tls-flight.example", retryOnTransient: false, cancellationToken: deadline.Token);
+        } finally {
+            server.Release();
+        }
+        Assert.Equal(DnsResponseCode.ServerFailure, strict.Status);
+        Assert.Equal(DnsResponseCode.NoError, (await permissive).Status);
+        using var reader = new ClientX(server.Configuration(), enableCache: true);
+        var cached = await reader.Resolve("tls-flight.example", retryOnTransient: false, cancellationToken: deadline.Token);
+        Assert.Equal(DnsResponseCode.ServerFailure, cached.Status);
+        Assert.False(cached.ServedFromCache);
+        Assert.Equal(1, server.RequestCount);
+        ClientX.ResetResponseCacheForTests();
+    }
+
+    private sealed class UntrustedHttpsServer : IAsyncDisposable {
+        private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
+        private readonly CancellationTokenSource _stop = new();
+        private readonly RSA _key = RSA.Create(2048);
+        private readonly X509Certificate2 _certificate;
+        private readonly List<Task> _connections = new();
+        private readonly Task _accept;
+        private readonly TaskCompletionSource<bool> _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<bool> _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _requestCount;
+
+        internal UntrustedHttpsServer(bool gated = false) {
+            var request = new CertificateRequest("CN=untrusted.invalid", _key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            _certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddHours(1));
+            _listener.Start();
+            if (!gated) Release();
+            _accept = AcceptAsync();
+        }
+
+        internal int RequestCount => Volatile.Read(ref _requestCount);
+        internal Task Entered => _entered.Task;
+        internal void Release() => _release.TrySetResult(true);
+        internal Configuration Configuration() => new(new Uri($"https://localhost:{((IPEndPoint)_listener.LocalEndpoint).Port}/resolve"), DnsRequestFormat.DnsOverHttpsJSON) {
+            HttpVersion = HttpVersion.Version11, TimeOut = 3000
+        };
+
+        private async Task AcceptAsync() {
+            try {
+                while (!_stop.IsCancellationRequested) {
+                    TcpClient peer = await _listener.AcceptTcpClientAsync(_stop.Token);
+                    _connections.Add(RespondAsync(peer));
+                }
+            } catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
+              catch (SocketException) when (_stop.IsCancellationRequested) { }
+        }
+
+        private async Task RespondAsync(TcpClient peer) {
+            using (peer)
+            using (var tls = new SslStream(peer.GetStream())) {
+                try {
+                    await tls.AuthenticateAsServerAsync(new SslServerAuthenticationOptions {
+                        ServerCertificate = _certificate, EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+                    }, _stop.Token);
+                    using var reader = new StreamReader(tls, Encoding.ASCII, false, 1024, leaveOpen: true);
+                    while (!_stop.IsCancellationRequested) {
+                        string? request = await reader.ReadLineAsync(_stop.Token);
+                        if (request == null) return;
+                        while (!string.IsNullOrEmpty(await reader.ReadLineAsync(_stop.Token))) { }
+                        Interlocked.Increment(ref _requestCount);
+                        _entered.TrySetResult(true);
+                        await _release.Task.WaitAsync(_stop.Token);
+                        const string json = "{\"Status\":0,\"Answer\":[{\"name\":\"tls-policy.example.\",\"type\":1,\"TTL\":60,\"data\":\"192.0.2.99\"}]}";
+                        byte[] body = Encoding.UTF8.GetBytes(json);
+                        byte[] header = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/dns-json\r\nContent-Length: {body.Length}\r\n\r\n");
+                        await tls.WriteAsync(header, _stop.Token);
+                        await tls.WriteAsync(body, _stop.Token);
+                        await tls.FlushAsync(_stop.Token);
+                    }
+                } catch (AuthenticationException) { }
+                  catch (IOException) { }
+                  catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
+            }
+        }
+
+        public async ValueTask DisposeAsync() {
+            _stop.Cancel();
+            _listener.Stop();
+            await _accept;
+            await Task.WhenAll(_connections);
+            _certificate.Dispose();
+            _key.Dispose();
+            _stop.Dispose();
+        }
+    }
+}
+#endif

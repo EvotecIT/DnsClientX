@@ -115,6 +115,8 @@ If you want to learn about DNS:
 > [!NOTE]
 > DnsClientX normalizes presentation details such as trailing dots and TXT character-string concatenation, but preserves DNS resource-record boundaries. Resolver answers can legitimately differ because of cache state, anycast location, ECS, filtering policy, or propagation; comparison code should not assume every resolver returns an identical RRset at the same instant.
 
+For TXT and SPF records, `DataRaw` retains the server's presentation, `DataStrings` retains its quoted character-strings, and `DataStringsEscaped` exposes the decoded strings. `Data` and `TxtRecord.Text` concatenate those decoded strings within the same resource record. Spaces, empty chunks, escaped quotes, and payload line breaks are preserved. Use `TxtConcatenatedData` when you deliberately want display output with line breaks removed. Opaque and application record payloads retain their case.
+
 ## Supported .NET Versions and Dependencies
 
 ### Core Library (DnsClientX)

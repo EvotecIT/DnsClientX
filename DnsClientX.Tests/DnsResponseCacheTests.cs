@@ -68,6 +68,28 @@ namespace DnsClientX.Tests {
             Assert.False(cache.TryGet("b", out _));
         }
 
+        /// <summary>Repeated sub-capacity expiration must release retained key bookkeeping.</summary>
+        [Fact]
+        public async Task ExpirationBoundsAllCacheStorage() {
+            using var cache = new DnsResponseCache(TimeSpan.FromHours(1), cleanupThreshold: 16);
+            var response = new DnsResponse { Status = DnsResponseCode.NoError };
+            for (int batch = 0; batch < 4; batch++) {
+                for (int item = 0; item < 8; item++) cache.Set($"{batch}:{item}", response, TimeSpan.FromMilliseconds(1));
+                await Task.Delay(30);
+                cache.Cleanup();
+            }
+            Assert.Equal(0, StorageCount(cache, "_cache"));
+            Assert.Equal(0, StorageCount(cache, "_insertionOrder"));
+            Parallel.For(0, 1000, item => cache.Set((item % 100).ToString(), response, TimeSpan.FromMinutes(1)));
+            Assert.InRange(StorageCount(cache, "_cache"), 1, 16);
+            Assert.Equal(StorageCount(cache, "_cache"), StorageCount(cache, "_insertionOrder"));
+        }
+
+        private static int StorageCount(DnsResponseCache cache, string field) {
+            object storage = typeof(DnsResponseCache).GetField(field, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(cache)!;
+            return (int)storage.GetType().GetProperty("Count")!.GetValue(storage)!;
+        }
+
         /// <summary>
         /// Verifies that constructing <see cref="ClientX"/> with caching enabled sets the property.
         /// </summary>

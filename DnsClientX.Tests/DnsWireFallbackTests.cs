@@ -107,5 +107,23 @@ namespace DnsClientX.Tests {
             Assert.True(response.IsTruncated);
             Assert.Equal(Transport.Udp, response.UsedTransport);
         }
+
+        /// <summary>Endpoint metadata cannot overwrite the transport that supplied a fallback answer.</summary>
+        [Fact]
+        public async Task MultiResolverPreservesActualTcpFallbackTransport() {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            Task udp = RunUdpServerAsync(port, truncated: true, cts.Token);
+            Task tcp = RunTcpServerAsync(listener, () => { }, cts.Token);
+            var endpoint = new DnsResolverEndpoint { Host = "127.0.0.1", Port = port, Transport = Transport.Udp };
+            using var resolver = new DnsMultiResolver(new[] { endpoint });
+            DnsResponse response = await resolver.QueryAsync("example.com", DnsRecordType.A, cts.Token);
+            await Task.WhenAll(udp, tcp);
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.Equal(Transport.Tcp, response.UsedTransport);
+            Assert.Same(endpoint, response.UsedEndpoint);
+        }
     }
 }

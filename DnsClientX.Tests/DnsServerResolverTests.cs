@@ -39,6 +39,42 @@ namespace DnsClientX.Tests {
             Assert.Equal(IPAddress.Parse("8.8.8.8"), address);
         }
 
+        /// <summary>Stale reuse must not escape its caller policy or extend its original expiry.</summary>
+        [Fact]
+        public async Task StaleResultsRespectPolicyAndOriginalLifetime() {
+            DnsServerResolver.ResolveHostAddressesAsync = _ => Task.FromResult(new[] { IPAddress.Loopback });
+            await DnsServerResolver.ResolveAsync("stale-policy.local", 1000, CancellationToken.None,
+                successTtl: TimeSpan.Zero, failureTtl: TimeSpan.FromSeconds(10), staleTtl: TimeSpan.FromMilliseconds(150));
+            DnsServerResolver.ResolveHostAddressesAsync = _ => throw new InvalidOperationException("resolver failure");
+            var allowed = await DnsServerResolver.ResolveAsync("stale-policy.local", 1000, CancellationToken.None,
+                successTtl: TimeSpan.Zero, failureTtl: TimeSpan.FromSeconds(10), staleTtl: TimeSpan.FromMilliseconds(150));
+            var forbidden = await DnsServerResolver.ResolveAsync("stale-policy.local", 1000, CancellationToken.None,
+                successTtl: TimeSpan.Zero, failureTtl: TimeSpan.FromSeconds(10), allowStale: false, staleTtl: TimeSpan.FromMilliseconds(150));
+            Assert.Equal(IPAddress.Loopback, allowed.Address);
+            Assert.Null(allowed.Error);
+            Assert.Null(forbidden.Address);
+            Assert.NotNull(forbidden.Error);
+            await Task.Delay(200);
+            var expired = await DnsServerResolver.ResolveAsync("stale-policy.local", 1000, CancellationToken.None,
+                successTtl: TimeSpan.Zero, failureTtl: TimeSpan.FromSeconds(10), staleTtl: TimeSpan.FromMilliseconds(150));
+            Assert.Null(expired.Address);
+            Assert.NotNull(expired.Error);
+        }
+
+        /// <summary>Different TTL policies cannot reuse a long-lived entry or in-flight lookup.</summary>
+        [Fact]
+        public async Task HostnameCacheSeparatesTtlPolicies() {
+            int calls = 0;
+            DnsServerResolver.ResolveHostAddressesAsync = _ => {
+                Interlocked.Increment(ref calls);
+                return Task.FromResult(new[] { IPAddress.Loopback });
+            };
+            await DnsServerResolver.ResolveAsync("ttl-policy.local", 1000, CancellationToken.None, successTtl: TimeSpan.FromMinutes(1));
+            await DnsServerResolver.ResolveAsync("ttl-policy.local", 1000, CancellationToken.None, successTtl: TimeSpan.Zero);
+            await DnsServerResolver.ResolveAsync("ttl-policy.local", 1000, CancellationToken.None, successTtl: TimeSpan.Zero);
+            Assert.Equal(3, calls);
+        }
+
         /// <summary>
         /// Ensures empty hostnames yield a validation error.
         /// </summary>

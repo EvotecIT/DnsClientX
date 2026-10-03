@@ -63,11 +63,12 @@ namespace DnsClientX {
                 return (parsed, null);
             }
 
-            string cacheKey = $"{preferredAddressFamily?.ToString() ?? "Any"}|{dnsServer}";
             var now = DateTimeOffset.UtcNow;
             var successCacheTtl = successTtl ?? DefaultSuccessTtl;
             var failureCacheTtl = failureTtl ?? DefaultFailureTtl;
             var staleCacheTtl = staleTtl ?? DefaultStaleTtl;
+            // Shared entries and flights may be reused only under equivalent caller policies.
+            string cacheKey = FormattableString.Invariant($"{preferredAddressFamily?.ToString() ?? "Any"}|{dnsServer}|{timeoutMilliseconds}|{successCacheTtl.Ticks}|{failureCacheTtl.Ticks}|{allowStale}|{staleCacheTtl.Ticks}|{failureBackoffEnabled}|{failureBackoffFactor:R}|{failureBackoffMaxTtl?.Ticks}");
             CacheEntry? cached = null;
             var hasStale = false;
 
@@ -81,7 +82,11 @@ namespace DnsClientX {
                         now,
                         cached.FailureCount);
                     Cache[cacheKey] = refreshed;
-                    return (refreshed.Address, refreshed.Error);
+                    if (refreshed.Error != null) {
+                        return allowStale && refreshed.Address != null && refreshed.StaleUntil > now
+                            ? (refreshed.Address, null) : (null, refreshed.Error);
+                    }
+                    return (refreshed.Address, null);
                 }
                 hasStale = allowStale && cached.Address != null && cached.StaleUntil > now;
             }
@@ -146,9 +151,9 @@ namespace DnsClientX {
                         failureCount++;
                         var failureExpiry = GetFailureExpiry(now, failureCacheTtl, failureBackoffEnabled, failureBackoffFactor, failureBackoffMaxTtl, failureCount);
                         if (hasStale && cached != null) {
-                            Cache[cacheKey] = new CacheEntry(cached.Address, error, failureExpiry, now.Add(staleCacheTtl), now, failureCount);
+                            Cache[cacheKey] = new CacheEntry(cached.Address, error, failureExpiry, cached.StaleUntil, now, failureCount);
                             TrimCache(now);
-                            return new CacheEntry(cached.Address, null, failureExpiry, now.Add(staleCacheTtl), now, failureCount);
+                            return new CacheEntry(cached.Address, null, failureExpiry, cached.StaleUntil, now, failureCount);
                         }
                         Cache[cacheKey] = new CacheEntry(null, error, failureExpiry, failureExpiry, now, failureCount);
                         TrimCache(now);
@@ -163,9 +168,9 @@ namespace DnsClientX {
                     failureCount++;
                     var failureExpiry = GetFailureExpiry(now, failureCacheTtl, failureBackoffEnabled, failureBackoffFactor, failureBackoffMaxTtl, failureCount);
                     if (hasStale && cached != null) {
-                        Cache[cacheKey] = new CacheEntry(cached.Address, error, failureExpiry, now.Add(staleCacheTtl), now, failureCount);
+                        Cache[cacheKey] = new CacheEntry(cached.Address, error, failureExpiry, cached.StaleUntil, now, failureCount);
                         TrimCache(now);
-                        return new CacheEntry(cached.Address, null, failureExpiry, now.Add(staleCacheTtl), now, failureCount);
+                        return new CacheEntry(cached.Address, null, failureExpiry, cached.StaleUntil, now, failureCount);
                     }
                     Cache[cacheKey] = new CacheEntry(null, error, failureExpiry, failureExpiry, now, failureCount);
                     TrimCache(now);
@@ -199,9 +204,9 @@ namespace DnsClientX {
                 failureCount++;
                 var failureExpiry = GetFailureExpiry(now, failureCacheTtl, failureBackoffEnabled, failureBackoffFactor, failureBackoffMaxTtl, failureCount);
                 if (hasStale && cached != null) {
-                    Cache[cacheKey] = new CacheEntry(cached.Address, ex.Message, failureExpiry, now.Add(staleCacheTtl), now, failureCount);
+                    Cache[cacheKey] = new CacheEntry(cached.Address, ex.Message, failureExpiry, cached.StaleUntil, now, failureCount);
                     TrimCache(now);
-                    return new CacheEntry(cached.Address, null, failureExpiry, now.Add(staleCacheTtl), now, failureCount);
+                    return new CacheEntry(cached.Address, null, failureExpiry, cached.StaleUntil, now, failureCount);
                 }
                 Cache[cacheKey] = new CacheEntry(null, ex.Message, failureExpiry, failureExpiry, now, failureCount);
                 TrimCache(now);

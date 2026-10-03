@@ -84,8 +84,9 @@ namespace DnsClientX {
             }
         }
 
-        private async Task<DnsResponse> ResolveInternal(string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool returnAllTypes, int maxRetries, int retryDelayMs, bool typedRecords, bool parseTypedTxtRecords, CancellationToken cancellationToken, bool dnsSecMaterialQuery = false, Configuration? queryConfigurationOverride = null, bool bypassSingleFlight = false, bool suppressAudit = false) {
+        private async Task<DnsResponse> ResolveInternal(string name, DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool returnAllTypes, int maxRetries, int retryDelayMs, bool typedRecords, bool parseTypedTxtRecords, CancellationToken cancellationToken, bool dnsSecMaterialQuery = false, Configuration? queryConfigurationOverride = null, bool bypassSingleFlight = false, bool suppressAudit = false, bool? certificatePolicy = null) {
             cancellationToken.ThrowIfCancellationRequested();
+            bool ignoreCertificateErrors = certificatePolicy ?? IgnoreCertificateErrors;
 
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name), "Name is null or empty.");
             string inputName = name;
@@ -131,7 +132,7 @@ namespace DnsClientX {
                 if (!dnsSecMaterialQuery && _cacheEnabled) {
                     cacheKey = DnsCacheKeyBuilder.Build(queryConfiguration, name, type, requestDnsSec,
                         validateDnsSec, returnAllTypes, typedRecords, parseTypedTxtRecords, MaxCacheTtl,
-                        IgnoreCertificateErrors);
+                        ignoreCertificateErrors);
                     if (_cache.TryGet(cacheKey, out var cached)) {
                         cached.ResponseSource = DnsResponseSource.Cache;
                         FinalizeAuditEntry(auditEntry, cached, stopwatch, servedFromCache: true);
@@ -144,7 +145,7 @@ namespace DnsClientX {
                         () => ResolveInternal(inputName, type, requestDnsSec, validateDnsSec, returnAllTypes,
                             maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords,
                             CancellationToken.None, dnsSecMaterialQuery, queryConfiguration,
-                            bypassSingleFlight: true, suppressAudit: true),
+                            bypassSingleFlight: true, suppressAudit: true, certificatePolicy: ignoreCertificateErrors),
                         LazyThreadSafetyMode.ExecutionAndPublication);
                     Lazy<Task<DnsResponse>> flight = _cacheInflight.GetOrAdd(cacheKey, candidate);
                     bool ownsFlight = ReferenceEquals(candidate, flight);
@@ -183,27 +184,29 @@ namespace DnsClientX {
                 } else {
                     // Get the HTTP client only for transports that can use it. Root iteration stays
                     // entirely on the shared wire engine and does not allocate an unused handler.
-                    HttpClient queryClient = GetClient(queryConfiguration);
+                    HttpClient? queryClient = IsHttpBasedTransport(queryConfiguration.RequestFormat)
+                        && queryConfiguration.RequestFormat != DnsRequestFormat.DnsOverGrpc
+                        ? GetClient(queryConfiguration, ignoreCertificateErrors) : null;
                     if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
                     response = wireValidationQuery
-                        ? await queryClient.ResolveWireFormatGet(name, type, requestDnsSec, true, Debug, queryConfiguration, cancellationToken, useStandardDnsQueryPath: true).ConfigureAwait(false)
-                        : await queryClient.ResolveJsonFormat(name, type, requestDnsSec, false, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                        ? await queryClient!.ResolveWireFormatGet(name, type, requestDnsSec, true, Debug, queryConfiguration, cancellationToken, useStandardDnsQueryPath: true).ConfigureAwait(false)
+                        : await queryClient!.ResolveJsonFormat(name, type, requestDnsSec, false, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps) {
-                    response = await queryClient.ResolveWireFormatGet(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                    response = await queryClient!.ResolveWireFormatGet(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST ||
                            queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsWirePost) {
-                    response = await queryClient.ResolveWireFormatPost(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                    response = await queryClient!.ResolveWireFormatPost(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
                     response = wireValidationQuery
-                        ? await queryClient.ResolveWireFormatGet(name, type, requestDnsSec, true, Debug, queryConfiguration, cancellationToken, useStandardDnsQueryPath: true).ConfigureAwait(false)
-                        : await queryClient.ResolveJsonFormatPost(name, type, requestDnsSec, false, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                        ? await queryClient!.ResolveWireFormatGet(name, type, requestDnsSec, true, Debug, queryConfiguration, cancellationToken, useStandardDnsQueryPath: true).ConfigureAwait(false)
+                        : await queryClient!.ResolveJsonFormatPost(name, type, requestDnsSec, false, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.ObliviousDnsOverHttps) {
                     throw new NotSupportedException("Oblivious DNS-over-HTTPS requires HPKE encapsulation and is not implemented by the dependency-free core package.");
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp2) {
-                    response = await queryClient.ResolveWireFormatHttp2(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                    response = await queryClient!.ResolveWireFormatHttp2(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp3) {
 #if NET8_0_OR_GREATER
-                    response = await queryClient.ResolveWireFormatHttp3(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                    response = await queryClient!.ResolveWireFormatHttp3(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
 #else
                     throw new DnsClientException("DNS over HTTP/3 is not supported on this platform.");
 #endif
@@ -214,7 +217,7 @@ namespace DnsClientX {
                     throw new DnsClientException("DNS over gRPC is not supported on this platform.");
 #endif
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
-                    response = await DnsWireResolveDot.ResolveWireFormatDoT(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, IgnoreCertificateErrors, cancellationToken,
+                    response = await DnsWireResolveDot.ResolveWireFormatDoT(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, ignoreCertificateErrors, cancellationToken,
                         queryConfiguration.EnableTcpConnectionReuse ? _streamConnectionPool : null).ConfigureAwait(false);
                 } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverQuic) {
 #if NET8_0_OR_GREATER
@@ -252,7 +255,7 @@ namespace DnsClientX {
                         ResolveInternal(materialName, materialType, requestDnsSec: true, validateDnsSec: false,
                             returnAllTypes: true, maxRetries: 1, retryDelayMs: retryDelayMs,
                             typedRecords: false, parseTypedTxtRecords: false, cancellationToken: token,
-                            dnsSecMaterialQuery: true),
+                            dnsSecMaterialQuery: true, certificatePolicy: ignoreCertificateErrors),
                         trustAnchorStorePath: queryConfiguration.Rfc5011TrustAnchorStorePath,
                         signatureVerifier: queryConfiguration.DnsSecSignatureVerifier);
                     DnsSecValidationResult validation = await validator.ValidateAsync(response, name, type, cancellationToken).ConfigureAwait(false);
