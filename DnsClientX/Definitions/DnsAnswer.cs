@@ -152,25 +152,11 @@ namespace DnsClientX {
         }
 
         private string ConvertCaaRecord() {
-            // This is a CAA record. Cloudflare returns the data in HEX, so we need to convert it to text.
-            // Other providers don't do this.
             if (DataRaw.StartsWith("\\#", StringComparison.Ordinal)) {
-                var parts = DataRaw.Split(' ')
-                    .Where(part => !string.IsNullOrEmpty(part))
-                    .Select(part => part.Trim())
-                    .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]+\b\Z", RegexOptions.CultureInvariant))
-                    .Select(part => Convert.ToByte(part, 16))
-                    .ToArray();
-
-                // Get the tag length from the third byte
-                int tagLength = parts[2];
-                // Get the tag
-                var tag = Encoding.UTF8.GetString(parts.Skip(3).Take(tagLength).ToArray());
-                // Get the value
-                var valueBytes = parts.Skip(3 + tagLength).ToArray();
-                var value = Encoding.UTF8.GetString(valueBytes);
-
-                return $"0 {tag} \"{value}\"";
+                if (!DnsPresentationFormat.TryDecodeRfc3597(DataRaw, out byte[] rdata)) return DataRaw;
+                try {
+                    return DnsWireRecordFormatter.Format(rdata, DnsRecordType.CAA, 0, (ushort)rdata.Length);
+                } catch (DnsClientException) { return DataRaw; }
             }
 
             return DataRaw;
@@ -240,40 +226,20 @@ namespace DnsClientX {
         }
 
         private string ConvertTlsaRecord() {
-            // This is a TLSA record. The data is in HEX.
-            // The data is in the format: 3 1 1 2b6e0f
-            // The first byte is the certificate usage, the second byte is the selector, the third byte is the matching type, and the rest is the certificate association data
             byte[] parts;
             if (DataRaw.StartsWith("\\#", StringComparison.Ordinal)) {
-                // Handle hexadecimal format
-                parts = DataRaw.Split(' ')
-                    .Skip(2) // Skip the first two parts
-                    .Where(part => !string.IsNullOrEmpty(part))
-                    .Select(part => part.Trim())
-                    .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]+\b\Z", RegexOptions.CultureInvariant))
-                    .Select(part => Convert.ToByte(part, 16)) // Convert from hexadecimal to byte
-                    .ToArray();
+                if (!DnsPresentationFormat.TryDecodeRfc3597(DataRaw, out parts)) return DataRaw;
             } else if (Regex.IsMatch(DataRaw, @"^\d+ \d+ \d+ [\da-fA-F]+$", RegexOptions.CultureInvariant)) {
-                // If the DataRaw string is already in the correct format, return it as it is
-                return DataRaw;
+                return DataRaw.ToUpperInvariant();
             } else {
-                // Handle Base64 format
-                if (string.IsNullOrEmpty(DataRaw)) {
-                    return DataRaw;
-                }
-                parts = Convert.FromBase64String(DataRaw);
+                if (string.IsNullOrEmpty(DataRaw)) return DataRaw;
+                try { parts = Convert.FromBase64String(DataRaw); }
+                catch (FormatException) { return DataRaw; }
             }
-
-            // Get the certificate usage
-            var certificateUsage = parts[0];
-            // Get the selector
-            var selector = parts[1];
-            // Get the matching type
-            var matchingType = parts[2];
-            // Get the certificate association data
-            var certificateAssociationData = string.Join("", parts.Skip(3).Select(part => part.ToString("x2")));
-            //Console.WriteLine($"{certificateUsage} {selector} {matchingType} {certificateAssociationData}");
-            return $"{certificateUsage} {selector} {matchingType} {certificateAssociationData}";
+            if (parts.Length > ushort.MaxValue) return DataRaw;
+            try {
+                return DnsWireRecordFormatter.Format(parts, DnsRecordType.TLSA, 0, (ushort)parts.Length);
+            } catch (DnsClientException) { return DataRaw; }
         }
 
         private string ConvertPtrRecord() {
@@ -315,17 +281,8 @@ namespace DnsClientX {
             // Handles Base64, Hex, or Plain Text DataRaw
             try {
                 if (DataRaw.StartsWith("\\#", StringComparison.Ordinal)) {
-                    // Hex Encoded (e.g., \# XX XX ...)
-                    byte[] rdataHex = DataRaw.Split(' ')
-                        .Skip(2) // Skip the "\\#" and the length byte
-                        .Where(part => !string.IsNullOrEmpty(part))
-                        .Select(part => part.Trim())
-                        .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]{1,2}\b\Z", RegexOptions.CultureInvariant)) // Match 1 or 2 hex chars
-                        .Select(part => Convert.ToByte(part, 16))
-                        .ToArray();
-                    if (rdataHex.Length > 4) { // Basic validation for minimum RDATA length
-                        return ParseNaptrRDataAndFormat(rdataHex);
-                    }
+                    if (!DnsPresentationFormat.TryDecodeRfc3597(DataRaw, out byte[] rdataHex)) return DataRaw;
+                    return ParseNaptrRDataAndFormat(rdataHex);
                 }
             } catch (Exception ex) {
                 Settings.Logger.WriteDebug($"Error parsing NAPTR record from Hex: {ex.Message} for DataRaw: {DataRaw}");

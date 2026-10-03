@@ -98,9 +98,9 @@ public static class DnsRecordFactory {
                 }
                 break;
             case DnsRecordType.CAA:
-                var caa = data.Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
-                if (caa.Length == 3 && byte.TryParse(caa[0], out var flag)) {
-                    return new CaaRecord(flag, caa[1], caa[2].Trim('"'));
+                var caa = DnsPresentationFormat.Tokenize(data, out bool caaComplete);
+                if (caaComplete && caa.Count == 3 && byte.TryParse(caa[0].Value, out var flag)) {
+                    return new CaaRecord(flag, DnsPresentationFormat.Unescape(caa[1].Value), DnsPresentationFormat.Unescape(caa[2].Value));
                 }
                 break;
             case DnsRecordType.TLSA:

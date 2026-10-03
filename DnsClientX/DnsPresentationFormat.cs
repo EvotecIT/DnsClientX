@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 namespace DnsClientX;
@@ -7,6 +8,35 @@ namespace DnsClientX;
 /// <summary>Shared DNS presentation escaping and quoted-field parsing.</summary>
 internal static class DnsPresentationFormat {
     internal readonly record struct Token(string Raw, string Value);
+
+    /// <summary>Decodes RFC 3597 RDATA only when its hexadecimal words and declared length agree.</summary>
+    internal static bool TryDecodeRfc3597(string text, out byte[] data) {
+        data = Array.Empty<byte>();
+        string[] words = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length < 2 || words[0] != "\\#"
+            || !int.TryParse(words[1], NumberStyles.None, CultureInfo.InvariantCulture, out int length)
+            || length < 0 || length > ushort.MaxValue) return false;
+        var bytes = new byte[length];
+        int offset = 0;
+        for (int word = 2; word < words.Length; word++) {
+            string hex = words[word];
+            if (hex.Length % 2 != 0) return false;
+            for (int index = 0; index < hex.Length; index += 2) {
+                if (offset >= length) return false;
+                int high = HexDigit(hex[index]);
+                int low = HexDigit(hex[index + 1]);
+                if (high < 0 || low < 0) return false;
+                bytes[offset++] = (byte)((high << 4) | low);
+            }
+        }
+        if (offset != length) return false;
+        data = bytes;
+        return true;
+    }
+
+    private static int HexDigit(char value) => value >= '0' && value <= '9' ? value - '0'
+        : value >= 'a' && value <= 'f' ? value - 'a' + 10
+        : value >= 'A' && value <= 'F' ? value - 'A' + 10 : -1;
 
     // Values retain escapes: DNS names and character-strings have different decoding rules.
     internal static List<Token> Tokenize(string text, out bool complete) {
