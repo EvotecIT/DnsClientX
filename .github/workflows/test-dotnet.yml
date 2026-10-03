@@ -24,7 +24,9 @@ permissions:
     contents: read
 
 env:
-    DOTNET_VERSION: '10.x'
+    DOTNET_VERSION: |
+        8.x
+        10.x
     BUILD_CONFIGURATION: 'Release'
     TEST_VERBOSITY: minimal # set to 'detailed' to restore full test output
     SUMMARIZE_FAILURES: true # set to 'false' to disable summarizing failing tests
@@ -51,6 +53,11 @@ jobs:
 
             - name: Run tests (.NET Framework 4.7.2)
               run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net472 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --blame-hang --blame-hang-timeout 60s --blame-hang-dump-type none
+              env:
+                  DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
+
+            - name: Run tests (.NET 8.0)
+              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --blame-hang --blame-hang-timeout 60s --blame-hang-dump-type none
               env:
                   DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
 
@@ -132,7 +139,12 @@ jobs:
             - name: Build solution
               run: dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
 
-            - name: Run tests
+            - name: Run tests (.NET 8.0)
+              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --blame-hang --blame-hang-timeout 60s --blame-hang-dump-type none
+              env:
+                  DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
+
+            - name: Run tests (.NET 10.0)
               run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net10.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --collect:"XPlat Code Coverage" --blame-hang --blame-hang-timeout 60s --blame-hang-dump-type none
               env:
                   DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
@@ -210,7 +222,12 @@ jobs:
             - name: Build solution
               run: dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
 
-            - name: Run tests
+            - name: Run tests (.NET 8.0)
+              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net8.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --blame-hang --blame-hang-timeout 60s --blame-hang-dump-type none
+              env:
+                  DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
+
+            - name: Run tests (.NET 10.0)
               run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net10.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --collect:"XPlat Code Coverage" --blame-hang --blame-hang-timeout 60s --blame-hang-dump-type none
               env:
                   DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
