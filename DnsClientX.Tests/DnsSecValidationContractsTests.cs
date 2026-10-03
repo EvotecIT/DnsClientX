@@ -47,12 +47,16 @@ namespace DnsClientX.Tests {
                 DnsWireNameCodec.ToCanonicalWire("www.example.com"), ttl: (uint)ttl, originalTtl: (uint)original);
             alias.ReceivedAtUtc = fixture.Now.AddSeconds(-elapsed);
             var merged = new DnsResponse { Answers = new[] { alias.Answers[0] } };
+            merged.RefreshDerivedData();
             var engine = fixture.Engine();
             Assert.Equal(DnsSecValidationStatus.Secure,
                 (await engine.ValidateAliasAsync(alias, "alias.example.com", DnsRecordType.A, default)).Status);
             engine.ApplyAuthenticatedLifetimes(merged);
             Assert.Equal(expected, alias.Answers[0].TTL);
             Assert.Equal(expected, merged.Answers[0].TTL);
+            Assert.Equal(expected, Assert.Single(merged.AnswersMinimal).TTL);
+            Assert.Equal(expected, merged.TtlMin);
+            Assert.Equal(expected, merged.TtlAvg);
             Assert.Equal(fixture.Now.AddSeconds(expected), engine.CacheExpiresAtUtc);
         }
 

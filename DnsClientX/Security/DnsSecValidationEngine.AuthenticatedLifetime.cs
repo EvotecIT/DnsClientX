@@ -61,6 +61,7 @@ namespace DnsClientX {
             Clamp(response.Answers);
             Clamp(response.Authorities);
             Clamp(response.Additional);
+            response.RefreshDerivedData();
             void Clamp(DnsAnswer[]? answers) {
                 if (answers == null) return;
                 for (int i = 0; i < answers.Length; i++) {
