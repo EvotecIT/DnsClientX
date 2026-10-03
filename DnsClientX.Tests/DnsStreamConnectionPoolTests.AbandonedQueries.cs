@@ -78,9 +78,7 @@ namespace DnsClientX.Tests {
         [InlineData(false)]
         [InlineData(true)]
         public async Task LostTlsReplyRecoversWithOneSlot(bool sameId) {
-            using RSA rsa = RSA.Create(2048);
-            var request = new CertificateRequest("CN=localhost", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-            using X509Certificate2 certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+            using X509Certificate2 certificate = CreateStreamServerCertificate();
             await AssertLostReplyRecoversAsync(sameId, cancel: false, useTls: true, certificate);
         }
 #endif
@@ -128,6 +126,10 @@ namespace DnsClientX.Tests {
                     : pool.QueryTcpAsync(IPAddress.Loopback, port, null, wire, timeout, 1, token);
                 const int queryTimeout = 3000; // Includes the initial TLS handshake on every platform.
                 Task<byte[]> missing = Query(first, queryTimeout, cancel ? cancellation.Token : guard.Token);
+                // Surface handshake or query faults directly instead of masking them
+                // behind the server's first-frame signal and the outer guard.
+                Task firstEvent = await Task.WhenAny(receivedFirst.Task, missing, server);
+                if (firstEvent != receivedFirst.Task) await firstEvent;
                 await WaitForSignalAsync(receivedFirst.Task, guard.Token);
                 if (cancel) {
                     cancellation.Cancel();

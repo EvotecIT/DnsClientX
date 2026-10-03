@@ -459,20 +459,7 @@ namespace DnsClientX.Tests {
         /// <summary>DoT uses the same pipelined response-correlation engine over one authenticated stream.</summary>
         [Fact]
         public async Task DotPipeliningDispatchesOutOfOrderResponses() {
-            using RSA rsa = RSA.Create(2048);
-            var request = new CertificateRequest("CN=localhost", rsa, HashAlgorithmName.SHA256,
-                RSASignaturePadding.Pkcs1);
-            using X509Certificate2 baseCertificate = request.CreateSelfSigned(
-                DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
-            byte[] pfx = baseCertificate.Export(X509ContentType.Pfx);
-#if NET9_0_OR_GREATER
-            using X509Certificate2 certificate = X509CertificateLoader.LoadPkcs12(
-                pfx, null, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet,
-                Pkcs12LoaderLimits.Defaults);
-#else
-            using X509Certificate2 certificate = new X509Certificate2(pfx, (string?)null,
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
-#endif
+            using X509Certificate2 certificate = CreateStreamServerCertificate();
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -499,6 +486,25 @@ namespace DnsClientX.Tests {
             } finally {
                 listener.Stop();
             }
+        }
+
+        // Import a persistent private-key association for Windows Schannel,
+        // matching the existing passing TLS fixture on all supported platforms.
+        private static X509Certificate2 CreateStreamServerCertificate() {
+            using RSA rsa = RSA.Create(2048);
+            var request = new CertificateRequest("CN=localhost", rsa, HashAlgorithmName.SHA256,
+                RSASignaturePadding.Pkcs1);
+            using X509Certificate2 baseCertificate = request.CreateSelfSigned(
+                DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+            byte[] pfx = baseCertificate.Export(X509ContentType.Pfx);
+#if NET9_0_OR_GREATER
+            return X509CertificateLoader.LoadPkcs12(
+                pfx, null, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet,
+                Pkcs12LoaderLimits.Defaults);
+#else
+            return new X509Certificate2(pfx, (string?)null,
+                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
+#endif
         }
 #endif
 
