@@ -89,8 +89,20 @@ namespace DnsClientX {
         /// <returns>None.</returns>
         public void Set(string key, DnsResponse response, TimeSpan ttl) {
             if (ttl <= TimeSpan.Zero) return;
+            var now = DateTimeOffset.UtcNow;
+            var expiration = now.Add(ttl);
+            if (response.DnsSecValidationAttempted) {
+                if (response.DnsSecValidationStatus != DnsSecValidationStatus.Secure
+                    && response.DnsSecValidationStatus != DnsSecValidationStatus.Insecure) return;
+                // A security verdict cannot outlive its DNSKEY, DS, alias, or denial proofs.
+                if (!response.DnsSecValidationExpiresUtc.HasValue) return;
+                if (response.DnsSecValidationExpiresUtc.Value < expiration) {
+                    expiration = response.DnsSecValidationExpiresUtc.Value;
+                }
+                if (expiration <= now) return;
+            }
             bool isNew = !_cache.ContainsKey(key);
-            var entry = new CacheEntry(response.Clone(), DateTimeOffset.UtcNow.Add(ttl));
+            var entry = new CacheEntry(response.Clone(), expiration);
             _cache[key] = entry;
             if (isNew) _insertionOrder.Enqueue(key);
             if (_cache.Count > _cleanupThreshold) {

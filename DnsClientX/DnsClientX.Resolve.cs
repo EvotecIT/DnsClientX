@@ -258,6 +258,7 @@ namespace DnsClientX {
                     DnsSecValidationResult validation = await validator.ValidateAsync(response, name, type, cancellationToken).ConfigureAwait(false);
                     response.DnsSecValidationStatus = validation.Status;
                     response.DnsSecValidationMessage = validation.Message;
+                    response.DnsSecValidationExpiresUtc = validator.CacheExpiresAtUtc;
                     if (validation.Status == DnsSecValidationStatus.Bogus || validation.Status == DnsSecValidationStatus.Indeterminate) {
                         string validationError = $"DNSSEC {validation.Status.ToString().ToLowerInvariant()}: {validation.Message}";
                         response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
