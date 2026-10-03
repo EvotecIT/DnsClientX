@@ -25,6 +25,10 @@ public class DnsResponseCacheBenchmark {
                 }
             }
         }, TimeSpan.FromHours(1));
+        if (!_cache.TryGet(HitKey, out DnsResponse? hit) || hit.Answers.Length != 1 || hit.Answers[0].Data != "192.0.2.1"
+            || _cache.TryGet("missing.example|A", out _)) {
+            throw new InvalidOperationException("Cache benchmark failed its hit/miss contract.");
+        }
     }
 
     /// <summary>Retrieves and defensively clones a cached response.</summary>

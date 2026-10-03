@@ -27,17 +27,17 @@ public static class DnsRecordFactory {
                 }
                 break;
             case DnsRecordType.CNAME:
-                return new CNameRecord(data.TrimEnd('.'));
+                return new CNameRecord(DnsWireNameCodec.TrimTrailingRootDot(data));
             case DnsRecordType.MX:
                 var parts = data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length == 2 && int.TryParse(parts[0], out int pref)) {
-                    return new MxRecord(pref, parts[1].TrimEnd('.'));
+                    return new MxRecord(pref, DnsWireNameCodec.TrimTrailingRootDot(parts[1]));
                 }
                 break;
             case DnsRecordType.NS:
-                return new NsRecord(data.TrimEnd('.'));
+                return new NsRecord(DnsWireNameCodec.TrimTrailingRootDot(data));
             case DnsRecordType.PTR:
-                return new PtrRecord(data.TrimEnd('.'));
+                return new PtrRecord(DnsWireNameCodec.TrimTrailingRootDot(data));
             case DnsRecordType.TXT:
             case DnsRecordType.SPF:
                 if (!parseTypedTxtRecords) {
@@ -67,7 +67,7 @@ public static class DnsRecordFactory {
                     uint.TryParse(soa[4], out var retry) &&
                     uint.TryParse(soa[5], out var expire) &&
                     uint.TryParse(soa[6], out var minimum)) {
-                    return new SoaRecord(soa[0].TrimEnd('.'), soa[1].TrimEnd('.'), serial, refresh, retry, expire, minimum);
+                    return new SoaRecord(DnsWireNameCodec.TrimTrailingRootDot(soa[0]), DnsWireNameCodec.TrimTrailingRootDot(soa[1]), serial, refresh, retry, expire, minimum);
                 }
                 break;
             case DnsRecordType.SRV:
@@ -76,7 +76,7 @@ public static class DnsRecordFactory {
                     ushort.TryParse(srv[0], out var prio) &&
                     ushort.TryParse(srv[1], out var weight) &&
                     ushort.TryParse(srv[2], out var port)) {
-                    return new SrvRecord(prio, weight, port, srv[3].TrimEnd('.'));
+                    return new SrvRecord(prio, weight, port, DnsWireNameCodec.TrimTrailingRootDot(srv[3]));
                 }
                 break;
             case DnsRecordType.DNSKEY:
@@ -122,11 +122,11 @@ public static class DnsRecordFactory {
                         DnsPresentationFormat.Unescape(naptr[2].Value),
                         DnsPresentationFormat.Unescape(naptr[3].Value),
                         DnsPresentationFormat.Unescape(naptr[4].Value),
-                        replacement == "." ? "." : replacement.TrimEnd('.'));
+                        DnsWireNameCodec.TrimTrailingRootDot(replacement));
                 }
                 break;
             case DnsRecordType.DNAME:
-                return new DnameRecord(data.TrimEnd('.'));
+                return new DnameRecord(DnsWireNameCodec.TrimTrailingRootDot(data));
             case DnsRecordType.LOC:
                 var loc = data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (loc.Length >= 12 &&

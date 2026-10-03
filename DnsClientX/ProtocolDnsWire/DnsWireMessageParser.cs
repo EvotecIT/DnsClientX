@@ -98,7 +98,7 @@ namespace DnsClientX {
                     ushort type = reader.ReadUInt16();
                     ushort queryClass = reader.ReadUInt16();
                     if (i == index) {
-                        question = new DnsWireQuestionInfo(name.TrimEnd('.'), type, queryClass);
+                        question = new DnsWireQuestionInfo(DnsWireNameCodec.TrimTrailingRootDot(name), type, queryClass);
                         return true;
                     }
                 }

@@ -18,6 +18,11 @@ public class DnsWireParserBenchmark {
         var query = new DnsMessage("benchmark.example", DnsRecordType.A,
             new DnsMessageOptions(TransactionId: 0x1234));
         _response = ControlledDnsMessages.CreateAResponse(query.SerializeDnsWireFormat(), AnswerCount);
+        DnsResponse decoded = DnsWire.DeserializeDnsWireFormat(null, false, _response).GetAwaiter().GetResult();
+        string[] expected = Enumerable.Range(1, AnswerCount).Select(index => $"192.0.2.{index}").ToArray();
+        if (decoded.Status != DnsResponseCode.NoError || !decoded.Answers.Select(answer => answer.Data).SequenceEqual(expected)) {
+            throw new InvalidOperationException("Wire parser benchmark failed its response-fidelity contract.");
+        }
     }
 
     /// <summary>Parses the complete DNS response and returns the observed answer count.</summary>

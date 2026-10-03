@@ -283,12 +283,20 @@ namespace DnsClientX {
                 if (!string.IsNullOrEmpty(DataRaw)) {
                     byte[] bytes = Convert.FromBase64String(DataRaw);
                     if (IsCompleteWireName(bytes)) {
-                        return ConvertSpecialFormatToDotted(Encoding.UTF8.GetString(bytes));
+                        return FormatPtrWireName(bytes);
                     }
                 }
             } catch (FormatException) { }
-            return ConvertSpecialFormatToDotted(DataRaw);
+            // Retain the legacy length-prefixed string form only when it is a complete wire name.
+            if (DataRaw.IndexOf('\0') >= 0) {
+                byte[] bytes = Encoding.UTF8.GetBytes(DataRaw);
+                if (IsCompleteWireName(bytes)) return FormatPtrWireName(bytes);
+            }
+            return DnsWireNameCodec.TrimTrailingRootDot(DataRaw).ToLowerInvariant();
         }
+
+        private static string FormatPtrWireName(byte[] bytes) => DnsWireNameCodec.TrimTrailingRootDot(
+            DnsWireRecordFormatter.Format(bytes, DnsRecordType.PTR, 0, checked((ushort)bytes.Length))).ToLowerInvariant();
 
         private static bool IsCompleteWireName(byte[] bytes) {
             if (bytes.Length == 0 || bytes.Length > 255) return false;
@@ -345,7 +353,7 @@ namespace DnsClientX {
                 string service = DnsPresentationFormat.Unescape(tokens[3].Value);
                 string regexp = tokens.Count == 6 ? DnsPresentationFormat.Unescape(tokens[4].Value) : string.Empty;
                 string replacement = tokens[tokens.Count - 1].Value;
-                if (replacement != ".") replacement = replacement.TrimEnd('.').ToLowerInvariant();
+                replacement = DnsWireNameCodec.TrimTrailingRootDot(replacement).ToLowerInvariant();
                 return $"{order} {preference} {DnsPresentationFormat.Quote(flags)} {DnsPresentationFormat.Quote(service)} {DnsPresentationFormat.Quote(regexp)} {replacement}";
             }
 
@@ -375,41 +383,6 @@ namespace DnsClientX {
             int replacementStart = formatted.LastIndexOf(' ') + 1;
             return formatted.Substring(0, replacementStart)
                 + DnsWireNameCodec.TrimTrailingRootDot(formatted.Substring(replacementStart)).ToLowerInvariant();
-        }
-
-        private string ConvertSpecialFormatToDotted(string data) {
-            if (string.IsNullOrWhiteSpace(data)) return data;
-
-            // Check if the data is already in a standard format. Allow '_' as
-            // it commonly appears in service discovery names like "_http".
-            if (data.All(c => char.IsLetterOrDigit(c) || c == '-' || c == '.' || c == '_')) {
-                return data == "." ? "." : data.TrimEnd('.').ToLowerInvariant();
-            }
-
-            var result = new StringBuilder();
-            int i = 0;
-
-            while (i < data.Length) {
-                // Read the length byte
-                int length = data[i];
-                if (length == 0) break; // Null terminator indicates the end of the name
-
-                // Move to the next character
-                i++;
-
-                // Validate available length before slicing the string
-                if (i + length > data.Length) {
-                    return data;
-                }
-
-                // Read the label
-                result.Append(data.Substring(i, length));
-                result.Append('.');
-                i += length;
-            }
-
-            // Remove the trailing dot and return the result
-            return result.ToString().TrimEnd('.').ToLowerInvariant();
         }
 
     }
