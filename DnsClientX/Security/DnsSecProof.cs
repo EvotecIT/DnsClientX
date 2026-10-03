@@ -7,7 +7,11 @@ namespace DnsClientX {
     internal static class DnsSecProof {
         private const ushort MaxSupportedNsec3Iterations = 500;
 
-        internal static bool ProvesUnsignedDelegation(DnsResponse response, string name) {
+        internal static bool ProvesUnsignedDelegation(DnsResponse response, string name) =>
+            ProvesUnsignedDelegation(response, name, out _);
+
+        private static bool ProvesUnsignedDelegation(DnsResponse response, string name, out bool optOut) {
+            optOut = false;
             string canonicalName = DnsWireNameCodec.Canonical(name);
             var nsec3 = new List<(string OwnerHash, string Zone, Nsec3Value Value)>();
             foreach (DnsWireResourceRecord record in DnsSecWire.Records(response)) {
@@ -47,11 +51,16 @@ namespace DnsClientX {
             string closestHash = ToBase32Hex(HashName(closest, parameters.Iterations, parameters.Salt));
             if (nsec3.Any(item => string.Equals(item.OwnerHash, closestHash, StringComparison.OrdinalIgnoreCase)
                 && (IsDelegation(item.Value.Types) || item.Value.Types.Contains((ushort)DnsRecordType.DNAME)))) return false;
-            return nsec3.Any(item => item.Value.OptOut &&
+            optOut = nsec3.Any(item => item.Value.OptOut &&
                 CoversHash(item.OwnerHash, ToBase32Hex(item.Value.NextHash), candidate));
+            return optOut;
         }
 
-        internal static bool ProvesNoData(DnsResponse response, string name, DnsRecordType type) {
+        internal static bool ProvesNoData(DnsResponse response, string name, DnsRecordType type) =>
+            ProvesNoData(response, name, type, out _);
+
+        internal static bool ProvesNoData(DnsResponse response, string name, DnsRecordType type, out bool optOut) {
+            optOut = false;
             string canonicalName = DnsWireNameCodec.Canonical(name);
             foreach (DnsWireResourceRecord record in DnsSecWire.Records(response)) {
                 if (record.Type == DnsRecordType.NSEC &&
@@ -61,7 +70,7 @@ namespace DnsClientX {
                     && (type == DnsRecordType.DS ? !types.Contains((ushort)DnsRecordType.SOA) : !IsDelegation(types))) return true;
             }
 
-            return ProvesNsec3NoData(response, canonicalName, type);
+            return ProvesNsec3NoData(response, canonicalName, type, out optOut);
         }
 
         internal static bool ProvesNameError(DnsResponse response, string name) {
@@ -91,7 +100,8 @@ namespace DnsClientX {
                    nsecs.Any(item => Covers(item.Owner, item.Next, wildcard));
         }
 
-        private static bool ProvesNsec3NoData(DnsResponse response, string name, DnsRecordType type) {
+        private static bool ProvesNsec3NoData(DnsResponse response, string name, DnsRecordType type, out bool optOut) {
+            optOut = false;
             foreach (DnsWireResourceRecord record in DnsSecWire.Records(response)) {
                 if (record.Type != DnsRecordType.NSEC3 || !TryReadNsec3(response.WireMessage, record, out Nsec3Value value)) continue;
                 string ownerHash = FirstLabel(record.Name);
@@ -100,7 +110,7 @@ namespace DnsClientX {
                     !value.Types.Contains((ushort)type) && !value.Types.Contains((ushort)DnsRecordType.CNAME)
                     && (type == DnsRecordType.DS ? !value.Types.Contains((ushort)DnsRecordType.SOA) : !IsDelegation(value.Types))) return true;
             }
-            if (type == DnsRecordType.DS) return ProvesUnsignedDelegation(response, name);
+            if (type == DnsRecordType.DS) return ProvesUnsignedDelegation(response, name, out optOut);
             return false;
         }
 

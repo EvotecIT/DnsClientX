@@ -36,7 +36,7 @@ namespace DnsClientX.Tests {
             }));
         }
 
-        internal DnsSecValidationEngine Engine() => new(async (name, type, token) => {
+        internal DnsSecValidationEngine Engine(bool currentTime = false) => new(async (name, type, token) => {
             await Task.Yield();
             token.ThrowIfCancellationRequested();
             if (type == DnsRecordType.DNSKEY) {
@@ -51,7 +51,7 @@ namespace DnsClientX.Tests {
                 return Signed(Zone.Name, type, data, signer, ttl: MaterialTtl, lifetime: DsLifetime);
             }
             throw new InvalidOperationException($"Unexpected fixture lookup: {name} {type}");
-        }, Now, AnchorPath);
+        }, currentTime ? null : Now, AnchorPath);
 
         private static void AssertDigest(DnsSecKey key, out byte[] digest) {
             if (!DnsSecCrypto.TryComputeDsDigest(key.Name, key, 2, out digest)) throw new InvalidOperationException("SHA-256 DS is unavailable.");
@@ -65,7 +65,9 @@ namespace DnsClientX.Tests {
             byte labelCount = labels ?? (byte)(canonical == "." ? 0 : canonical.TrimEnd('.').Split('.').Length);
             uint expiration = unchecked((uint)Now.AddSeconds(lifetime).ToUnixTimeSeconds());
             uint inception = unchecked((uint)Now.AddMinutes(-1).ToUnixTimeSeconds());
-            var rr = new DnsWireResourceRecord(canonical, type, 1, (int)ttl, ttl, 0, (ushort)rdata.Length, string.Empty);
+            string data = type == DnsRecordType.CNAME || type == DnsRecordType.DNAME
+                ? new DnsWireReader(rdata, 0, rdata.Length).ReadName() : string.Empty;
+            var rr = new DnsWireResourceRecord(canonical, type, 1, (int)ttl, ttl, 0, (ushort)rdata.Length, data);
             var signature = new DnsSecSignature(canonical, 1, type, 8, labelCount, originalTtl, expiration, inception,
                 signer.KeyTag, signer.Name, Array.Empty<byte>());
             byte[] signed = _rsa.SignData(DnsSecWire.BuildSignedData(rdata, signature, new[] { rr }),
@@ -81,7 +83,7 @@ namespace DnsClientX.Tests {
                 Status = DnsResponseCode.NoError, WireMessage = wire.ToArray(),
                 WireAnswers = authority ? Array.Empty<DnsWireResourceRecord>() : new[] { rr, sig },
                 WireAuthorities = authority ? new[] { rr, sig } : Array.Empty<DnsWireResourceRecord>(),
-                Answers = authority ? Array.Empty<DnsAnswer>() : new[] { new DnsAnswer { Name = canonical, Type = type, TTL = (int)ttl } }
+                Answers = authority ? Array.Empty<DnsAnswer>() : new[] { new DnsAnswer { Name = canonical, Type = type, TTL = (int)ttl, DataRaw = data } }
             };
         }
 

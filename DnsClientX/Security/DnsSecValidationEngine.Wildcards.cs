@@ -9,9 +9,13 @@ namespace DnsClientX {
             IsNameWithinZone(name, zone)
             && !string.Equals(DnsWireNameCodec.Canonical(name), DnsWireNameCodec.Canonical(zone), StringComparison.Ordinal);
 
-        private static bool IsWildcardExpansion(DnsSecSignature signature) =>
-            signature.Owner != "." && !signature.Owner.StartsWith("*.", StringComparison.Ordinal)
-            && signature.Owner.TrimEnd('.').Split('.').Length > signature.Labels;
+        private static bool IsWildcardExpansion(DnsSecSignature signature) {
+            if (signature.Owner == ".") return false;
+            int labels = signature.Owner.TrimEnd('.').Split('.').Length;
+            // A literal wildcard is exempt only when this is the original signed owner.
+            return labels > signature.Labels
+                && !(signature.Owner.StartsWith("*.", StringComparison.Ordinal) && labels == signature.Labels + 1);
+        }
 
         private async Task<DnsSecValidationResult> ValidateWildcardAsync(DnsResponse response,
             DnsSecSignature signature, CancellationToken cancellationToken) {

@@ -9,6 +9,8 @@ namespace DnsClientX {
     internal sealed partial class DnsSecValidationEngine {
         private readonly Func<string, DnsRecordType, CancellationToken, Task<DnsResponse>> _lookup;
         private readonly DateTimeOffset _now;
+        private readonly bool _useCurrentTime;
+        private DateTimeOffset ValidationTime => _useCurrentTime ? DateTimeOffset.UtcNow : _now;
         private readonly Dictionary<string, Task<ZoneKeysResult>> _zoneCache = new(StringComparer.Ordinal);
         private readonly Rfc5011Store? _trustAnchorStore;
         private readonly IDnsSecSignatureVerifier? _signatureVerifier;
@@ -18,6 +20,7 @@ namespace DnsClientX {
             IDnsSecSignatureVerifier? signatureVerifier = null) {
             _lookup = lookup ?? throw new ArgumentNullException(nameof(lookup));
             _now = now ?? DateTimeOffset.UtcNow;
+            _useCurrentTime = !now.HasValue;
             _signatureVerifier = signatureVerifier;
             if (!string.IsNullOrWhiteSpace(trustAnchorStorePath)) {
                 _trustAnchorStore = new Rfc5011Store(trustAnchorStorePath!);
@@ -41,11 +44,11 @@ namespace DnsClientX {
                 .ToArray();
 
             if (rrsets.Length > 0) {
-                return await ValidatePositiveAsync(response, answerRecords, rrsets, name, type,
-                    requireTerminal: true, cancellationToken).ConfigureAwait(false);
+                return CompleteValidation(await ValidatePositiveAsync(response, answerRecords, rrsets, name, type,
+                    requireTerminal: true, cancellationToken).ConfigureAwait(false));
             }
 
-            return await ValidateNegativeAsync(response, name, type, cancellationToken).ConfigureAwait(false);
+            return CompleteValidation(await ValidateNegativeAsync(response, name, type, cancellationToken).ConfigureAwait(false));
         }
 
         internal async Task<DnsSecValidationResult> ValidateAliasAsync(DnsResponse response, string name,
@@ -62,8 +65,8 @@ namespace DnsClientX {
             if (rrsets.Length == 0) {
                 return DnsSecValidationResult.Indeterminate("The iterative alias response contained no answer RRset.");
             }
-            return await ValidatePositiveAsync(response, answers, rrsets, name, type,
-                requireTerminal: false, cancellationToken).ConfigureAwait(false);
+            return CompleteValidation(await ValidatePositiveAsync(response, answers, rrsets, name, type,
+                requireTerminal: false, cancellationToken).ConfigureAwait(false));
         }
 
         private async Task<DnsSecValidationResult> ValidatePositiveAsync(
@@ -86,6 +89,7 @@ namespace DnsClientX {
                 insecure |= result.Status == DnsSecValidationStatus.Insecure;
             }
 
+            ApplyAuthenticatedLifetimes(response);
             if (!TryFollowAnswerChain(answerRecords, name, type, out string finalName, out bool terminal, out string? chainError)) {
                 return DnsSecValidationResult.Indeterminate(chainError ?? "The answer did not contain a usable canonical-name chain.");
             }
@@ -119,6 +123,9 @@ namespace DnsClientX {
 
             DnsSecValidationResult? unsupported = null;
             foreach (IGrouping<string, DnsSecSignature> signer in signatures.GroupBy(item => item.SignerName, StringComparer.Ordinal)) {
+                if (rrset.Type == DnsRecordType.DS && !IsStrictAncestor(rrset.Name, signer.Key)) {
+                    return DnsSecValidationResult.Bogus("A DS answer must be signed by an ancestor zone, not the child.");
+                }
                 if (!IsNameWithinZone(rrset.Name, signer.Key)) {
                     return DnsSecValidationResult.Bogus(
                         $"RRSIG signer {signer.Key} is not an ancestor of the {rrset.Name} RRset owner.");
@@ -131,6 +138,7 @@ namespace DnsClientX {
                     continue;
                 }
                 foreach (DnsSecSignature signature in signer) {
+                    if (rrset.Type == DnsRecordType.DS && IsWildcardExpansion(signature)) continue;
                     DnsSecValidationResult verification = VerifyRrset(response, rrset, new[] { signature }, keys.Keys);
                     if (verification.Status == DnsSecValidationStatus.Secure) {
                         if (!IsWildcardExpansion(signature)) return verification;
@@ -151,12 +159,16 @@ namespace DnsClientX {
                 .ToArray();
             if (proofRecords.Length == 0) return await FindUnsignedDelegationAsync(name, cancellationToken).ConfigureAwait(false);
 
-            return await ValidateDenialBySignerAsync(response, proofRecords, name, cancellationToken,
+            bool optOut = false;
+            DnsSecValidationResult result = await ValidateDenialBySignerAsync(response, proofRecords, name, cancellationToken,
                 candidate => response.Status == DnsResponseCode.NXDomain
                     ? DnsSecProof.ProvesNameError(candidate, name)
-                    : DnsSecProof.ProvesNoData(candidate, name, type),
+                    : DnsSecProof.ProvesNoData(candidate, name, type, out optOut),
                 "The authenticated denial records prove the requested name or type does not exist.",
                 requireParent: type == DnsRecordType.DS && DnsWireNameCodec.Canonical(name) != ".").ConfigureAwait(false);
+            return result.Status == DnsSecValidationStatus.Secure && optOut
+                ? DnsSecValidationResult.Insecure("The authenticated DS-absence proof covers the delegation with NSEC3 Opt-Out.")
+                : result;
         }
 
         private Task<ZoneKeysResult> GetZoneKeysAsync(string zone, CancellationToken cancellationToken) {
@@ -501,7 +513,7 @@ namespace DnsClientX {
                 if (candidates.Length == 0
                     || !DnsSecCrypto.IsSupportedAlgorithm(signature.Algorithm, _signatureVerifier)) continue;
                 supported = true;
-                if (!DnsSecWire.SignatureTimeIsValid(signature, _now)) {
+                if (!DnsSecWire.SignatureTimeIsValid(signature, ValidationTime)) {
                     timeFailure = true;
                     continue;
                 }

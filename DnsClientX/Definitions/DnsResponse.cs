@@ -111,6 +111,10 @@ namespace DnsClientX {
         [JsonIgnore]
         internal DateTimeOffset? DnsSecValidationExpiresUtc { get; set; }
 
+        /// <summary>Receipt time for aging retained wire responses during iterative validation.</summary>
+        [JsonIgnore]
+        internal DateTimeOffset? ReceivedAtUtc { get; set; }
+
         /// <summary>
         /// Gets whether DNSSEC validation was attempted locally rather than inferred from the resolver's AD flag.
         /// </summary>

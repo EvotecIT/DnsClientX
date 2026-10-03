@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -6,6 +7,92 @@ using Xunit;
 namespace DnsClientX.Tests {
     /// <summary>Exercises authenticated proofs and cache lifetimes through a real root trust chain.</summary>
     public class DnsSecValidationContractsTests {
+        /// <summary>Asterisk labels in the query do not excuse a replay from a higher wildcard.</summary>
+        [Theory]
+        [InlineData("*.example.com", DnsSecValidationStatus.Secure)]
+        [InlineData("*.child.example.com", DnsSecValidationStatus.Bogus)]
+        public async Task LiteralWildcardExemptionRequiresOriginalOwner(string owner, DnsSecValidationStatus expected) {
+            using var fixture = new DnsSecSignedFixture();
+            DnsResponse answer = fixture.Signed(owner, DnsRecordType.A, new byte[] { 192, 0, 2, 1 }, labels: 2);
+            Assert.Equal(expected, (await fixture.Engine().ValidateAsync(answer, owner, DnsRecordType.A, default)).Status);
+        }
+
+        /// <summary>Public DS answers belong to the parent side of the zone cut.</summary>
+        [Theory]
+        [InlineData(false, DnsSecValidationStatus.Secure)]
+        [InlineData(true, DnsSecValidationStatus.Bogus)]
+        public async Task PositiveDsRequiresParentSigner(bool childSigner, DnsSecValidationStatus expected) {
+            using var fixture = new DnsSecSignedFixture();
+            DnsResponse answer = fixture.Signed("example.com", DnsRecordType.DS, new byte[] { 0, 1, 8, 2, 42 },
+                key: childSigner ? fixture.Zone : fixture.Root);
+            Assert.Equal(expected, (await fixture.Engine().ValidateAsync(answer, "example.com", DnsRecordType.DS, default)).Status);
+        }
+
+        /// <summary>An Opt-Out cover cannot establish a Secure DS-absence verdict.</summary>
+        [Fact]
+        public async Task OptOutDsDenialIsInsecure() {
+            using var fixture = new DnsSecSignedFixture();
+            DnsResponse proof = fixture.Nsec3("example.com", "example.com", true, DnsRecordType.SOA);
+            Assert.Equal(DnsSecValidationStatus.Insecure,
+                (await fixture.Engine().ValidateAsync(proof, "child.example.com", DnsRecordType.DS, default)).Status);
+        }
+
+        /// <summary>Retained aliases keep their receipt-based deadline and returned copies obey the signed TTL.</summary>
+        [Theory]
+        [InlineData(3600, 5, 0, 5)]
+        [InlineData(5, 3600, 4, 1)]
+        public async Task IterativeAliasLifetimeSurvivesDelayAndCopy(int ttl, int original, int elapsed, int expected) {
+            using var fixture = new DnsSecSignedFixture();
+            DnsResponse alias = fixture.Signed("alias.example.com", DnsRecordType.CNAME,
+                DnsWireNameCodec.ToCanonicalWire("www.example.com"), ttl: (uint)ttl, originalTtl: (uint)original);
+            alias.ReceivedAtUtc = fixture.Now.AddSeconds(-elapsed);
+            var merged = new DnsResponse { Answers = new[] { alias.Answers[0] } };
+            var engine = fixture.Engine();
+            Assert.Equal(DnsSecValidationStatus.Secure,
+                (await engine.ValidateAliasAsync(alias, "alias.example.com", DnsRecordType.A, default)).Status);
+            engine.ApplyAuthenticatedLifetimes(merged);
+            Assert.Equal(expected, alias.Answers[0].TTL);
+            Assert.Equal(expected, merged.Answers[0].TTL);
+            Assert.Equal(fixture.Now.AddSeconds(expected), engine.CacheExpiresAtUtc);
+        }
+
+        /// <summary>A synthesized CNAME inherits the signed DNAME's lifetime, including merged copies.</summary>
+        [Fact]
+        public async Task SynthesizedAliasInheritsDnameLifetime() {
+            using var fixture = new DnsSecSignedFixture();
+            DnsResponse alias = fixture.Signed("child.example.com", DnsRecordType.DNAME,
+                DnsWireNameCodec.ToCanonicalWire("other.example.com"), originalTtl: 5);
+            byte[] cname = DnsWireNameCodec.ToCanonicalWire("www.other.example.com");
+            var record = new DnsWireResourceRecord("www.child.example.com", DnsRecordType.CNAME, 1, 3600, 3600,
+                alias.WireMessage.Length, (ushort)cname.Length, "www.other.example.com");
+            alias.WireMessage = alias.WireMessage.Concat(cname).ToArray();
+            alias.WireAnswers = alias.WireAnswers.Concat(new[] { record }).ToArray();
+            alias.Answers = alias.Answers.Concat(new[] { new DnsAnswer {
+                Name = record.Name, Type = record.Type, TTL = record.Ttl, DataRaw = record.Data
+            } }).ToArray();
+            var merged = new DnsResponse { Answers = alias.Answers.ToArray() };
+            var engine = fixture.Engine();
+            Assert.Equal(DnsSecValidationStatus.Secure,
+                (await engine.ValidateAliasAsync(alias, record.Name, DnsRecordType.A, default)).Status);
+            engine.ApplyAuthenticatedLifetimes(merged);
+            Assert.All(merged.Answers, answer => Assert.Equal(5, answer.TTL));
+        }
+
+        /// <summary>A dependency authenticated before an asynchronous lookup cannot expire unnoticed.</summary>
+        [Fact]
+        public async Task SignatureLifetimeIsCheckedAtValidationCompletion() {
+            using var fixture = new DnsSecSignedFixture { KeyLifetime = 2 };
+            var engine = fixture.Engine(currentTime: true);
+            DnsResponse alias = fixture.Signed("alias.example.com", DnsRecordType.CNAME,
+                DnsWireNameCodec.ToCanonicalWire("www.example.com"));
+            Assert.Equal(DnsSecValidationStatus.Secure,
+                (await engine.ValidateAliasAsync(alias, "alias.example.com", DnsRecordType.A, default)).Status);
+            // Expiration is inclusive at its whole-second timestamp (RFC 1982 arithmetic).
+            await Task.Delay(TimeSpan.FromMilliseconds(3100));
+            DnsResponse answer = fixture.Signed("www.example.com", DnsRecordType.A, new byte[] { 192, 0, 2, 1 });
+            Assert.NotEqual(DnsSecValidationStatus.Secure,
+                (await engine.ValidateAsync(answer, "www.example.com", DnsRecordType.A, default)).Status);
+        }
         /// <summary>Valid crypto alone cannot authenticate a wildcard's applicability.</summary>
         [Fact]
         public async Task WildcardRequiresAuthenticatedNextCloserProof() {
