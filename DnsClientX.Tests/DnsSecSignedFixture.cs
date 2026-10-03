@@ -91,10 +91,19 @@ namespace DnsClientX.Tests {
             Signed(owner, DnsRecordType.NSEC, DnsWireNameCodec.ToCanonicalWire(next).Concat(Bitmap(types)).ToArray(), authority: true);
 
         internal DnsResponse Nsec3(string name, string next, bool optOut = false, params DnsRecordType[] types) {
+            return Nsec3ForZone(name, next, Zone, optOut, types);
+        }
+
+        internal DnsResponse RootNsec3(string name, string next, params DnsRecordType[] types) {
+            return Nsec3ForZone(name, next, Root, false, types);
+        }
+
+        private DnsResponse Nsec3ForZone(string name, string next, DnsSecKey key, bool optOut, DnsRecordType[] types) {
             byte[] hash = Hash(name);
             byte[] nextHash = Hash(next);
             byte[] data = new byte[] { 1, (byte)(optOut ? 1 : 0), 0, 0, 0, 20 }.Concat(nextHash).Concat(Bitmap(types)).ToArray();
-            return Signed(Base32(hash) + ".example.com", DnsRecordType.NSEC3, data, authority: true);
+            string owner = Base32(hash) + (key.Name == "." ? "." : "." + key.Name);
+            return Signed(owner, DnsRecordType.NSEC3, data, key: key, authority: true);
         }
 
         internal static DnsResponse WithProofs(DnsResponse answer, params DnsResponse[] proofs) {

@@ -25,7 +25,7 @@ namespace DnsClientX {
                 if (record.Type == DnsRecordType.NSEC3 && TryReadNsec3(response.WireMessage, record, out Nsec3Value value)) {
                     string owner = DnsWireNameCodec.Canonical(record.Name);
                     int dot = owner.IndexOf('.');
-                    if (dot > 0) nsec3.Add((owner.Substring(0, dot), owner.Substring(dot + 1), value));
+                    if (dot > 0) nsec3.Add((owner.Substring(0, dot), Nsec3Zone(owner), value));
                 }
             }
             if (nsec3.Count == 0) return false;
@@ -121,7 +121,7 @@ namespace DnsClientX {
                 string canonicalOwner = DnsWireNameCodec.Canonical(record.Name);
                 int dot = canonicalOwner.IndexOf('.');
                 if (dot <= 0) continue;
-                values.Add((canonicalOwner.Substring(0, dot), canonicalOwner.Substring(dot + 1), value));
+                values.Add((canonicalOwner.Substring(0, dot), Nsec3Zone(canonicalOwner), value));
             }
             if (values.Count == 0) return false;
             Nsec3Value parameters = values[0].Value;
@@ -145,6 +145,11 @@ namespace DnsClientX {
             string wildcardHash = ToBase32Hex(HashName(wildcard, parameters.Iterations, parameters.Salt));
             return values.Any(v => CoversHash(v.OwnerHash, ToBase32Hex(v.Value.NextHash), nextHash)) &&
                    values.Any(v => CoversHash(v.OwnerHash, ToBase32Hex(v.Value.NextHash), wildcardHash));
+        }
+
+        internal static string Nsec3Zone(string canonicalOwner) {
+            string suffix = canonicalOwner.Substring(canonicalOwner.IndexOf('.') + 1);
+            return suffix.Length == 0 ? "." : suffix;
         }
 
         private static bool IsDelegation(HashSet<ushort> types) {

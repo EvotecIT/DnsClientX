@@ -44,11 +44,11 @@ namespace DnsClientX {
                 .ToArray();
 
             if (rrsets.Length > 0) {
-                return CompleteValidation(await ValidatePositiveAsync(response, answerRecords, rrsets, name, type,
+                return CompleteValidation(response, await ValidatePositiveAsync(response, answerRecords, rrsets, name, type,
                     requireTerminal: true, cancellationToken).ConfigureAwait(false));
             }
 
-            return CompleteValidation(await ValidateNegativeAsync(response, name, type, cancellationToken).ConfigureAwait(false));
+            return CompleteValidation(response, await ValidateNegativeAsync(response, name, type, cancellationToken).ConfigureAwait(false));
         }
 
         internal async Task<DnsSecValidationResult> ValidateAliasAsync(DnsResponse response, string name,
@@ -65,7 +65,7 @@ namespace DnsClientX {
             if (rrsets.Length == 0) {
                 return DnsSecValidationResult.Indeterminate("The iterative alias response contained no answer RRset.");
             }
-            return CompleteValidation(await ValidatePositiveAsync(response, answers, rrsets, name, type,
+            return CompleteValidation(response, await ValidatePositiveAsync(response, answers, rrsets, name, type,
                 requireTerminal: false, cancellationToken).ConfigureAwait(false));
         }
 
@@ -89,7 +89,6 @@ namespace DnsClientX {
                 insecure |= result.Status == DnsSecValidationStatus.Insecure;
             }
 
-            ApplyAuthenticatedLifetimes(response);
             if (!TryFollowAnswerChain(answerRecords, name, type, out string finalName, out bool terminal, out string? chainError)) {
                 return DnsSecValidationResult.Indeterminate(chainError ?? "The answer did not contain a usable canonical-name chain.");
             }
@@ -124,17 +123,14 @@ namespace DnsClientX {
             DnsSecValidationResult? unsupported = null;
             foreach (IGrouping<string, DnsSecSignature> signer in signatures.GroupBy(item => item.SignerName, StringComparer.Ordinal)) {
                 if (rrset.Type == DnsRecordType.DS && !IsStrictAncestor(rrset.Name, signer.Key)) {
-                    return DnsSecValidationResult.Bogus("A DS answer must be signed by an ancestor zone, not the child.");
+                    continue;
                 }
                 if (!IsNameWithinZone(rrset.Name, signer.Key)) {
-                    return DnsSecValidationResult.Bogus(
-                        $"RRSIG signer {signer.Key} is not an ancestor of the {rrset.Name} RRset owner.");
+                    continue;
                 }
                 ZoneKeysResult keys = await GetZoneKeysAsync(signer.Key, cancellationToken).ConfigureAwait(false);
-                if (keys.Status == DnsSecValidationStatus.Insecure) return DnsSecValidationResult.Insecure(keys.Message);
                 if (keys.Status != DnsSecValidationStatus.Secure) {
-                    if (keys.Status == DnsSecValidationStatus.Bogus) return DnsSecValidationResult.Bogus(keys.Message);
-                    unsupported = DnsSecValidationResult.Indeterminate(keys.Message);
+                    unsupported = new DnsSecValidationResult(keys.Status, keys.Message);
                     continue;
                 }
                 foreach (DnsSecSignature signature in signer) {
@@ -343,7 +339,7 @@ namespace DnsClientX {
                     if (requiredSigner != null && !string.Equals(requiredSigner, signature.SignerName, StringComparison.Ordinal)) continue;
                     // NSEC3 hashes describe names in exactly the signer's zone.
                     if (proof.Type == DnsRecordType.NSEC3
-                        && !string.Equals(owner.Substring(owner.IndexOf('.') + 1), signature.SignerName, StringComparison.Ordinal)) continue;
+                        && !string.Equals(DnsSecProof.Nsec3Zone(owner), signature.SignerName, StringComparison.Ordinal)) continue;
                     if (!candidates.TryGetValue(signature.SignerName, out List<DnsWireResourceRecord>? records)) {
                         records = new List<DnsWireResourceRecord>();
                         candidates.Add(signature.SignerName, records);
@@ -356,7 +352,6 @@ namespace DnsClientX {
             DnsSecValidationResult? bestFailure = null;
             foreach (KeyValuePair<string, List<DnsWireResourceRecord>> candidate in candidates) {
                 ZoneKeysResult keys = await GetZoneKeysAsync(candidate.Key, cancellationToken).ConfigureAwait(false);
-                if (keys.Status == DnsSecValidationStatus.Insecure) return DnsSecValidationResult.Insecure(keys.Message);
                 if (keys.Status != DnsSecValidationStatus.Secure) {
                     bestFailure = new DnsSecValidationResult(keys.Status, keys.Message);
                     continue;

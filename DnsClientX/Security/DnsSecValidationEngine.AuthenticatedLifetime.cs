@@ -9,10 +9,13 @@ namespace DnsClientX {
         private readonly Dictionary<RrsetKey, DateTimeOffset> _authenticatedLifetimes = new();
         private readonly List<DnsSecSignature> _authenticatedSignatures = new();
 
-        private DnsSecValidationResult CompleteValidation(DnsSecValidationResult result) {
+        private DnsSecValidationResult CompleteValidation(DnsResponse response, DnsSecValidationResult result) {
             if ((result.Status == DnsSecValidationStatus.Secure || result.Status == DnsSecValidationStatus.Insecure)
                 && _authenticatedSignatures.Any(signature => !DnsSecWire.SignatureTimeIsValid(signature, ValidationTime))) {
                 return DnsSecValidationResult.Indeterminate("An authenticated dependency's signature expired before validation completed.");
+            }
+            if (result.Status == DnsSecValidationStatus.Secure || result.Status == DnsSecValidationStatus.Insecure) {
+                ApplyAuthenticatedLifetimes(response);
             }
             return result;
         }
@@ -46,7 +49,6 @@ namespace DnsClientX {
                     RetainDeadline(new RrsetKey(DnsWireNameCodec.Canonical(cname.Name), DnsRecordType.CNAME, cname.Class), expires);
                 }
             }
-            ApplyAuthenticatedLifetimes(response);
         }
 
         private void RetainDeadline(RrsetKey rrset, DateTimeOffset expires) {
@@ -58,6 +60,13 @@ namespace DnsClientX {
         /// <summary>Clamps also the copies made when iterative alias segments are merged.</summary>
         internal void ApplyAuthenticatedLifetimes(DnsResponse response) {
             DateTimeOffset now = ValidationTime;
+            var byRecord = new Dictionary<(string Name, DnsRecordType Type), DateTimeOffset>();
+            var byOwner = new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal);
+            foreach (var lifetime in _authenticatedLifetimes) {
+                var key = (lifetime.Key.Name, lifetime.Key.Type);
+                if (!byRecord.TryGetValue(key, out var recordExpiry) || lifetime.Value < recordExpiry) byRecord[key] = lifetime.Value;
+                if (!byOwner.TryGetValue(key.Name, out var ownerExpiry) || lifetime.Value < ownerExpiry) byOwner[key.Name] = lifetime.Value;
+            }
             Clamp(response.Answers);
             Clamp(response.Authorities);
             Clamp(response.Additional);
@@ -68,12 +77,12 @@ namespace DnsClientX {
                     string owner = string.IsNullOrEmpty(answers[i].Name) ? answers[i].OriginalName : answers[i].Name;
                     if (string.IsNullOrEmpty(owner)) continue;
                     string canonical = DnsWireNameCodec.Canonical(owner);
-                    foreach (var lifetime in _authenticatedLifetimes) {
-                        if ((answers[i].Type == lifetime.Key.Type || answers[i].Type == DnsRecordType.RRSIG)
-                            && string.Equals(canonical, lifetime.Key.Name, StringComparison.Ordinal)) {
-                            int remaining = (int)Math.Min(int.MaxValue, Math.Max(0, (lifetime.Value - now).TotalSeconds));
-                            answers[i].TTL = Math.Min(Math.Max(0, answers[i].TTL), remaining);
-                        }
+                    bool authenticated = answers[i].Type == DnsRecordType.RRSIG
+                        ? byOwner.TryGetValue(canonical, out var expires)
+                        : byRecord.TryGetValue((canonical, answers[i].Type), out expires);
+                    if (authenticated) {
+                        int remaining = (int)Math.Min(int.MaxValue, Math.Max(0, (expires - now).TotalSeconds));
+                        answers[i].TTL = Math.Min(Math.Max(0, answers[i].TTL), remaining);
                     }
                 }
             }

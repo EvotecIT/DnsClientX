@@ -28,6 +28,49 @@ namespace DnsClientX.Tests {
             Assert.Equal(expected, (await fixture.Engine().ValidateAsync(answer, "example.com", DnsRecordType.DS, default)).Status);
         }
 
+        /// <summary>An irrelevant supplemental signature cannot hide a valid authoritative signature.</summary>
+        [Theory]
+        [InlineData(DnsRecordType.DS, true)]
+        [InlineData(DnsRecordType.DS, false)]
+        [InlineData(DnsRecordType.A, false)]
+        public async Task PositiveAnswersSkipIrrelevantSigners(DnsRecordType type, bool childSigner) {
+            using var fixture = new DnsSecSignedFixture();
+            string name = type == DnsRecordType.DS ? "example.com" : "www.example.com";
+            byte[] data = { 192, 0, 2, 1 };
+            if (type == DnsRecordType.DS) {
+                Assert.True(DnsSecCrypto.TryComputeDsDigest(fixture.Zone.Name, fixture.Zone, 2, out var digest));
+                data = new[] { (byte)(fixture.Zone.KeyTag >> 8), (byte)fixture.Zone.KeyTag, fixture.Zone.Algorithm, (byte)2 }.Concat(digest).ToArray();
+            }
+            DnsResponse answer = fixture.Signed(name, type, data, key: type == DnsRecordType.DS ? fixture.Root : fixture.Zone);
+            var other = childSigner ? fixture.Zone : new DnsSecKey("unrelated.net", 257, 3, 8, fixture.Root.PublicKey);
+            DnsResponse supplement = fixture.Signed(name, type, data, key: other);
+            var signature = supplement.WireAnswers.Single(record => record.Type == DnsRecordType.RRSIG);
+            int offset = answer.WireMessage.Length;
+            answer.WireMessage = answer.WireMessage.Concat(supplement.WireMessage).ToArray();
+            answer.WireAnswers = new[] { new DnsWireResourceRecord(signature.Name, signature.Type, signature.Class,
+                signature.Ttl, signature.RawTtl, signature.RdataOffset + offset, signature.RdataLength, signature.Data) }
+                .Concat(answer.WireAnswers).ToArray();
+            Assert.Equal(DnsSecValidationStatus.Secure,
+                (await fixture.Engine().ValidateAsync(answer, name, type, default)).Status);
+        }
+
+        /// <summary>NSEC3's single hash label at the root still identifies the root signer zone.</summary>
+        [Theory]
+        [InlineData("nodata")]
+        [InlineData("nxdomain")]
+        [InlineData("wildcard")]
+        public async Task RootZoneNsec3ProofsValidate(string kind) {
+            using var fixture = new DnsSecSignedFixture();
+            DnsResponse proof = fixture.RootNsec3(".", ".", DnsRecordType.SOA, DnsRecordType.NS);
+            string name = kind == "nodata" ? "." : "missing";
+            if (kind == "nxdomain") proof.Status = DnsResponseCode.NXDomain;
+            DnsResponse response = kind == "wildcard"
+                ? DnsSecSignedFixture.WithProofs(fixture.Signed(name, DnsRecordType.A, new byte[] { 192, 0, 2, 1 },
+                    key: fixture.Root, labels: 0), proof) : proof;
+            Assert.Equal(DnsSecValidationStatus.Secure,
+                (await fixture.Engine().ValidateAsync(response, name, DnsRecordType.A, default)).Status);
+        }
+
         /// <summary>An Opt-Out cover cannot establish a Secure DS-absence verdict.</summary>
         [Fact]
         public async Task OptOutDsDenialIsInsecure() {
