@@ -40,7 +40,7 @@ namespace DnsClientX {
                 if (string.IsNullOrEmpty(value)) {
                     _name = value;
                 } else {
-                    _name = value == "." ? "." : value.EndsWith(".", StringComparison.Ordinal) ? value.TrimEnd('.') : value;
+                    _name = DnsWireNameCodec.TrimTrailingRootDot(value);
                 }
             }
         }

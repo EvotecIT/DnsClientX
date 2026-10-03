@@ -48,6 +48,7 @@ namespace DnsClientX {
             bool parseTypedTxtRecords = false,
             CancellationToken cancellationToken = default) {
             ThrowIfDisposed();
+            bool certificatePolicy = IgnoreCertificateErrors;
             using DnsClientTelemetry.DnsQueryTelemetryScope? telemetry = DnsClientTelemetry.StartQuery(name, type, EndpointConfiguration);
             try {
                 _lastAuditEntryContext.Value = null;
@@ -60,7 +61,7 @@ namespace DnsClientX {
                             : null;
 
                         response = await RetryAsync(
-                            () => ResolveWithSystemSearchDomains(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken),
+                            () => ResolveWithSystemSearchDomains(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken, certificatePolicy),
                             maxRetries,
                             retryDelayMs,
                             null,
@@ -71,7 +72,7 @@ namespace DnsClientX {
                         response = ex.Response;
                     }
                 } else {
-                    response = await ResolveWithSystemSearchDomains(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken).ConfigureAwait(false);
+                    response = await ResolveWithSystemSearchDomains(name, type, requestDnsSec, validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords, cancellationToken, certificatePolicy).ConfigureAwait(false);
                 }
 
                 telemetry?.Complete(response);
@@ -200,9 +201,10 @@ namespace DnsClientX {
                     } else {
                         // Get the HTTP client only for transports that can use it. Root iteration stays
                         // entirely on the shared wire engine and does not allocate an unused handler.
-                        HttpClient? queryClient = IsHttpBasedTransport(queryConfiguration.RequestFormat)
+                        using HttpClientLease? queryLease = IsHttpBasedTransport(queryConfiguration.RequestFormat)
                             && queryConfiguration.RequestFormat != DnsRequestFormat.DnsOverGrpc
-                            ? GetClient(queryConfiguration, ignoreCertificateErrors) : null;
+                            ? AcquireHttpClient(queryConfiguration, ignoreCertificateErrors) : null;
+                        HttpClient? queryClient = queryLease?.Client;
                         if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
                             response = wireValidationQuery
                                 ? await queryClient!.ResolveWireFormatGet(name, type, requestDnsSec, true, Debug, queryConfiguration, cancellationToken, useStandardDnsQueryPath: true).ConfigureAwait(false)

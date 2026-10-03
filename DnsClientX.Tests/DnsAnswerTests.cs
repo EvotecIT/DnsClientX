@@ -117,5 +117,20 @@ namespace DnsClientX.Tests {
             Assert.Equal(".", record.Replacement);
             Assert.Equal("E2U+sip", record.Service);
         }
+
+        /// <summary>Binary provider representations preserve capture substitutions, quotes, and opaque octets.</summary>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void BinaryNaptrRetainsQuotedRegexp(bool hexadecimal) {
+            byte[] regexp = System.Text.Encoding.ASCII.GetBytes("!^(.*)$!sip:\\1\"@example.com!").Concat(new byte[] { 255 }).ToArray();
+            byte[] rdata = new byte[] { 0, 10, 0, 20, 1, (byte)'u', 0, (byte)regexp.Length }.Concat(regexp).Concat(new byte[] { 0 }).ToArray();
+            var answer = new DnsAnswer { Type = DnsRecordType.NAPTR, DataRaw = hexadecimal
+                ? "\\# " + rdata.Length + " " + string.Join(" ", rdata.Select(value => value.ToString("X2")))
+                : Convert.ToBase64String(rdata) };
+            var record = Assert.IsType<NaptrRecord>(answer.TypedRecord);
+            Assert.Equal("!^(.*)$!sip:\\1\"@example.com!\u00ff", record.RegExp);
+            Assert.Equal(".", record.Replacement);
+        }
     }
 }

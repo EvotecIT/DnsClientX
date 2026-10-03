@@ -37,6 +37,10 @@ internal sealed class ControlledDnsResolver : IAsyncDisposable {
         try {
             while (!_stop.IsCancellationRequested) {
                 var peer = await _tcp.AcceptTcpClientAsync(_stop.Token).ConfigureAwait(false);
+                peer.NoDelay = true;
+                // Only this accept loop owns the list until cleanup joins the loop. Keep failed
+                // tasks observable by cleanup without retaining every successful connection.
+                _peers.RemoveAll(task => task.IsCompletedSuccessfully);
                 _peers.Add(RespondTcpAsync(peer));
             }
         } catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
@@ -53,9 +57,10 @@ internal sealed class ControlledDnsResolver : IAsyncDisposable {
                     var query = new byte[BinaryPrimitives.ReadUInt16BigEndian(length)];
                     await stream.ReadExactlyAsync(query, _stop.Token).ConfigureAwait(false);
                     byte[] response = ControlledDnsMessages.CreateAResponse(query, _answerCount);
-                    BinaryPrimitives.WriteUInt16BigEndian(length, checked((ushort)response.Length));
-                    await stream.WriteAsync(length, _stop.Token).ConfigureAwait(false);
-                    await stream.WriteAsync(response, _stop.Token).ConfigureAwait(false);
+                    var frame = new byte[response.Length + 2];
+                    BinaryPrimitives.WriteUInt16BigEndian(frame, checked((ushort)response.Length));
+                    response.CopyTo(frame, 2);
+                    await stream.WriteAsync(frame, _stop.Token).ConfigureAwait(false);
                 }
             } catch (EndOfStreamException) { }
               catch (IOException) { }

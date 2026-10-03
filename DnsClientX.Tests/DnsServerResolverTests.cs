@@ -55,6 +55,24 @@ namespace DnsClientX.Tests {
             } finally { SystemInformation.SetDnsServerProvider(null); }
         }
 
+        /// <summary>A disconnected system refresh fails explicitly without publishing a partial configuration.</summary>
+        [Fact]
+        public void EmptySystemRefreshFailsAtomicallyAndAllowsExplicitFallback() {
+            var servers = new System.Collections.Generic.List<string> { "192.0.2.1" };
+            SystemInformation.SetDnsServerProvider(() => servers);
+            try {
+                var configuration = new Configuration(DnsEndpoint.System);
+                SystemDnsConfiguration original = configuration.SystemDnsConfiguration!;
+                servers = new System.Collections.Generic.List<string>();
+                Assert.Throws<InvalidOperationException>(() => configuration.RefreshSystemDns());
+                Assert.Same(original, configuration.SystemDnsConfiguration);
+                Assert.Equal("192.0.2.1", configuration.Hostname);
+                configuration.RefreshSystemDns(SystemDnsFallback.PublicResolvers);
+                Assert.Equal(SystemDnsDiscoverySource.PublicFallback, configuration.SystemDnsConfiguration!.Source);
+                Assert.Contains(configuration.Hostname!, configuration.SystemDnsConfiguration.DnsServers);
+            } finally { SystemInformation.SetDnsServerProvider(null); }
+        }
+
         /// <summary>
         /// Ensures IP literals are returned without resolution errors.
         /// </summary>

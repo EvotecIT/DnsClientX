@@ -176,6 +176,7 @@ namespace DnsClientX {
                 }
                 _clients.Clear();
                 _managedClients.Clear();
+                _httpClientUseCounts.Clear();
                 _clientTlsPolicies.Clear();
                 mainClient = Client;
                 handlerLocal = handler;

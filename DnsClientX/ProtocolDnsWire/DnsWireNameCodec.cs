@@ -49,6 +49,13 @@ namespace DnsClientX {
 
         internal static string Canonical(string name) => Normalize(name).ToLowerInvariant();
 
+        internal static string TrimTrailingRootDot(string name) {
+            if (string.IsNullOrEmpty(name) || name == "." || name[name.Length - 1] != '.') return name;
+            int escapes = 0;
+            for (int index = name.Length - 2; index >= 0 && name[index] == '\\'; index--) escapes++;
+            return escapes % 2 == 0 ? name.Substring(0, name.Length - 1) : name;
+        }
+
         internal static bool IsSubdomainOrEqual(string name, string parent) {
             string canonicalName = Canonical(name);
             string canonicalParent = Canonical(parent);
@@ -88,7 +95,7 @@ namespace DnsClientX {
         private static byte[][] ParseEscapedLabels(string name) {
             var labels = new List<byte[]>();
             var label = new List<byte>();
-            string value = name.EndsWith(".", StringComparison.Ordinal) ? name.Substring(0, name.Length - 1) : name;
+            string value = TrimTrailingRootDot(name);
             for (int index = 0; index < value.Length; index++) {
                 char current = value[index];
                 if (current == '.') {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -43,7 +44,7 @@ namespace DnsClientX {
                 if (string.IsNullOrEmpty(value)) {
                     _name = value;
                 } else {
-                    _name = value.EndsWith(".", StringComparison.Ordinal) ? value.TrimEnd('.') : value;
+                    _name = DnsWireNameCodec.TrimTrailingRootDot(value);
                 }
             }
         }
@@ -140,6 +141,7 @@ namespace DnsClientX {
                 DnsRecordType.TLSA => ConvertTlsaRecord(),
                 DnsRecordType.PTR => ConvertPtrRecord(),
                 DnsRecordType.NAPTR => ConvertNaptrRecord(),
+                DnsRecordType.AAAA => IPAddress.TryParse(DataRaw, out var address) ? address.ToString() : DataRaw,
                 DnsRecordType.SVCB or DnsRecordType.HTTPS => DataRaw,
                 DnsRecordType.NS or DnsRecordType.CNAME or DnsRecordType.DNAME or
                 DnsRecordType.MB or DnsRecordType.MD or DnsRecordType.MF or DnsRecordType.MG or DnsRecordType.MR or
@@ -364,46 +366,15 @@ namespace DnsClientX {
         }
 
         /// <summary>
-        /// Converts a special format like "\u0003one\u0003one\u0003one\u0003one\0" to a standard dotted format.
+        /// Formats binary NAPTR data with faithful character-string escaping and a normalized replacement.
         /// </summary>
         /// <param name="rdata">The raw data in special format.</param>
         /// <returns>The data in standard dotted format.</returns>
         private string ParseNaptrRDataAndFormat(byte[] rdata) {
-            using (var memoryStream = new System.IO.MemoryStream(rdata))
-            using (var reader = new System.IO.BinaryReader(memoryStream)) {
-                ushort order = (ushort)(reader.ReadByte() << 8 | reader.ReadByte());
-                ushort preference = (ushort)(reader.ReadByte() << 8 | reader.ReadByte());
-
-                byte flagsLength = reader.ReadByte();
-                string flags = Encoding.ASCII.GetString(reader.ReadBytes(flagsLength));
-
-                byte serviceLength = reader.ReadByte();
-                string service = Encoding.ASCII.GetString(reader.ReadBytes(serviceLength));
-
-                byte regexpLength = reader.ReadByte();
-                string regexp = Encoding.ASCII.GetString(reader.ReadBytes(regexpLength));
-
-                var replacementBuilder = new StringBuilder();
-                byte labelLength = 0; // Initialize to prevent CS0165
-                while (memoryStream.Position < memoryStream.Length && (labelLength = reader.ReadByte()) != 0) {
-                    if (replacementBuilder.Length > 0) {
-                        replacementBuilder.Append('.');
-                    }
-                    replacementBuilder.Append(Encoding.ASCII.GetString(reader.ReadBytes(labelLength)));
-                }
-                string replacement = replacementBuilder.ToString();
-                if (string.IsNullOrEmpty(replacement) && memoryStream.Position == memoryStream.Length && labelLength == 0) { // Check if it was explicitly a root domain
-                    replacement = ".";
-                } else if (string.IsNullOrEmpty(replacement) && replacementBuilder.Length == 0 && labelLength !=0 && memoryStream.Position < memoryStream.Length) {
-                    // This case can happen if replacement is empty but not the root domain (e.g. NAPTR with empty replacement)
-                    // However, RFC3403 implies replacement is a domain-name, which if empty, is the root ".".
-                    // For safety, if it's empty and not explicitly root, it might be better to keep it empty or decide a convention.
-                    // Current behavior: keeps it empty if not explicitly root.
-                }
-
-
-                return $"{order} {preference} \"{flags}\" \"{service}\" \"{regexp}\" {replacement}";
-            }
+            string formatted = DnsWireRecordFormatter.Format(rdata, DnsRecordType.NAPTR, 0, checked((ushort)rdata.Length));
+            int replacementStart = formatted.LastIndexOf(' ') + 1;
+            return formatted.Substring(0, replacementStart)
+                + DnsWireNameCodec.TrimTrailingRootDot(formatted.Substring(replacementStart)).ToLowerInvariant();
         }
 
         private string ConvertSpecialFormatToDotted(string data) {

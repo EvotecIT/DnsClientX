@@ -24,6 +24,7 @@ namespace DnsClientX {
         /// <exception cref="DnsClientException">Thrown when the server returns an error.</exception>
         public async Task<DnsResponse> UpdateRecordAsync(string zone, string name, DnsRecordType type, string data, int ttl = 300, CancellationToken cancellationToken = default) {
             ThrowIfDisposed();
+            bool certificatePolicy = IgnoreCertificateErrors;
             if (string.IsNullOrEmpty(zone)) throw new ArgumentNullException(nameof(zone));
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
             if (ttl < 0) throw new ArgumentOutOfRangeException(nameof(ttl));
@@ -31,8 +32,12 @@ namespace DnsClientX {
             DnsResponse response;
             if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
                 if (queryConfiguration.TsigKey != null) throw new NotSupportedException("TSIG authenticates DNS wire UPDATE messages and cannot be applied to the provider-specific JSON update API.");
-                HttpClient queryClient = GetClient(queryConfiguration);
-                response = await queryClient.UpdateJsonFormatPost(zone, name, type, data, ttl, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                DnsResponse? bootstrapFailure = await PrepareHttpBootstrapAsync(queryConfiguration, name, type, cancellationToken).ConfigureAwait(false);
+                if (bootstrapFailure != null) response = bootstrapFailure;
+                else {
+                    using HttpClientLease lease = AcquireHttpClient(queryConfiguration, certificatePolicy);
+                    response = await lease.Client.UpdateJsonFormatPost(zone, name, type, data, ttl, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                }
             } else {
                 EnsureWireUpdateTransport(queryConfiguration.RequestFormat);
                 response = await DnsWireUpdateTcp.UpdateRecordAsync(queryConfiguration.Hostname!, queryConfiguration.Port, zone, name, type, data, ttl, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
@@ -54,14 +59,19 @@ namespace DnsClientX {
         /// <exception cref="DnsClientException">Thrown when the server returns an error.</exception>
         public async Task<DnsResponse> DeleteRecordAsync(string zone, string name, DnsRecordType type, CancellationToken cancellationToken = default) {
             ThrowIfDisposed();
+            bool certificatePolicy = IgnoreCertificateErrors;
             if (string.IsNullOrEmpty(zone)) throw new ArgumentNullException(nameof(zone));
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
             Configuration queryConfiguration = EndpointConfiguration.CreateQuerySnapshot();
             DnsResponse response;
             if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
                 if (queryConfiguration.TsigKey != null) throw new NotSupportedException("TSIG authenticates DNS wire UPDATE messages and cannot be applied to the provider-specific JSON update API.");
-                HttpClient queryClient = GetClient(queryConfiguration);
-                response = await queryClient.DeleteJsonFormatPost(zone, name, type, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                DnsResponse? bootstrapFailure = await PrepareHttpBootstrapAsync(queryConfiguration, name, type, cancellationToken).ConfigureAwait(false);
+                if (bootstrapFailure != null) response = bootstrapFailure;
+                else {
+                    using HttpClientLease lease = AcquireHttpClient(queryConfiguration, certificatePolicy);
+                    response = await lease.Client.DeleteJsonFormatPost(zone, name, type, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                }
             } else {
                 EnsureWireUpdateTransport(queryConfiguration.RequestFormat);
                 response = await DnsWireUpdateTcp.DeleteRecordAsync(queryConfiguration.Hostname!, queryConfiguration.Port, zone, name, type, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);

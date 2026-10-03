@@ -328,7 +328,7 @@ namespace DnsClientX {
 #if NET5_0_OR_GREATER
             // RFC 8484 clients should use HTTP/2 when available. Do not silently downgrade the
             // default HTTP/2 request to HTTP/1.1, which some conforming resolvers reject.
-            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
+            client.DefaultVersionPolicy = DnsHttpRequestSettings.VersionPolicy(configuration);
 #endif
             // Set the user agent to the default value
             client.DefaultRequestHeaders.UserAgent.Clear();
@@ -390,12 +390,14 @@ namespace DnsClientX {
             bool ignoreCertificateErrors = certificatePolicy ?? IgnoreCertificateErrors;
             DnsSelectionStrategy strategy = configuration.SelectionStrategy;
             lock (_lock) {
+                ThrowIfDisposed();
                 if (_clients.TryGetValue(strategy, out HttpClient? client) && client != null) {
                     if (!ClientMatchesConfiguration(client, configuration, ignoreCertificateErrors)) {
                         RecreateClientForStrategy(strategy, configuration, ignoreCertificateErrors);
                         client = _clients[strategy];
                     }
                     Client = client;
+                    TrimManagedHttpClients(client);
                     return client;
                 }
 
@@ -403,6 +405,7 @@ namespace DnsClientX {
                 _clients[strategy] = created;
                 _managedClients.Add(created);
                 Client = created;
+                TrimManagedHttpClients(created);
                 return created;
             }
         }
@@ -423,10 +426,8 @@ namespace DnsClientX {
         }
 
         private void RecreateClientForStrategy(DnsSelectionStrategy strategy, Configuration configuration, bool ignoreCertificateErrors) {
-            // Do not dispose the previous client here: another query may still be using it. All managed
-            // clients are retained until ClientX is disposed, while the strategy map stays enum-bounded.
-            // Toggling between policies can reuse their separate connection pools without
-            // accumulating a new handler on every toggle.
+            // Reuse a compatible policy pool. Idle pools are bounded, while leases keep any
+            // superseded client alive until its active requests finish.
             foreach (HttpClient existing in _managedClients) {
                 if (ClientMatchesConfiguration(existing, configuration, ignoreCertificateErrors)) {
                     _clients[strategy] = existing;

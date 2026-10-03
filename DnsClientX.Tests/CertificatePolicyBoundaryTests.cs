@@ -11,7 +11,7 @@ namespace DnsClientX.Tests;
 
 /// <summary>Exercises certificate policy through real TLS connections and the shared response cache.</summary>
 [Collection("NoParallel")]
-public sealed class CertificatePolicyBoundaryTests {
+public sealed partial class CertificatePolicyBoundaryTests {
     /// <summary>Policy changes must govern subsequent requests, including previously pooled connections.</summary>
     [Fact]
     public async Task ChangingPolicyCannotPopulateOrReadStrictCacheWithUnauthenticatedData() {
@@ -109,13 +109,16 @@ public sealed class CertificatePolicyBoundaryTests {
         private readonly Task _accept;
         private readonly TaskCompletionSource<bool> _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource<bool> _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<bool> _handshakeEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<bool> _handshakeRelease = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private int _requestCount;
 
-        internal UntrustedHttpsServer(bool gated = false) {
+        internal UntrustedHttpsServer(bool gated = false, bool gateHandshake = false) {
             var request = new CertificateRequest("CN=untrusted.invalid", _key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             _certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddHours(1));
             _listener.Start();
             if (!gated) Release();
+            if (!gateHandshake) ReleaseHandshake();
             _accept = AcceptAsync();
         }
 
@@ -124,6 +127,8 @@ public sealed class CertificatePolicyBoundaryTests {
         internal string? HttpHost { get; private set; }
         internal Task Entered => _entered.Task;
         internal void Release() => _release.TrySetResult(true);
+        internal Task HandshakeEntered => _handshakeEntered.Task;
+        internal void ReleaseHandshake() => _handshakeRelease.TrySetResult(true);
         internal Configuration Configuration(string hostname = "localhost", DnsResolverEndpoint? bootstrap = null) => new(new Uri($"https://{hostname}:{((IPEndPoint)_listener.LocalEndpoint).Port}/resolve"), DnsRequestFormat.DnsOverHttpsJSON) {
             HttpVersion = HttpVersion.Version11, TimeOut = 3000, BootstrapResolver = bootstrap
         };
@@ -142,6 +147,8 @@ public sealed class CertificatePolicyBoundaryTests {
             using (peer)
             using (var tls = new SslStream(peer.GetStream())) {
                 try {
+                    _handshakeEntered.TrySetResult(true);
+                    await _handshakeRelease.Task.WaitAsync(_stop.Token);
                     await tls.AuthenticateAsServerAsync(new SslServerAuthenticationOptions {
                         ServerCertificateSelectionCallback = (_, name) => { ServerName = name; return _certificate; },
                         EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
@@ -151,9 +158,12 @@ public sealed class CertificatePolicyBoundaryTests {
                         string? request = await reader.ReadLineAsync(_stop.Token);
                         if (request == null) return;
                         string? header;
+                        int contentLength = 0;
                         while (!string.IsNullOrEmpty(header = await reader.ReadLineAsync(_stop.Token))) {
                             if (header.StartsWith("Host:", StringComparison.OrdinalIgnoreCase)) HttpHost = header.Substring(5).Trim();
+                            if (header.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase)) contentLength = int.Parse(header.Substring(15).Trim());
                         }
+                        if (contentLength > 0) await reader.ReadBlockAsync(new char[contentLength], _stop.Token);
                         Interlocked.Increment(ref _requestCount);
                         _entered.TrySetResult(true);
                         await _release.Task.WaitAsync(_stop.Token);

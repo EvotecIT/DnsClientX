@@ -20,6 +20,10 @@ public partial class Configuration {
             throw new InvalidOperationException("Only system DNS endpoints can refresh operating-system configuration.");
         }
         SystemDnsConfiguration refreshed = SystemInformation.GetDnsConfiguration(refresh: true, fallback: fallback);
+        if (!refreshed.HasDnsServers) {
+            throw new InvalidOperationException(
+                "No DNS servers were exposed by the operating system. Configure an explicit resolver or opt in to SystemDnsFallback.PublicResolvers.");
+        }
         lock (selectionLock) {
             SystemDnsConfiguration = refreshed;
             hostnames.Clear();

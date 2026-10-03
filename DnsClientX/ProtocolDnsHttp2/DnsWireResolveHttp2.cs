@@ -34,8 +34,7 @@ namespace DnsClientX {
             req.Headers.Accept.Clear();
             req.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/dns-message"));
 #if NET5_0_OR_GREATER
-            req.Version = HttpVersion.Version20;
-            req.VersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
+            DnsHttpRequestSettings.Configure(req, endpointConfiguration, HttpVersion.Version20);
 #else
             req.Version = new Version(2, 0);
 #endif

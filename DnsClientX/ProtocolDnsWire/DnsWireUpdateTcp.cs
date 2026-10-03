@@ -69,17 +69,7 @@ namespace DnsClientX {
             Configuration endpointConfiguration,
             CancellationToken cancellationToken) {
             (System.Net.IPAddress? address, string? error) = await DnsServerResolver.ResolveAsync(
-                dnsServer,
-                endpointConfiguration.TimeOut,
-                cancellationToken,
-                endpointConfiguration.DnsServerResolutionSuccessTtl,
-                endpointConfiguration.DnsServerResolutionFailureTtl,
-                endpointConfiguration.DnsServerResolutionAllowStale,
-                endpointConfiguration.DnsServerResolutionStaleTtl,
-                endpointConfiguration.DnsServerResolutionFailureBackoffEnabled,
-                endpointConfiguration.DnsServerResolutionFailureBackoffFactor,
-                endpointConfiguration.DnsServerResolutionFailureBackoffMaxTtl,
-                endpointConfiguration.PreferredAddressFamily).ConfigureAwait(false);
+                dnsServer, endpointConfiguration, cancellationToken).ConfigureAwait(false);
             if (address == null) throw new DnsClientException(error ?? $"DNS server '{dnsServer}' could not be resolved.");
             return await DnsWireResolveTcp.SendQueryOverTcp(
                 message,

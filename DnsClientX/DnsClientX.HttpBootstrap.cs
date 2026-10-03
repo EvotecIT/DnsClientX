@@ -13,7 +13,10 @@ public partial class ClientX {
     private static async Task<DnsResponse?> PrepareHttpBootstrapAsync(Configuration configuration, string name,
         DnsRecordType type, CancellationToken cancellationToken) {
         if (!UsesHttpBootstrap(configuration)) return null;
-        var (address, error) = await DnsServerResolver.ResolveAsync(configuration.BaseUri!.DnsSafeHost,
+        if (configuration.HttpVersion.Major >= 3 || configuration.RequestFormat == DnsRequestFormat.DnsOverHttp3) {
+            throw new NotSupportedException("Explicit HTTP bootstrap supports HTTP/1.1 and HTTP/2; HTTP/3 has an independent QUIC dial path.");
+        }
+        var (address, error) = await DnsServerResolver.ResolveAsync(configuration.BaseUri!.IdnHost,
             configuration, cancellationToken).ConfigureAwait(false);
         if (address != null) return null;
         var response = new DnsResponse {
@@ -27,7 +30,7 @@ public partial class ClientX {
     }
 
     private static bool UsesHttpBootstrap(Configuration configuration) => configuration.BootstrapResolver != null
-        && configuration.BaseUri != null && !IPAddress.TryParse(configuration.BaseUri.DnsSafeHost, out _);
+        && configuration.BaseUri != null && !IPAddress.TryParse(configuration.BaseUri.IdnHost, out _);
 
     private static string HttpBootstrapKey(Configuration configuration) => !UsesHttpBootstrap(configuration) ? string.Empty :
         $"{DnsBootstrapResolver.CacheKey(configuration.BootstrapResolver)}|{configuration.ServerResolution?.Hostname}|{configuration.ServerResolution?.Address}";

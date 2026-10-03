@@ -176,6 +176,7 @@ namespace DnsClientX {
             private readonly SemaphoreSlim _connectGate = new(1, 1);
             private readonly SemaphoreSlim _writeGate = new(1, 1);
             private readonly SemaphoreSlim _capacity;
+            private readonly object _transportLock = new();
             private readonly Func<TcpClient, IPAddress, int, int, CancellationToken, Task>? _connectOverride;
             private readonly Func<Stream, byte[], CancellationToken, Task>? _writeOverride;
             private TcpClient? _client;
@@ -286,17 +287,21 @@ namespace DnsClientX {
                         if (_key.UseTls) {
                             var sslStream = new SslStream(stream, false,
                                 (_, _, _, errors) => errors == SslPolicyErrors.None || _key.IgnoreCertificateErrors);
+                            stream = sslStream;
                             await AuthenticateAsync(sslStream, _key.TlsServerName, _key.Protocols,
                                 timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
-                            stream = sslStream;
                         }
 
-                        var lifetime = new CancellationTokenSource();
-                        _client = client;
-                        _stream = stream;
-                        _lifetime = lifetime;
-                        Volatile.Write(ref _faulted, 0);
-                        _readerTask = Task.Run(() => ReadLoopAsync(stream, lifetime.Token));
+                        lock (_transportLock) {
+                            ThrowIfUnavailable();
+                            var lifetime = new CancellationTokenSource();
+                            _client = client;
+                            _stream = stream;
+                            _lifetime = lifetime;
+                            Volatile.Write(ref _faulted, 0);
+                            CancellationToken lifetimeToken = lifetime.Token;
+                            _readerTask = Task.Run(() => ReadLoopAsync(stream, lifetimeToken));
+                        }
                     } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
                         stream?.Dispose();
                         client.Dispose();
@@ -378,10 +383,15 @@ namespace DnsClientX {
             }
 
             private void CloseTransport() {
-                CancellationTokenSource? lifetime = Interlocked.Exchange(ref _lifetime, null);
-                Stream? stream = Interlocked.Exchange(ref _stream, null);
-                TcpClient? client = Interlocked.Exchange(ref _client, null);
-                _readerTask = null;
+                CancellationTokenSource? lifetime;
+                Stream? stream;
+                TcpClient? client;
+                lock (_transportLock) {
+                    lifetime = Interlocked.Exchange(ref _lifetime, null);
+                    stream = Interlocked.Exchange(ref _stream, null);
+                    client = Interlocked.Exchange(ref _client, null);
+                    _readerTask = null;
+                }
                 try { lifetime?.Cancel(); } catch (ObjectDisposedException) { }
                 try { stream?.Dispose(); } catch { }
                 try { client?.Dispose(); } catch { }
