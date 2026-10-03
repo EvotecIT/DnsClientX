@@ -12,7 +12,7 @@ namespace DnsClientX {
     /// <summary>
     /// Parses user-provided resolver endpoint strings into validated endpoints.
     /// </summary>
-    public static class EndpointParser {
+    public static partial class EndpointParser {
         private const int MaxImportedContentBytes = 256 * 1024;
         private static readonly TimeSpan ImportHttpTimeout = TimeSpan.FromSeconds(15);
 

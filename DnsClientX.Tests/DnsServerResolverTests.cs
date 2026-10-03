@@ -24,6 +24,37 @@ namespace DnsClientX.Tests {
             DnsServerResolver.ResetForTests();
         }
 
+        /// <summary>Stale reuse reports its lookup failure without changing a successful query into SERVFAIL.</summary>
+        [Fact]
+        public async Task StaleLookupRetainsDiagnosticProvenance() {
+            var configuration = new Configuration("diagnostic.local", DnsRequestFormat.DnsOverUDP) { DnsServerResolutionSuccessTtl = TimeSpan.Zero };
+            DnsServerResolver.ResolveHostAddressesAsync = _ => Task.FromResult(new[] { IPAddress.Loopback });
+            await DnsServerResolver.ResolveAsync("diagnostic.local", configuration, default);
+            DnsServerResolver.ResolveHostAddressesAsync = _ => throw new InvalidOperationException("lookup unavailable");
+            var stale = await DnsServerResolver.ResolveAsync("diagnostic.local", configuration, default);
+            Assert.Equal(IPAddress.Loopback, stale.Address);
+            Assert.Null(stale.Error);
+            Assert.True(configuration.ServerResolution!.UsedStaleAddress);
+            Assert.Equal("lookup unavailable", configuration.ServerResolution.Error);
+            Assert.Null(configuration.ServerResolution.BootstrapResolver);
+        }
+
+        /// <summary>A system client can deliberately refresh servers and policy after network changes.</summary>
+        [Fact]
+        public void SystemConfigurationRefreshesOperatingSystemSnapshot() {
+            var servers = new System.Collections.Generic.List<string> { "192.0.2.1" };
+            SystemInformation.SetDnsServerProvider(() => servers);
+            try {
+                var configuration = new Configuration(DnsEndpoint.System);
+                Assert.Equal("192.0.2.1", configuration.Hostname);
+                servers = new System.Collections.Generic.List<string> { "192.0.2.2" };
+                configuration.RefreshSystemDns();
+                Assert.Equal("192.0.2.2", configuration.Hostname);
+                Assert.Equal("192.0.2.2", Assert.Single(configuration.SystemDnsConfiguration!.DnsServers));
+                Assert.Throws<InvalidOperationException>(() => new Configuration(DnsEndpoint.Cloudflare).RefreshSystemDns());
+            } finally { SystemInformation.SetDnsServerProvider(null); }
+        }
+
         /// <summary>
         /// Ensures IP literals are returned without resolution errors.
         /// </summary>

@@ -13,7 +13,7 @@ namespace DnsClientX {
     /// <remarks>
     /// Instances of this class are used by <see cref="ClientXBuilder"/> to describe the target server and connection settings.
     /// </remarks>
-    public class Configuration {
+    public partial class Configuration {
         /// <summary>
         /// Random generator used for hostname selection on frameworks lacking
         /// <c>Random.Shared</c>.
@@ -464,6 +464,7 @@ namespace DnsClientX {
             lock (selectionLock) {
                 SelectHostNameStrategyCore();
                 Configuration snapshot = (Configuration)MemberwiseClone();
+                snapshot.ServerResolution = null;
                 snapshot.EdnsOptions = EdnsOptions?.Clone();
                 snapshot.LocalEndPoint = LocalEndPoint == null
                     ? null

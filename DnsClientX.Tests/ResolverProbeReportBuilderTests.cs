@@ -54,6 +54,23 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>Projection preserves the query's resolver identity and endpoint-resolution evidence.</summary>
+        [Fact]
+        public void Build_RetainsResolverIdentityAndProvenance() {
+            var attempt = new ResolverQueryAttemptResult {
+                Target = "resolver.example", Response = new DnsResponse {
+                    EdnsNsid = new byte[] { 0, 255, 128 },
+                    ServerResolution = new DnsServerResolutionInfo("resolver.example", "192.0.2.53", "udp@192.0.2.1:53", true, true, "lookup unavailable")
+                }
+            };
+            var report = ResolverProbeReportBuilder.Build(new[] { attempt }, "example.com", DnsRecordType.A, 1000, new ResolverProbePolicy());
+            var result = Assert.Single(report.Results);
+            Assert.Equal("00FF80", result.EdnsNsidHex);
+            Assert.Null(result.EdnsNsidText);
+            Assert.True(result.ServerResolution!.UsedStaleAddress);
+            Assert.Equal("lookup unavailable", result.ServerResolution.Error);
+        }
+
         private static ResolverQueryAttemptResult CreateAttempt(string target, DnsRequestFormat requestFormat, string resolver, bool succeeded, int elapsedMs, string name, string data) {
             return new ResolverQueryAttemptResult {
                 Target = target,

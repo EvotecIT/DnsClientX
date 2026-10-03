@@ -12,6 +12,15 @@ namespace DnsClientX.PowerShell {
     /// Per-candidate DNS probe output for PowerShell consumers.
     /// </summary>
     public sealed class DnsProbeResult {
+        /// <summary>Endpoint hostname resolution provenance for this candidate.</summary>
+        public DnsServerResolutionInfo? ServerResolution { get; set; }
+
+        /// <summary>Lossless NSID hexadecimal value, empty when absent.</summary>
+        public string EdnsNsidHex { get; set; } = string.Empty;
+
+        /// <summary>NSID text when it consists of printable ASCII.</summary>
+        public string? EdnsNsidText { get; set; }
+
         /// <summary>
         /// Candidate label, such as a provider name or explicit transport endpoint.
         /// </summary>
@@ -365,6 +374,14 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
         public SwitchParameter RequestDnsSec { get; set; }
 
+        /// <summary>Request resolver identity through EDNS on wire transports.</summary>
+        [Parameter(Mandatory = false)]
+        public SwitchParameter RequestNsid { get; set; }
+
+        /// <summary>Resolve endpoint hostnames through an IP-literal UDP/TCP resolver, such as udp@1.1.1.1:53.</summary>
+        [Parameter(Mandatory = false)]
+        public string? BootstrapResolver { get; set; }
+
         /// <summary>
         /// Validate DNSSEC signatures. Implies <see cref="RequestDnsSec"/>.
         /// </summary>
@@ -565,6 +582,8 @@ namespace DnsClientX.PowerShell {
                 TimeoutMs = TimeOut,
                 RequestDnsSec = RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent,
                 ValidateDnsSec = ValidateDnsSec.IsPresent,
+                RequestNsid = RequestNsid.IsPresent,
+                BootstrapResolver = string.IsNullOrWhiteSpace(BootstrapResolver) ? null : EndpointParser.ParseBootstrap(BootstrapResolver!),
                 MaxRetries = 1,
                 RetryDelayMs = 0
             };
@@ -580,6 +599,9 @@ namespace DnsClientX.PowerShell {
                 Error = result.Error,
                 ElapsedMs = result.ElapsedMs,
                 AnswerCount = result.AnswerCount,
+                ServerResolution = result.ServerResolution,
+                EdnsNsidHex = result.EdnsNsidHex,
+                EdnsNsidText = result.EdnsNsidText,
                 Succeeded = result.Succeeded,
                 Rank = result.Rank,
                 IsFastestSuccess = result.IsFastestSuccess,

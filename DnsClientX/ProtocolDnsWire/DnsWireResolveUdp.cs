@@ -49,18 +49,7 @@ namespace DnsClientX {
                 Settings.Logger.WriteDebug($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
 
-            var (address, resolveError) = await DnsServerResolver.ResolveAsync(
-                    dnsServer,
-                    endpointConfiguration.TimeOut,
-                    cancellationToken,
-                    endpointConfiguration.DnsServerResolutionSuccessTtl,
-                    endpointConfiguration.DnsServerResolutionFailureTtl,
-                    endpointConfiguration.DnsServerResolutionAllowStale,
-                    endpointConfiguration.DnsServerResolutionStaleTtl,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffEnabled,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffFactor,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffMaxTtl,
-                    endpointConfiguration.PreferredAddressFamily)
+            var (address, resolveError) = await DnsServerResolver.ResolveAsync(dnsServer, endpointConfiguration, cancellationToken)
                 .ConfigureAwait(false);
             if (address == null) {
                 DnsResponse invalidAddress = new DnsResponse {

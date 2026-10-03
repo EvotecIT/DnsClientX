@@ -127,6 +127,17 @@ namespace DnsClientX {
                         "MaxTcpQueriesPerConnection must be greater than zero when connection reuse is enabled.");
                 }
                 CaptureAuditConfiguration(auditEntry, queryConfiguration);
+                if (queryConfiguration.EdnsOptions?.GetEffectiveOptions().Any(option => option is NsidOption) == true
+                    && !validateDnsSec && !dnsSecMaterialQuery
+                    && queryConfiguration.RequestFormat is DnsRequestFormat.DnsOverHttpsJSON or DnsRequestFormat.DnsOverHttpsJSONPOST) {
+                    throw new NotSupportedException("NSID requires a DNS wire transport. Select RFC 8484 wire GET or POST instead of JSON.");
+                }
+                if (queryConfiguration.BootstrapResolver != null) {
+                    DnsBootstrapResolver.Validate(queryConfiguration.BootstrapResolver);
+                    if (queryConfiguration.BuiltInEndpoint == DnsEndpoint.RootServer || queryConfiguration.RequestFormat is DnsRequestFormat.DnsOverHttp3 or DnsRequestFormat.DnsOverGrpc or DnsRequestFormat.Multicast) {
+                        throw new NotSupportedException($"Explicit bootstrap is not supported by {queryConfiguration.RequestFormat}.");
+                    }
+                }
 
                 string? cacheKey = null;
                 if (!dnsSecMaterialQuery && _cacheEnabled) {
@@ -182,44 +193,49 @@ namespace DnsClientX {
                         queryConfiguration.DnsSecSignatureVerifier,
                         cancellationToken).ConfigureAwait(false);
                 } else {
-                    // Get the HTTP client only for transports that can use it. Root iteration stays
-                    // entirely on the shared wire engine and does not allocate an unused handler.
-                    HttpClient? queryClient = IsHttpBasedTransport(queryConfiguration.RequestFormat)
-                        && queryConfiguration.RequestFormat != DnsRequestFormat.DnsOverGrpc
-                        ? GetClient(queryConfiguration, ignoreCertificateErrors) : null;
-                    if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
-                    response = wireValidationQuery
-                        ? await queryClient!.ResolveWireFormatGet(name, type, requestDnsSec, true, Debug, queryConfiguration, cancellationToken, useStandardDnsQueryPath: true).ConfigureAwait(false)
-                        : await queryClient!.ResolveJsonFormat(name, type, requestDnsSec, false, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
-                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps) {
-                    response = await queryClient!.ResolveWireFormatGet(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
-                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST ||
-                           queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsWirePost) {
-                    response = await queryClient!.ResolveWireFormatPost(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
-                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
-                    response = wireValidationQuery
-                        ? await queryClient!.ResolveWireFormatGet(name, type, requestDnsSec, true, Debug, queryConfiguration, cancellationToken, useStandardDnsQueryPath: true).ConfigureAwait(false)
-                        : await queryClient!.ResolveJsonFormatPost(name, type, requestDnsSec, false, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
-                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.ObliviousDnsOverHttps) {
-                    throw new NotSupportedException("Oblivious DNS-over-HTTPS requires HPKE encapsulation and is not implemented by the dependency-free core package.");
-                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp2) {
-                    response = await queryClient!.ResolveWireFormatHttp2(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
-                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp3) {
+                    DnsResponse? bootstrapFailure = IsHttpBasedTransport(queryConfiguration.RequestFormat)
+                        ? await PrepareHttpBootstrapAsync(queryConfiguration, name, type, cancellationToken).ConfigureAwait(false) : null;
+                    if (bootstrapFailure != null) {
+                        response = bootstrapFailure;
+                    } else {
+                        // Get the HTTP client only for transports that can use it. Root iteration stays
+                        // entirely on the shared wire engine and does not allocate an unused handler.
+                        HttpClient? queryClient = IsHttpBasedTransport(queryConfiguration.RequestFormat)
+                            && queryConfiguration.RequestFormat != DnsRequestFormat.DnsOverGrpc
+                            ? GetClient(queryConfiguration, ignoreCertificateErrors) : null;
+                        if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
+                            response = wireValidationQuery
+                                ? await queryClient!.ResolveWireFormatGet(name, type, requestDnsSec, true, Debug, queryConfiguration, cancellationToken, useStandardDnsQueryPath: true).ConfigureAwait(false)
+                                : await queryClient!.ResolveJsonFormat(name, type, requestDnsSec, false, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                        } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttps) {
+                            response = await queryClient!.ResolveWireFormatGet(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                        } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsPOST ||
+                                   queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsWirePost) {
+                            response = await queryClient!.ResolveWireFormatPost(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                        } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
+                            response = wireValidationQuery
+                                ? await queryClient!.ResolveWireFormatGet(name, type, requestDnsSec, true, Debug, queryConfiguration, cancellationToken, useStandardDnsQueryPath: true).ConfigureAwait(false)
+                                : await queryClient!.ResolveJsonFormatPost(name, type, requestDnsSec, false, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                        } else if (queryConfiguration.RequestFormat == DnsRequestFormat.ObliviousDnsOverHttps) {
+                            throw new NotSupportedException("Oblivious DNS-over-HTTPS requires HPKE encapsulation and is not implemented by the dependency-free core package.");
+                        } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp2) {
+                            response = await queryClient!.ResolveWireFormatHttp2(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                        } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttp3) {
 #if NET8_0_OR_GREATER
                     response = await queryClient!.ResolveWireFormatHttp3(name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
 #else
-                    throw new DnsClientException("DNS over HTTP/3 is not supported on this platform.");
+                            throw new DnsClientException("DNS over HTTP/3 is not supported on this platform.");
 #endif
-                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverGrpc) {
+                        } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverGrpc) {
 #if NET8_0_OR_GREATER
                     response = await DnsWireResolveGrpc.ResolveWireFormatGrpc(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
 #else
-                    throw new DnsClientException("DNS over gRPC is not supported on this platform.");
+                            throw new DnsClientException("DNS over gRPC is not supported on this platform.");
 #endif
-                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
-                    response = await DnsWireResolveDot.ResolveWireFormatDoT(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, ignoreCertificateErrors, cancellationToken,
-                        queryConfiguration.EnableTcpConnectionReuse ? _streamConnectionPool : null).ConfigureAwait(false);
-                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverQuic) {
+                        } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverTLS) {
+                            response = await DnsWireResolveDot.ResolveWireFormatDoT(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, ignoreCertificateErrors, cancellationToken,
+                                queryConfiguration.EnableTcpConnectionReuse ? _streamConnectionPool : null).ConfigureAwait(false);
+                        } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverQuic) {
 #if NET8_0_OR_GREATER
                 if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) {
                         response = await DnsWireResolveQuic.ResolveWireFormatQuic(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken, _quicConnectionPool).ConfigureAwait(false);
@@ -232,22 +248,23 @@ namespace DnsClientX {
                     response.Error = "DNS over QUIC is not supported on this platform.";
                 }
 #else
-                    throw new DnsClientException("DNS over QUIC is not supported on this platform.");
+                            throw new DnsClientException("DNS over QUIC is not supported on this platform.");
 #endif
-                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
-                    response = await DnsWireResolveTcp.ResolveWireFormatTcp(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken,
-                        queryConfiguration.EnableTcpConnectionReuse ? _streamConnectionPool : null).ConfigureAwait(false);
-                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
-                    response = await DnsWireResolveUdp.ResolveWireFormatUdp(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, 1, cancellationToken, _udpClientPool,
-                        queryConfiguration.EnableTcpConnectionReuse ? _streamConnectionPool : null).ConfigureAwait(false);
-                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.Multicast) {
-                    response = await DnsWireResolveMulticast.ResolveWireFormatMulticast(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
-                } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsCrypt ||
-                           queryConfiguration.RequestFormat == DnsRequestFormat.DnsCryptRelay) {
-                    throw new NotSupportedException("DNSCrypt v2 is reserved for an optional protocol package and is not implemented by the core package.");
-                } else {
-                    throw new DnsClientException($"Invalid RequestFormat: {queryConfiguration.RequestFormat}");
-                }
+                        } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
+                            response = await DnsWireResolveTcp.ResolveWireFormatTcp(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken,
+                                queryConfiguration.EnableTcpConnectionReuse ? _streamConnectionPool : null).ConfigureAwait(false);
+                        } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
+                            response = await DnsWireResolveUdp.ResolveWireFormatUdp(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, 1, cancellationToken, _udpClientPool,
+                                queryConfiguration.EnableTcpConnectionReuse ? _streamConnectionPool : null).ConfigureAwait(false);
+                        } else if (queryConfiguration.RequestFormat == DnsRequestFormat.Multicast) {
+                            response = await DnsWireResolveMulticast.ResolveWireFormatMulticast(queryConfiguration.Hostname!, queryConfiguration.Port, name, type, requestDnsSec, wireValidationQuery, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
+                        } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsCrypt ||
+                                   queryConfiguration.RequestFormat == DnsRequestFormat.DnsCryptRelay) {
+                            throw new NotSupportedException("DNSCrypt v2 is reserved for an optional protocol package and is not implemented by the core package.");
+                        } else {
+                            throw new DnsClientException($"Invalid RequestFormat: {queryConfiguration.RequestFormat}");
+                        }
+                    }
                 }
                 if (validateDnsSec && !dnsSecMaterialQuery
                     && queryConfiguration.BuiltInEndpoint != DnsEndpoint.RootServer) {
@@ -315,10 +332,10 @@ namespace DnsClientX {
 
         private static async Task<DnsResponse> WaitForSharedResponseAsync(Task<DnsResponse> task,
             CancellationToken cancellationToken) {
-            if (task.IsCompleted) return await task.ConfigureAwait(false);
-            Task completed = await Task.WhenAny(task, Task.Delay(Timeout.Infinite, cancellationToken))
-                .ConfigureAwait(false);
-            if (completed != task) throw new OperationCanceledException(cancellationToken);
+            if (!cancellationToken.CanBeCanceled || task.IsCompleted) return await task.ConfigureAwait(false);
+            var canceled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var registration = cancellationToken.Register(() => canceled.TrySetResult(true));
+            if (await Task.WhenAny(task, canceled.Task).ConfigureAwait(false) != task) cancellationToken.ThrowIfCancellationRequested();
             return await task.ConfigureAwait(false);
         }
 
@@ -329,10 +346,7 @@ namespace DnsClientX {
             } catch {
                 // Every waiter observes the original failure. Removal only controls future attempts.
             } finally {
-                if (_cacheInflight.TryGetValue(key, out Lazy<Task<DnsResponse>>? current) &&
-                    ReferenceEquals(current, flight)) {
-                    _cacheInflight.TryRemove(key, out _);
-                }
+                ((ICollection<KeyValuePair<string, Lazy<Task<DnsResponse>>>>)_cacheInflight).Remove(new(key, flight));
             }
         }
 
@@ -794,4 +808,5 @@ namespace DnsClientX {
 
             return -1;
         }
-    }}
+    }
+}

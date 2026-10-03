@@ -49,6 +49,8 @@ namespace DnsClientX.Cli {
             public bool RequestDnsSec { get; set; }
             public bool ValidateDnsSec { get; set; }
             public bool WirePost { get; set; }
+            public DnsResolverEndpoint? BootstrapResolver { get; set; }
+            public bool RequestNsid { get; set; }
             public bool Probe { get; set; }
             public List<string> ProbeEndpoints { get; } = new List<string>();
             public string? ProbeSavePath { get; set; }
@@ -210,6 +212,23 @@ namespace DnsClientX.Cli {
                         break;
                     case var opt when opt.Equals("--wire-post", StringComparison.OrdinalIgnoreCase):
                         options.WirePost = true;
+                        break;
+                    case var opt when opt.Equals("--nsid", StringComparison.OrdinalIgnoreCase):
+                        options.RequestNsid = true;
+                        break;
+                    case var opt when opt.Equals("--bootstrap", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--bootstrap", out string? bootstrap, out errorMessage)) {
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        try { options.BootstrapResolver = EndpointParser.ParseBootstrap(bootstrap!); }
+                        catch (Exception ex) when (ex is ArgumentException or NotSupportedException) {
+                            errorMessage = ex.Message;
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
                         break;
                     case var opt when opt.Equals("--format", StringComparison.OrdinalIgnoreCase):
                         if (!TryReadNext(args, ref i, "--format", out string? formatValue, out errorMessage)) {
@@ -931,7 +950,9 @@ namespace DnsClientX.Cli {
                 EnableAudit = options.Explain || options.Trace,
                 TimeoutMs = useBenchmarkTimeout ? options.BenchmarkTimeoutMs : null,
                 PortOverride = customPort,
-                ForceDohWirePost = options.WirePost
+                ForceDohWirePost = options.WirePost,
+                BootstrapResolver = options.BootstrapResolver,
+                RequestNsid = options.RequestNsid
             };
         }
 
@@ -1274,7 +1295,9 @@ namespace DnsClientX.Cli {
                 MaxRetries = 1,
                 RetryDelayMs = 0,
                 PortOverride = clientOptions.PortOverride,
-                ForceDohWirePost = clientOptions.ForceDohWirePost
+                ForceDohWirePost = clientOptions.ForceDohWirePost,
+                BootstrapResolver = clientOptions.BootstrapResolver,
+                RequestNsid = clientOptions.RequestNsid
             };
         }
 
@@ -1654,6 +1677,8 @@ namespace DnsClientX.Cli {
             Console.WriteLine("      --dnssec             Request DNSSEC records");
             Console.WriteLine("      --validate-dnssec    Validate DNSSEC records");
             Console.WriteLine("      --wire-post          Use DNS over HTTPS wire POST (when supported)");
+            Console.WriteLine("      --bootstrap <endpoint>  Resolve endpoint hostnames through an IP-literal UDP/TCP resolver, e.g. udp@1.1.1.1:53");
+            Console.WriteLine("      --nsid               Request resolver identity through EDNS (wire transports)");
             Console.WriteLine("      --format <mode>      Query output format: pretty, json, raw");
             Console.WriteLine("      --short              Print answer values only");
             Console.WriteLine("      --txt-concat         Flatten TXT output into a single string");

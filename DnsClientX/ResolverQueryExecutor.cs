@@ -99,6 +99,8 @@ namespace DnsClientX {
         private static ResolverExecutionClientOptions CreateClientOptions(ResolverQueryRunOptions options) {
             return new ResolverExecutionClientOptions {
                 TimeoutMs = Math.Max(1, options.TimeoutMs),
+                BootstrapResolver = options.BootstrapResolver,
+                RequestNsid = options.RequestNsid,
                 PortOverride = options.PortOverride,
                 ForceDohWirePost = options.ForceDohWirePost
             };

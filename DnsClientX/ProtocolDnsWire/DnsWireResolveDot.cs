@@ -61,18 +61,8 @@ namespace DnsClientX {
 
             DotFailurePhase failurePhase = DotFailurePhase.Connect;
             try {
-                var (address, resolveError) = await DnsServerResolver.ResolveAsync(
-                    dnsServer,
-                    endpointConfiguration.TimeOut,
-                    cancellationToken,
-                    endpointConfiguration.DnsServerResolutionSuccessTtl,
-                    endpointConfiguration.DnsServerResolutionFailureTtl,
-                    endpointConfiguration.DnsServerResolutionAllowStale,
-                    endpointConfiguration.DnsServerResolutionStaleTtl,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffEnabled,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffFactor,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffMaxTtl,
-                    endpointConfiguration.PreferredAddressFamily).ConfigureAwait(false);
+                var (address, resolveError) = await DnsServerResolver.ResolveAsync(dnsServer, endpointConfiguration, cancellationToken)
+                .ConfigureAwait(false);
                 if (address == null) throw new DnsClientException(resolveError ?? $"Host '{dnsServer}' resolved to no addresses.");
 
                 string targetHost = string.IsNullOrWhiteSpace(endpointConfiguration.TlsServerName)

@@ -30,6 +30,9 @@ namespace DnsClientX {
         /// </summary>
         public byte[]? Cookie { get; set; }
 
+        /// <summary>Gets or sets whether to request resolver identity using the NSID option.</summary>
+        public bool RequestNsid { get; set; }
+
         /// <summary>
         /// Gets the additional EDNS options to include in the OPT record.
         /// </summary>
@@ -39,6 +42,7 @@ namespace DnsClientX {
         /// Returns the effective EDNS options after applying convenience properties.
         /// </summary>
         internal IEnumerable<EdnsOption> GetEffectiveOptions() {
+            if (RequestNsid && !Options.Exists(option => option is NsidOption)) yield return new NsidOption();
             if (PaddingLength > 0) {
                 yield return new PaddingOption(PaddingLength);
             }
@@ -58,6 +62,7 @@ namespace DnsClientX {
                 UdpBufferSize = UdpBufferSize,
                 Subnet = Subnet,
                 PaddingLength = PaddingLength,
+                RequestNsid = RequestNsid,
                 Cookie = Cookie == null ? null : (byte[])Cookie.Clone()
             };
             clone.Options.AddRange(Options);

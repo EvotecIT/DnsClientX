@@ -87,7 +87,7 @@ namespace DnsClientX {
         /// </summary>
         private readonly Dictionary<DnsSelectionStrategy, HttpClient> _clients = new Dictionary<DnsSelectionStrategy, HttpClient>();
         private readonly HashSet<HttpClient> _managedClients = new HashSet<HttpClient>();
-        private readonly Dictionary<HttpClient, (bool IgnoreCertificateErrors, SecurityProtocolType Protocols)> _clientTlsPolicies = new();
+        private readonly Dictionary<HttpClient, (bool IgnoreCertificateErrors, SecurityProtocolType Protocols, string Bootstrap)> _clientTlsPolicies = new();
 
         private static readonly DnsResponseCache _cache = new();
         private static readonly ConcurrentDictionary<string, Lazy<Task<DnsResponse>>> _cacheInflight =
@@ -290,28 +290,35 @@ namespace DnsClientX {
         /// </summary>
         private HttpClient CreateOptimizedHttpClient(Configuration configuration, bool ignoreCertificateErrors) {
             // Create handler with proper connection management
-            handler = new HttpClientHandler();
-            if (ignoreCertificateErrors) {
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-            }
-
-            handler.SslProtocols = (SslProtocols)SecurityProtocol;
-            if (_webProxy != null) {
-                handler.Proxy = _webProxy;
-                handler.UseProxy = true;
+            HttpMessageHandler transportHandler;
+            if (UsesHttpBootstrap(configuration)) {
+                handler = null;
+                transportHandler = CreateBootstrapHttpHandler(configuration, ignoreCertificateErrors);
             } else {
-                handler.UseProxy = false;
+                handler = new HttpClientHandler();
+                if (ignoreCertificateErrors) {
+                    handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+                }
+
+                handler.SslProtocols = (SslProtocols)SecurityProtocol;
+                if (_webProxy != null) {
+                    handler.Proxy = _webProxy;
+                    handler.UseProxy = true;
+                } else {
+                    handler.UseProxy = false;
+                }
+
+                // Optimize connection settings for DNS workloads
+                handler.MaxConnectionsPerServer = configuration.MaxConnectionsPerServer;
+                handler.UseCookies = false; // DNS doesn't need cookies
+                transportHandler = handler;
             }
 
-            // Optimize connection settings for DNS workloads
-            handler.MaxConnectionsPerServer = configuration.MaxConnectionsPerServer;
-            handler.UseCookies = false; // DNS doesn't need cookies
-
-            var client = new HttpClient(handler) {
+            var client = new HttpClient(transportHandler) {
                 BaseAddress = configuration.BaseUri,
                 Timeout = TimeSpan.FromMilliseconds(configuration.TimeOut)
             };
-            _clientTlsPolicies.Add(client, (ignoreCertificateErrors, _securityProtocol));
+            _clientTlsPolicies.Add(client, (ignoreCertificateErrors, _securityProtocol, HttpBootstrapKey(configuration)));
 
             _handlerOwnedByClient = true;
 
@@ -351,7 +358,8 @@ namespace DnsClientX {
         /// </summary>
         private void ConfigureClient() {
             if (!IsHttpBasedTransport(EndpointConfiguration.RequestFormat)
-                || EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverGrpc) return;
+                || EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverGrpc
+                || EndpointConfiguration.BootstrapResolver != null) return;
             lock (_lock) {
                 if (Client != null && TryAddDisposedClient(Client)) {
                     _managedClients.Remove(Client);
@@ -410,7 +418,8 @@ namespace DnsClientX {
             return client.Timeout == expectedTimeout
                 && _clientTlsPolicies.TryGetValue(client, out var policy)
                 && policy.IgnoreCertificateErrors == ignoreCertificateErrors
-                && policy.Protocols == _securityProtocol;
+                && policy.Protocols == _securityProtocol
+                && policy.Bootstrap == HttpBootstrapKey(configuration);
         }
 
         private void RecreateClientForStrategy(DnsSelectionStrategy strategy, Configuration configuration, bool ignoreCertificateErrors) {

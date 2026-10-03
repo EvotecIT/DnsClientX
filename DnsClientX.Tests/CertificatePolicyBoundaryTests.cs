@@ -69,6 +69,37 @@ public sealed class CertificatePolicyBoundaryTests {
         ClientX.ResetResponseCacheForTests();
     }
 
+    /// <summary>Bootstrap pins the connection address while retaining Host, SNI, and certificate-policy isolation.</summary>
+    [Fact]
+    public async Task BootstrappedHttpsRetainsAuthorityAndStrictCertificatePolicy() {
+        ClientX.ResetResponseCacheForTests();
+        await using var bootstrap = new BootstrapResolverTests.BootstrapDnsServer();
+        await using var server = new UntrustedHttpsServer();
+        const string hostname = "endpoint.bootstrap.invalid";
+        using var client = new ClientX(server.Configuration(hostname, bootstrap.Endpoint()), ignoreCertificateErrors: true, enableCache: true);
+        var accepted = await client.Resolve("tls-policy.example", retryOnTransient: false);
+        Assert.Equal(DnsResponseCode.NoError, accepted.Status);
+        Assert.Equal(hostname, server.ServerName);
+        Assert.StartsWith(hostname + ":", server.HttpHost);
+        Assert.Equal("127.0.0.1", accepted.ServerResolution!.Address);
+
+        client.IgnoreCertificateErrors = false;
+        var rejected = await client.Resolve("tls-policy.example", retryOnTransient: false);
+        Assert.Equal(DnsResponseCode.ServerFailure, rejected.Status);
+        Assert.False(rejected.ServedFromCache);
+        using var strict = new ClientX(server.Configuration(hostname, bootstrap.Endpoint()), enableCache: true);
+        var separate = await strict.Resolve("tls-policy.example", retryOnTransient: false);
+        Assert.Equal(DnsResponseCode.ServerFailure, separate.Status);
+        Assert.False(separate.ServedFromCache);
+        Assert.Equal(1, server.RequestCount);
+        using var literal = new ClientX(server.Configuration("127.0.0.1", bootstrap.Endpoint()), ignoreCertificateErrors: true);
+        var literalResponse = await literal.Resolve("tls-policy.example", retryOnTransient: false);
+        Assert.Equal(DnsResponseCode.NoError, literalResponse.Status);
+        Assert.Null(literalResponse.ServerResolution);
+        Assert.Equal(1, bootstrap.BootstrapQueries);
+        ClientX.ResetResponseCacheForTests();
+    }
+
     private sealed class UntrustedHttpsServer : IAsyncDisposable {
         private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
         private readonly CancellationTokenSource _stop = new();
@@ -89,10 +120,12 @@ public sealed class CertificatePolicyBoundaryTests {
         }
 
         internal int RequestCount => Volatile.Read(ref _requestCount);
+        internal string? ServerName { get; private set; }
+        internal string? HttpHost { get; private set; }
         internal Task Entered => _entered.Task;
         internal void Release() => _release.TrySetResult(true);
-        internal Configuration Configuration() => new(new Uri($"https://localhost:{((IPEndPoint)_listener.LocalEndpoint).Port}/resolve"), DnsRequestFormat.DnsOverHttpsJSON) {
-            HttpVersion = HttpVersion.Version11, TimeOut = 3000
+        internal Configuration Configuration(string hostname = "localhost", DnsResolverEndpoint? bootstrap = null) => new(new Uri($"https://{hostname}:{((IPEndPoint)_listener.LocalEndpoint).Port}/resolve"), DnsRequestFormat.DnsOverHttpsJSON) {
+            HttpVersion = HttpVersion.Version11, TimeOut = 3000, BootstrapResolver = bootstrap
         };
 
         private async Task AcceptAsync() {
@@ -110,20 +143,24 @@ public sealed class CertificatePolicyBoundaryTests {
             using (var tls = new SslStream(peer.GetStream())) {
                 try {
                     await tls.AuthenticateAsServerAsync(new SslServerAuthenticationOptions {
-                        ServerCertificate = _certificate, EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+                        ServerCertificateSelectionCallback = (_, name) => { ServerName = name; return _certificate; },
+                        EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
                     }, _stop.Token);
                     using var reader = new StreamReader(tls, Encoding.ASCII, false, 1024, leaveOpen: true);
                     while (!_stop.IsCancellationRequested) {
                         string? request = await reader.ReadLineAsync(_stop.Token);
                         if (request == null) return;
-                        while (!string.IsNullOrEmpty(await reader.ReadLineAsync(_stop.Token))) { }
+                        string? header;
+                        while (!string.IsNullOrEmpty(header = await reader.ReadLineAsync(_stop.Token))) {
+                            if (header.StartsWith("Host:", StringComparison.OrdinalIgnoreCase)) HttpHost = header.Substring(5).Trim();
+                        }
                         Interlocked.Increment(ref _requestCount);
                         _entered.TrySetResult(true);
                         await _release.Task.WaitAsync(_stop.Token);
                         const string json = "{\"Status\":0,\"Answer\":[{\"name\":\"tls-policy.example.\",\"type\":1,\"TTL\":60,\"data\":\"192.0.2.99\"}]}";
                         byte[] body = Encoding.UTF8.GetBytes(json);
-                        byte[] header = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/dns-json\r\nContent-Length: {body.Length}\r\n\r\n");
-                        await tls.WriteAsync(header, _stop.Token);
+                        byte[] headerBytes = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/dns-json\r\nContent-Length: {body.Length}\r\n\r\n");
+                        await tls.WriteAsync(headerBytes, _stop.Token);
                         await tls.WriteAsync(body, _stop.Token);
                         await tls.FlushAsync(_stop.Token);
                     }

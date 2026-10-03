@@ -365,6 +365,12 @@ namespace DnsClientX.PowerShell {
         public SwitchParameter RequestNsid;
 
         /// <summary>
+        /// <para type="description">Resolves endpoint hostnames through an IP-literal UDP/TCP endpoint, such as udp@1.1.1.1:53. Failures do not fall back to system DNS.</para>
+        /// </summary>
+        [Parameter(Mandatory = false)]
+        public string? BootstrapResolver { get; set; }
+
+        /// <summary>
         /// <para type="description">Explicit request format for the -Server path, such as DnsOverUDP, DnsOverTCP, DnsOverTLS, or DnsOverHttps.</para>
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
@@ -465,6 +471,7 @@ namespace DnsClientX.PowerShell {
                 ClientSubnet = ClientSubnet,
                 CheckingDisabled = CheckingDisabled.IsPresent,
                 RequestNsid = RequestNsid.IsPresent,
+                BootstrapResolver = string.IsNullOrWhiteSpace(BootstrapResolver) ? null : EndpointParser.ParseBootstrap(BootstrapResolver!),
                 RequestFormat = RequestFormat,
                 Port = Port,
                 UserAgent = UserAgent,

@@ -384,6 +384,14 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
         public SwitchParameter RequestDnsSec { get; set; }
 
+        /// <summary>Request resolver identity through EDNS on wire transports.</summary>
+        [Parameter(Mandatory = false)]
+        public SwitchParameter RequestNsid { get; set; }
+
+        /// <summary>Resolve endpoint hostnames through an IP-literal UDP/TCP resolver, such as udp@1.1.1.1:53.</summary>
+        [Parameter(Mandatory = false)]
+        public string? BootstrapResolver { get; set; }
+
         /// <summary>
         /// Validate DNSSEC signatures. Implies <see cref="RequestDnsSec"/>.
         /// </summary>
@@ -571,6 +579,8 @@ namespace DnsClientX.PowerShell {
                 TimeoutMs = TimeOut,
                 RequestDnsSec = RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent,
                 ValidateDnsSec = ValidateDnsSec.IsPresent,
+                RequestNsid = RequestNsid.IsPresent,
+                BootstrapResolver = string.IsNullOrWhiteSpace(BootstrapResolver) ? null : EndpointParser.ParseBootstrap(BootstrapResolver!),
                 MaxRetries = 1,
                 RetryDelayMs = 0
             };

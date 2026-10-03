@@ -15,11 +15,15 @@ namespace DnsClientX {
             }
 
             string[] values = response.Answers
-                .Select(answer => $"{answer.Name}|{answer.Type}|{answer.Data}")
+                .Select(answer => Encode(DnsWireNameCodec.Canonical(answer.Name)) + Encode(answer.Type.ToString()) + Encode(answer.Data))
                 .OrderBy(value => value, StringComparer.Ordinal)
                 .ToArray();
 
-            return string.Join(";", values);
+            // Record data may itself contain '|', ';', or newlines. Delimiter-only signatures
+            // can report one TXT record and multiple different records as the same answer set.
+            return Encode(values.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)) + string.Concat(values.Select(Encode));
         }
+
+        private static string Encode(string value) => value.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + value;
     }
 }

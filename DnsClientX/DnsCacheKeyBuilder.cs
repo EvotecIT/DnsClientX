@@ -14,6 +14,7 @@ namespace DnsClientX {
             Append(builder, configuration.BaseUri?.AbsoluteUri ?? configuration.Hostname ?? string.Empty);
             Append(builder, configuration.Port.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Append(builder, configuration.TlsServerName ?? string.Empty);
+            Append(builder, DnsBootstrapResolver.CacheKey(configuration.BootstrapResolver));
             Append(builder, configuration.LocalEndPoint?.ToString() ?? string.Empty);
             Append(builder, configuration.MulticastInterfaceIndex?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty);
             Append(builder, configuration.PreferredAddressFamily?.ToString() ?? string.Empty);

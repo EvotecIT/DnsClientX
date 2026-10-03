@@ -513,6 +513,7 @@ namespace DnsClientX {
                 client.EndpointConfiguration.Port = (ep.DohUrl?.IsDefaultPort ?? true) ? 443 : ep.DohUrl!.Port;
             }
             client.EndpointConfiguration.UseTcpFallback = _options.UseTcpFallback && ep.AllowTcpFallback;
+            client.EndpointConfiguration.BootstrapResolver = _options.BootstrapResolver;
             client.EndpointConfiguration.PreferredAddressFamily = ep.Family ??
                 (_options.PreferIpv6 ? AddressFamily.InterNetworkV6 : (AddressFamily?)null);
             client.EndpointConfiguration.TlsServerName = ep.TlsServerName;
