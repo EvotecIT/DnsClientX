@@ -25,7 +25,7 @@ public sealed class DnsStreamConnectionPoolLifecycleTests {
         int port = ((IPEndPoint)listener.LocalEndpoint).Port;
         using RSA key = RSA.Create(2048);
         var request = new CertificateRequest("CN=localhost", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-        using X509Certificate2 certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddHours(1));
+        using X509Certificate2 certificate = TestUtilities.CreateTlsCertificate(request);
         int queriesReceived = 0;
         Task server = Task.Run(async () => {
             using TcpClient peer = await listener.AcceptTcpClientAsync(deadline.Token);

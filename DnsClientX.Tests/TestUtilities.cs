@@ -5,9 +5,33 @@ using System.Net.Sockets;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+#if NET8_0_OR_GREATER
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+#endif
 
 namespace DnsClientX.Tests {
     internal static class TestUtilities {
+#if NET8_0_OR_GREATER
+        /// <summary>Creates an untrusted TLS fixture certificate with a private key usable by Windows SChannel.</summary>
+        internal static X509Certificate2 CreateTlsCertificate(CertificateRequest request) {
+            using X509Certificate2 temporary = request.CreateSelfSigned(
+                DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddHours(1));
+            byte[] pfx = temporary.Export(X509ContentType.Pfx);
+            try {
+                // Reimport to give SChannel a named key. Omit PersistKeySet so certificate disposal releases it.
+#if NET9_0_OR_GREATER
+                return X509CertificateLoader.LoadPkcs12(pfx, null, X509KeyStorageFlags.DefaultKeySet,
+                    Pkcs12LoaderLimits.Defaults);
+#else
+                return new X509Certificate2(pfx, (string?)null, X509KeyStorageFlags.DefaultKeySet);
+#endif
+            } finally {
+                CryptographicOperations.ZeroMemory(pfx);
+            }
+        }
+#endif
+
         public static byte[] CreateResponseFromQuery(byte[] query, ushort flags = 0x8180) {
             if (query == null || query.Length < 17) throw new System.ArgumentException("A complete one-question DNS query is required.", nameof(query));
             int offset = 12;

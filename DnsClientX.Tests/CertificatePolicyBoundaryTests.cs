@@ -115,7 +115,7 @@ public sealed partial class CertificatePolicyBoundaryTests {
 
         internal UntrustedHttpsServer(bool gated = false, bool gateHandshake = false) {
             var request = new CertificateRequest("CN=untrusted.invalid", _key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-            _certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddHours(1));
+            _certificate = TestUtilities.CreateTlsCertificate(request);
             _listener.Start();
             if (!gated) Release();
             if (!gateHandshake) ReleaseHandshake();
