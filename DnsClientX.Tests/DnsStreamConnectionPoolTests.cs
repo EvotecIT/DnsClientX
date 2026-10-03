@@ -301,6 +301,7 @@ namespace DnsClientX.Tests {
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             var firstReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseLateResponse = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task server = Task.Run(async () => {
                 using TcpClient connection = await AcceptAsync(listener, guard.Token);
@@ -308,11 +309,10 @@ namespace DnsClientX.Tests {
                 byte[] firstQuery = await ReadFrameAsync(stream, guard.Token);
                 firstReceived.TrySetResult(true);
 
-                Task<byte[]> secondRead = ReadFrameAsync(stream, guard.Token);
+                byte[] secondQuery = await ReadFrameAsync(stream, guard.Token);
+                secondReceived.TrySetResult(true);
                 await releaseLateResponse.Task;
                 await WriteFrameAsync(stream, TestUtilities.CreateResponseFromQuery(firstQuery), guard.Token);
-
-                byte[] secondQuery = await secondRead;
                 await WriteFrameAsync(stream, TestUtilities.CreateResponseFromQuery(secondQuery), guard.Token);
             }, guard.Token);
 
@@ -324,13 +324,14 @@ namespace DnsClientX.Tests {
                     new DnsMessageOptions(TransactionId: 0x4343)).SerializeDnsWireFormat();
 
                 Task<byte[]> first = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
-                    firstQuery, 150, 1, guard.Token);
+                    firstQuery, 1000, 1, guard.Token);
                 await firstReceived.Task;
                 await Assert.ThrowsAsync<TimeoutException>(() => first);
 
                 Task<byte[]> second = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
                     secondQuery, 5000, 1, guard.Token);
-                await Task.Delay(100, guard.Token);
+                Assert.Same(secondReceived.Task,
+                    await Task.WhenAny(secondReceived.Task, Task.Delay(5000, guard.Token)));
                 releaseLateResponse.TrySetResult(true);
 
                 byte[] response = await second;
