@@ -240,29 +240,28 @@ namespace DnsClientX.Tests {
             }
         }
 
-        /// <summary>A canceled request keeps its transaction ID reserved until the late response is drained.</summary>
+        /// <summary>A quarantined ID can be reused on a fresh connection without accepting an old reply.</summary>
         [Fact]
-        public async Task CancelledTransactionIdIsNotReusedBeforeLateResponse() {
+        public async Task CancelledTransactionIdMovesToFreshConnection() {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             var firstReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseLateResponse = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task server = Task.Run(async () => {
                 using TcpClient connection = await AcceptAsync(listener, guard.Token);
                 NetworkStream stream = connection.GetStream();
                 byte[] firstQuery = await ReadFrameAsync(stream, guard.Token);
                 firstReceived.TrySetResult(true);
 
-                Task<byte[]> secondRead = ReadFrameAsync(stream, guard.Token);
-                await releaseLateResponse.Task;
-                Assert.False(secondRead.IsCompleted,
-                    "The canceled transaction ID was reused before its late response was drained.");
-                await WriteFrameAsync(stream, TestUtilities.CreateResponseFromQuery(firstQuery), guard.Token);
-
-                byte[] secondQuery = await secondRead;
-                await WriteFrameAsync(stream, TestUtilities.CreateResponseFromQuery(secondQuery), guard.Token);
+                Task<byte[]> oldRead = ReadFrameAsync(stream, guard.Token);
+                using TcpClient replacement = await AcceptAsync(listener, guard.Token);
+                NetworkStream replacementStream = replacement.GetStream();
+                byte[] secondQuery = await ReadFrameAsync(replacementStream, guard.Token);
+                await Assert.ThrowsAnyAsync<IOException>(() => oldRead);
+                Assert.Equal(firstQuery[0], secondQuery[0]);
+                Assert.Equal(firstQuery[1], secondQuery[1]);
+                await WriteFrameAsync(replacementStream, TestUtilities.CreateResponseFromQuery(secondQuery), guard.Token);
             }, guard.Token);
 
             try {
@@ -280,15 +279,12 @@ namespace DnsClientX.Tests {
 
                 Task<byte[]> second = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
                     secondQuery, 5000, 2, guard.Token);
-                await Task.Delay(100, guard.Token);
-                releaseLateResponse.TrySetResult(true);
 
                 byte[] response = await second;
                 DnsResponse parsed = await DnsWire.DeserializeDnsWireFormat(null, false, response);
                 Assert.Equal("new.example", Assert.Single(parsed.Questions).Name);
                 await server;
             } finally {
-                releaseLateResponse.TrySetResult(true);
                 listener.Stop();
             }
         }
@@ -324,12 +320,12 @@ namespace DnsClientX.Tests {
                     new DnsMessageOptions(TransactionId: 0x4343)).SerializeDnsWireFormat();
 
                 Task<byte[]> first = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
-                    firstQuery, 1000, 1, guard.Token);
+                    firstQuery, 1000, 2, guard.Token);
                 await firstReceived.Task;
                 await Assert.ThrowsAsync<TimeoutException>(() => first);
 
                 Task<byte[]> second = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
-                    secondQuery, 5000, 1, guard.Token);
+                    secondQuery, 5000, 2, guard.Token);
                 Assert.Same(secondReceived.Task,
                     await Task.WhenAny(secondReceived.Task, Task.Delay(5000, guard.Token)));
                 releaseLateResponse.TrySetResult(true);

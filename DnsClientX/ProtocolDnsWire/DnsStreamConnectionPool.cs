@@ -173,6 +173,7 @@ namespace DnsClientX {
         private sealed class DnsStreamConnection : IDisposable {
             private readonly PoolKey _key;
             private readonly ConcurrentDictionary<ushort, PendingQuery> _pending = new();
+            private readonly object _reservationGate = new();
             private readonly SemaphoreSlim _connectGate = new(1, 1);
             private readonly SemaphoreSlim _writeGate = new(1, 1);
             private readonly SemaphoreSlim _capacity;
@@ -231,9 +232,9 @@ namespace DnsClientX {
                         return await pending.Completion.Task.ConfigureAwait(false);
                     }
 
-                    // Capacity counts active callers; the abandoned ID remains quarantined so a
-                    // late response cannot satisfy a later query. If it never arrives, retire the
-                    // connection after one more query-timeout interval to bound that quarantine.
+                    // Release the caller's slot while protecting its ID. Reservation admission
+                    // also bounds all unanswered queries, including abandoned ones; a saturated
+                    // quarantine or a waiter for this ID retires the stream immediately.
                     pending.Completion.TrySetCanceled();
                     pending.ReleaseCapacity();
                     _ = RetireUndrainedQueryAsync(transactionId, pending, timeoutMilliseconds);
@@ -265,8 +266,20 @@ namespace DnsClientX {
                 while (true) {
                     ThrowIfUnavailable();
                     var pending = new PendingQuery(_capacity);
-                    if (_pending.TryAdd(transactionId, pending)) return pending;
-                    if (_pending.TryGetValue(transactionId, out PendingQuery? existing)) {
+                    PendingQuery? existing;
+                    bool retire;
+                    lock (_reservationGate) {
+                        ThrowIfUnavailable();
+                        _pending.TryGetValue(transactionId, out existing);
+                        retire = existing?.Completion.Task.IsCanceled == true || _pending.Count >= _key.MaxInFlight;
+                        if (!retire && _pending.TryAdd(transactionId, pending)) return pending;
+                    }
+                    if (retire) {
+                        var failure = new DnsStreamConnectionException("Abandoned DNS queries require a fresh connection before admitting more work.");
+                        Fault(failure);
+                        throw failure;
+                    }
+                    if (existing != null) {
                         try {
                             await WaitWithCancellationAsync(existing.ReservationReleased.Task, cancellationToken)
                                 .ConfigureAwait(false);
@@ -382,8 +395,10 @@ namespace DnsClientX {
             }
 
             private void Fault(DnsStreamConnectionException exception) {
-                Volatile.Write(ref _retired, 1);
-                if (Interlocked.Exchange(ref _faulted, 1) != 0) return;
+                lock (_reservationGate) {
+                    Volatile.Write(ref _retired, 1);
+                    if (Interlocked.Exchange(ref _faulted, 1) != 0) return;
+                }
                 CloseTransport();
                 foreach (var item in _pending) {
                     if (TryRemovePending(item.Key, item.Value)) {
@@ -419,7 +434,9 @@ namespace DnsClientX {
             internal void Retire(DnsStreamConnectionException exception) => Fault(exception);
 
             public void Dispose() {
-                if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+                lock (_reservationGate) {
+                    if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+                }
                 CloseTransport();
                 var exception = new ObjectDisposedException(nameof(DnsStreamConnection));
                 foreach (var item in _pending) {
