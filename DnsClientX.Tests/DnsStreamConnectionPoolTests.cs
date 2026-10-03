@@ -15,7 +15,7 @@ using Xunit;
 namespace DnsClientX.Tests {
     /// <summary>Protects RFC 7766 connection reuse, pipelining, and response dispatch.</summary>
     [Collection("NoParallel")]
-    public class DnsStreamConnectionPoolTests {
+    public partial class DnsStreamConnectionPoolTests {
         /// <summary>Sequential TCP queries reuse one connection owned by the high-level client.</summary>
         [Fact]
         public async Task TcpQueriesReuseOneConnection() {
@@ -293,9 +293,9 @@ namespace DnsClientX.Tests {
             }
         }
 
-        /// <summary>A timed-out written request keeps its connection capacity until the late reply is drained.</summary>
+        /// <summary>A timed-out request frees caller capacity while its ID remains protected from a late reply.</summary>
         [Fact]
-        public async Task TimedOutWrittenQueryKeepsCapacityUntilLateResponse() {
+        public async Task TimedOutWrittenQueryReleasesCapacityAndDrainsLateResponse() {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -310,8 +310,6 @@ namespace DnsClientX.Tests {
 
                 Task<byte[]> secondRead = ReadFrameAsync(stream, guard.Token);
                 await releaseLateResponse.Task;
-                Assert.False(secondRead.IsCompleted,
-                    "A timed-out request released stream capacity before its late response was drained.");
                 await WriteFrameAsync(stream, TestUtilities.CreateResponseFromQuery(firstQuery), guard.Token);
 
                 byte[] secondQuery = await secondRead;

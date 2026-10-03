@@ -231,9 +231,12 @@ namespace DnsClientX {
                         return await pending.Completion.Task.ConfigureAwait(false);
                     }
 
-                    // Keep the ID reserved until its late reply is consumed. Reusing it while the
-                    // earlier reply is still in flight could dispatch stale data to a later query.
+                    // Capacity counts active callers; the abandoned ID remains quarantined so a
+                    // late response cannot satisfy a later query. If it never arrives, retire the
+                    // connection after one more query-timeout interval to bound that quarantine.
                     pending.Completion.TrySetCanceled();
+                    pending.ReleaseCapacity();
+                    _ = RetireUndrainedQueryAsync(transactionId, pending, timeoutMilliseconds);
                     cancellationToken.ThrowIfCancellationRequested();
                     deadlineToken.ThrowIfCancellationRequested();
                     throw new TimeoutException($"The DNS stream query timed out after {timeoutMilliseconds} milliseconds.");
@@ -244,9 +247,23 @@ namespace DnsClientX {
                 }
             }
 
+            private async Task RetireUndrainedQueryAsync(ushort transactionId, PendingQuery pending, int timeoutMilliseconds) {
+                using var drainDeadline = new CancellationTokenSource();
+                Task delay = Task.Delay(timeoutMilliseconds, drainDeadline.Token);
+                try {
+                    if (await Task.WhenAny(pending.ReservationReleased.Task, delay).ConfigureAwait(false) == delay
+                        && _pending.TryGetValue(transactionId, out PendingQuery? current) && ReferenceEquals(current, pending)) {
+                        Fault(new DnsStreamConnectionException("An abandoned DNS query did not receive its late response before the drain deadline."));
+                    }
+                } finally {
+                    drainDeadline.Cancel();
+                }
+            }
+
             private async Task<PendingQuery> ReserveTransactionIdAsync(ushort transactionId,
                 CancellationToken cancellationToken) {
                 while (true) {
+                    ThrowIfUnavailable();
                     var pending = new PendingQuery(_capacity);
                     if (_pending.TryAdd(transactionId, pending)) return pending;
                     if (_pending.TryGetValue(transactionId, out PendingQuery? existing)) {
@@ -482,6 +499,7 @@ namespace DnsClientX {
             private sealed class PendingQuery {
                 private readonly SemaphoreSlim _capacity;
                 private int _reservationReleased;
+                private int _capacityReleased;
                 private int _writeStarted;
                 internal PendingQuery(SemaphoreSlim capacity) =>
                     _capacity = capacity ?? throw new ArgumentNullException(nameof(capacity));
@@ -493,8 +511,11 @@ namespace DnsClientX {
                 internal void MarkWriteStarted() => Volatile.Write(ref _writeStarted, 1);
                 internal void ReleaseReservation() {
                     if (Interlocked.Exchange(ref _reservationReleased, 1) != 0) return;
-                    _capacity.Release();
+                    ReleaseCapacity();
                     ReservationReleased.TrySetResult(true);
+                }
+                internal void ReleaseCapacity() {
+                    if (Interlocked.Exchange(ref _capacityReleased, 1) == 0) _capacity.Release();
                 }
             }
         }
