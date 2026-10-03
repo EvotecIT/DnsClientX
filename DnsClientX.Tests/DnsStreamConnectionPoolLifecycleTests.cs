@@ -1,5 +1,4 @@
 #if NET8_0_OR_GREATER
-using System.Buffers.Binary;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -26,30 +25,26 @@ public sealed class DnsStreamConnectionPoolLifecycleTests {
         using RSA key = RSA.Create(2048);
         var request = new CertificateRequest("CN=localhost", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         using X509Certificate2 certificate = TestUtilities.CreateTlsCertificate(request);
-        int queriesReceived = 0;
+        int applicationBytesReceived = 0;
         Task server = Task.Run(async () => {
             using TcpClient peer = await listener.AcceptTcpClientAsync(deadline.Token);
             using NetworkStream network = peer.GetStream();
             using var ssl = tls ? new SslStream(network, leaveInnerStreamOpen: true) : null;
             Stream stream = ssl ?? (Stream)network;
-            if (tls) {
-                entered.TrySetResult(true);
-                await release.Task.WaitAsync(deadline.Token);
-                await ssl!.AuthenticateAsServerAsync(new SslServerAuthenticationOptions {
-                    ServerCertificate = certificate, EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
-                }, deadline.Token);
+            try {
+                if (tls) {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(deadline.Token);
+                    await ssl!.AuthenticateAsServerAsync(new SslServerAuthenticationOptions {
+                        ServerCertificate = certificate, EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+                    }, deadline.Token);
+                }
+                applicationBytesReceived = await stream.ReadAsync(new byte[1], deadline.Token);
+            } catch (IOException exception) when (exception.InnerException is SocketException {
+                SocketErrorCode: SocketError.ConnectionReset
+            }) {
+                // Closing a rejected TLS connection can report reset on Windows and EOF on Unix.
             }
-            byte[] prefix = new byte[2];
-            int received = await stream.ReadAsync(prefix, deadline.Token);
-            if (received == 0) return;
-            if (received == 1) await stream.ReadExactlyAsync(prefix.AsMemory(1), deadline.Token);
-            byte[] query = new byte[BinaryPrimitives.ReadUInt16BigEndian(prefix)];
-            await stream.ReadExactlyAsync(query, deadline.Token);
-            Interlocked.Increment(ref queriesReceived);
-            byte[] response = TestUtilities.CreateResponseFromQuery(query);
-            BinaryPrimitives.WriteUInt16BigEndian(prefix, (ushort)response.Length);
-            await stream.WriteAsync(prefix, deadline.Token);
-            await stream.WriteAsync(response, deadline.Token);
         }, deadline.Token);
         using var pool = new DnsStreamConnectionPool(connectOverride: async (client, address, selectedPort, _, token) => {
             await client.ConnectAsync(address, selectedPort, token);
@@ -68,8 +63,8 @@ public sealed class DnsStreamConnectionPoolLifecycleTests {
             release.TrySetResult(true);
             Exception? failure = await Record.ExceptionAsync(async () => await query);
             await server;
-            Assert.NotNull(failure);
-            Assert.Equal(0, queriesReceived);
+            Assert.IsType<ObjectDisposedException>(failure);
+            Assert.Equal(0, applicationBytesReceived);
         } finally {
             release.TrySetResult(true);
             listener.Stop();

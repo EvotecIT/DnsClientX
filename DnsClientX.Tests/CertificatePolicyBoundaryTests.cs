@@ -48,20 +48,24 @@ public sealed partial class CertificatePolicyBoundaryTests {
     public async Task InflightOperationRetainsItsPolicyWithoutSharingAcrossPolicies() {
         ClientX.ResetResponseCacheForTests();
         await using var server = new UntrustedHttpsServer(gated: true);
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        using var client = new ClientX(server.Configuration(), ignoreCertificateErrors: true, enableCache: true);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        Configuration configuration = server.Configuration();
+        configuration.TimeOut = 10000;
+        using var client = new ClientX(configuration, ignoreCertificateErrors: true, enableCache: true);
         Task<DnsResponse> permissive = client.Resolve("tls-flight.example", retryOnTransient: false, cancellationToken: deadline.Token);
         await server.Entered.WaitAsync(deadline.Token);
         client.IgnoreCertificateErrors = false;
-        DnsResponse strict;
+        Task<DnsResponse> strict = client.Resolve("tls-flight.example", retryOnTransient: false, cancellationToken: deadline.Token);
         try {
-            strict = await client.Resolve("tls-flight.example", retryOnTransient: false, cancellationToken: deadline.Token);
+            // Prove a separate flight reached TLS while the original request is still leased.
+            // Release that request before platform certificate validation can exhaust its timeout.
+            await server.SecondHandshakeEntered.WaitAsync(deadline.Token);
         } finally {
             server.Release();
         }
-        Assert.Equal(DnsResponseCode.ServerFailure, strict.Status);
+        Assert.Equal(DnsResponseCode.ServerFailure, (await strict).Status);
         Assert.Equal(DnsResponseCode.NoError, (await permissive).Status);
-        using var reader = new ClientX(server.Configuration(), enableCache: true);
+        using var reader = new ClientX(configuration, enableCache: true);
         var cached = await reader.Resolve("tls-flight.example", retryOnTransient: false, cancellationToken: deadline.Token);
         Assert.Equal(DnsResponseCode.ServerFailure, cached.Status);
         Assert.False(cached.ServedFromCache);
@@ -110,7 +114,9 @@ public sealed partial class CertificatePolicyBoundaryTests {
         private readonly TaskCompletionSource<bool> _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource<bool> _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource<bool> _handshakeEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<bool> _secondHandshakeEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource<bool> _handshakeRelease = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _handshakeCount;
         private int _requestCount;
 
         internal UntrustedHttpsServer(bool gated = false, bool gateHandshake = false) {
@@ -128,6 +134,7 @@ public sealed partial class CertificatePolicyBoundaryTests {
         internal Task Entered => _entered.Task;
         internal void Release() => _release.TrySetResult(true);
         internal Task HandshakeEntered => _handshakeEntered.Task;
+        internal Task SecondHandshakeEntered => _secondHandshakeEntered.Task;
         internal void ReleaseHandshake() => _handshakeRelease.TrySetResult(true);
         internal Configuration Configuration(string hostname = "localhost", DnsResolverEndpoint? bootstrap = null) => new(new Uri($"https://{hostname}:{((IPEndPoint)_listener.LocalEndpoint).Port}/resolve"), DnsRequestFormat.DnsOverHttpsJSON) {
             HttpVersion = HttpVersion.Version11, TimeOut = 3000, BootstrapResolver = bootstrap
@@ -148,6 +155,7 @@ public sealed partial class CertificatePolicyBoundaryTests {
             using (var tls = new SslStream(peer.GetStream())) {
                 try {
                     _handshakeEntered.TrySetResult(true);
+                    if (Interlocked.Increment(ref _handshakeCount) == 2) _secondHandshakeEntered.TrySetResult(true);
                     await _handshakeRelease.Task.WaitAsync(_stop.Token);
                     await tls.AuthenticateAsServerAsync(new SslServerAuthenticationOptions {
                         ServerCertificateSelectionCallback = (_, name) => { ServerName = name; return _certificate; },
