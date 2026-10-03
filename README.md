@@ -117,6 +117,8 @@ If you want to learn about DNS:
 
 For TXT and SPF records, `DataRaw` retains the server's presentation, `DataStrings` retains its quoted character-strings, and `DataStringsEscaped` exposes the decoded strings. `Data` and `TxtRecord.Text` concatenate those decoded strings within the same resource record. Spaces, empty chunks, escaped quotes, and payload line breaks are preserved. Use `TxtConcatenatedData` when you deliberately want display output with line breaks removed. Opaque and application record payloads retain their case.
 
+CAA, NAPTR, and TLSA also accept generic hexadecimal RDATA (`\# <length> <hex>`). The declared octet length must match the payload. CAA flags and escaped value bytes are preserved; normalized TLSA association data uses uppercase hexadecimal. Malformed generic encodings retain their raw presentation and project as `UnknownRecord`.
+
 ## Supported .NET Versions and Dependencies
 
 ### Core Library (DnsClientX)
@@ -1153,6 +1155,8 @@ Bootstrap accepts an IP-literal UDP/TCP resolver and does not fall back to syste
 Certificate validation policy is captured when a query starts and remains in effect through retries. Changing `IgnoreCertificateErrors` affects subsequent queries. System clients can call `EndpointConfiguration.RefreshSystemDns()` after a network change. A refresh exposing no servers throws without replacing the prior configuration; pass `SystemDnsFallback.PublicResolvers` only when that fallback is desired.
 
 NSID is an opaque EDNS value. `EdnsNsid` retains its bytes, `EdnsNsidHex` is lossless, and `EdnsNsidText` is present only for printable ASCII. JSON transports reject NSID requests because they cannot carry EDNS. The CLI accepts `--bootstrap udp@1.1.1.1:53 --nsid`; PowerShell query, probe, and benchmark cmdlets accept `-BootstrapResolver 'udp@1.1.1.1:53' -RequestNsid`. Use `--explain` or `-FullResponse` to inspect query provenance. JSON output includes `server_resolution`, `edns_nsid_hex`, and `edns_nsid_text` when available.
+
+JSON requests on .NET 8 or later honor `Configuration.HttpVersion`. Set it to HTTP/1.1 when using an endpoint that supports only HTTP/1.1.
 
 ### Library Comparison Benchmark
 

@@ -27,7 +27,8 @@ namespace DnsClientX.Tests {
             var original = Thread.CurrentThread.CurrentCulture;
             try {
                 Thread.CurrentThread.CurrentCulture = new CultureInfo(culture);
-                Assert.Equal("3 1 1 2b6e0f", answer.Data);
+                Assert.Equal("3 1 1 2B6E0F", answer.Data);
+                Assert.Equal("3 1 1 2b6e0f", answer.DataRaw);
             } finally {
                 Thread.CurrentThread.CurrentCulture = original;
             }
