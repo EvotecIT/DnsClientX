@@ -281,12 +281,15 @@ namespace DnsClientX {
                     }
                     if (existing != null) {
                         try {
-                            await WaitWithCancellationAsync(existing.ReservationReleased.Task, cancellationToken)
+                            // An abandoned query still owns its ID, but must wake an already
+                            // queued caller so admission can retire and replace this stream.
+                            await WaitWithCancellationAsync(Task.WhenAny(existing.Completion.Task,
+                                existing.ReservationReleased.Task), cancellationToken)
                                 .ConfigureAwait(false);
                         } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
                             throw;
                         } catch {
-                            // Reservation release is a signal only; retry the atomic dictionary reservation.
+                            // Completion/release is a signal only; retry atomic admission.
                         }
                     }
                 }

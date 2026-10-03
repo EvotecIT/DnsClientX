@@ -241,8 +241,10 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>A quarantined ID can be reused on a fresh connection without accepting an old reply.</summary>
-        [Fact]
-        public async Task CancelledTransactionIdMovesToFreshConnection() {
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task CancelledTransactionIdMovesToFreshConnection(bool waitBeforeCancellation) {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -272,13 +274,16 @@ namespace DnsClientX.Tests {
                     new DnsMessageOptions(TransactionId: 0x4242)).SerializeDnsWireFormat();
                 using var cancellation = new CancellationTokenSource();
                 Task<byte[]> first = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
-                    firstQuery, 5000, 2, cancellation.Token);
+                    firstQuery, 3000, 2, cancellation.Token);
                 await firstReceived.Task;
+                Task<byte[]>? second = waitBeforeCancellation ? pool.QueryTcpAsync(IPAddress.Loopback, port, null,
+                    secondQuery, 3000, 2, guard.Token) : null;
+                if (second != null) Assert.False(second.IsCompleted);
                 cancellation.Cancel();
                 await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
 
-                Task<byte[]> second = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
-                    secondQuery, 5000, 2, guard.Token);
+                second ??= pool.QueryTcpAsync(IPAddress.Loopback, port, null,
+                    secondQuery, 3000, 2, guard.Token);
 
                 byte[] response = await second;
                 DnsResponse parsed = await DnsWire.DeserializeDnsWireFormat(null, false, response);
