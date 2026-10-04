@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -40,6 +41,19 @@ namespace DnsClientX.Tests {
             }
         }
 
+        private static async Task StopStallingServerAsync(Task server, CancellationTokenSource cancellation) {
+            cancellation.Cancel();
+            try {
+                await server;
+            } catch (OperationCanceledException) when (cancellation.IsCancellationRequested) {
+                // The fixture was still waiting for the request or deliberately stalling.
+            } catch (IOException exception) when (cancellation.IsCancellationRequested &&
+                (exception is EndOfStreamException ||
+                 exception.InnerException is SocketException { SocketErrorCode: SocketError.ConnectionReset })) {
+                // A timed-out client may reset the connection before the server reads its query.
+            }
+        }
+
         /// <summary>The response wrapper retains a stalled TCP exchange's timeout diagnostics.</summary>
         [Fact]
         public async Task ResolveWireFormatTcp_PreservesTimeoutDiagnostics() {
@@ -57,8 +71,7 @@ namespace DnsClientX.Tests {
                 Assert.Equal(DnsQueryErrorCode.Timeout, response.ErrorCode);
                 Assert.NotNull(response.Exception);
             } finally {
-                cancel.Cancel();
-                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => server);
+                await StopStallingServerAsync(server, cancel);
             }
         }
 
@@ -73,17 +86,18 @@ namespace DnsClientX.Tests {
 
             var queryBytes = new DnsMessage("example.com", DnsRecordType.A, false).SerializeDnsWireFormat();
 
-            await Assert.ThrowsAsync<TimeoutException>(async () => {
-                await DnsWireResolveTcp.SendQueryOverTcp(
-                    queryBytes,
-                    "127.0.0.1",
-                    port,
-                    200,
-                    CancellationToken.None);
-            });
-
-            cts.Cancel();
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => serverTask);
+            try {
+                await Assert.ThrowsAsync<TimeoutException>(async () => {
+                    await DnsWireResolveTcp.SendQueryOverTcp(
+                        queryBytes,
+                        "127.0.0.1",
+                        port,
+                        200,
+                        CancellationToken.None);
+                });
+            } finally {
+                await StopStallingServerAsync(serverTask, cts);
+            }
         }
     }
 }
