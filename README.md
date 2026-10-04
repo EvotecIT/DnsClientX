@@ -240,6 +240,8 @@ DnsClientX.Cli --txt-concat --type TXT example.com
 DnsClientX.Cli --reverse 1.1.1.1
 ```
 
+Human-readable output, including `--short` and `--format raw`, displays control and Unicode formatting characters as `\uXXXX` escapes. Use `--format json` when automation needs the original DNS data; parsed JSON values retain those characters.
+
 Zone transfer convenience:
 
 ```powershell

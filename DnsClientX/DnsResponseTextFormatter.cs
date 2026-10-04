@@ -82,7 +82,7 @@ namespace DnsClientX {
             var lines = new List<string> {
                 $"Status: {response.Status} (retries {response.RetryCount})"
             };
-            if (!string.IsNullOrWhiteSpace(response.Error)) lines.Add($"Error: {response.Error}");
+            if (!string.IsNullOrWhiteSpace(response.Error)) lines.Add($"Error: {DnsTerminalText.Escape(response.Error)}");
 
             if (showQuestions) {
                 lines.AddRange(BuildQuestionSectionLines("Questions", response.Questions ?? Array.Empty<DnsQuestion>()));
@@ -134,13 +134,13 @@ namespace DnsClientX {
                 $";; query time: {durationFormatter(response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : elapsed)}",
                 $";; sections: question {questions.Length}, answer {answers.Length}, authority {authorities.Length}, additional {additional.Length}"
             };
-            if (!string.IsNullOrWhiteSpace(response.Error)) lines.Add($";; error: {response.Error}");
+            if (!string.IsNullOrWhiteSpace(response.Error)) lines.Add($";; error: {DnsTerminalText.Escape(response.Error)}");
 
             if (showQuestions) {
                 lines.Add(string.Empty);
                 lines.Add(";; QUESTION SECTION:");
                 foreach (DnsQuestion question in questions) {
-                    lines.Add($";{question.Name}\tIN\t{question.Type}");
+                    lines.Add($";{DnsTerminalText.Escape(question.Name)}\tIN\t{question.Type}");
                 }
             }
 
@@ -148,7 +148,7 @@ namespace DnsClientX {
                 lines.Add(string.Empty);
                 lines.Add(";; ANSWER SECTION:");
                 foreach (DnsAnswer answer in answers) {
-                    lines.Add($"{answer.Name}\t{answer.TTL}\tIN\t{answer.Type}\t{FormatAnswerData(answer, txtConcat)}");
+                    lines.Add($"{DnsTerminalText.Escape(answer.Name)}\t{answer.TTL}\tIN\t{answer.Type}\t{FormatAnswerData(answer, txtConcat)}");
                 }
             }
 
@@ -156,7 +156,7 @@ namespace DnsClientX {
                 lines.Add(string.Empty);
                 lines.Add(";; AUTHORITY SECTION:");
                 foreach (DnsAnswer answer in authorities) {
-                    lines.Add($"{answer.Name}\t{answer.TTL}\tIN\t{answer.Type}\t{FormatAnswerData(answer, txtConcat)}");
+                    lines.Add($"{DnsTerminalText.Escape(answer.Name)}\t{answer.TTL}\tIN\t{answer.Type}\t{FormatAnswerData(answer, txtConcat)}");
                 }
             }
 
@@ -164,7 +164,7 @@ namespace DnsClientX {
                 lines.Add(string.Empty);
                 lines.Add(";; ADDITIONAL SECTION:");
                 foreach (DnsAnswer answer in additional) {
-                    lines.Add($"{answer.Name}\t{answer.TTL}\tIN\t{answer.Type}\t{FormatAnswerData(answer, txtConcat)}");
+                    lines.Add($"{DnsTerminalText.Escape(answer.Name)}\t{answer.TTL}\tIN\t{answer.Type}\t{FormatAnswerData(answer, txtConcat)}");
                 }
             }
 
@@ -174,7 +174,7 @@ namespace DnsClientX {
         private static IEnumerable<string> BuildQuestionSectionLines(string title, IEnumerable<DnsQuestion> questions) {
             yield return $"{title}:";
             foreach (DnsQuestion question in questions) {
-                yield return $"  {question.Name}\t{question.Type}";
+                yield return $"  {DnsTerminalText.Escape(question.Name)}\t{question.Type}";
             }
         }
 
@@ -182,15 +182,15 @@ namespace DnsClientX {
             yield return $"{title}:";
             foreach (DnsAnswer answer in answers) {
                 if (includeTtl) {
-                    yield return $"  {answer.Name}\t{answer.Type}\t{answer.TTL}\t{FormatAnswerData(answer, txtConcat)}";
+                    yield return $"  {DnsTerminalText.Escape(answer.Name)}\t{answer.Type}\t{answer.TTL}\t{FormatAnswerData(answer, txtConcat)}";
                 } else {
-                    yield return $"  {answer.Name}\t{answer.Type}\t{FormatAnswerData(answer, txtConcat)}";
+                    yield return $"  {DnsTerminalText.Escape(answer.Name)}\t{answer.Type}\t{FormatAnswerData(answer, txtConcat)}";
                 }
             }
         }
 
         private static string FormatAnswerData(DnsAnswer answer, bool txtConcat) {
-            return txtConcat ? answer.TxtConcatenatedData : answer.Data;
+            return DnsTerminalText.Escape(txtConcat ? answer.TxtConcatenatedData : answer.Data);
         }
     }
 }

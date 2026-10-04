@@ -9,6 +9,66 @@ namespace DnsClientX.Tests {
         private static readonly Func<TimeSpan, string> DurationFormatter =
             duration => $"{(int)Math.Round(duration.TotalMilliseconds, MidpointRounding.AwayFromZero)} ms";
 
+        /// <summary>Supplementary format controls cannot hide terminal text while ordinary emoji remain intact.</summary>
+        [Fact]
+        public void TerminalTextEscapesSupplementaryFormatCharacters() {
+            Assert.Equal("left\\uDB40\\uDC01right", DnsTerminalText.Escape("left\uDB40\uDC01right"));
+            Assert.Equal("left\uD83D\uDE00right", DnsTerminalText.Escape("left\uD83D\uDE00right"));
+        }
+
+        /// <summary>Decoded DNS control octets cannot execute as terminal commands in text modes.</summary>
+        [Theory]
+        [InlineData(DnsResponsePresentationMode.Short)]
+        [InlineData(DnsResponsePresentationMode.Pretty)]
+        [InlineData(DnsResponsePresentationMode.Raw)]
+        public void TextModesEscapeDecodedTxtControls(DnsResponsePresentationMode mode) {
+            DnsAnswer answer = new() {
+                Name = "example.com",
+                Type = DnsRecordType.TXT,
+                DataRaw = "\"red\\027[31m\\010next\""
+            };
+            DnsResponse response = new() { Answers = new[] { answer } };
+
+            string[] lines = DnsResponseTextFormatter.BuildOutputLines(response,
+                new DnsResponsePresentationOptions { Mode = mode, ShowAnswers = true },
+                TimeSpan.Zero, DurationFormatter);
+
+            Assert.DoesNotContain(lines, line => line.Contains('\u001b') || line.Contains('\n'));
+            Assert.Contains(lines, line => line.Contains("\\u001B[31m\\u000Anext", StringComparison.Ordinal));
+            Assert.Equal("red\u001b[31m\nnext", answer.Data);
+            Assert.Equal("\"red\\027[31m\\010next\"", answer.DataRaw);
+
+            string json = Assert.Single(DnsResponseTextFormatter.BuildOutputLines(response,
+                new DnsResponsePresentationOptions { Mode = DnsResponsePresentationMode.Json },
+                TimeSpan.Zero, DurationFormatter));
+            Assert.Contains("red\\\\027", json, StringComparison.Ordinal);
+        }
+
+        /// <summary>Errors and DNS names cannot insert terminal controls or extra display lines.</summary>
+        [Theory]
+        [InlineData(DnsResponsePresentationMode.Pretty)]
+        [InlineData(DnsResponsePresentationMode.Raw)]
+        public void TextModesEscapeUntrustedMetadata(DnsResponsePresentationMode mode) {
+            DnsResponse response = new() {
+                Error = "resolver\u001b[2Jfailed\nnext",
+                Questions = new[] { new DnsQuestion { Name = "q\u202E.example", Type = DnsRecordType.A } },
+                Answers = new[] { new DnsAnswer { Name = "a\u001b[31m.example", DataRaw = "203.0.113.10" } }
+            };
+
+            string[] lines = DnsResponseTextFormatter.BuildOutputLines(response,
+                new DnsResponsePresentationOptions { Mode = mode, ShowQuestions = true, ShowAnswers = true },
+                TimeSpan.Zero, DurationFormatter);
+
+            Assert.All(lines, line => {
+                Assert.Equal(-1, line.IndexOf('\u001b'));
+                Assert.Equal(-1, line.IndexOf('\u202e'));
+                Assert.Equal(-1, line.IndexOf('\n'));
+            });
+            Assert.Contains(lines, line => line.Contains("resolver\\u001B[2Jfailed\\u000Anext", StringComparison.Ordinal));
+            Assert.Contains(lines, line => line.Contains("q\\u202E.example", StringComparison.Ordinal));
+            Assert.Contains(lines, line => line.Contains("a\\u001B[31m.example", StringComparison.Ordinal));
+        }
+
         /// <summary>
         /// Ensures short output uses the requested answer projection.
         /// </summary>
@@ -28,7 +88,7 @@ namespace DnsClientX.Tests {
             string[] defaultLines = DnsResponseTextFormatter.BuildShortLines(response, txtConcat: false);
             string[] concatLines = DnsResponseTextFormatter.BuildShortLines(response, txtConcat: true);
 
-            Assert.Equal("line1\nline2", defaultLines[0]);
+            Assert.Equal("line1\\u000Aline2", defaultLines[0]);
             Assert.Equal("line1line2", concatLines[0]);
         }
 
