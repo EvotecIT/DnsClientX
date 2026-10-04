@@ -15,7 +15,7 @@ using Xunit;
 namespace DnsClientX.Tests {
     /// <summary>Protects RFC 7766 connection reuse, pipelining, and response dispatch.</summary>
     [Collection("NoParallel")]
-    public class DnsStreamConnectionPoolTests {
+    public partial class DnsStreamConnectionPoolTests {
         /// <summary>Sequential TCP queries reuse one connection owned by the high-level client.</summary>
         [Fact]
         public async Task TcpQueriesReuseOneConnection() {
@@ -240,29 +240,30 @@ namespace DnsClientX.Tests {
             }
         }
 
-        /// <summary>A canceled request keeps its transaction ID reserved until the late response is drained.</summary>
-        [Fact]
-        public async Task CancelledTransactionIdIsNotReusedBeforeLateResponse() {
+        /// <summary>A quarantined ID can be reused on a fresh connection without accepting an old reply.</summary>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task CancelledTransactionIdMovesToFreshConnection(bool waitBeforeCancellation) {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             var firstReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseLateResponse = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task server = Task.Run(async () => {
                 using TcpClient connection = await AcceptAsync(listener, guard.Token);
                 NetworkStream stream = connection.GetStream();
                 byte[] firstQuery = await ReadFrameAsync(stream, guard.Token);
                 firstReceived.TrySetResult(true);
 
-                Task<byte[]> secondRead = ReadFrameAsync(stream, guard.Token);
-                await releaseLateResponse.Task;
-                Assert.False(secondRead.IsCompleted,
-                    "The canceled transaction ID was reused before its late response was drained.");
-                await WriteFrameAsync(stream, TestUtilities.CreateResponseFromQuery(firstQuery), guard.Token);
-
-                byte[] secondQuery = await secondRead;
-                await WriteFrameAsync(stream, TestUtilities.CreateResponseFromQuery(secondQuery), guard.Token);
+                Task<byte[]> oldRead = ReadFrameAsync(stream, guard.Token);
+                using TcpClient replacement = await AcceptAsync(listener, guard.Token);
+                NetworkStream replacementStream = replacement.GetStream();
+                byte[] secondQuery = await ReadFrameAsync(replacementStream, guard.Token);
+                await Assert.ThrowsAnyAsync<IOException>(() => oldRead);
+                Assert.Equal(firstQuery[0], secondQuery[0]);
+                Assert.Equal(firstQuery[1], secondQuery[1]);
+                await WriteFrameAsync(replacementStream, TestUtilities.CreateResponseFromQuery(secondQuery), guard.Token);
             }, guard.Token);
 
             try {
@@ -273,34 +274,35 @@ namespace DnsClientX.Tests {
                     new DnsMessageOptions(TransactionId: 0x4242)).SerializeDnsWireFormat();
                 using var cancellation = new CancellationTokenSource();
                 Task<byte[]> first = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
-                    firstQuery, 5000, 2, cancellation.Token);
+                    firstQuery, 3000, 2, cancellation.Token);
                 await firstReceived.Task;
+                Task<byte[]>? second = waitBeforeCancellation ? pool.QueryTcpAsync(IPAddress.Loopback, port, null,
+                    secondQuery, 3000, 2, guard.Token) : null;
+                if (second != null) Assert.False(second.IsCompleted);
                 cancellation.Cancel();
                 await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
 
-                Task<byte[]> second = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
-                    secondQuery, 5000, 2, guard.Token);
-                await Task.Delay(100, guard.Token);
-                releaseLateResponse.TrySetResult(true);
+                second ??= pool.QueryTcpAsync(IPAddress.Loopback, port, null,
+                    secondQuery, 3000, 2, guard.Token);
 
                 byte[] response = await second;
                 DnsResponse parsed = await DnsWire.DeserializeDnsWireFormat(null, false, response);
                 Assert.Equal("new.example", Assert.Single(parsed.Questions).Name);
                 await server;
             } finally {
-                releaseLateResponse.TrySetResult(true);
                 listener.Stop();
             }
         }
 
-        /// <summary>A timed-out written request keeps its connection capacity until the late reply is drained.</summary>
+        /// <summary>A timed-out request frees caller capacity while its ID remains protected from a late reply.</summary>
         [Fact]
-        public async Task TimedOutWrittenQueryKeepsCapacityUntilLateResponse() {
+        public async Task TimedOutWrittenQueryReleasesCapacityAndDrainsLateResponse() {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             var firstReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseLateResponse = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task server = Task.Run(async () => {
                 using TcpClient connection = await AcceptAsync(listener, guard.Token);
@@ -308,13 +310,10 @@ namespace DnsClientX.Tests {
                 byte[] firstQuery = await ReadFrameAsync(stream, guard.Token);
                 firstReceived.TrySetResult(true);
 
-                Task<byte[]> secondRead = ReadFrameAsync(stream, guard.Token);
+                byte[] secondQuery = await ReadFrameAsync(stream, guard.Token);
+                secondReceived.TrySetResult(true);
                 await releaseLateResponse.Task;
-                Assert.False(secondRead.IsCompleted,
-                    "A timed-out request released stream capacity before its late response was drained.");
                 await WriteFrameAsync(stream, TestUtilities.CreateResponseFromQuery(firstQuery), guard.Token);
-
-                byte[] secondQuery = await secondRead;
                 await WriteFrameAsync(stream, TestUtilities.CreateResponseFromQuery(secondQuery), guard.Token);
             }, guard.Token);
 
@@ -326,13 +325,14 @@ namespace DnsClientX.Tests {
                     new DnsMessageOptions(TransactionId: 0x4343)).SerializeDnsWireFormat();
 
                 Task<byte[]> first = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
-                    firstQuery, 150, 1, guard.Token);
+                    firstQuery, 1000, 2, guard.Token);
                 await firstReceived.Task;
                 await Assert.ThrowsAsync<TimeoutException>(() => first);
 
                 Task<byte[]> second = pool.QueryTcpAsync(IPAddress.Loopback, port, null,
-                    secondQuery, 5000, 1, guard.Token);
-                await Task.Delay(100, guard.Token);
+                    secondQuery, 5000, 2, guard.Token);
+                Assert.Same(secondReceived.Task,
+                    await Task.WhenAny(secondReceived.Task, Task.Delay(5000, guard.Token)));
                 releaseLateResponse.TrySetResult(true);
 
                 byte[] response = await second;
@@ -459,20 +459,7 @@ namespace DnsClientX.Tests {
         /// <summary>DoT uses the same pipelined response-correlation engine over one authenticated stream.</summary>
         [Fact]
         public async Task DotPipeliningDispatchesOutOfOrderResponses() {
-            using RSA rsa = RSA.Create(2048);
-            var request = new CertificateRequest("CN=localhost", rsa, HashAlgorithmName.SHA256,
-                RSASignaturePadding.Pkcs1);
-            using X509Certificate2 baseCertificate = request.CreateSelfSigned(
-                DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
-            byte[] pfx = baseCertificate.Export(X509ContentType.Pfx);
-#if NET9_0_OR_GREATER
-            using X509Certificate2 certificate = X509CertificateLoader.LoadPkcs12(
-                pfx, null, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet,
-                Pkcs12LoaderLimits.Defaults);
-#else
-            using X509Certificate2 certificate = new X509Certificate2(pfx, (string?)null,
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
-#endif
+            using X509Certificate2 certificate = CreateStreamServerCertificate();
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -499,6 +486,25 @@ namespace DnsClientX.Tests {
             } finally {
                 listener.Stop();
             }
+        }
+
+        // Import a persistent private-key association for Windows Schannel,
+        // matching the existing passing TLS fixture on all supported platforms.
+        private static X509Certificate2 CreateStreamServerCertificate() {
+            using RSA rsa = RSA.Create(2048);
+            var request = new CertificateRequest("CN=localhost", rsa, HashAlgorithmName.SHA256,
+                RSASignaturePadding.Pkcs1);
+            using X509Certificate2 baseCertificate = request.CreateSelfSigned(
+                DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+            byte[] pfx = baseCertificate.Export(X509ContentType.Pfx);
+#if NET9_0_OR_GREATER
+            return X509CertificateLoader.LoadPkcs12(
+                pfx, null, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet,
+                Pkcs12LoaderLimits.Defaults);
+#else
+            return new X509Certificate2(pfx, (string?)null,
+                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
+#endif
         }
 #endif
 

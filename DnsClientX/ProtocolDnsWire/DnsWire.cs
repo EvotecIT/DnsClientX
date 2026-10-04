@@ -183,7 +183,8 @@ namespace DnsClientX {
                 ushort length = reader.ReadUInt16();
                 int rdataOffset = reader.Position;
                 reader.Skip(length);
-                int ttl = type == DnsRecordType.OPT ? 0 : rawTtl > int.MaxValue ? int.MaxValue : (int)rawTtl;
+                // RFC 2181 section 8 requires received TTLs with the high bit set to be zero.
+                int ttl = type == DnsRecordType.OPT || rawTtl > int.MaxValue ? 0 : (int)rawTtl;
                 string data = DnsWireRecordFormatter.Format(reader.Message, type, rdataOffset, length);
                 records[i] = new DnsWireResourceRecord(name, type, recordClass, ttl, rawTtl, rdataOffset, length, data);
             }

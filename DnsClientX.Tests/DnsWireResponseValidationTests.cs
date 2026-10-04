@@ -129,9 +129,13 @@ namespace DnsClientX.Tests {
             Assert.Equal(0x00008000u, optTtl);
         }
 
-        /// <summary>Preserves large unsigned TTLs without wrapping them negative or pretending they are zero.</summary>
-        [Fact]
-        public async Task UnsignedTtlAboveInt32IsClampedForTheLegacyIntApi() {
+        /// <summary>RFC 2181 treats high-bit TTLs as zero and permits the full remaining 31-bit range.</summary>
+        [Theory]
+        [InlineData(0xffffffffu, 0)]
+        [InlineData(0x80000000u, 0)]
+        [InlineData(0x7fffffffu, int.MaxValue)]
+        [InlineData(0u, 0)]
+        public async Task ReceivedTtlFollows31BitContract(uint ttl, int expected) {
             var query = new DnsMessage("example.com", DnsRecordType.A,
                 new DnsMessageOptions(TransactionId: 1));
             var bytes = new List<byte>(TestUtilities.CreateResponseFromQuery(query.SerializeDnsWireFormat()));
@@ -139,13 +143,13 @@ namespace DnsClientX.Tests {
             bytes[7] = 1;
             bytes.AddRange(new byte[] {
                 0xC0, 0x0C, 0x00, 0x01, 0x00, 0x01,
-                0xFF, 0xFF, 0xFF, 0xFF,
+                (byte)(ttl >> 24), (byte)(ttl >> 16), (byte)(ttl >> 8), (byte)ttl,
                 0x00, 0x04, 192, 0, 2, 1
             });
 
             DnsResponse parsed = await DnsWire.DeserializeDnsWireResponse(null, false, bytes.ToArray(), query);
 
-            Assert.Equal(int.MaxValue, Assert.Single(parsed.Answers).TTL);
+            Assert.Equal(expected, Assert.Single(parsed.Answers).TTL);
         }
 
         /// <summary>Rejects an HTTP-carried payload that cannot be represented by DNS's 16-bit message length.</summary>
