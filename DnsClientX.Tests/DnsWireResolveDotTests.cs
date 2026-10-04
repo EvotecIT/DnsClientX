@@ -35,7 +35,7 @@ namespace DnsClientX.Tests {
 
 #if NET6_0_OR_GREATER
         private static async Task RunStallingTlsServerAsync(X509Certificate2 cert, TcpListener listener,
-            CancellationToken token) {
+            TaskCompletionSource<bool> queryReceived, CancellationToken token) {
             try {
 #if NET8_0_OR_GREATER
                 using TcpClient client = await listener.AcceptTcpClientAsync(token);
@@ -44,6 +44,10 @@ namespace DnsClientX.Tests {
 #endif
                 using var sslStream = new SslStream(client.GetStream(), false);
                 await sslStream.AuthenticateAsServerAsync(cert, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
+                var queryPrefix = new byte[2];
+                int bytesRead = await sslStream.ReadAsync(queryPrefix, 0, queryPrefix.Length, token);
+                Assert.True(bytesRead > 0, "The client closed the TLS connection before sending a DNS query.");
+                queryReceived.TrySetResult(true);
                 await Task.Delay(Timeout.Infinite, token);
             } catch (OperationCanceledException) when (token.IsCancellationRequested) {
                 // Expected during test shutdown.
@@ -101,26 +105,31 @@ namespace DnsClientX.Tests {
             using X509Certificate2 cert = new X509Certificate2(pfx, (string?)null, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
 #endif
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var serverTask = RunStallingTlsServerAsync(cert, listener, cts.Token);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var queryReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var serverTask = RunStallingTlsServerAsync(cert, listener, queryReceived, cts.Token);
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTLS) {
                 Port = port,
-                TimeOut = 150
+                TimeOut = 3500
             };
 
             var sw = Stopwatch.StartNew();
-            var ex = await Assert.ThrowsAsync<DnsClientException>(async () =>
-                await DnsWireResolveDot.ResolveWireFormatDoT("127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, true, cts.Token));
-            sw.Stop();
+            try {
+                var ex = await Assert.ThrowsAsync<DnsClientException>(async () =>
+                    await DnsWireResolveDot.ResolveWireFormatDoT("127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, true, cts.Token));
+                sw.Stop();
 
-            Assert.NotNull(ex.Response);
-            Assert.Equal(DnsResponseCode.ServerFailure, ex.Response!.Status);
-            Assert.Equal(DnsQueryErrorCode.Timeout, ex.Response.ErrorCode);
-            Assert.IsType<TimeoutException>(ex.InnerException);
-            Assert.True(sw.Elapsed < TimeSpan.FromSeconds(2), $"Expected configured timeout to fire quickly, but took {sw.Elapsed}.");
-
-            cts.Cancel();
-            await serverTask;
+                Assert.True(queryReceived.Task.IsCompletedSuccessfully,
+                    "The server must receive a DNS query before the response-read timeout is asserted.");
+                Assert.NotNull(ex.Response);
+                Assert.Equal(DnsResponseCode.ServerFailure, ex.Response!.Status);
+                Assert.Equal(DnsQueryErrorCode.Timeout, ex.Response.ErrorCode);
+                Assert.IsType<TimeoutException>(ex.InnerException);
+                Assert.InRange(sw.ElapsedMilliseconds, 3000, 7000);
+            } finally {
+                cts.Cancel();
+                await serverTask;
+            }
         }
 #endif
     }
