@@ -19,6 +19,7 @@ namespace DnsClientX.Tests {
 
         private static async Task RunUdpServerAsync(int port, bool truncated, CancellationToken token) {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
+            using var cancellation = token.Register(udp.Dispose);
 #if NET5_0_OR_GREATER
             UdpReceiveResult result = await udp.ReceiveAsync(token).AsTask();
 #else
@@ -29,6 +30,7 @@ namespace DnsClientX.Tests {
         }
 
         private static async Task RunTcpServerAsync(TcpListener listener, Action onReceived, CancellationToken token) {
+            using var cancellation = token.Register(listener.Stop);
             try {
                 using TcpClient client = await listener.AcceptTcpClientAsync();
                 NetworkStream stream = client.GetStream();
