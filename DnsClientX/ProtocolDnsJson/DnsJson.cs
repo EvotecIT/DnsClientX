@@ -39,6 +39,9 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Cancels reading the bounded response body.</param>
         internal static async Task<T> Deserialize<T>(this HttpResponseMessage response, JsonTypeInfo<T> typeInfo,
             bool debug = false, CancellationToken cancellationToken = default) {
+            if (!response.IsSuccessStatusCode) {
+                throw new DnsClientException($"DNS JSON endpoint returned HTTP {(int)response.StatusCode} ({response.ReasonPhrase}).");
+            }
             if (response.Content == null)
                 throw new DnsClientException("Response content is missing, can't parse as JSON.");
             if (response.Content.Headers.ContentLength.HasValue && response.Content.Headers.ContentLength.Value == 0)

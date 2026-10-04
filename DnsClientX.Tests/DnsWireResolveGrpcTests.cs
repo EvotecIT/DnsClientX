@@ -41,6 +41,8 @@ namespace DnsClientX.Tests {
                     var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
                         Content = new ByteArrayContent(TestUtilities.CreateGrpcResponseFromRequest(captured!))
                     };
+                    response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/grpc");
+                    response.TrailingHeaders.TryAddWithoutValidation("grpc-status", "0");
                     return Task.FromResult(response);
                 };
                 var config = new Configuration("dummy", DnsRequestFormat.DnsOverGrpc);
@@ -50,6 +52,70 @@ namespace DnsClientX.Tests {
             } finally {
                 DnsWireResolveGrpc.ClientFactory = prevClient;
                 DnsWireResolveGrpc.SendAsync = prevSend;
+            }
+        }
+
+        /// <summary>A valid DNS frame does not override a failed HTTP or gRPC envelope.</summary>
+        [Theory]
+        [InlineData(System.Net.HttpStatusCode.BadGateway, "0", "HTTP 502")]
+        [InlineData(System.Net.HttpStatusCode.OK, "7", "gRPC status 7")]
+        [InlineData(System.Net.HttpStatusCode.OK, null, "missing gRPC status")]
+        public async Task ResolveWireFormatGrpc_RejectsFailedEnvelope(
+            System.Net.HttpStatusCode httpStatus, string? grpcStatus, string expectedError) {
+            var previousClient = DnsWireResolveGrpc.ClientFactory;
+            var previousSend = DnsWireResolveGrpc.SendAsync;
+            try {
+                DnsWireResolveGrpc.ClientFactory = _ => new HttpClient();
+                DnsWireResolveGrpc.SendAsync = async (_, request, _) => {
+                    byte[] query = await request.Content!.ReadAsByteArrayAsync();
+                    var response = new HttpResponseMessage(httpStatus) {
+                        Content = new ByteArrayContent(TestUtilities.CreateGrpcResponseFromRequest(query))
+                    };
+                    response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/grpc");
+                    if (grpcStatus != null) {
+                        response.TrailingHeaders.TryAddWithoutValidation("grpc-status", grpcStatus);
+                    }
+                    return response;
+                };
+
+                var config = new Configuration("dummy", DnsRequestFormat.DnsOverGrpc);
+                DnsResponse response = await DnsWireResolveGrpc.ResolveWireFormatGrpc(
+                    "dummy", 443, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None);
+
+                Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
+                Assert.Contains(expectedError, response.Error, StringComparison.OrdinalIgnoreCase);
+            } finally {
+                DnsWireResolveGrpc.ClientFactory = previousClient;
+                DnsWireResolveGrpc.SendAsync = previousSend;
+            }
+        }
+
+        /// <summary>A DNS-shaped body is not a gRPC reply without its declared media type.</summary>
+        [Fact]
+        public async Task ResolveWireFormatGrpc_RejectsNonGrpcContentType() {
+            var previousClient = DnsWireResolveGrpc.ClientFactory;
+            var previousSend = DnsWireResolveGrpc.SendAsync;
+            try {
+                DnsWireResolveGrpc.ClientFactory = _ => new HttpClient();
+                DnsWireResolveGrpc.SendAsync = async (_, request, _) => {
+                    byte[] query = await request.Content!.ReadAsByteArrayAsync();
+                    var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
+                        Content = new ByteArrayContent(TestUtilities.CreateGrpcResponseFromRequest(query))
+                    };
+                    response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+                    response.TrailingHeaders.TryAddWithoutValidation("grpc-status", "0");
+                    return response;
+                };
+
+                var config = new Configuration("dummy", DnsRequestFormat.DnsOverGrpc);
+                DnsResponse response = await DnsWireResolveGrpc.ResolveWireFormatGrpc(
+                    "dummy", 443, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None);
+
+                Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
+                Assert.Contains("non-gRPC content type", response.Error, StringComparison.Ordinal);
+            } finally {
+                DnsWireResolveGrpc.ClientFactory = previousClient;
+                DnsWireResolveGrpc.SendAsync = previousSend;
             }
         }
 
@@ -115,9 +181,12 @@ namespace DnsClientX.Tests {
                     byte[] query = await request.Content!.ReadAsByteArrayAsync();
                     byte[] frame = TestUtilities.CreateGrpcResponseFromRequest(query);
                     frame[4]++;
-                    return new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
+                    var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
                         Content = new ByteArrayContent(frame)
                     };
+                    response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/grpc");
+                    response.TrailingHeaders.TryAddWithoutValidation("grpc-status", "0");
+                    return response;
                 };
 
                 var config = new Configuration("dummy", DnsRequestFormat.DnsOverGrpc);

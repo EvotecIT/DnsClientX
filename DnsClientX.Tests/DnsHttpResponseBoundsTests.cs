@@ -10,6 +10,27 @@ namespace DnsClientX.Tests;
 
 /// <summary>Protects HTTP DNS callers from response bodies that exceed their protocol limits.</summary>
 public sealed class DnsHttpResponseBoundsTests {
+    /// <summary>Both JSON query methods reject an HTTP error carrying a successful-looking DNS payload.</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task JsonQueryRejectsHttpFailure(bool post) {
+        using var client = new HttpClient(new ResponseHandler(
+            new StringContent("{\"Status\":0}"), HttpStatusCode.InternalServerError)) {
+            BaseAddress = new Uri("https://resolver.example/dns-query")
+        };
+        var configuration = new Configuration(client.BaseAddress, post
+            ? DnsRequestFormat.DnsOverHttpsJSONPOST
+            : DnsRequestFormat.DnsOverHttpsJSON);
+
+        DnsResponse response = post
+            ? await client.ResolveJsonFormatPost("example.com", DnsRecordType.A, false, false, false, configuration, default)
+            : await client.ResolveJsonFormat("example.com", DnsRecordType.A, false, false, false, configuration, default);
+
+        Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
+        Assert.Contains("HTTP 500", response.Error, StringComparison.Ordinal);
+    }
+
     /// <summary>An oversized wire response is rejected from headers without reading its body.</summary>
     [Fact]
     public async Task WireGetRejectsDeclaredOversizeBeforeReadingBody() {
