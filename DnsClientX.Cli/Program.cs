@@ -1668,7 +1668,7 @@ namespace DnsClientX.Cli {
 
         private static void WriteHumanLine(string value) => Console.WriteLine(DnsTerminalText.Escape(value));
 
-        private static void WriteHumanError(string value) => Console.Error.WriteLine(DnsTerminalText.Escape(value));
+        private static void WriteHumanError(string? value) => Console.Error.WriteLine(DnsTerminalText.Escape(value));
 
         private static void ShowHelp() {
             Console.WriteLine("DnsClientX.Cli - simple DNS query tool");
