@@ -51,7 +51,8 @@ namespace DnsClientX.Tests {
             public UpdateServer(int port, Task task) { Port = port; Task = task; }
         }
 
-        private static UpdateServer RunServerAsync(DnsResponseCode code, CancellationToken token) {
+        private static UpdateServer RunServerAsync(DnsResponseCode code, CancellationToken token,
+            bool omitSections = false, bool echoAllSections = false, ushort? zoneClass = null) {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -69,7 +70,25 @@ namespace DnsClientX.Tests {
                 int qLen = BitConverter.ToUInt16(len, 0);
                 byte[] q = new byte[qLen];
                 await TestUtilities.ReadExactlyAsync(stream, q, qLen, token);
-                byte[] response = TestUtilities.CreateResponseFromQuery(q, (ushort)(0xA800 | (ushort)code));
+                byte[] response;
+                if (omitSections) {
+                    response = new byte[12];
+                    response[0] = q[0];
+                    response[1] = q[1];
+                    response[2] = (byte)(0xA8);
+                    response[3] = (byte)code;
+                } else if (echoAllSections) {
+                    response = (byte[])q.Clone();
+                    response[2] = (byte)0xA8;
+                    response[3] = (byte)code;
+                } else {
+                    response = TestUtilities.CreateResponseFromQuery(q, (ushort)(0xA800 | (ushort)code));
+                    if (zoneClass.HasValue) {
+                        int classOffset = SkipName(response, 12) + 2;
+                        response[classOffset] = (byte)(zoneClass.Value >> 8);
+                        response[classOffset + 1] = (byte)zoneClass.Value;
+                    }
+                }
                 byte[] prefix = BitConverter.GetBytes((ushort)response.Length);
                 if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
                 await stream.WriteAsync(prefix, 0, prefix.Length, token);
@@ -91,6 +110,54 @@ namespace DnsClientX.Tests {
             var res = await client.UpdateRecordAsync("example.com", "www.example.com", DnsRecordType.A, "1.2.3.4");
             await server.Task;
             Assert.Equal(DnsResponseCode.NoError, res.Status);
+        }
+
+        /// <summary>An RFC 2136 server may omit every request section from its response.</summary>
+        [Fact]
+        public async Task UpdateRecordAsync_AcceptsEmptySectionResponse() {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var server = RunServerAsync(DnsResponseCode.NoError, cts.Token, omitSections: true);
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) {
+                EndpointConfiguration = { Port = server.Port }
+            };
+
+            DnsResponse response = await client.UpdateRecordAsync(
+                "example.com", "www.example.com", DnsRecordType.A, "192.0.2.10");
+
+            await server.Task;
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.Empty(response.Questions);
+        }
+
+        /// <summary>An echoed Zone section must retain the requested IN class.</summary>
+        [Fact]
+        public async Task UpdateRecordAsync_RejectsWrongZoneClass() {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var server = RunServerAsync(DnsResponseCode.NoError, cts.Token, zoneClass: 3);
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) {
+                EndpointConfiguration = { Port = server.Port }
+            };
+
+            await Assert.ThrowsAsync<DnsClientException>(() => client.UpdateRecordAsync(
+                "example.com", "www.example.com", DnsRecordType.A, "192.0.2.10"));
+            await server.Task;
+        }
+
+        /// <summary>A full RFC 2136 echo can contain an A RRset deletion without RDATA.</summary>
+        [Fact]
+        public async Task DeleteRecordAsync_AcceptsFullEchoedUpdate() {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var server = RunServerAsync(DnsResponseCode.NoError, cts.Token, echoAllSections: true);
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) {
+                EndpointConfiguration = { Port = server.Port }
+            };
+
+            DnsResponse response = await client.DeleteRecordAsync(
+                "example.com", "www.example.com", DnsRecordType.A);
+
+            await server.Task;
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.Equal(string.Empty, Assert.Single(response.Authorities).DataRaw);
         }
 
         /// <summary>

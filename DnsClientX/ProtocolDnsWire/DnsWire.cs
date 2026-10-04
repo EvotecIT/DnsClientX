@@ -23,9 +23,18 @@ namespace DnsClientX {
             DnsResponse response = await DeserializeDnsWireCore(null, debug, bytes, query: null, requireResponse: true).ConfigureAwait(false);
             if (response.TransactionId != transactionId) throw new DnsClientException("DNS UPDATE response transaction ID does not match the request.");
             if (response.OperationCode != 5) throw new DnsClientException($"DNS UPDATE response has unexpected opcode {response.OperationCode}.");
-            if (response.Questions == null || response.Questions.Length != 1 ||
-                response.Questions[0].Type != DnsRecordType.SOA ||
-                !string.Equals(DnsWireNameCodec.Canonical(response.Questions[0].Name), DnsWireNameCodec.Canonical(zone), StringComparison.Ordinal)) {
+            // RFC 2136 section 3.8 permits either an echoed update or a response
+            // with the request sections omitted entirely.
+            if (response.Questions.Length == 0) {
+                if (response.Answers.Length != 0 || response.Authorities.Length != 0) {
+                    throw new DnsClientException("DNS UPDATE response omits the zone but includes request sections.");
+                }
+                return response;
+            }
+            if (response.Questions.Length != 1 ||
+                !DnsWireMessageParser.TryParseQuestion(bytes, 0, out DnsWireQuestionInfo responseZone) ||
+                responseZone.Type != (ushort)DnsRecordType.SOA || responseZone.Class != 1 ||
+                !string.Equals(DnsWireNameCodec.Canonical(responseZone.Name), DnsWireNameCodec.Canonical(zone), StringComparison.Ordinal)) {
                 throw new DnsClientException("DNS UPDATE response zone section does not match the request.");
             }
             return response;
@@ -117,8 +126,8 @@ namespace DnsClientX {
                 }
             }
 
-            DnsWireResourceRecord[] answerRecords = ReadRecords(reader, answerCount);
-            DnsWireResourceRecord[] authorityRecords = ReadRecords(reader, authorityCount);
+            DnsWireResourceRecord[] answerRecords = ReadRecords(reader, answerCount, opcode == 5);
+            DnsWireResourceRecord[] authorityRecords = ReadRecords(reader, authorityCount, opcode == 5);
             DnsWireResourceRecord[] additionalRecords = ReadRecords(reader, additionalCount);
             if (Array.Exists(answerRecords, record => record.Type == DnsRecordType.OPT) ||
                 Array.Exists(authorityRecords, record => record.Type == DnsRecordType.OPT)) {
@@ -181,7 +190,8 @@ namespace DnsClientX {
             return response;
         }
 
-        private static DnsWireResourceRecord[] ReadRecords(DnsWireReader reader, ushort count) {
+        private static DnsWireResourceRecord[] ReadRecords(DnsWireReader reader, ushort count,
+            bool updateSection = false) {
             if (count == 0) return Array.Empty<DnsWireResourceRecord>();
             var records = new DnsWireResourceRecord[count];
             for (int i = 0; i < count; i++) {
@@ -194,7 +204,11 @@ namespace DnsClientX {
                 reader.Skip(length);
                 // RFC 2181 section 8 requires received TTLs with the high bit set to be zero.
                 int ttl = type == DnsRecordType.OPT || rawTtl > int.MaxValue ? 0 : (int)rawTtl;
-                string data = DnsWireRecordFormatter.Format(reader.Message, type, rdataOffset, length);
+                // RFC 2136 deletion and prerequisite meta-records can be echoed
+                // with CLASS=ANY/NONE and empty RDATA, even for types such as A.
+                string data = updateSection && length == 0 && (recordClass == 254 || recordClass == 255)
+                    ? string.Empty
+                    : DnsWireRecordFormatter.Format(reader.Message, type, rdataOffset, length);
                 records[i] = new DnsWireResourceRecord(name, type, recordClass, ttl, rawTtl, rdataOffset, length, data);
             }
             return records;
