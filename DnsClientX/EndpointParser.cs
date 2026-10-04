@@ -78,12 +78,15 @@ namespace DnsClientX {
                         throw new ArgumentException($"Invalid resolver URL: {urlEntry}", nameof(urls));
                     }
 
-                    using HttpResponseMessage response = await httpClient.GetAsync(uri, cancellationToken).ConfigureAwait(false);
+                    using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    requestCts.CancelAfter(ImportHttpTimeout);
+                    using HttpResponseMessage response = await httpClient.GetAsync(
+                        uri, HttpCompletionOption.ResponseHeadersRead, requestCts.Token).ConfigureAwait(false);
                     if (!response.IsSuccessStatusCode) {
                         throw new InvalidOperationException($"Resolver URL returned HTTP {(int)response.StatusCode}: {urlEntry}");
                     }
 
-                    string content = await ReadContentWithLimitAsync(response, cancellationToken).ConfigureAwait(false);
+                    string content = await ReadContentWithLimitAsync(response, requestCts.Token).ConfigureAwait(false);
                     list.AddRange(ParseImportedEntries(content));
                 }
             }
@@ -212,7 +215,10 @@ namespace DnsClientX {
                     }
 
                     try {
-                        using HttpResponseMessage response = await httpClient.GetAsync(uri, cancellationToken).ConfigureAwait(false);
+                        using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                        requestCts.CancelAfter(ImportHttpTimeout);
+                        using HttpResponseMessage response = await httpClient.GetAsync(
+                            uri, HttpCompletionOption.ResponseHeadersRead, requestCts.Token).ConfigureAwait(false);
                         if (!response.IsSuccessStatusCode) {
                             results.Add(new ResolverEndpointValidationResult {
                                 Source = urlEntry,
@@ -223,11 +229,13 @@ namespace DnsClientX {
                             continue;
                         }
 
-                        string content = await ReadContentWithLimitAsync(response, cancellationToken).ConfigureAwait(false);
+                        string content = await ReadContentWithLimitAsync(response, requestCts.Token).ConfigureAwait(false);
                         results.AddRange(ValidateImportedContent(content, urlEntry));
-                    } catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested) {
+                    } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
                         throw;
-                    } catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is InvalidOperationException) {
+                    } catch (Exception ex) when (ex is HttpRequestException || ex is OperationCanceledException ||
+                                                 ex is InvalidOperationException || ex is IOException ||
+                                                 ex is WebException || ex is ObjectDisposedException) {
                         results.Add(new ResolverEndpointValidationResult {
                             Source = urlEntry,
                             Entry = urlEntry,
@@ -553,28 +561,52 @@ namespace DnsClientX {
 
         private static async Task<string> ReadContentWithLimitAsync(HttpResponseMessage response, CancellationToken cancellationToken) {
             cancellationToken.ThrowIfCancellationRequested();
-            using Stream stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-            using var reader = new StreamReader(stream);
-            char[] buffer = new char[4096];
-            int totalChars = 0;
-            var content = new System.Text.StringBuilder();
-
-            while (true) {
-                cancellationToken.ThrowIfCancellationRequested();
-                int read = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
-                if (read == 0) {
-                    break;
-                }
-
-                totalChars += read;
-                if (totalChars > MaxImportedContentBytes) {
-                    throw new InvalidOperationException($"Resolver URL content exceeds the {MaxImportedContentBytes} byte import limit: {response.RequestMessage?.RequestUri}");
-                }
-
-                content.Append(buffer, 0, read);
+            if (response.Content.Headers.ContentLength > MaxImportedContentBytes) {
+                throw new InvalidOperationException($"Resolver URL content exceeds the {MaxImportedContentBytes} byte import limit: {response.RequestMessage?.RequestUri}");
             }
 
-            return content.ToString();
+            using Stream stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+            using var content = new MemoryStream();
+            byte[] buffer = new byte[4096];
+            int totalBytes = 0;
+
+            // .NET Framework response streams do not necessarily abort an in-flight ReadAsync
+            // when its token is canceled, so close the stream as well.
+            using (cancellationToken.Register(() => {
+                try {
+                    stream.Dispose();
+                } catch (Exception ex) when (ex is IOException || ex is WebException || ex is ObjectDisposedException) {
+                    // Cancellation still wins if closing the transport reports its prior failure.
+                }
+            })) {
+                while (true) {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    int read;
+                    try {
+                        read = await stream.ReadAsync(buffer, 0,
+                            Math.Min(buffer.Length, MaxImportedContentBytes + 1 - totalBytes), cancellationToken).ConfigureAwait(false);
+                    } catch (Exception ex) when (cancellationToken.IsCancellationRequested &&
+                                                 (ex is IOException || ex is WebException ||
+                                                  ex is HttpRequestException || ex is ObjectDisposedException)) {
+                        throw new OperationCanceledException("Resolver URL response read was canceled.", ex, cancellationToken);
+                    }
+                    if (read == 0) {
+                        break;
+                    }
+
+                    totalBytes += read;
+                    if (totalBytes > MaxImportedContentBytes) {
+                        throw new InvalidOperationException($"Resolver URL content exceeds the {MaxImportedContentBytes} byte import limit: {response.RequestMessage?.RequestUri}");
+                    }
+
+                    content.Write(buffer, 0, read);
+                }
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            content.Position = 0;
+            using var reader = new StreamReader(content);
+            return await reader.ReadToEndAsync().ConfigureAwait(false);
         }
     }
 }
