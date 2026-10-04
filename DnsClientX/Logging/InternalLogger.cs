@@ -11,6 +11,8 @@ namespace DnsClientX;
 public class InternalLogger {
     private readonly object _lock = new object();
 
+    private static void WriteConsoleLine(string message) => Console.WriteLine(DnsTerminalText.Escape(message));
+
     /// <summary>
     /// Occurs when a verbose message is logged.
     /// </summary>
@@ -94,9 +96,9 @@ public class InternalLogger {
             OnProgressMessage?.Invoke(this, new LogEventArgs(activity, currentOperation, currentSteps, totalSteps, percentCompleted));
             if (IsProgress) {
                 if (currentSteps.HasValue && totalSteps.HasValue) {
-                    Console.WriteLine("[progress] activity: {0} / operation: {1} / percent completed: {2}% ({3} out of {4})", activity, currentOperation, percentCompleted, currentSteps, totalSteps);
+                    WriteConsoleLine($"[progress] activity: {activity} / operation: {currentOperation} / percent completed: {percentCompleted}% ({currentSteps} out of {totalSteps})");
                 } else {
-                    Console.WriteLine("[progress] activity: {0} / operation: {1} / percent completed: {2}%", activity, currentOperation, percentCompleted);
+                    WriteConsoleLine($"[progress] activity: {activity} / operation: {currentOperation} / percent completed: {percentCompleted}%");
                 }
             }
         }
@@ -110,7 +112,7 @@ public class InternalLogger {
         lock (_lock) {
             OnErrorMessage?.Invoke(this, new LogEventArgs(message));
             if (IsError) {
-                Console.WriteLine("[error] " + message);
+                WriteConsoleLine("[error] " + message);
             }
         }
     }
@@ -122,9 +124,10 @@ public class InternalLogger {
     /// <param name="args">An array of objects to write using format.</param>
     public void WriteError(string message, params object[] args) {
         lock (_lock) {
-            OnErrorMessage?.Invoke(this, new LogEventArgs(string.Format(message, args)));
+            var entry = new LogEventArgs(message, args);
+            OnErrorMessage?.Invoke(this, new LogEventArgs(entry.FullMessage));
             if (IsError) {
-                Console.WriteLine("[error] " + message, args);
+                WriteConsoleLine("[error] " + entry.FullMessage);
             }
         }
     }
@@ -137,7 +140,7 @@ public class InternalLogger {
         lock (_lock) {
             OnWarningMessage?.Invoke(this, new LogEventArgs(message));
             if (IsWarning) {
-                Console.WriteLine("[warning] " + message);
+                WriteConsoleLine("[warning] " + message);
             }
         }
     }
@@ -149,9 +152,10 @@ public class InternalLogger {
     /// <param name="args">An array of objects to write using format.</param>
     public void WriteWarning(string message, params object[] args) {
         lock (_lock) {
-            OnWarningMessage?.Invoke(this, new LogEventArgs(string.Format(message, args)));
+            var entry = new LogEventArgs(message, args);
+            OnWarningMessage?.Invoke(this, new LogEventArgs(entry.FullMessage));
             if (IsWarning) {
-                Console.WriteLine("[warning] " + message, args);
+                WriteConsoleLine("[warning] " + entry.FullMessage);
             }
         }
     }
@@ -164,7 +168,7 @@ public class InternalLogger {
         lock (_lock) {
             OnVerboseMessage?.Invoke(this, new LogEventArgs(message));
             if (IsVerbose) {
-                Console.WriteLine(message);
+                WriteConsoleLine(message);
             }
         }
     }
@@ -176,9 +180,10 @@ public class InternalLogger {
     /// <param name="args">An array of objects to write using format.</param>
     public void WriteVerbose(string message, params object[] args) {
         lock (_lock) {
-            OnVerboseMessage?.Invoke(this, new LogEventArgs(message, args));
+            var entry = new LogEventArgs(message, args);
+            OnVerboseMessage?.Invoke(this, entry);
             if (IsVerbose) {
-                Console.WriteLine(message, args);
+                WriteConsoleLine(entry.FullMessage);
             }
         }
     }
@@ -190,9 +195,10 @@ public class InternalLogger {
     /// <param name="args">An array of objects to write using format.</param>
     public void WriteDebug(string message, params object[] args) {
         lock (_lock) {
-            OnDebugMessage?.Invoke(this, new LogEventArgs(message, args));
+            var entry = new LogEventArgs(message, args);
+            OnDebugMessage?.Invoke(this, entry);
             if (IsDebug) {
-                Console.WriteLine("[debug] " + message, args);
+                WriteConsoleLine("[debug] " + entry.FullMessage);
             }
         }
     }
@@ -204,9 +210,10 @@ public class InternalLogger {
     /// <param name="args">An array of objects to write using format.</param>
     public void WriteInformation(string message, params object[] args) {
         lock (_lock) {
-            OnInformationMessage?.Invoke(this, new LogEventArgs(message, args));
+            var entry = new LogEventArgs(message, args);
+            OnInformationMessage?.Invoke(this, entry);
             if (IsInformation) {
-                Console.WriteLine("[information] " + message, args);
+                WriteConsoleLine("[information] " + entry.FullMessage);
             }
         }
     }
@@ -268,7 +275,7 @@ public class LogEventArgs : EventArgs {
     public LogEventArgs(string message, object[] args) {
         Message = message;
         Args = args;
-        FullMessage = string.Format(message, args);
+        FullMessage = args.Length == 0 ? message : string.Format(message, args);
     }
 
     /// <summary>

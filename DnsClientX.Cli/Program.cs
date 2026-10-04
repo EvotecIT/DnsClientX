@@ -99,12 +99,12 @@ namespace DnsClientX.Cli {
 
             if (!TryParseArgs(args, out CliOptions? options, out string? errorMessage, out IReadOnlyList<string>? invalidSwitches)) {
                 if (!string.IsNullOrEmpty(errorMessage)) {
-                    Console.Error.WriteLine(errorMessage);
+                    WriteHumanError(errorMessage);
                 }
 
                 if (invalidSwitches != null) {
                     foreach (string invalid in invalidSwitches) {
-                        Console.Error.WriteLine($"Unknown argument: {invalid}");
+                        WriteHumanError($"Unknown argument: {invalid}");
                     }
                 }
 
@@ -153,7 +153,7 @@ namespace DnsClientX.Cli {
                 Console.Error.WriteLine("Operation canceled.");
                 return 1;
             } catch (Exception ex) {
-                Console.Error.WriteLine(ex.Message);
+                WriteHumanError(ex.Message);
                 return 1;
             }
         }
@@ -1027,7 +1027,7 @@ namespace DnsClientX.Cli {
             }
 
             if (!string.IsNullOrWhiteSpace(response.Error)) {
-                Console.Error.WriteLine(response.Error);
+                WriteHumanError(response.Error);
                 return 1;
             }
             return 0;
@@ -1066,7 +1066,7 @@ namespace DnsClientX.Cli {
             }
 
             foreach (string line in DnsTransportCapabilityTextFormatter.BuildLines(capabilities)) {
-                Console.WriteLine(line);
+                WriteHumanLine(line);
             }
 
             return 0;
@@ -1082,14 +1082,14 @@ namespace DnsClientX.Cli {
             Console.WriteLine("DNS Stamp:");
             Console.WriteLine($"  Transport: {info.Transport}");
             Console.WriteLine($"  Request format: {info.RequestFormat}");
-            Console.WriteLine($"  Host: {info.Host}");
+            WriteHumanLine($"  Host: {info.Host}");
             Console.WriteLine($"  Port: {info.Port}");
             if (info.DohUrl != null) {
-                Console.WriteLine($"  DoH URL: {info.DohUrl}");
+                WriteHumanLine($"  DoH URL: {info.DohUrl}");
             }
             Console.WriteLine($"  DNSSEC property: {(info.DnsSecOk ? "yes" : "no")}");
-            Console.WriteLine($"  Endpoint: {info.Endpoint}");
-            Console.WriteLine($"  Normalized stamp: {info.NormalizedStamp}");
+            WriteHumanLine($"  Endpoint: {info.Endpoint}");
+            WriteHumanLine($"  Normalized stamp: {info.NormalizedStamp}");
             return 0;
         }
 
@@ -1126,9 +1126,9 @@ namespace DnsClientX.Cli {
                         : result.Source;
 
                 if (result.IsValid) {
-                    Console.WriteLine($"  valid   {location}  {result.Entry} -> {result.Endpoint}");
+                    WriteHumanLine($"  valid   {location}  {result.Entry} -> {result.Endpoint}");
                 } else {
-                    Console.WriteLine($"  invalid {location}  {result.Entry} ({result.Error})");
+                    WriteHumanLine($"  invalid {location}  {result.Entry} ({result.Error})");
                 }
             }
         }
@@ -1164,14 +1164,14 @@ namespace DnsClientX.Cli {
             string? endpointProfile,
             CancellationToken cancellationToken) {
             Console.WriteLine("Benchmark:");
-            Console.WriteLine($"  Domains: {string.Join(", ", domains)}");
+            WriteHumanLine($"  Domains: {string.Join(", ", domains)}");
             Console.WriteLine($"  Types: {string.Join(", ", recordTypes)}");
             Console.WriteLine($"  Attempts per combination: {options.BenchmarkAttempts}");
             Console.WriteLine($"  Timeout (ms): {options.BenchmarkTimeoutMs}");
             Console.WriteLine($"  Concurrency: {options.BenchmarkConcurrency}");
             Console.WriteLine($"  Detail mode: {(options.BenchmarkSummaryOnly ? "summary-only" : "full")}");
             if (!string.IsNullOrWhiteSpace(endpointProfile)) {
-                Console.WriteLine($"  Endpoint profile: {endpointProfile}");
+                WriteHumanLine($"  Endpoint profile: {endpointProfile}");
             }
 
             Console.WriteLine($"  Candidates: {targets.Length}");
@@ -1210,7 +1210,7 @@ namespace DnsClientX.Cli {
                 Console.WriteLine(ResolverReportTextFormatter.BuildBenchmarkRankedLine(report.Results[i], i + 1, FormatDuration));
             }
             Console.WriteLine($"  Best endpoint: {ResolverReportTextFormatter.DescribeBenchmarkBest(report.Results, report.Summary, FormatDuration)}");
-            Console.WriteLine($"  Policy result: {(evaluation.PolicyPassed ? "pass" : $"fail ({evaluation.PolicyReason})")}");
+            WriteHumanLine($"  Policy result: {(evaluation.PolicyPassed ? "pass" : $"fail ({evaluation.PolicyReason})")}");
 
             int exitCode = GetBenchmarkExitCode(evaluation, options);
             if (options.BenchmarkSummaryLine) {
@@ -1271,8 +1271,8 @@ namespace DnsClientX.Cli {
             string endpointProfile,
             CancellationToken cancellationToken) {
             Console.WriteLine("Probe:");
-            Console.WriteLine($"  Domain: {domain}");
-            Console.WriteLine($"  Endpoint profile: {endpointProfile}");
+            WriteHumanLine($"  Domain: {domain}");
+            WriteHumanLine($"  Endpoint profile: {endpointProfile}");
             Console.WriteLine($"  Candidates: {targets.Length}");
             Console.WriteLine($"  Detail mode: {(options.ProbeSummaryOnly ? "summary-only" : "full")}");
 
@@ -1458,7 +1458,7 @@ namespace DnsClientX.Cli {
             Console.WriteLine($"  Distinct answer sets: {summary.DistinctAnswerSets}");
             Console.WriteLine($"  Answer variants: {ResolverReportTextFormatter.DescribeProbeAnswerVariants(summary)}");
             Console.WriteLine($"  Recommended endpoint: {ResolverReportTextFormatter.DescribeProbeRecommended(summary, FormatDuration)}");
-            Console.WriteLine($"  Policy result: {(evaluation.PolicyPassed ? "pass" : $"fail ({evaluation.PolicyReason})")}");
+            WriteHumanLine($"  Policy result: {(evaluation.PolicyPassed ? "pass" : $"fail ({evaluation.PolicyReason})")}");
 
             int exitCode = GetProbeExitCode(evaluation, options);
             if (options.ProbeSummaryLine) {
@@ -1548,18 +1548,18 @@ namespace DnsClientX.Cli {
                 return;
             }
 
-            Console.WriteLine(selection.Target);
+            WriteHumanLine(selection.Target);
         }
 
         private static void WritePrettyZoneTransferResponse(RecursiveZoneTransferResult result, CliOptions options) {
-            Console.WriteLine($"Zone Transfer: {result.Zone}");
-            Console.WriteLine($"  Selected authority: {result.SelectedAuthority}");
-            Console.WriteLine($"  Selected server: {result.SelectedServer}:{result.Port}");
+            WriteHumanLine($"Zone Transfer: {result.Zone}");
+            WriteHumanLine($"  Selected authority: {result.SelectedAuthority}");
+            WriteHumanLine($"  Selected server: {result.SelectedServer}:{result.Port}");
             Console.WriteLine($"  Chunks: {result.RecordSets.Length}");
 
             if (options.TransferSummary) {
-                Console.WriteLine($"  Authorities discovered: {string.Join(", ", result.Authorities)}");
-                Console.WriteLine($"  Tried servers: {string.Join(", ", result.TriedServers)}");
+                WriteHumanLine($"  Authorities discovered: {string.Join(", ", result.Authorities)}");
+                WriteHumanLine($"  Tried servers: {string.Join(", ", result.TriedServers)}");
             }
 
             Console.WriteLine("Records:");
@@ -1571,7 +1571,7 @@ namespace DnsClientX.Cli {
                 }
 
                 foreach (DnsAnswer record in recordSet.Records) {
-                    Console.WriteLine($"  {record.Name}\t{record.TTL}\tIN\t{record.Type}\t{record.Data}");
+                    Console.WriteLine($"  {DnsTerminalText.Escape(record.Name)}\t{record.TTL}\tIN\t{record.Type}\t{DnsTerminalText.Escape(record.Data)}");
                 }
             }
         }
@@ -1665,6 +1665,10 @@ namespace DnsClientX.Cli {
 
             return $"{duration.TotalSeconds:F3} s";
         }
+
+        private static void WriteHumanLine(string value) => Console.WriteLine(DnsTerminalText.Escape(value));
+
+        private static void WriteHumanError(string value) => Console.Error.WriteLine(DnsTerminalText.Escape(value));
 
         private static void ShowHelp() {
             Console.WriteLine("DnsClientX.Cli - simple DNS query tool");

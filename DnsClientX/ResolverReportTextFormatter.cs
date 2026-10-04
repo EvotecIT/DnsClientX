@@ -19,7 +19,7 @@ namespace DnsClientX {
                 return "none";
             }
 
-            return $"{summary.FastestSuccessTarget} in {durationFormatter(TimeSpan.FromMilliseconds(summary.FastestSuccessMs))} via {summary.FastestSuccessTransport}";
+            return DnsTerminalText.Escape($"{summary.FastestSuccessTarget} in {durationFormatter(TimeSpan.FromMilliseconds(summary.FastestSuccessMs))} via {summary.FastestSuccessTransport}");
         }
 
         /// <summary>
@@ -34,7 +34,7 @@ namespace DnsClientX {
                 return "none";
             }
 
-            return $"{summary.FastestConsensusTarget} in {durationFormatter(TimeSpan.FromMilliseconds(summary.FastestConsensusMs))} via {summary.FastestConsensusTransport}";
+            return DnsTerminalText.Escape($"{summary.FastestConsensusTarget} in {durationFormatter(TimeSpan.FromMilliseconds(summary.FastestConsensusMs))} via {summary.FastestConsensusTransport}");
         }
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace DnsClientX {
 
             return summary.TransportCoverage.Length == 0
                 ? "none"
-                : string.Join(" | ", summary.TransportCoverage.Select(entry => $"{entry.Transport} {entry.SuccessfulCount}/{entry.TotalCount}"));
+                : DnsTerminalText.Escape(string.Join(" | ", summary.TransportCoverage.Select(entry => $"{entry.Transport} {entry.SuccessfulCount}/{entry.TotalCount}")));
         }
 
         /// <summary>
@@ -73,7 +73,7 @@ namespace DnsClientX {
 
             return summary.MismatchedTargets.Length == 0
                 ? "none"
-                : string.Join(", ", summary.MismatchedTargets);
+                : DnsTerminalText.Escape(string.Join(", ", summary.MismatchedTargets));
         }
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace DnsClientX {
 
             return summary.AnswerVariants.Length == 0
                 ? "none"
-                : string.Join(" | ", summary.AnswerVariants.Select((variant, index) => $"[{index + 1}] {variant.AnswerSet} <- {string.Join(", ", variant.Targets)}"));
+                : DnsTerminalText.Escape(string.Join(" | ", summary.AnswerVariants.Select((variant, index) => $"[{index + 1}] {variant.AnswerSet} <- {string.Join(", ", variant.Targets)}")));
         }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace DnsClientX {
                 return "none";
             }
 
-            return $"{summary.RecommendedTarget} in {durationFormatter(TimeSpan.FromMilliseconds(summary.RecommendedAverageMs))} via {summary.RecommendedTransport}";
+            return DnsTerminalText.Escape($"{summary.RecommendedTarget} in {durationFormatter(TimeSpan.FromMilliseconds(summary.RecommendedAverageMs))} via {summary.RecommendedTransport}");
         }
 
         /// <summary>
@@ -114,7 +114,7 @@ namespace DnsClientX {
 
             return summary.RuntimeCapabilityWarnings.Length == 0
                 ? "all requested transports supported on this runtime"
-                : string.Join(" | ", summary.RuntimeCapabilityWarnings);
+                : DnsTerminalText.Escape(string.Join(" | ", summary.RuntimeCapabilityWarnings));
         }
 
         /// <summary>
@@ -194,7 +194,7 @@ namespace DnsClientX {
             }
 
             string average = result.SuccessCount == 0 ? "n/a" : durationFormatter(TimeSpan.FromMilliseconds(result.AverageMs));
-            return $"  Ranked {rankIndex}: {result.Target} avg {average}, success {result.SuccessPercent}% ({result.SuccessCount}/{result.TotalQueries}), resolver {result.Resolver}";
+            return DnsTerminalText.Escape($"  Ranked {rankIndex}: {result.Target} avg {average}, success {result.SuccessPercent}% ({result.SuccessCount}/{result.TotalQueries}), resolver {result.Resolver}");
         }
 
         /// <summary>
@@ -211,7 +211,7 @@ namespace DnsClientX {
 
             return best == null
                 ? "none"
-                : $"{best.Target} in {durationFormatter(TimeSpan.FromMilliseconds(best.AverageMs))} average ({best.SuccessPercent}% success)";
+                : DnsTerminalText.Escape($"{best.Target} in {durationFormatter(TimeSpan.FromMilliseconds(best.AverageMs))} average ({best.SuccessPercent}% success)");
         }
 
         /// <summary>
@@ -224,7 +224,7 @@ namespace DnsClientX {
 
             return summary.RuntimeCapabilityWarnings.Length == 0
                 ? "all requested transports supported on this runtime"
-                : string.Join(" | ", summary.RuntimeCapabilityWarnings);
+                : DnsTerminalText.Escape(string.Join(" | ", summary.RuntimeCapabilityWarnings));
         }
 
         /// <summary>
@@ -249,7 +249,7 @@ namespace DnsClientX {
                 lines.Add($"      Error: {result.EffectiveError}");
             }
 
-            return lines.ToArray();
+            return EscapeLines(lines);
         }
 
         /// <summary>
@@ -274,7 +274,7 @@ namespace DnsClientX {
                 lines.Add($"      Error: {result.Error}");
             }
 
-            return lines.ToArray();
+            return EscapeLines(lines);
         }
 
         /// <summary>
@@ -286,7 +286,7 @@ namespace DnsClientX {
             }
 
             string status = result.SuccessCount > 0 ? "OK" : "FAIL";
-            return new[] {
+            return EscapeLines(new[] {
                 $"  [{status}] {result.Target}",
                 $"      Resolver: {result.Resolver}",
                 $"      Transport: {result.Transport}",
@@ -295,7 +295,7 @@ namespace DnsClientX {
                 $"      Min: {durationFormatter(TimeSpan.FromMilliseconds(result.MinMs))}",
                 $"      Max: {durationFormatter(TimeSpan.FromMilliseconds(result.MaxMs))}",
                 $"      Distinct answer sets: {result.DistinctAnswerSets}"
-            };
+            });
         }
 
         /// <summary>
@@ -370,7 +370,7 @@ namespace DnsClientX {
             lines.Add($"  AuthenticData: {response.AuthenticData}");
             lines.Add($"  CheckingDisabled: {response.CheckingDisabled}");
 
-            return lines.ToArray();
+            return EscapeLines(lines);
         }
 
         /// <summary>
@@ -424,7 +424,7 @@ namespace DnsClientX {
                 lines.Add($"  Attempt {attempt}: {entry.Name} {entry.RecordType} via {entry.RequestFormat}/{entry.UsedTransport} to {resolver} => {outcome} in {durationFormatter(entry.Duration)} ({cache}, exception: {exception}{retry})");
             }
 
-            return lines.ToArray();
+            return EscapeLines(lines);
         }
 
         private static string DescribeSingleOperationResolver(ResolverSingleOperationResult result) {
@@ -518,5 +518,8 @@ namespace DnsClientX {
 
             return length == 0 ? "none" : new string(chars, 0, length);
         }
+
+        private static string[] EscapeLines(IEnumerable<string> lines) =>
+            lines.Select(DnsTerminalText.Escape).ToArray();
     }
 }

@@ -66,7 +66,7 @@ namespace DnsClientX.Tests {
             return ms.ToArray();
         }
 
-        private static byte[] BuildTxtResponse() {
+        private static byte[] BuildTxtResponse(string value = "line1\nline2") {
             using var ms = new MemoryStream();
 
             WriteUInt16(ms, 0x1234);
@@ -80,7 +80,7 @@ namespace DnsClientX.Tests {
             WriteUInt16(ms, (ushort)DnsRecordType.TXT);
             WriteUInt16(ms, 1);
 
-            WriteTxtRecord(ms, "example.com", 60, "line1\nline2");
+            WriteTxtRecord(ms, "example.com", 60, value);
 
             return ms.ToArray();
         }
@@ -377,6 +377,35 @@ namespace DnsClientX.Tests {
                 Assert.Equal(0, exitCode);
                 string text = output.ToString().Trim();
                 Assert.Equal("line1line2", text);
+            } finally {
+                Console.SetOut(originalOut);
+                Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", null);
+                SystemInformation.SetDnsServerProvider(null);
+            }
+
+            await serverTask;
+        }
+
+        /// <summary>A DNS TXT control octet is visible as text rather than executed by the terminal.</summary>
+        [Fact]
+        public async Task ShortOutputEscapesTxtTerminalControls() {
+            int port = TestUtilities.GetFreeUdpPort();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            Task serverTask = RunUdpServerAsync(port, BuildTxtResponse("red\u001b[31m\nnext"), cts.Token);
+
+            using var output = new StringWriter();
+            TextWriter originalOut = Console.Out;
+            try {
+                Console.SetOut(output);
+                SystemInformation.SetDnsServerProvider(() => new List<string> { "127.0.0.1" });
+                Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", port.ToString());
+
+                int exitCode = await InvokeCliAsync("--short", "--type", "TXT", "example.com");
+
+                Assert.Equal(0, exitCode);
+                string text = output.ToString();
+                Assert.Equal(-1, text.IndexOf('\u001b'));
+                Assert.Contains("red\\u001B[31m\\u000Anext", text, StringComparison.Ordinal);
             } finally {
                 Console.SetOut(originalOut);
                 Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", null);

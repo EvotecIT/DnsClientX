@@ -5,6 +5,25 @@ namespace DnsClientX.Tests {
     /// Tests shared report text formatting helpers.
     /// </summary>
     public class ResolverReportTextFormatterTests {
+        /// <summary>Probe consensus text cannot emit a control sequence from an answer set.</summary>
+        [Fact]
+        public void ProbeAnswerVariantsEscapeTerminalControls() {
+            var summary = new ResolverProbeReportSummary {
+                AnswerVariants = new[] {
+                    new ResolverProbeAnswerVariant {
+                        AnswerSet = "example.com TXT red\u001b[31m",
+                        Targets = new[] { "udp@1.1.1.1:53" }
+                    }
+                }
+            };
+
+            string text = ResolverReportTextFormatter.DescribeProbeAnswerVariants(summary);
+
+            Assert.Equal(-1, text.IndexOf('\u001b'));
+            Assert.Contains("red\\u001B[31m", text, StringComparison.Ordinal);
+            Assert.Equal("example.com TXT red\u001b[31m", summary.AnswerVariants[0].AnswerSet);
+        }
+
         /// <summary>
         /// Ensures probe summary helpers preserve the expected human-readable wording.
         /// </summary>
