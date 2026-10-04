@@ -839,12 +839,17 @@ RFC 5011 trust-anchor maintenance is opt-in because durable state belongs to the
 
 ```csharp
 using var client = new ClientX(DnsEndpoint.RootServer);
-client.EndpointConfiguration.Rfc5011TrustAnchorStorePath = "dnssec/root-anchors.json";
+string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+if (string.IsNullOrWhiteSpace(appData)) throw new InvalidOperationException("Choose a durable state directory.");
+client.EndpointConfiguration.Rfc5011TrustAnchorStorePath =
+    Path.Combine(appData, "ExampleApp", "root-anchors.json");
 
 DnsSecTrustAnchorRefreshResult refresh = await client.RefreshRootTrustAnchorsAsync();
 if (!refresh.Succeeded) throw new InvalidOperationException(refresh.Response.DnsSecValidationMessage);
 Console.WriteLine($"Refresh again by {refresh.Snapshot!.NextRefreshUtc:O}");
 ```
+
+The state file is a root of trust. Keep its directory durable and writable only by the application identity or its administrator. Use the file from one process at a time for both DNSSEC validation and refresh: lookups also update its state, and separate processes are not coordinated. A relative path is resolved when assigned, so use a stable absolute location across restarts.
 
 The state machine enforces the 30-day add hold-down plus original DNSKEY TTL, requires a validated post-deadline observation, resets absent pending keys, preserves missing active keys, immediately and permanently honors a key's verified self-revocation, and retains revoked tombstones through the 30-day remove hold-down. State writes replace a same-directory temporary file atomically; malformed state and clock rollback fail closed. No background timer is hidden inside `ClientX`: the application must call `RefreshRootTrustAnchorsAsync` by `NextRefreshUtc` and retry failed refreshes according to its scheduler. Without a configured store, the immutable IANA public-key anchors bundled with the package remain the validation boundary.
 

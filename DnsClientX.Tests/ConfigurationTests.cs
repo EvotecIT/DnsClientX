@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -43,6 +44,19 @@ namespace DnsClientX.Tests {
 
             config.RequestFormat = DnsRequestFormat.Multicast;
             Assert.Equal(5353, config.Port);
+        }
+
+        /// <summary>A relative trust-anchor path becomes absolute before a query snapshot.</summary>
+        [Fact]
+        public void TrustAnchorPath_ResolvesWhenConfigured() {
+            string relativePath = Path.Combine("dnssec", "root-anchors.json");
+            var config = new Configuration(DnsEndpoint.Cloudflare) {
+                Rfc5011TrustAnchorStorePath = relativePath
+            };
+
+            string expectedPath = Path.GetFullPath(relativePath);
+            Assert.Equal(expectedPath, config.Rfc5011TrustAnchorStorePath);
+            Assert.Equal(expectedPath, config.CreateQuerySnapshot().Rfc5011TrustAnchorStorePath);
         }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -32,6 +33,7 @@ namespace DnsClientX {
         private string? baseUriFormat;
         private int hostnameIndex;
         private uint policyHostnameIndex;
+        private string? rfc5011TrustAnchorStorePath;
 
         internal IReadOnlyList<string> Hostnames => hostnames;
 
@@ -179,8 +181,15 @@ namespace DnsClientX {
         /// <summary>
         /// Gets or sets an optional path for persistent RFC 5011 root trust-anchor state.
         /// When null, validation uses only the immutable anchors bundled with this release.
+        /// Use a durable file writable only by the application identity or its administrator.
+        /// Relative paths are resolved when assigned, so retries use the same state file.
         /// </summary>
-        public string? Rfc5011TrustAnchorStorePath { get; set; }
+        public string? Rfc5011TrustAnchorStorePath {
+            get => rfc5011TrustAnchorStorePath;
+            set => rfc5011TrustAnchorStorePath = string.IsNullOrWhiteSpace(value)
+                ? value
+                : Path.GetFullPath(value);
+        }
 
         /// <summary>
         /// Gets or sets an optional thread-safe verifier for DNSSEC algorithms not implemented by
