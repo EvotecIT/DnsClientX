@@ -57,6 +57,9 @@ namespace DnsClientX {
             if (response.WireMessage == null || response.WireMessage.Length == 0) {
                 return DnsSecValidationResult.Indeterminate("Local DNSSEC validation requires a DNS wire-format response.");
             }
+            if (response.Status != DnsResponseCode.NoError && response.Status != DnsResponseCode.NXDomain) {
+                return DnsSecValidationResult.Indeterminate($"DNSSEC validation is not defined for the {response.Status} response status.");
+            }
             DnsWireResourceRecord[] answers = response.WireAnswers ?? Array.Empty<DnsWireResourceRecord>();
             var rrsets = answers
                 .Where(record => record.Type != DnsRecordType.RRSIG && record.Type != DnsRecordType.OPT)
@@ -66,7 +69,7 @@ namespace DnsClientX {
                 return DnsSecValidationResult.Indeterminate("The iterative alias response contained no answer RRset.");
             }
             return CompleteValidation(response, await ValidatePositiveAsync(response, answers, rrsets, name, type,
-                requireTerminal: false, cancellationToken).ConfigureAwait(false));
+                requireTerminal: response.Status == DnsResponseCode.NXDomain, cancellationToken).ConfigureAwait(false));
         }
 
         private async Task<DnsSecValidationResult> ValidatePositiveAsync(
@@ -91,6 +94,17 @@ namespace DnsClientX {
 
             if (!TryFollowAnswerChain(answerRecords, name, type, out string finalName, out bool terminal, out string? chainError)) {
                 return DnsSecValidationResult.Indeterminate(chainError ?? "The answer did not contain a usable canonical-name chain.");
+            }
+            if (response.Status == DnsResponseCode.NXDomain) {
+                if (terminal) {
+                    return DnsSecValidationResult.Bogus("An NXDOMAIN response cannot contain a terminal answer for the requested type.");
+                }
+                if (rrsets.Any(rrset => string.Equals(rrset.Key.Name, finalName, StringComparison.Ordinal))) {
+                    return DnsSecValidationResult.Bogus("An NXDOMAIN response cannot contain a positive RRset at the denied final target.");
+                }
+                if (string.Equals(DnsWireNameCodec.Canonical(name), finalName, StringComparison.Ordinal)) {
+                    return DnsSecValidationResult.Bogus("An NXDOMAIN response with answer RRsets must redirect to a denied final target.");
+                }
             }
             if (!terminal && !requireTerminal) {
                 if (string.Equals(DnsWireNameCodec.Canonical(name), finalName, StringComparison.Ordinal)) {
@@ -181,6 +195,11 @@ namespace DnsClientX {
 
         private async Task<ZoneKeysResult> LoadZoneKeysAsync(string zone, CancellationToken cancellationToken) {
             DnsResponse keyResponse = await _lookup(zone, DnsRecordType.DNSKEY, cancellationToken).ConfigureAwait(false);
+            if (keyResponse.Status != DnsResponseCode.NoError) {
+                return keyResponse.Status == DnsResponseCode.NXDomain
+                    ? ZoneKeysResult.Bogus($"The DNSKEY response for {zone} claims that the zone does not exist.")
+                    : ZoneKeysResult.Indeterminate($"The DNSKEY response for {zone} returned {keyResponse.Status}.");
+            }
             DnsWireResourceRecord[] records = DnsSecWire.Records(keyResponse);
             DnsWireResourceRecord[] keyRecords = records.Where(record => record.Type == DnsRecordType.DNSKEY &&
                 string.Equals(DnsWireNameCodec.Canonical(record.Name), zone, StringComparison.Ordinal)).ToArray();
@@ -249,6 +268,11 @@ namespace DnsClientX {
             }
 
             DnsResponse dsResponse = await _lookup(zone, DnsRecordType.DS, cancellationToken).ConfigureAwait(false);
+            if (dsResponse.Status != DnsResponseCode.NoError) {
+                return dsResponse.Status == DnsResponseCode.NXDomain
+                    ? ZoneKeysResult.Bogus($"The DS response for {zone} claims that the zone does not exist.")
+                    : ZoneKeysResult.Indeterminate($"The DS response for {zone} returned {dsResponse.Status}.");
+            }
             DnsWireResourceRecord[] dsRecords = (dsResponse.WireAnswers ?? Array.Empty<DnsWireResourceRecord>())
                 .Where(record => record.Type == DnsRecordType.DS && string.Equals(DnsWireNameCodec.Canonical(record.Name), zone, StringComparison.Ordinal))
                 .ToArray();
@@ -313,6 +337,9 @@ namespace DnsClientX {
 
         private async Task<ZoneKeysResult> ValidateUnsignedDelegationAsync(string zone, DnsResponse response,
             CancellationToken cancellationToken) {
+            if (response.Status != DnsResponseCode.NoError) {
+                return ZoneKeysResult.Indeterminate($"A DS-absence proof for {zone} requires a NoError response, not {response.Status}.");
+            }
             DnsWireResourceRecord[] proofRecords = DnsSecWire.Records(response)
                 .Where(record => record.Type == DnsRecordType.NSEC || record.Type == DnsRecordType.NSEC3)
                 .ToArray();
@@ -456,26 +483,15 @@ namespace DnsClientX {
                 .FirstOrDefault();
             if (!dname.HasValue) return false;
 
-            string owner = DnsWireNameCodec.Canonical(dname.Value.Name);
-            string replacement = DnsWireNameCodec.Canonical(dname.Value.Data);
-            string prefix = canonicalName.Substring(0, canonicalName.Length - owner.Length).TrimEnd('.');
-            target = prefix.Length == 0 ? replacement : $"{prefix}.{replacement}";
+            target = DnsWireNameCodec.RewriteDnameTarget(canonicalName, dname.Value.Name, dname.Value.Data);
             return true;
         }
 
-        private static bool IsStrictSubdomain(string name, string parent) {
-            return parent == "."
-                ? name != "."
-                : name.Length > parent.Length
-                  && name.EndsWith("." + parent, StringComparison.Ordinal);
-        }
+        private static bool IsStrictSubdomain(string name, string parent) =>
+            DnsWireNameCodec.IsStrictSubdomain(name, parent);
 
-        internal static bool IsNameWithinZone(string name, string zone) {
-            string canonicalName = DnsWireNameCodec.Canonical(name);
-            string canonicalZone = DnsWireNameCodec.Canonical(zone);
-            return canonicalZone == "." || string.Equals(canonicalName, canonicalZone, StringComparison.Ordinal) ||
-                   canonicalName.EndsWith("." + canonicalZone, StringComparison.Ordinal);
-        }
+        internal static bool IsNameWithinZone(string name, string zone) =>
+            DnsWireNameCodec.IsSubdomainOrEqual(name, zone);
 
         private async Task<DnsSecValidationResult> FindUnsignedDelegationAsync(string name, CancellationToken cancellationToken) {
             string current = DnsWireNameCodec.Canonical(name);
@@ -486,8 +502,7 @@ namespace DnsClientX {
                     if (result.Status == DnsSecValidationStatus.Insecure) return DnsSecValidationResult.Insecure(result.Message);
                     if (result.Status == DnsSecValidationStatus.Bogus) return DnsSecValidationResult.Bogus(result.Message);
                 }
-                int dot = current.IndexOf('.');
-                current = dot < 0 || dot == current.Length - 1 ? "." : current.Substring(dot + 1);
+                current = DnsWireNameCodec.ParentName(current);
             }
             return DnsSecValidationResult.Indeterminate("The answer was unsigned and no secure unsigned delegation proof was found.");
         }
@@ -498,7 +513,7 @@ namespace DnsClientX {
             bool timeFailure = false;
             bool signerScopeFailure = false;
             foreach (DnsSecSignature signature in signatures) {
-                int signerLabels = signature.SignerName == "." ? 0 : signature.SignerName.TrimEnd('.').Split('.').Length;
+                int signerLabels = DnsWireNameCodec.CanonicalLabels(signature.SignerName).Length;
                 if (!IsNameWithinZone(rrset.Name, signature.SignerName) || signature.Labels < signerLabels) {
                     signerScopeFailure = true;
                     continue;

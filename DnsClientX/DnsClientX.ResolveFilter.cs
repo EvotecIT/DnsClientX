@@ -74,6 +74,11 @@ namespace DnsClientX {
                 }
             }
 
+            if (options.IncludeAliases) {
+                for (int index = 0; index < allResponses.Length; index++) {
+                    ProjectFilterOwners(allResponses[index], names[index], type);
+                }
+            }
             var filteredResponses = allResponses
                 .Where(response => HasMatchingAnswers(response.Answers ?? Array.Empty<DnsAnswer>(), filter, type, options.IncludeAliases))
                 .Select(response => {
@@ -145,6 +150,11 @@ namespace DnsClientX {
                 }
             }
 
+            if (options.IncludeAliases) {
+                for (int index = 0; index < allResponses.Length; index++) {
+                    ProjectFilterOwners(allResponses[index], names[index], type);
+                }
+            }
             var filteredResponses = allResponses
                 .Where(response => HasMatchingAnswersRegex(response.Answers ?? Array.Empty<DnsAnswer>(), regexFilter, type, options.IncludeAliases))
                 .Select(response => {
@@ -193,6 +203,7 @@ namespace DnsClientX {
         public async Task<DnsResponse> ResolveFilter(string name, DnsRecordType type, string filter, ResolveFilterOptions options, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
             filter ??= string.Empty;
             var response = await Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (options.IncludeAliases) ProjectFilterOwners(response, name, type);
 
             if (response.Answers != null && (options.IncludeAliases || !string.IsNullOrEmpty(filter))) {
                 response.Answers = FilterAnswers(response.Answers, filter, type, options.IncludeAliases);
@@ -236,12 +247,55 @@ namespace DnsClientX {
         /// <returns>A task that represents the asynchronous operation. The task result contains the DNS response that matches the filter.</returns>
         public async Task<DnsResponse> ResolveFilter(string name, DnsRecordType type, Regex regexFilter, ResolveFilterOptions options, bool requestDnsSec = false, bool validateDnsSec = false, bool retryOnTransient = true, int maxRetries = 3, int retryDelayMs = 100, CancellationToken cancellationToken = default) {
             var response = await Resolve(name, type, requestDnsSec, validateDnsSec, options.IncludeAliases, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (options.IncludeAliases) ProjectFilterOwners(response, name, type);
 
             if (response.Answers != null) {
                 response.Answers = FilterAnswersRegex(response.Answers, regexFilter, type, options.IncludeAliases);
             }
 
             return response;
+        }
+
+        private static void ProjectFilterOwners(DnsResponse response, string queryName, DnsRecordType type) {
+            DnsAnswer[] answers = response.Answers ?? Array.Empty<DnsAnswer>();
+            string? requestedOwner = FindRequestedAnswerOwner(response, queryName, type);
+            var aliasIndexes = new HashSet<int>();
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            string candidate = DnsWireNameCodec.Canonical(queryName);
+            while (visited.Add(candidate)) {
+                string? next = FindAliasTarget(response, candidate);
+                if (next == null) break;
+                string target = DnsWireNameCodec.Canonical(next);
+                int dnameIndex = -1;
+                int dnameLabels = -1;
+                for (int index = 0; index < answers.Length; index++) {
+                    DnsAnswer answer = answers[index];
+                    string? owner = CanonicalAnswerName(answer.Name);
+                    if (answer.Type == DnsRecordType.CNAME && owner == candidate
+                        && CanonicalAnswerName(answer.Data) == target) {
+                        aliasIndexes.Add(index);
+                    } else if (answer.Type == DnsRecordType.DNAME
+                        && owner != null && CanonicalAnswerName(answer.Data) != null
+                        && DnsWireNameCodec.IsStrictSubdomain(candidate, owner)) {
+                        int labels = DnsWireNameCodec.CanonicalLabels(owner).Length;
+                        if (labels > dnameLabels) {
+                            dnameIndex = index;
+                            dnameLabels = labels;
+                        }
+                    }
+                }
+                if (dnameIndex >= 0) {
+                    DnsAnswer dname = answers[dnameIndex];
+                    if (DnsWireNameCodec.RewriteDnameTarget(candidate, dname.Name, dname.Data) == target) {
+                        aliasIndexes.Add(dnameIndex);
+                    }
+                }
+                candidate = target;
+            }
+
+            response.Answers = answers.Where((answer, index) =>
+                aliasIndexes.Contains(index) || answer.Type == type && requestedOwner != null
+                && CanonicalAnswerName(answer.Name) == requestedOwner).ToArray();
         }
 
         /// <summary>

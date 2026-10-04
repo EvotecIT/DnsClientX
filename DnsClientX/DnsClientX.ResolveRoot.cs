@@ -179,6 +179,14 @@ namespace DnsClientX {
                         insecureSegment |= validation.Status == DnsSecValidationStatus.Insecure;
                     }
                 }
+                if (validation.Status != DnsSecValidationStatus.Bogus
+                    && validation.Status != DnsSecValidationStatus.Indeterminate
+                    && response.Status != DnsResponseCode.NXDomain
+                    && segments.Any(segment => segment.AliasOnly
+                        && segment.Response.Status == DnsResponseCode.NXDomain)) {
+                    validation = DnsSecValidationResult.Bogus(
+                        "An iterative alias response claimed NXDOMAIN but its final target did not.");
+                }
                 if (insecureSegment
                     && validation.Status != DnsSecValidationStatus.Bogus
                     && validation.Status != DnsSecValidationStatus.Indeterminate) {
@@ -201,7 +209,7 @@ namespace DnsClientX {
 
         internal static string NormalizeIterativeName(string name) {
             string trimmed = name.Trim();
-            return trimmed == "." ? "." : trimmed.TrimEnd('.');
+            return trimmed == "." ? "." : DnsWireNameCodec.TrimTrailingRootDot(trimmed);
         }
 
         private async Task<DnsResponse> ResolveIteratively(
@@ -486,17 +494,21 @@ namespace DnsClientX {
         }
 
         internal static string? FindAliasTarget(DnsResponse response, string queryName) {
+            string canonicalName = DnsWireNameCodec.Canonical(queryName);
             DnsAnswer? cname = (response.Answers ?? Array.Empty<DnsAnswer>())
                 .Where(answer => answer.Type == DnsRecordType.CNAME)
                 .Cast<DnsAnswer?>()
-                .FirstOrDefault(answer => answer!.Value.Name.TrimEnd('.').Equals(queryName, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(answer => CanonicalAnswerName(answer!.Value.Name) == canonicalName
+                    && CanonicalAnswerName(answer.Value.Data) != null);
             if (cname.HasValue) {
-                return cname.Value.Data.TrimEnd('.');
+                return DnsWireNameCodec.TrimTrailingRootDot(CanonicalAnswerName(cname.Value.Data)!);
             }
 
             DnsAnswer? dname = (response.Answers ?? Array.Empty<DnsAnswer>())
                 .Where(answer => answer.Type == DnsRecordType.DNAME)
-                .Where(answer => IsStrictSubdomain(queryName, answer.Name.TrimEnd('.')))
+                .Where(answer => CanonicalAnswerName(answer.Name) is string owner
+                    && CanonicalAnswerName(answer.Data) != null
+                    && IsStrictSubdomain(canonicalName, owner))
                 .OrderByDescending(answer => LabelCount(answer.Name))
                 .Cast<DnsAnswer?>()
                 .FirstOrDefault();
@@ -504,9 +516,8 @@ namespace DnsClientX {
                 return null;
             }
 
-            string owner = dname.Value.Name.TrimEnd('.');
-            string target = dname.Value.Data.TrimEnd('.');
-            return queryName.Substring(0, queryName.Length - owner.Length).TrimEnd('.') + "." + target;
+            return DnsWireNameCodec.TrimTrailingRootDot(DnsWireNameCodec.RewriteDnameTarget(
+                canonicalName, dname.Value.Name, dname.Value.Data));
         }
 
         private static DnsResponse MergeAliasResponse(DnsResponse alias, DnsResponse terminal) {
@@ -518,26 +529,38 @@ namespace DnsClientX {
             return terminal;
         }
 
-        internal static bool HasRequestedAnswer(DnsResponse response, string queryName, DnsRecordType type) {
+        internal static bool HasRequestedAnswer(DnsResponse response, string queryName, DnsRecordType type) =>
+            FindRequestedAnswerOwner(response, queryName, type) != null;
+
+        internal static string? FindRequestedAnswerOwner(DnsResponse response, string queryName, DnsRecordType type) {
             DnsAnswer[] answers = response.Answers ?? Array.Empty<DnsAnswer>();
-            string candidate = queryName.TrimEnd('.');
-            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string candidate = DnsWireNameCodec.Canonical(queryName);
+            var visited = new HashSet<string>(StringComparer.Ordinal);
 
             while (visited.Add(candidate)) {
                 if (answers.Any(answer =>
-                    answer.Name.TrimEnd('.').Equals(candidate, StringComparison.OrdinalIgnoreCase)
+                    CanonicalAnswerName(answer.Name) == candidate
                     && (type == DnsRecordType.ANY || answer.Type == type))) {
-                    return true;
+                    return candidate;
                 }
 
                 string? aliasTarget = FindAliasTarget(response, candidate);
                 if (aliasTarget == null) {
-                    return false;
+                    return null;
                 }
-                candidate = aliasTarget;
+                candidate = DnsWireNameCodec.Canonical(aliasTarget);
             }
 
-            return false;
+            return null;
+        }
+
+        private static string? CanonicalAnswerName(string? name) {
+            if (name == null || string.IsNullOrWhiteSpace(name)) return null;
+            try {
+                return DnsWireNameCodec.Canonical(name);
+            } catch (ArgumentException) {
+                return null;
+            }
         }
 
         private static bool HasNegativeSoa(DnsResponse response) {
@@ -548,17 +571,10 @@ namespace DnsClientX {
             return DnsWireNameCodec.IsSubdomainOrEqual(name, string.IsNullOrWhiteSpace(parent) ? "." : parent);
         }
 
-        private static bool IsStrictSubdomain(string name, string parent) {
-            string normalizedName = name.TrimEnd('.');
-            string normalizedParent = parent.TrimEnd('.');
-            return normalizedParent.Length == 0
-                ? normalizedName.Length > 0
-                : normalizedName.EndsWith("." + normalizedParent, StringComparison.OrdinalIgnoreCase);
-        }
+        private static bool IsStrictSubdomain(string name, string parent) =>
+            DnsWireNameCodec.IsStrictSubdomain(name, parent);
 
-        private static int LabelCount(string name) {
-            return name.Trim('.').Length == 0 ? 0 : name.Trim('.').Split('.').Length;
-        }
+        private static int LabelCount(string name) => DnsWireNameCodec.CanonicalLabels(name).Length;
 
         internal static IterativeQuestion SelectIterativeQuestion(string name, DnsRecordType type,
             string currentBailiwick, bool enabled) {
@@ -570,7 +586,7 @@ namespace DnsClientX {
                 return new IterativeQuestion(normalizedName, type, true);
             }
 
-            string[] labels = normalizedName.Split('.');
+            string[] labels = DnsWireNameCodec.CanonicalLabels(normalizedName);
             int bailiwickLabels = normalizedBailiwick == "." ? 0 : LabelCount(normalizedBailiwick);
             if (bailiwickLabels >= labels.Length) return new IterativeQuestion(normalizedName, type, true);
             // RFC 9156 step 3: DS data belongs to the parent side of a zone cut. Once the

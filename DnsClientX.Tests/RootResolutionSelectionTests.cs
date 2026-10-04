@@ -13,6 +13,8 @@ namespace DnsClientX.Tests {
         public void NormalizeIterativeName_PreservesRootLabel() {
             Assert.Equal(".", ClientX.NormalizeIterativeName("."));
             Assert.Equal("example.com", ClientX.NormalizeIterativeName("example.com."));
+            Assert.Equal(@"a\.", ClientX.NormalizeIterativeName(@"a\."));
+            Assert.Equal(@"a\.", ClientX.NormalizeIterativeName(@"a\.."));
         }
 
         /// <summary>RFC 9156 reveals one additional label at each delegation and preserves the final question.</summary>
