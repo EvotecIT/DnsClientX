@@ -1112,7 +1112,9 @@ await client.UpdateRecordAsync(
 await client.DeleteRecordAsync("example.com", "www.example.com", DnsRecordType.A);
 ```
 
-RFC 2136 wire updates are accepted only for UDP/TCP-configured endpoints and are sent over TCP. This includes `DnsEndpoint.System` and `DnsEndpoint.SystemTcp`: they use the operating system's configured resolver, which may be a recursive server rather than a name server for the zone. Supply an explicit authoritative server for predictable update delivery; DnsClientX does not discover the zone's UPDATE target. DoH, DoT, DoQ, mDNS, and public recursive profiles are not silently reinterpreted as plaintext update endpoints. When a `TsigKey` is configured, DnsClientX signs the request and requires a valid chained TSIG on the response. The separate JSON POST update mode is a proprietary custom-endpoint API and does not support TSIG.
+RFC 2136 wire updates require an explicit UDP/TCP-configured endpoint and are sent over TCP. Built-in profiles, including `DnsEndpoint.System`, `DnsEndpoint.SystemTcp`, and `DnsEndpoint.RootServer`, are rejected before sending an update. Create `ClientX` or `Configuration` with the authoritative server's hostname or IP address, or use `ClientXBuilder.WithHostname` with a UDP/TCP request format. To migrate from OS resolver targeting, choose the zone's authoritative update server explicitly; the operating system's configured resolver may only be a recursive server. DnsClientX does not discover the zone's UPDATE target or verify that the supplied endpoint is authoritative.
+
+DoH, DoT, DoQ, and mDNS are not silently reinterpreted as plaintext update endpoints. When a `TsigKey` is configured, DnsClientX signs the request and requires a valid chained TSIG on the response. The separate JSON POST update mode is a proprietary custom-endpoint API and does not support TSIG.
 
 ### Multicast DNS (mDNS)
 ```csharp
@@ -1670,8 +1672,9 @@ DnsClientX.exe --endpoint Cloudflare --dnssec --validate-dnssec google.com
 # Use DoH wire POST when supported
 DnsClientX.exe --endpoint CloudflareWireFormatPost --wire-post google.com
 
-# Send a dynamic DNS update
-DnsClientX.exe --update example.com www A 192.0.2.10 --ttl 300
+# Send a dynamic DNS update to an explicit authoritative server
+DnsClientX.exe --probe-endpoint tcp@192.0.2.53:53 \
+  --update example.com www A 192.0.2.10 --ttl 300
 ```
 
 ### Scripting Examples

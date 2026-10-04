@@ -9,6 +9,8 @@ namespace DnsClientX {
     /// </summary>
     /// <remarks>
     /// DNS UPDATE is described in <see href="https://www.rfc-editor.org/rfc/rfc2136">RFC 2136</see> and allows dynamic modification of zone data.
+    /// Wire updates require an explicit UDP/TCP endpoint for a server authoritative for the zone.
+    /// Built-in resolver profiles are rejected; the caller is responsible for selecting an authoritative server.
     /// </remarks>
     public partial class ClientX {
         /// <summary>
@@ -22,6 +24,7 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>DNS response returned by the server.</returns>
         /// <exception cref="DnsClientException">Thrown when the server returns an error.</exception>
+        /// <exception cref="NotSupportedException">Thrown when wire UPDATE is attempted without an explicit UDP/TCP endpoint.</exception>
         public async Task<DnsResponse> UpdateRecordAsync(string zone, string name, DnsRecordType type, string data, int ttl = 300, CancellationToken cancellationToken = default) {
             ThrowIfDisposed();
             bool certificatePolicy = IgnoreCertificateErrors;
@@ -39,7 +42,7 @@ namespace DnsClientX {
                     response = await lease.Client.UpdateJsonFormatPost(zone, name, type, data, ttl, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
                 }
             } else {
-                EnsureWireUpdateTransport(queryConfiguration.RequestFormat);
+                EnsureWireUpdateTarget(queryConfiguration);
                 response = await DnsWireUpdateTcp.UpdateRecordAsync(queryConfiguration.Hostname!, queryConfiguration.Port, zone, name, type, data, ttl, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
             }
             if (response.Status != DnsResponseCode.NoError) {
@@ -57,6 +60,7 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>DNS response returned by the server.</returns>
         /// <exception cref="DnsClientException">Thrown when the server returns an error.</exception>
+        /// <exception cref="NotSupportedException">Thrown when wire UPDATE is attempted without an explicit UDP/TCP endpoint.</exception>
         public async Task<DnsResponse> DeleteRecordAsync(string zone, string name, DnsRecordType type, CancellationToken cancellationToken = default) {
             ThrowIfDisposed();
             bool certificatePolicy = IgnoreCertificateErrors;
@@ -73,7 +77,7 @@ namespace DnsClientX {
                     response = await lease.Client.DeleteJsonFormatPost(zone, name, type, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
                 }
             } else {
-                EnsureWireUpdateTransport(queryConfiguration.RequestFormat);
+                EnsureWireUpdateTarget(queryConfiguration);
                 response = await DnsWireUpdateTcp.DeleteRecordAsync(queryConfiguration.Hostname!, queryConfiguration.Port, zone, name, type, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
             }
             if (response.Status != DnsResponseCode.NoError) {
@@ -92,6 +96,7 @@ namespace DnsClientX {
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>DNS response returned by the server.</returns>
         /// <exception cref="DnsClientException">Thrown when the server returns an error.</exception>
+        /// <exception cref="NotSupportedException">Thrown when deleting an RDATA value without an explicit UDP/TCP wire endpoint.</exception>
         public async Task<DnsResponse> DeleteRecordValueAsync(string zone, string name, DnsRecordType type,
             string data, CancellationToken cancellationToken = default) {
             ThrowIfDisposed();
@@ -102,18 +107,24 @@ namespace DnsClientX {
             if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSONPOST) {
                 throw new NotSupportedException("Deleting one RDATA value requires an RFC 2136 DNS wire UPDATE endpoint.");
             }
-            EnsureWireUpdateTransport(queryConfiguration.RequestFormat);
+            EnsureWireUpdateTarget(queryConfiguration);
             DnsResponse response = await DnsWireUpdateTcp.DeleteRecordValueAsync(queryConfiguration.Hostname!,
                 queryConfiguration.Port, zone, name, type, data, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
             if (response.Status != DnsResponseCode.NoError) throw new DnsClientException($"DNS update failed with {response.Status}", response);
             return response;
         }
 
-        private static void EnsureWireUpdateTransport(DnsRequestFormat requestFormat) {
+        private static void EnsureWireUpdateTarget(Configuration configuration) {
+            DnsRequestFormat requestFormat = configuration.RequestFormat;
             if (requestFormat != DnsRequestFormat.DnsOverUDP
                 && requestFormat != DnsRequestFormat.DnsOverTCP) {
                 throw new NotSupportedException(
                     $"RFC 2136 DNS UPDATE is supported only for UDP/TCP-configured authoritative targets; {requestFormat} cannot be silently converted to plaintext TCP.");
+            }
+            if (configuration.BuiltInEndpoint.HasValue) {
+                throw new NotSupportedException(
+                    "RFC 2136 DNS UPDATE requires an explicit authoritative UDP/TCP endpoint. " +
+                    "Create ClientX or Configuration with the authoritative server's hostname or IP address; built-in resolver profiles cannot be used for wire updates.");
             }
         }
     }

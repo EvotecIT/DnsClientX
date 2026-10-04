@@ -556,7 +556,7 @@ namespace DnsClientX.Cli {
                 return false;
             }
 
-            if (options.HasCustomEndpointInputs && !options.Benchmark && !options.ResolverValidate) {
+            if (options.HasCustomEndpointInputs && !options.Benchmark && !options.ResolverValidate && !options.DoUpdate) {
                 options.Probe = true;
             }
 
@@ -750,6 +750,12 @@ namespace DnsClientX.Cli {
             }
 
             if (options.DoUpdate) {
+                if (!options.HasCustomEndpointInputs || options.EndpointInputs.Count > 0) {
+                    errorMessage = "--update requires an explicit authoritative endpoint via --probe-endpoint, --resolver-file, or --resolver-url; do not combine it with --endpoint.";
+                    invalidSwitches = null;
+                    options = null;
+                    return false;
+                }
                 if (options.Zone is null || options.UpdateName is null || options.UpdateData is null) {
                     errorMessage = "Invalid --update arguments.";
                     invalidSwitches = null;
@@ -1034,6 +1040,13 @@ namespace DnsClientX.Cli {
         }
 
         private static ResolverExecutionTargetSource CreateStandardQueryTargetSource(CliOptions options) {
+            if (options.DoUpdate && options.HasCustomEndpointInputs) {
+                return new ResolverExecutionTargetSource {
+                    ResolverEndpoints = options.ProbeEndpoints.ToArray(),
+                    ResolverEndpointFiles = options.ProbeEndpointFiles.ToArray(),
+                    ResolverEndpointUrls = options.ProbeEndpointUrls.ToArray()
+                };
+            }
             if (!string.IsNullOrWhiteSpace(options.ResolverUsePath)) {
                 return new ResolverExecutionTargetSource {
                     ResolverSelectionPath = options.ResolverUsePath
@@ -1720,7 +1733,7 @@ namespace DnsClientX.Cli {
             Console.WriteLine("      --stamp-info <stamp> Print parsed DNS stamp details without querying DNS");
             Console.WriteLine("      --explain            Print resolver and response diagnostics");
             Console.WriteLine("      --trace              Print explain output plus audit details");
-            Console.WriteLine("      --update <zone> <name> <type> <data>  Send dynamic update");
+            Console.WriteLine("      --update <zone> <name> <type> <data>  Send dynamic update to one explicit authoritative endpoint");
             Console.WriteLine("      --ttl <seconds>      TTL for update (default 300)");
             Console.WriteLine();
             Console.WriteLine("Available endpoints:");
