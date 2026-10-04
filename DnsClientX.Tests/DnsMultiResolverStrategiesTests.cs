@@ -254,7 +254,9 @@ namespace DnsClientX.Tests {
                 DnsMultiResolver.ResolveOverride = async (ep, name, type, ct) => {
                     calls.AddOrUpdate(Key(ep), 1, (_, value) => value + 1);
                     if (ep.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
-                        await Task.Delay(50, ct);
+                        // Keep the JSON resolver pending until the wire resolver wins and cancels it.
+                        // A short delay can lose the race on a busy CI runner.
+                        await Task.Delay(Timeout.Infinite, ct);
                     } else {
                         await Task.Delay(5, ct);
                     }
@@ -369,4 +371,3 @@ namespace DnsClientX.Tests {
         }
     }
 }
-
