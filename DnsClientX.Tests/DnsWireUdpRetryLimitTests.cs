@@ -88,6 +88,8 @@ namespace DnsClientX.Tests {
 
             Assert.InRange(attempts, 1, 2);
             Assert.NotEqual(DnsResponseCode.NoError, response.Status);
+            Assert.Equal(DnsQueryErrorCode.Timeout, response.ErrorCode);
+            Assert.IsType<TimeoutException>(response.Exception);
         }
 
         /// <summary>

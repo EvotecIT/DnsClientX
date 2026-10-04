@@ -123,7 +123,9 @@ namespace DnsClientX {
                         OriginalName = name
                     }
                 ],
-                Status = responseCode
+                Status = responseCode,
+                ErrorCode = lastException == null ? DnsQueryErrorCode.ServFail : DnsQueryDiagnostics.ClassifyFailure(lastException),
+                Exception = lastException
             };
             failure.AddServerDetails(endpointConfiguration);
             failure.Error = $"Failed to query type {type} of \"{name}\" => {lastException?.Message + " " + lastException?.InnerException?.Message}";

@@ -1,7 +1,9 @@
 using System;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
@@ -9,6 +11,33 @@ namespace DnsClientX {
     /// Shared diagnostics helpers for classifying DNS query failures and suspicious resolver responses.
     /// </summary>
     public static class DnsQueryDiagnostics {
+        /// <summary>Classifies captured failures without depending on localized exception messages.</summary>
+        internal static DnsQueryErrorCode ClassifyFailure(Exception exception) {
+            if (exception is DnsQueryException queryException && queryException.ErrorCode != DnsQueryErrorCode.None) {
+                return queryException.ErrorCode;
+            }
+            if (exception is DnsClientException { Response: { ErrorCode: not DnsQueryErrorCode.None } response }) {
+                return response.ErrorCode;
+            }
+            if (exception is TimeoutException || exception is OperationCanceledException ||
+                exception is WebException { Status: WebExceptionStatus.Timeout } ||
+                exception is SocketException { SocketErrorCode: SocketError.TimedOut }) {
+                return DnsQueryErrorCode.Timeout;
+            }
+            if (exception is JsonException || exception is EndOfStreamException) {
+                return DnsQueryErrorCode.InvalidResponse;
+            }
+            if (exception.InnerException != null) {
+                DnsQueryErrorCode innerCode = ClassifyFailure(exception.InnerException);
+                if (innerCode != DnsQueryErrorCode.ServFail) return innerCode;
+            }
+            return exception switch {
+                DnsClientException => DnsQueryErrorCode.InvalidResponse,
+                SocketException or HttpRequestException or WebException or IOException => DnsQueryErrorCode.Network,
+                _ => DnsQueryErrorCode.ServFail
+            };
+        }
+
         /// <summary>
         /// Determines whether the supplied exception represents a transient transport or resolver failure.
         /// </summary>

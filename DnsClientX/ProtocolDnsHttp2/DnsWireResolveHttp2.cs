@@ -94,7 +94,9 @@ namespace DnsClientX {
                             OriginalName = name
                         }
                     ],
-                    Status = responseCode
+                    Status = responseCode,
+                    ErrorCode = DnsQueryDiagnostics.ClassifyFailure(ex),
+                    Exception = ex
                 };
                 response.AddServerDetails(endpointConfiguration);
                 response.Error = $"Failed to query type {type} of \"{name}\" =>{ex.Message} {ex.InnerException?.Message}";
@@ -111,7 +113,9 @@ namespace DnsClientX {
                             OriginalName = name
                         }
                     ],
-                    Status = DnsResponseCode.ServerFailure
+                    Status = DnsResponseCode.ServerFailure,
+                    ErrorCode = DnsQueryDiagnostics.ClassifyFailure(ex),
+                    Exception = ex
                 };
                 response.AddServerDetails(endpointConfiguration);
                 response.Error = $"Failed to query type {type} of \"{name}\" =>{ex.Message}";

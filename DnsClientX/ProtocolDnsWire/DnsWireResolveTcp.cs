@@ -110,7 +110,9 @@ namespace DnsClientX {
                             OriginalName = name
                         }
                     ],
-                    Status = responseCode
+                    Status = responseCode,
+                    ErrorCode = DnsQueryDiagnostics.ClassifyFailure(ex),
+                    Exception = ex
                 };
                 response.AddServerDetails(endpointConfiguration, Transport.Tcp);
                 response.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message + " " + ex.InnerException?.Message}";

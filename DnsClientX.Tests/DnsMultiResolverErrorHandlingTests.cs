@@ -44,6 +44,69 @@ namespace DnsClientX.Tests {
             Assert.Equal(DnsQueryErrorCode.Timeout, response.ErrorCode);
         }
 
+        /// <summary>A thrown transport timeout has the same category as an endpoint deadline.</summary>
+        [Fact]
+        public async Task ThrownTransportTimeoutRemainsTimeout() {
+            try {
+                DnsMultiResolver.ResolveOverride = (_, _, _, _) => throw new TimeoutException("transport deadline");
+                using var resolver = new DnsMultiResolver(new[] {
+                    new DnsResolverEndpoint { Host = "127.0.0.1", Port = 53, Transport = Transport.Udp }
+                });
+
+                DnsResponse response = await resolver.QueryAsync("timeout.example", DnsRecordType.A);
+
+                Assert.Equal(DnsQueryErrorCode.Timeout, response.ErrorCode);
+                Assert.IsType<TimeoutException>(response.Exception);
+            } finally {
+                DnsMultiResolver.ResolveOverride = null;
+            }
+        }
+
+        /// <summary>Rich transport failures retain their diagnostics without mutating a shared exception response.</summary>
+        [Theory]
+        [InlineData(DnsQueryErrorCode.Timeout)]
+        [InlineData(DnsQueryErrorCode.Network)]
+        [InlineData(DnsQueryErrorCode.InvalidResponse)]
+        public async Task ClassifiedExceptionResponseIsPreservedAndIsolated(DnsQueryErrorCode code) {
+            Exception cause = code switch {
+                DnsQueryErrorCode.Timeout => new TimeoutException("transport deadline"),
+                DnsQueryErrorCode.Network => new SocketException((int)SocketError.NetworkUnreachable),
+                _ => new System.IO.InvalidDataException("invalid DNS message")
+            };
+            var failure = new DnsResponse {
+                Status = DnsResponseCode.ServerFailure,
+                ErrorCode = code,
+                Error = "original failure",
+                Exception = cause,
+                UsedTransport = Transport.Tcp,
+                EdnsNsid = new byte[] { 0, 255 }
+            };
+            failure.AddServerDetails(new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
+                Hostname = "127.0.0.1"
+            }, Transport.Tcp);
+            try {
+                DnsMultiResolver.ResolveOverride = (_, _, _, _) =>
+                    throw new DnsClientException("wrapped failure", cause) { Response = failure };
+                var endpoint = new DnsResolverEndpoint { Host = "127.0.0.1", Port = 53, Transport = Transport.Udp };
+                using var resolver = new DnsMultiResolver(new[] { endpoint });
+
+                DnsResponse response = await resolver.QueryAsync("timeout.example", DnsRecordType.A);
+
+                Assert.Equal(code, response.ErrorCode);
+                Assert.Same(cause, response.Exception);
+                Assert.Equal("original failure", response.Error);
+                Assert.Equal(Transport.Tcp, response.UsedTransport);
+                Assert.Equal("127.0.0.1", response.ServerAddress);
+                Assert.Equal(failure.EdnsNsid, response.EdnsNsid);
+                Assert.Same(endpoint, response.UsedEndpoint);
+                Assert.NotSame(failure, response);
+                Assert.Null(failure.UsedEndpoint);
+                Assert.Equal(TimeSpan.Zero, failure.RoundTripTime);
+            } finally {
+                DnsMultiResolver.ResolveOverride = null;
+            }
+        }
+
         /// <summary>The shared diagnostic runner must not turn cancellation into a completed failed probe.</summary>
         [Fact]
         public async Task ProbeRunnerPropagatesCancellationDuringQuery() {

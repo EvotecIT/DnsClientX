@@ -70,6 +70,8 @@ namespace DnsClientX {
                         }
                     },
                     Status = responseCode,
+                    ErrorCode = DnsQueryDiagnostics.ClassifyFailure(ex),
+                    Exception = ex,
                     Error = message
                 };
                 response.AddServerDetails(configuration);
@@ -137,6 +139,8 @@ namespace DnsClientX {
                         }
                     },
                     Status = responseCode,
+                    ErrorCode = DnsQueryDiagnostics.ClassifyFailure(ex),
+                    Exception = ex,
                     Error = message
                 };
                 response.AddServerDetails(configuration);

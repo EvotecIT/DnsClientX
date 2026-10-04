@@ -331,12 +331,17 @@ namespace DnsClientX {
                 response = MakeError(ep, name, type, DnsQueryErrorCode.Timeout, oce.Message, oce);
             } catch (OperationCanceledException) {
                 throw;
-            } catch (SocketException se) {
-                response = MakeError(ep, name, type, DnsQueryErrorCode.Network, se.Message, se);
-            } catch (DnsClientException dce) {
-                response = MakeError(ep, name, type, DnsQueryErrorCode.InvalidResponse, dce.Message, dce);
             } catch (Exception ex) {
-                response = MakeError(ep, name, type, DnsQueryErrorCode.ServFail, ex.Message, ex);
+                DnsResponse? classifiedResponse = ex switch {
+                    DnsClientException { Response: { ErrorCode: not DnsQueryErrorCode.None } failure } => failure,
+                    DnsQueryException { Response: { ErrorCode: not DnsQueryErrorCode.None } failure } => failure,
+                    _ => null
+                };
+                // A failed shared flight can expose the same exception to several callers.
+                // Preserve transport diagnostics without stamping its response in place.
+                response = classifiedResponse?.Clone() ?? MakeError(ep, name, type,
+                    DnsQueryDiagnostics.ClassifyFailure(ex), ex.Message, ex);
+                response.Exception ??= ex;
             }
             sw.Stop();
 

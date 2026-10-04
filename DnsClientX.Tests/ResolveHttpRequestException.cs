@@ -44,6 +44,8 @@ namespace DnsClientX.Tests {
 
             var response = await clientX.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
             Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
+            Assert.Equal(DnsQueryErrorCode.Network, response.ErrorCode);
+            Assert.IsType<HttpRequestException>(response.Exception);
             Assert.Contains("network error", response.Error);
         }
     }
