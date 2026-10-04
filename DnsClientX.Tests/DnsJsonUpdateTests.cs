@@ -11,12 +11,12 @@ namespace DnsClientX.Tests {
     /// Tests for DNS record updates via JSON API.
     /// </summary>
     public class DnsJsonUpdateTests {
-        private class JsonUpdateHandler : HttpMessageHandler {
+        private class JsonUpdateHandler(HttpStatusCode statusCode = HttpStatusCode.OK) : HttpMessageHandler {
             public HttpRequestMessage? Request { get; private set; }
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
                 Request = request;
                 var json = "{\"Status\":0}";
-                var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json) };
+                var response = new HttpResponseMessage(statusCode) { Content = new StringContent(json) };
                 return Task.FromResult(response);
             }
         }
@@ -61,6 +61,23 @@ namespace DnsClientX.Tests {
             Assert.Equal(HttpMethod.Post, handler.Request?.Method);
             Assert.Equal("application/json", handler.Request?.Content?.Headers.ContentType?.MediaType);
             Assert.Equal(DnsResponseCode.NoError, response.Status);
+        }
+
+        /// <summary>An HTTP failure cannot report an update or delete as complete.</summary>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task JsonUpdate_HttpFailureDoesNotReportSuccess(bool delete) {
+            var handler = new JsonUpdateHandler(HttpStatusCode.InternalServerError);
+            using var clientX = new ClientX(new Configuration(new System.Uri("https://resolver.example/update"), DnsRequestFormat.DnsOverHttpsJSONPOST));
+            using var httpClient = new HttpClient(handler) { BaseAddress = clientX.EndpointConfiguration.BaseUri };
+            InjectClient(clientX, httpClient);
+
+            var ex = await Assert.ThrowsAsync<DnsClientException>(() => delete
+                ? clientX.DeleteRecordAsync("example.com", "www.example.com", DnsRecordType.A)
+                : clientX.UpdateRecordAsync("example.com", "www.example.com", DnsRecordType.A, "1.2.3.4"));
+
+            Assert.Contains("HTTP 500", ex.Message);
         }
     }
 }

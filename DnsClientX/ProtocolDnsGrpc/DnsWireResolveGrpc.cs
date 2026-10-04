@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Http;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -48,7 +49,21 @@ namespace DnsClientX {
                 request.Headers.Add("TE", "trailers");
                 request.Content!.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/grpc");
                 using var responseMsg = await SendAsync(client, request, timeoutCts.Token).ConfigureAwait(false);
-                byte[] responseBytes = await responseMsg.Content.ReadAsByteArrayAsync(timeoutCts.Token).ConfigureAwait(false);
+                if (responseMsg.StatusCode != HttpStatusCode.OK) {
+                    throw new DnsClientException($"gRPC endpoint returned HTTP {(int)responseMsg.StatusCode} ({responseMsg.ReasonPhrase}).");
+                }
+                if (responseMsg.Content == null) {
+                    throw new DnsClientException("gRPC endpoint returned no response content.");
+                }
+                byte[] responseBytes = await DnsHttpResponseBody.ReadBoundedAsync(
+                    responseMsg.Content, DnsHttpResponseBody.MaxGrpcBytes, timeoutCts.Token).ConfigureAwait(false);
+                EnsureGrpcSuccess(responseMsg);
+                string? mediaType = responseMsg.Content.Headers.ContentType?.MediaType;
+                if (mediaType == null ||
+                    !(mediaType.Equals("application/grpc", StringComparison.OrdinalIgnoreCase) ||
+                      mediaType.StartsWith("application/grpc+", StringComparison.OrdinalIgnoreCase))) {
+                    throw new DnsClientException("gRPC endpoint returned a non-gRPC content type.");
+                }
                 var payload = ParseGrpcPayload(responseBytes);
                 var response = await DnsWire.DeserializeDnsWireResponse(null, debug, payload, query).ConfigureAwait(false);
                 response.AddServerDetails(endpointConfiguration);
@@ -100,15 +115,41 @@ namespace DnsClientX {
 
         private static byte[] ParseGrpcPayload(byte[] responseBytes) {
             if (responseBytes.Length < 5) {
-                return Array.Empty<byte>();
+                throw new DnsClientException("gRPC response is shorter than its 5-byte frame header.");
             }
-            int len = (responseBytes[1] << 24) | (responseBytes[2] << 16) | (responseBytes[3] << 8) | responseBytes[4];
-            if (len <= 0 || responseBytes.Length - 5 < len) {
-                len = responseBytes.Length - 5;
+            if (responseBytes[0] != 0) {
+                throw new DnsClientException("Compressed gRPC DNS responses are not supported.");
             }
-            var payload = new byte[len];
-            Buffer.BlockCopy(responseBytes, 5, payload, 0, len);
+            uint len = ((uint)responseBytes[1] << 24) | ((uint)responseBytes[2] << 16) |
+                       ((uint)responseBytes[3] << 8) | responseBytes[4];
+            if (len == 0 || len > DnsHttpResponseBody.MaxWireBytes || len != responseBytes.Length - 5) {
+                throw new DnsClientException("gRPC DNS response frame length does not match its body.");
+            }
+            var payload = new byte[(int)len];
+            Buffer.BlockCopy(responseBytes, 5, payload, 0, (int)len);
             return payload;
+        }
+
+        private static void EnsureGrpcSuccess(HttpResponseMessage response) {
+            string? statusValue = null;
+            if (response.TrailingHeaders.TryGetValues("grpc-status", out var values)) {
+                foreach (string value in values) {
+                    if (statusValue != null) {
+                        throw new DnsClientException("gRPC response contains multiple status trailers.");
+                    }
+                    statusValue = value;
+                }
+            }
+            if (statusValue == null) {
+                throw new DnsClientException("gRPC response is missing gRPC status trailer.");
+            }
+            if (!int.TryParse(statusValue, NumberStyles.None, CultureInfo.InvariantCulture, out int status) ||
+                statusValue != status.ToString(CultureInfo.InvariantCulture)) {
+                throw new DnsClientException("gRPC response has a malformed status trailer.");
+            }
+            if (status != 0) {
+                throw new DnsClientException($"gRPC status {status} indicates failure.");
+            }
         }
     }
 #endif

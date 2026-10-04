@@ -65,9 +65,12 @@ namespace DnsClientX {
             }
 
             try {
-                using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
+                using var deadline = DnsHttpResponseBody.CreateTimeout(
+                    TimeSpan.FromMilliseconds(Math.Max(1, endpointConfiguration.TimeOut)), cancellationToken);
+                using HttpResponseMessage res = await client.SendAsync(
+                    req, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
                 return await DeserializeDnsWireHttpResponse(
-                    res, debug, dnsMessage, name, type, endpointConfiguration).ConfigureAwait(false);
+                    res, debug, dnsMessage, name, type, endpointConfiguration, deadline.Token).ConfigureAwait(false);
             } catch (HttpRequestException ex) {
                 // If the request fails, inspect details to determine the most appropriate DNS response code
                 DnsResponseCode responseCode;
@@ -135,8 +138,8 @@ namespace DnsClientX {
             DnsMessage query,
             string name,
             DnsRecordType type,
-            Configuration endpointConfiguration) {
-            byte[] responseBytes = await httpResponse.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+            Configuration endpointConfiguration,
+            CancellationToken cancellationToken) {
             DnsResponse failure = new() {
                 Status = DnsResponseCode.ServerFailure,
                 Questions = [new DnsQuestion {
@@ -149,16 +152,11 @@ namespace DnsClientX {
             failure.AddServerDetails(endpointConfiguration);
 
             if (!httpResponse.IsSuccessStatusCode) {
-                string body = GetBodyPreview(responseBytes);
+                byte[] previewBytes = await DnsHttpResponseBody.ReadPrefixAsync(
+                    httpResponse.Content, DnsHttpResponseBody.MaxErrorPreviewBytes + 1, cancellationToken).ConfigureAwait(false);
+                string body = GetBodyPreview(previewBytes);
                 string message = $"Failed to query type {type} of \"{name}\", received HTTP status code {httpResponse.StatusCode}." +
                                  (string.IsNullOrEmpty(body) ? string.Empty : $"\nBody: {body}");
-                failure.Error = message;
-                throw new DnsClientException(message, failure);
-            }
-
-            if (responseBytes.Length == 0) {
-                string message = $"Failed to query type {type} of \"{name}\", received an empty response " +
-                                 $"with HTTP status code {httpResponse.StatusCode}.";
                 failure.Error = message;
                 throw new DnsClientException(message, failure);
             }
@@ -168,6 +166,15 @@ namespace DnsClientX {
                 !string.Equals(mediaType, "application/dns-message", StringComparison.OrdinalIgnoreCase)) {
                 string message = $"Failed to query type {type} of \"{name}\": HTTP response media type " +
                                  $"'{mediaType}' is not application/dns-message.";
+                failure.Error = message;
+                throw new DnsClientException(message, failure);
+            }
+
+            byte[] responseBytes = await DnsHttpResponseBody.ReadBoundedAsync(
+                httpResponse.Content, DnsHttpResponseBody.MaxWireBytes, cancellationToken).ConfigureAwait(false);
+            if (responseBytes.Length == 0) {
+                string message = $"Failed to query type {type} of \"{name}\", received an empty response " +
+                                 $"with HTTP status code {httpResponse.StatusCode}.";
                 failure.Error = message;
                 throw new DnsClientException(message, failure);
             }
@@ -188,7 +195,7 @@ namespace DnsClientX {
 
         private static string GetBodyPreview(byte[] bytes) {
             if (bytes == null || bytes.Length == 0) return string.Empty;
-            const int maxPreviewBytes = 512;
+            const int maxPreviewBytes = DnsHttpResponseBody.MaxErrorPreviewBytes;
             int count = Math.Min(maxPreviewBytes, bytes.Length);
             string preview = Encoding.UTF8.GetString(bytes, 0, count).Trim();
             return bytes.Length > maxPreviewBytes ? preview + "..." : preview;

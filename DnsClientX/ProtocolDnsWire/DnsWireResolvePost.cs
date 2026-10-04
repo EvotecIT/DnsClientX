@@ -45,9 +45,12 @@ namespace DnsClientX {
 #if NET5_0_OR_GREATER
             DnsHttpRequestSettings.Configure(request, endpointConfiguration);
 #endif
-            using HttpResponseMessage postAsync = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            using var deadline = DnsHttpResponseBody.CreateTimeout(
+                TimeSpan.FromMilliseconds(Math.Max(1, endpointConfiguration.TimeOut)), cancellationToken);
+            using HttpResponseMessage postAsync = await client.SendAsync(
+                request, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
             return await DnsWireResolve.DeserializeDnsWireHttpResponse(
-                postAsync, debug, query, name, type, endpointConfiguration).ConfigureAwait(false);
+                postAsync, debug, query, name, type, endpointConfiguration, deadline.Token).ConfigureAwait(false);
         }
     }
 }

@@ -22,5 +22,17 @@ namespace DnsClientX.Tests {
                 () => response.Deserialize(DnsJsonContext.Default.DnsResponse));
             Assert.Contains("Response content is empty", ex.Message);
         }
+
+        /// <summary>A failed HTTP exchange cannot be accepted as a successful DNS answer.</summary>
+        [Fact]
+        public async Task Deserialize_HttpFailureWithValidJson_ThrowsException() {
+            using var response = new HttpResponseMessage(HttpStatusCode.InternalServerError) {
+                Content = new StringContent("{\"Status\":0}")
+            };
+
+            var ex = await Assert.ThrowsAsync<DnsClientException>(
+                () => response.DeserializeResponse());
+            Assert.Contains("HTTP 500", ex.Message);
+        }
     }
 }

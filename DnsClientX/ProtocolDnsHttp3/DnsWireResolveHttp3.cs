@@ -45,9 +45,12 @@ namespace DnsClientX {
             }
 
             try {
-                using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
+                using var deadline = DnsHttpResponseBody.CreateTimeout(
+                    TimeSpan.FromMilliseconds(Math.Max(1, endpointConfiguration.TimeOut)), cancellationToken);
+                using HttpResponseMessage res = await client.SendAsync(
+                    req, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
                 return await DnsWireResolve.DeserializeDnsWireHttpResponse(
-                    res, debug, dnsMessage, name, type, endpointConfiguration).ConfigureAwait(false);
+                    res, debug, dnsMessage, name, type, endpointConfiguration, deadline.Token).ConfigureAwait(false);
             } catch (HttpRequestException ex) {
                 DnsResponseCode responseCode;
                 if (ex.InnerException is TaskCanceledException || ex.InnerException is TimeoutException) {

@@ -32,9 +32,12 @@ namespace DnsClientX {
             using HttpRequestMessage req = new(HttpMethod.Get, DnsHttpRequestUri.Build(configuration, url));
             DnsHttpRequestSettings.Configure(req, configuration);
             try {
-                using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
+                using var deadline = DnsHttpResponseBody.CreateTimeout(
+                    TimeSpan.FromMilliseconds(Math.Max(1, configuration.TimeOut)), cancellationToken);
+                using HttpResponseMessage res = await client.SendAsync(
+                    req, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
 
-                DnsResponse response = await res.DeserializeResponse(debug).ConfigureAwait(false);
+                DnsResponse response = await res.DeserializeResponse(debug, deadline.Token).ConfigureAwait(false);
                 response.AddServerDetails(configuration);
                 return response;
             } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
@@ -102,8 +105,11 @@ namespace DnsClientX {
             DnsHttpRequestSettings.Configure(req, configuration);
 
             try {
-                using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
-                DnsResponse response = await res.DeserializeResponse(debug).ConfigureAwait(false);
+                using var deadline = DnsHttpResponseBody.CreateTimeout(
+                    TimeSpan.FromMilliseconds(Math.Max(1, configuration.TimeOut)), cancellationToken);
+                using HttpResponseMessage res = await client.SendAsync(
+                    req, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
+                DnsResponse response = await res.DeserializeResponse(debug, deadline.Token).ConfigureAwait(false);
                 response.AddServerDetails(configuration);
                 return response;
             } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
