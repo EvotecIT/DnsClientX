@@ -90,6 +90,15 @@ namespace DnsClientX {
             }
             if (query != null && opcode != 0) throw new DnsClientException($"DNS response opcode {opcode} does not match a standard query.");
 
+            // The shortest question has a root name and four fixed bytes; the shortest
+            // resource record has a root name and ten fixed bytes. Reject impossible
+            // header counts before allocating arrays sized directly from those counts.
+            int minimumSectionBytes = questionCount * 5 +
+                (answerCount + authorityCount + additionalCount) * 11;
+            if (minimumSectionBytes > reader.End - reader.Position) {
+                throw new DnsClientException("DNS section counts exceed the remaining message length.");
+            }
+
             var questions = new DnsQuestion[questionCount];
             var questionClasses = new ushort[questionCount];
             for (int i = 0; i < questionCount; i++) {
