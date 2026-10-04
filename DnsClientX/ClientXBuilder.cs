@@ -8,9 +8,10 @@ namespace DnsClientX {
     /// </summary>
     /// <remarks>
     /// The fluent API allows step by step configuration of endpoints, timeouts and other options.
+    /// The default endpoint uses the operating system's configured DNS servers.
     /// </remarks>
     public class ClientXBuilder {
-        private DnsEndpoint _endpoint = DnsEndpoint.Cloudflare;
+        private DnsEndpoint _endpoint = DnsEndpoint.System;
         private int _timeout = Configuration.DefaultTimeout;
         private IWebProxy? _proxy;
         private EdnsOptions? _ednsOptions;

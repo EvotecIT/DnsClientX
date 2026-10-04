@@ -141,7 +141,7 @@ namespace DnsClientX {
         /// <summary>
         /// Initializes a new instance of the <see cref="ClientX"/> class.
         /// </summary>
-        /// <param name="endpoint">The endpoint.</param>
+        /// <param name="endpoint">The resolver profile. Defaults to the operating system's configured DNS servers.</param>
         /// <param name="dnsSelectionStrategy">DNS selection strategy.</param>
         /// <param name="timeOutMilliseconds">The timeout for DNS requests in milliseconds.</param>
         /// <param name="userAgent">Optional User-Agent header value.</param>
@@ -153,7 +153,7 @@ namespace DnsClientX {
         /// <param name="maxConnectionsPerServer">Maximum number of concurrent connections per server.</param>
         /// <param name="systemDnsFallback">Optional fallback used only when a system endpoint has no configured resolvers.</param>
         public ClientX(
-            DnsEndpoint endpoint = DnsEndpoint.Cloudflare,
+            DnsEndpoint endpoint = DnsEndpoint.System,
             DnsSelectionStrategy dnsSelectionStrategy = DnsSelectionStrategy.First,
             int timeOutMilliseconds = Configuration.DefaultTimeout,
             string? userAgent = null,
