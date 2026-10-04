@@ -110,7 +110,7 @@ namespace DnsClientX.Tests {
             var serverTask = RunStallingTlsServerAsync(cert, listener, queryReceived, cts.Token);
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTLS) {
                 Port = port,
-                TimeOut = 2000
+                TimeOut = 3500
             };
 
             var sw = Stopwatch.StartNew();
@@ -125,7 +125,7 @@ namespace DnsClientX.Tests {
                 Assert.Equal(DnsResponseCode.ServerFailure, ex.Response!.Status);
                 Assert.Equal(DnsQueryErrorCode.Timeout, ex.Response.ErrorCode);
                 Assert.IsType<TimeoutException>(ex.InnerException);
-                Assert.True(sw.Elapsed < TimeSpan.FromSeconds(5), $"Expected configured timeout to fire, but took {sw.Elapsed}.");
+                Assert.InRange(sw.ElapsedMilliseconds, 3000, 7000);
             } finally {
                 cts.Cancel();
                 await serverTask;

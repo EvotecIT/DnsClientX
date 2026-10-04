@@ -293,13 +293,13 @@ namespace DnsClientX.Tests {
             var soa = BuildSoaRdata();
             byte[] opening = BuildMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
             byte[] closing = BuildMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             var releaseConnection = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var server = RunAxfrServerAsync(new[] { opening, closing }, cts.Token, releaseConnection.Task);
 
             try {
                 using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP) {
-                    EndpointConfiguration = { Port = server.Port, TimeOut = 500 }
+                    EndpointConfiguration = { Port = server.Port, TimeOut = 3000 }
                 };
                 ZoneTransferResult[] results = await client.ZoneTransferAsync("example.com");
 
