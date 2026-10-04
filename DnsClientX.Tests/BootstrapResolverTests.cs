@@ -86,6 +86,9 @@ public sealed class BootstrapResolverTests : IDisposable {
         Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
         Assert.Equal(result.Error, response.Error);
         Assert.NotNull(response.ServerResolution);
+        Assert.NotEqual(DnsQueryErrorCode.None, result.ErrorCode);
+        Assert.Equal(result.ErrorCode, response.ErrorCode);
+        Assert.Same(result.Exception, response.Exception);
     }
 
     /// <summary>A caller can cancel its wait while another caller receives the shared bootstrap result.</summary>

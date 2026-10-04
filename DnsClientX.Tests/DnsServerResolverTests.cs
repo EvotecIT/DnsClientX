@@ -1,5 +1,6 @@
 using System;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -24,6 +25,87 @@ namespace DnsClientX.Tests {
             DnsServerResolver.ResetForTests();
         }
 
+        /// <summary>Lookup deadlines retain their category and cause when the cached failure is reused.</summary>
+        [Theory]
+        [InlineData(DnsRequestFormat.DnsOverUDP)]
+        [InlineData(DnsRequestFormat.DnsOverTCP)]
+        [InlineData(DnsRequestFormat.DnsOverTLS)]
+        public async Task CachedHostnameDeadlineRetainsTransportDiagnostics(DnsRequestFormat format) {
+            int calls = 0;
+            var pending = new TaskCompletionSource<IPAddress[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+            DnsServerResolver.ResolveHostAddressesAsync = _ => { calls++; return pending.Task; };
+            var configuration = new Configuration("deadline.example", format) {
+                Hostname = "deadline.example", TimeOut = 25, DnsServerResolutionAllowStale = false
+            };
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try {
+                var first = await QueryHostname(configuration, deadline.Token);
+                var cached = await QueryHostname(configuration, deadline.Token);
+                Assert.Equal(DnsQueryErrorCode.Timeout, first.ErrorCode);
+                Assert.IsType<TimeoutException>(first.Exception);
+                Assert.Equal(DnsQueryErrorCode.Timeout, cached.ErrorCode);
+                Assert.Same(first.Exception, cached.Exception);
+                Assert.True(cached.ServerResolution!.ServedFromCache);
+                Assert.Equal(first.ServerResolution!.Error, cached.ServerResolution.Error);
+                Assert.Equal(1, calls);
+            } finally { pending.TrySetResult([IPAddress.Loopback]); }
+        }
+
+        /// <summary>Resolver-host network failures retain their original exception across cached queries.</summary>
+        [Theory]
+        [InlineData(DnsRequestFormat.DnsOverUDP)]
+        [InlineData(DnsRequestFormat.DnsOverTCP)]
+        [InlineData(DnsRequestFormat.DnsOverTLS)]
+        public async Task CachedHostnameFailureRetainsTransportDiagnostics(DnsRequestFormat format) {
+            int calls = 0;
+            var failure = new SocketException((int)SocketError.HostNotFound);
+            DnsServerResolver.ResolveHostAddressesAsync = _ => { calls++; throw failure; };
+            var configuration = new Configuration("missing.example", format) {
+                Hostname = "missing.example", TimeOut = 1000, DnsServerResolutionAllowStale = false
+            };
+            var first = await QueryHostname(configuration, default);
+            var cached = await QueryHostname(configuration, default);
+            Assert.Equal(DnsQueryErrorCode.Network, first.ErrorCode);
+            Assert.Same(failure, first.Exception);
+            Assert.Equal(DnsQueryErrorCode.Network, cached.ErrorCode);
+            Assert.Same(failure, cached.Exception);
+            Assert.True(cached.ServerResolution!.ServedFromCache);
+            Assert.Equal(failure.Message, cached.ServerResolution.Error);
+            Assert.Equal(1, calls);
+        }
+
+        private static async Task<DnsResponse> QueryHostname(Configuration configuration, CancellationToken token) {
+            if (configuration.RequestFormat == DnsRequestFormat.DnsOverUDP) {
+                return await DnsWireResolveUdp.ResolveWireFormatUdp(configuration.Hostname!, 53,
+                    "payload.example", DnsRecordType.A, false, false, false, configuration, 1, token);
+            }
+            if (configuration.RequestFormat == DnsRequestFormat.DnsOverTCP) {
+                return await DnsWireResolveTcp.ResolveWireFormatTcp(configuration.Hostname!, 53,
+                    "payload.example", DnsRecordType.A, false, false, false, configuration, token);
+            }
+            var failure = await Assert.ThrowsAsync<DnsClientException>(() => DnsWireResolveDot.ResolveWireFormatDoT(
+                configuration.Hostname!, 853, "payload.example", DnsRecordType.A, false, false, false,
+                configuration, false, token));
+            return Assert.IsType<DnsResponse>(failure.Response);
+        }
+
+        /// <summary>Caller-constructed wire queries retain the existing exception type and normalized lookup cause.</summary>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task WireQueryHostnameFailureRetainsExceptionDiagnostics(bool tcp) {
+            var cause = new SocketException((int)SocketError.HostNotFound);
+            DnsServerResolver.ResolveHostAddressesAsync = _ => throw cause;
+            var message = new DnsMessage("payload.example", DnsRecordType.A, new DnsMessageOptions());
+            var failure = await Assert.ThrowsAsync<DnsClientException>(async () => {
+                if (tcp) await DnsWireQueryClient.QueryTcpAsync("missing.example", 53, message);
+                else await DnsWireQueryClient.QueryUdpAsync("missing.example", 53, message);
+            });
+            Assert.Same(cause, failure.InnerException);
+            Assert.Equal(DnsQueryErrorCode.Network, failure.Response!.ErrorCode);
+            Assert.Same(cause, failure.Response.Exception);
+        }
+
         /// <summary>Stale reuse reports its lookup failure without changing a successful query into SERVFAIL.</summary>
         [Fact]
         public async Task StaleLookupRetainsDiagnosticProvenance() {
@@ -34,9 +116,18 @@ namespace DnsClientX.Tests {
             var stale = await DnsServerResolver.ResolveAsync("diagnostic.local", configuration, default);
             Assert.Equal(IPAddress.Loopback, stale.Address);
             Assert.Null(stale.Error);
+            Assert.Equal(DnsQueryErrorCode.None, stale.ErrorCode);
+            Assert.Null(stale.Exception);
             Assert.True(configuration.ServerResolution!.UsedStaleAddress);
             Assert.Equal("lookup unavailable", configuration.ServerResolution.Error);
             Assert.Null(configuration.ServerResolution.BootstrapResolver);
+            var cached = await DnsServerResolver.ResolveAsync("diagnostic.local", configuration, default);
+            Assert.Equal(IPAddress.Loopback, cached.Address);
+            Assert.Equal(DnsQueryErrorCode.None, cached.ErrorCode);
+            Assert.Null(cached.Exception);
+            Assert.True(configuration.ServerResolution.ServedFromCache);
+            Assert.True(configuration.ServerResolution.UsedStaleAddress);
+            Assert.Equal("lookup unavailable", configuration.ServerResolution.Error);
         }
 
         /// <summary>A system client can deliberately refresh servers and policy after network changes.</summary>
@@ -229,12 +320,12 @@ namespace DnsClientX.Tests {
                 return tcs.Task;
             };
 
-            Task<(IPAddress? Address, string? Error)> firstTask = DnsServerResolver.ResolveAsync(
+            var firstTask = DnsServerResolver.ResolveAsync(
                 "concurrent.local",
                 1000,
                 CancellationToken.None);
 
-            Task<(IPAddress? Address, string? Error)> secondTask = DnsServerResolver.ResolveAsync(
+            var secondTask = DnsServerResolver.ResolveAsync(
                 "concurrent.local",
                 1000,
                 CancellationToken.None);

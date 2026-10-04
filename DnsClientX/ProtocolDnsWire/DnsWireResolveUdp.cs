@@ -49,8 +49,9 @@ namespace DnsClientX {
                 Settings.Logger.WriteDebug($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
 
-            var (address, resolveError) = await DnsServerResolver.ResolveAsync(dnsServer, endpointConfiguration, cancellationToken)
+            var resolution = await DnsServerResolver.ResolveAsync(dnsServer, endpointConfiguration, cancellationToken)
                 .ConfigureAwait(false);
+            var (address, resolveError) = resolution;
             if (address == null) {
                 DnsResponse invalidAddress = new DnsResponse {
                     Questions = [
@@ -61,7 +62,9 @@ namespace DnsClientX {
                             OriginalName = name
                         }
                     ],
-                    Status = DnsResponseCode.ServerFailure
+                    Status = DnsResponseCode.ServerFailure,
+                    ErrorCode = resolution.ErrorCode,
+                    Exception = resolution.Exception
                 };
                 invalidAddress.AddServerDetails(endpointConfiguration);
                 invalidAddress.Error = resolveError ?? $"Invalid DNS server '{dnsServer}'.";

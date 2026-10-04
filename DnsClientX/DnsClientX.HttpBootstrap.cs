@@ -16,14 +16,15 @@ public partial class ClientX {
         if (configuration.HttpVersion.Major >= 3 || configuration.RequestFormat == DnsRequestFormat.DnsOverHttp3) {
             throw new NotSupportedException("Explicit HTTP bootstrap supports HTTP/1.1 and HTTP/2; HTTP/3 has an independent QUIC dial path.");
         }
-        var (address, error) = await DnsServerResolver.ResolveAsync(configuration.BaseUri!.IdnHost,
+        var resolution = await DnsServerResolver.ResolveAsync(configuration.BaseUri!.IdnHost,
             configuration, cancellationToken).ConfigureAwait(false);
-        if (address != null) return null;
+        if (resolution.Address != null) return null;
         var response = new DnsResponse {
             Questions = [new DnsQuestion { Name = name, Type = type }],
             Status = DnsResponseCode.ServerFailure,
-            Error = error ?? "HTTP bootstrap returned no address.",
-            ErrorCode = DnsQueryErrorCode.Network
+            Error = resolution.Error ?? "HTTP bootstrap returned no address.",
+            ErrorCode = resolution.ErrorCode,
+            Exception = resolution.Exception
         };
         response.AddServerDetails(configuration);
         return response;

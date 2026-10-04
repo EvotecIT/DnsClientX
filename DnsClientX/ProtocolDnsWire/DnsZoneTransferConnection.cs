@@ -53,9 +53,10 @@ namespace DnsClientX {
             }
 #endif
 
-            (IPAddress? address, string? resolveError) = await DnsServerResolver.ResolveAsync(
+            var resolution = await DnsServerResolver.ResolveAsync(
                 dnsServer, configuration, cancellationToken).ConfigureAwait(false);
-            if (address == null) throw new DnsClientException(resolveError ?? $"DNS server '{dnsServer}' could not be resolved.");
+            var address = resolution.Address;
+            if (address == null) throw resolution.CreateException();
 
             TcpClient tcpClient = DnsWireResolveTcp.TcpClientFactory(address.AddressFamily);
             try {

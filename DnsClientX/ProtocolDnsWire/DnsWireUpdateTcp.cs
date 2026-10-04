@@ -68,12 +68,12 @@ namespace DnsClientX {
             int port,
             Configuration endpointConfiguration,
             CancellationToken cancellationToken) {
-            (System.Net.IPAddress? address, string? error) = await DnsServerResolver.ResolveAsync(
+            var resolution = await DnsServerResolver.ResolveAsync(
                 dnsServer, endpointConfiguration, cancellationToken).ConfigureAwait(false);
-            if (address == null) throw new DnsClientException(error ?? $"DNS server '{dnsServer}' could not be resolved.");
+            if (resolution.Address == null) throw resolution.CreateException();
             return await DnsWireResolveTcp.SendQueryOverTcp(
                 message,
-                address.ToString(),
+                resolution.Address.ToString(),
                 port,
                 endpointConfiguration.TimeOut,
                 cancellationToken,

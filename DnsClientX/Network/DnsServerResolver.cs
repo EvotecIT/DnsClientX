@@ -16,7 +16,8 @@ namespace DnsClientX {
                 DateTimeOffset expiresAt,
                 DateTimeOffset staleUntil,
                 DateTimeOffset lastAccess,
-                int failureCount, bool usedStaleAddress = false) {
+                int failureCount, bool usedStaleAddress = false,
+                DnsQueryErrorCode errorCode = DnsQueryErrorCode.None, Exception? exception = null) {
                 Address = address;
                 Error = error;
                 ExpiresAt = expiresAt;
@@ -24,6 +25,8 @@ namespace DnsClientX {
                 LastAccess = lastAccess;
                 FailureCount = failureCount;
                 UsedStaleAddress = usedStaleAddress;
+                ErrorCode = errorCode;
+                Exception = exception;
             }
 
             internal IPAddress? Address { get; }
@@ -33,6 +36,8 @@ namespace DnsClientX {
             internal DateTimeOffset LastAccess { get; }
             internal int FailureCount { get; }
             internal bool UsedStaleAddress { get; }
+            internal DnsQueryErrorCode ErrorCode { get; }
+            internal Exception? Exception { get; }
         }
 
         private static readonly ConcurrentDictionary<string, CacheEntry> Cache = new(StringComparer.OrdinalIgnoreCase);
@@ -46,7 +51,7 @@ namespace DnsClientX {
         internal static Func<string, Task<IPAddress[]>> ResolveHostAddressesAsync = DefaultResolver;
         internal static int MaxEntries = DefaultMaxEntries;
 
-        internal static async Task<(IPAddress? Address, string? Error)> ResolveAsync(
+        internal static async Task<DnsServerResolutionResult> ResolveAsync(
             string dnsServer,
             int timeoutMilliseconds,
             CancellationToken cancellationToken,
@@ -61,7 +66,7 @@ namespace DnsClientX {
             DnsResolverEndpoint? bootstrapResolver = null,
             Configuration? queryConfiguration = null) {
             if (string.IsNullOrWhiteSpace(dnsServer)) {
-                return (null, "DNS server hostname is empty.");
+                return new DnsServerResolutionResult(null, "DNS server hostname is empty.", DnsQueryErrorCode.Network);
             }
 
             if (IPAddress.TryParse(dnsServer, out var parsed)) {
@@ -85,11 +90,12 @@ namespace DnsClientX {
                         cached.ExpiresAt,
                         cached.StaleUntil,
                         now,
-                        cached.FailureCount);
+                        cached.FailureCount, cached.UsedStaleAddress, cached.ErrorCode, cached.Exception);
                     Cache[cacheKey] = refreshed;
                     if (refreshed.Error != null) {
                         return allowStale && refreshed.Address != null && refreshed.StaleUntil > now
-                            ? Finish(refreshed.Address, null, true, true, refreshed.Error) : Finish(null, refreshed.Error, true, false, refreshed.Error);
+                            ? Finish(refreshed.Address, null, true, true, refreshed.Error)
+                            : Finish(null, refreshed.Error, true, false, refreshed.Error, refreshed.ErrorCode, refreshed.Exception);
                     }
                     return Finish(refreshed.Address, null, true, false, null);
                 }
@@ -117,18 +123,21 @@ namespace DnsClientX {
             Task<CacheEntry> lookup = resolver.Value;
             _ = RemoveInflightWhenCompletedAsync(cacheKey, resolver, lookup);
             var entry = await WaitForTaskAsync(lookup, cancellationToken).ConfigureAwait(false);
-            return Finish(entry.Address, entry.UsedStaleAddress ? null : entry.Error, false, entry.UsedStaleAddress, entry.Error);
+            return Finish(entry.Address, entry.UsedStaleAddress ? null : entry.Error, false, entry.UsedStaleAddress,
+                entry.Error, entry.ErrorCode, entry.Exception);
 
-            (IPAddress? Address, string? Error) Finish(IPAddress? address, string? error, bool fromCache, bool stale, string? diagnosticError) {
+            DnsServerResolutionResult Finish(IPAddress? address, string? error, bool fromCache, bool stale,
+                string? diagnosticError, DnsQueryErrorCode errorCode = DnsQueryErrorCode.None, Exception? exception = null) {
                 if (queryConfiguration != null && !IPAddress.TryParse(dnsServer, out _)) {
                     queryConfiguration.ServerResolution = new DnsServerResolutionInfo(dnsServer, address?.ToString(),
                         bootstrapResolver == null ? null : $"{bootstrapResolver.Transport.ToString().ToLowerInvariant()}@{bootstrapResolver}", fromCache, stale, diagnosticError);
                 }
-                return (address, error);
+                return new DnsServerResolutionResult(address, error,
+                    address != null ? DnsQueryErrorCode.None : errorCode, address != null ? null : exception);
             }
         }
 
-        internal static Task<(IPAddress? Address, string? Error)> ResolveAsync(string dnsServer,
+        internal static Task<DnsServerResolutionResult> ResolveAsync(string dnsServer,
             Configuration configuration, CancellationToken cancellationToken) => ResolveAsync(dnsServer,
                 configuration.TimeOut, cancellationToken, configuration.DnsServerResolutionSuccessTtl,
                 configuration.DnsServerResolutionFailureTtl, configuration.DnsServerResolutionAllowStale,
@@ -175,16 +184,7 @@ namespace DnsClientX {
                         _ = resolveTask.ContinueWith(task => { _ = task.Exception; }, CancellationToken.None,
                             TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
                         var error = $"DNS server resolution timed out after {timeoutMilliseconds} milliseconds.";
-                        failureCount++;
-                        var failureExpiry = GetFailureExpiry(now, failureCacheTtl, failureBackoffEnabled, failureBackoffFactor, failureBackoffMaxTtl, failureCount);
-                        if (hasStale && cached != null && cached.StaleUntil > DateTimeOffset.UtcNow) {
-                            Cache[cacheKey] = new CacheEntry(cached.Address, error, failureExpiry, cached.StaleUntil, now, failureCount);
-                            TrimCache(now);
-                            return new CacheEntry(cached.Address, error, failureExpiry, cached.StaleUntil, now, failureCount, usedStaleAddress: true);
-                        }
-                        Cache[cacheKey] = new CacheEntry(null, error, failureExpiry, failureExpiry, now, failureCount);
-                        TrimCache(now);
-                        return new CacheEntry(null, error, failureExpiry, failureExpiry, now, failureCount);
+                        return CacheFailure(error, DnsQueryErrorCode.Timeout, new TimeoutException(error));
                     }
                 }
                 timerCancellation.Cancel();
@@ -192,16 +192,7 @@ namespace DnsClientX {
                 var usable = addresses.Where(IsUsableAddress).ToArray();
                 if (usable.Length == 0) {
                     var error = $"No DNS addresses found for '{dnsServer}'.";
-                    failureCount++;
-                    var failureExpiry = GetFailureExpiry(now, failureCacheTtl, failureBackoffEnabled, failureBackoffFactor, failureBackoffMaxTtl, failureCount);
-                    if (hasStale && cached != null && cached.StaleUntil > DateTimeOffset.UtcNow) {
-                        Cache[cacheKey] = new CacheEntry(cached.Address, error, failureExpiry, cached.StaleUntil, now, failureCount);
-                        TrimCache(now);
-                        return new CacheEntry(cached.Address, error, failureExpiry, cached.StaleUntil, now, failureCount, usedStaleAddress: true);
-                    }
-                    Cache[cacheKey] = new CacheEntry(null, error, failureExpiry, failureExpiry, now, failureCount);
-                    TrimCache(now);
-                    return new CacheEntry(null, error, failureExpiry, failureExpiry, now, failureCount);
+                    return CacheFailure(error, DnsQueryErrorCode.Network, null);
                 }
 
                 IPAddress? ipv4 = null;
@@ -229,16 +220,18 @@ namespace DnsClientX {
             } catch (OperationCanceledException) {
                 throw;
             } catch (Exception ex) {
+                return CacheFailure(ex.Message, DnsQueryDiagnostics.ClassifyFailure(ex), ex);
+            }
+
+            CacheEntry CacheFailure(string error, DnsQueryErrorCode errorCode, Exception? exception) {
                 failureCount++;
                 var failureExpiry = GetFailureExpiry(now, failureCacheTtl, failureBackoffEnabled, failureBackoffFactor, failureBackoffMaxTtl, failureCount);
-                if (hasStale && cached != null && cached.StaleUntil > DateTimeOffset.UtcNow) {
-                    Cache[cacheKey] = new CacheEntry(cached.Address, ex.Message, failureExpiry, cached.StaleUntil, now, failureCount);
-                    TrimCache(now);
-                    return new CacheEntry(cached.Address, ex.Message, failureExpiry, cached.StaleUntil, now, failureCount, usedStaleAddress: true);
-                }
-                Cache[cacheKey] = new CacheEntry(null, ex.Message, failureExpiry, failureExpiry, now, failureCount);
+                bool reuseStale = hasStale && cached != null && cached.StaleUntil > DateTimeOffset.UtcNow;
+                var failure = new CacheEntry(reuseStale ? cached!.Address : null, error, failureExpiry,
+                    reuseStale ? cached!.StaleUntil : failureExpiry, now, failureCount, reuseStale, errorCode, exception);
+                Cache[cacheKey] = failure;
                 TrimCache(now);
-                return new CacheEntry(null, ex.Message, failureExpiry, failureExpiry, now, failureCount);
+                return failure;
             }
         }
 
