@@ -391,6 +391,8 @@ This behavior is by design and reflects the modern, distributed nature of intern
 
 `DnsEndpoint.System` and `DnsEndpoint.SystemTcp` query the DNS servers exposed by the operating system. Discovery returns an immutable `SystemDnsConfiguration` containing the ordered server list, search suffixes, `ndots`, discovery source, effective Windows NRPT rules, and separate resolver/policy discovery errors.
 
+Resolver defaults depend on the entry point. Parameterless `new ClientX()` and `ClientXBuilder` use Cloudflare's JSON-over-HTTPS endpoint. The static `ClientX.QueryDns` methods, `DnsQueryOptions`, the CLI, and `Resolve-DnsQuery` use the operating system's DNS resolver by default. `Find-DnsService` and `Get-DnsService` create parameterless clients, so they use Cloudflare and currently offer no endpoint option. Select an endpoint explicitly where the API allows it when local DNS policy, split-horizon names, or the destination of queries matters.
+
 - Windows and other .NET platforms enumerate every active interface. Interfaces are ordered by the native Windows interface metric when available, then by gateway presence and a stable interface order.
 - Unix-like systems can fall back to `/etc/resolv.conf`, including `nameserver`, `search`/`domain`, and `options ndots:n`.
 - Configured loopback and link-local resolvers are preserved because local forwarding stubs and IPv6 scoped DNS servers are valid. Unspecified and multicast addresses are rejected.
@@ -1105,7 +1107,7 @@ await client.UpdateRecordAsync(
 await client.DeleteRecordAsync("example.com", "www.example.com", DnsRecordType.A);
 ```
 
-RFC 2136 wire updates are accepted only for UDP/TCP-configured authoritative targets and are sent over TCP. DoH, DoT, DoQ, mDNS, and built-in recursive profiles are not silently reinterpreted as plaintext update endpoints. When a `TsigKey` is configured, DnsClientX signs the request and requires a valid chained TSIG on the response. The separate JSON POST update mode is a proprietary custom-endpoint API and does not support TSIG.
+RFC 2136 wire updates are accepted only for UDP/TCP-configured endpoints and are sent over TCP. This includes `DnsEndpoint.System` and `DnsEndpoint.SystemTcp`: they use the operating system's configured resolver, which may be a recursive server rather than a name server for the zone. Supply an explicit authoritative server for predictable update delivery; DnsClientX does not discover the zone's UPDATE target. DoH, DoT, DoQ, mDNS, and public recursive profiles are not silently reinterpreted as plaintext update endpoints. When a `TsigKey` is configured, DnsClientX signs the request and requires a valid chained TSIG on the response. The separate JSON POST update mode is a proprietary custom-endpoint API and does not support TSIG.
 
 ### Multicast DNS (mDNS)
 ```csharp
