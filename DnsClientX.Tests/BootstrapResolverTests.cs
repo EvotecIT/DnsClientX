@@ -127,7 +127,7 @@ public sealed class BootstrapResolverTests : IDisposable {
     }
 
     internal sealed class BootstrapDnsServer : IAsyncDisposable {
-        private readonly UdpClient _udp = new(new IPEndPoint(IPAddress.Loopback, 0));
+        private readonly UdpClient _udp;
         private readonly TcpListener _tcp;
         private readonly CancellationTokenSource _stop = new();
         private readonly Task _udpLoop;
@@ -145,10 +145,31 @@ public sealed class BootstrapResolverTests : IDisposable {
         internal TaskCompletionSource<bool> Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         internal BootstrapDnsServer() {
-            _tcp = new TcpListener(IPAddress.Loopback, Port);
-            _tcp.Start();
+            (_udp, _tcp) = BindServer();
             _udpLoop = UdpLoopAsync();
             _tcpLoop = TcpLoopAsync();
+        }
+
+        private static (UdpClient Udp, TcpListener Tcp) BindServer() {
+            // UDP and TCP can use the same port independently, so reserve both before exposing the fixture.
+            for (int attempt = 0; attempt < 16; attempt++) {
+                var tcp = new TcpListener(IPAddress.Loopback, 0);
+                var udp = new UdpClient(AddressFamily.InterNetwork);
+                try {
+                    tcp.Start();
+                    int port = ((IPEndPoint)tcp.LocalEndpoint).Port;
+                    udp.Client.Bind(new IPEndPoint(IPAddress.Loopback, port));
+                    return (udp, tcp);
+                } catch (SocketException exception) when (exception.SocketErrorCode is SocketError.AddressAlreadyInUse or SocketError.AccessDenied) {
+                    udp.Dispose();
+                    tcp.Stop();
+                } catch {
+                    udp.Dispose();
+                    tcp.Stop();
+                    throw;
+                }
+            }
+            throw new IOException("Could not reserve a local DNS port for both UDP and TCP.");
         }
 
         internal DnsResolverEndpoint Endpoint(Transport transport = Transport.Udp) => new() { Host = "127.0.0.1", Port = Port, Transport = transport };

@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace DnsClientX.Tests {
     /// <summary>
     /// Tests covering the <see cref="ClientX.ResolveAll(string,DnsRecordType,bool,bool,bool,int,int,System.Threading.CancellationToken)"/>
@@ -125,17 +123,26 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Ensures no delay occurs when <c>maxRetries</c> is set to one.
+        /// Ensures a transient response does not start a retry delay when only one attempt is allowed.
         /// </summary>
         [Fact]
         public async Task ShouldNotDelayWhenMaxRetriesIsOne() {
-            using var Client = new ClientX(DnsEndpoint.Cloudflare);
-            var sw = Stopwatch.StartNew();
-            await Assert.ThrowsAsync<ArgumentNullException>(
-                () => Client.ResolveAll(string.Empty, DnsRecordType.A, retryOnTransient: true, maxRetries: 1, retryDelayMs: 200));
-            sw.Stop();
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP);
+            int attempts = 0;
+            client.ResolverOverride = (name, type, _) => {
+                attempts++;
+                return Task.FromResult(new DnsResponse {
+                    Questions = new[] { new DnsQuestion { Name = name, Type = type, OriginalName = name } },
+                    Status = DnsResponseCode.ServerFailure
+                });
+            };
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(2));
 
-            Assert.InRange(sw.ElapsedMilliseconds, 0, 100);
+            DnsAnswer[] answers = await client.ResolveAll("example.com", DnsRecordType.A,
+                retryOnTransient: true, maxRetries: 1, retryDelayMs: 5000, cancellationToken: deadline.Token);
+
+            Assert.Empty(answers);
+            Assert.Equal(1, attempts);
         }
     }
 }
