@@ -250,6 +250,7 @@ namespace DnsClientX.Tests {
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             var firstReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var replacementResponseReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task server = Task.Run(async () => {
                 using TcpClient connection = await AcceptAsync(listener, guard.Token);
                 NetworkStream stream = connection.GetStream();
@@ -260,10 +261,12 @@ namespace DnsClientX.Tests {
                 using TcpClient replacement = await AcceptAsync(listener, guard.Token);
                 NetworkStream replacementStream = replacement.GetStream();
                 byte[] secondQuery = await ReadFrameAsync(replacementStream, guard.Token);
-                await Assert.ThrowsAnyAsync<IOException>(() => oldRead);
                 Assert.Equal(firstQuery[0], secondQuery[0]);
                 Assert.Equal(firstQuery[1], secondQuery[1]);
                 await WriteFrameAsync(replacementStream, TestUtilities.CreateResponseFromQuery(secondQuery), guard.Token);
+                // Keep the replacement open until its reply is received before checking the retired socket.
+                await replacementResponseReceived.Task;
+                await Assert.ThrowsAnyAsync<IOException>(() => oldRead);
             }, guard.Token);
 
             try {
@@ -286,10 +289,12 @@ namespace DnsClientX.Tests {
                     secondQuery, 3000, 2, guard.Token);
 
                 byte[] response = await second;
+                replacementResponseReceived.TrySetResult(true);
                 DnsResponse parsed = await DnsWire.DeserializeDnsWireFormat(null, false, response);
                 Assert.Equal("new.example", Assert.Single(parsed.Questions).Name);
                 await server;
             } finally {
+                replacementResponseReceived.TrySetResult(true);
                 listener.Stop();
             }
         }
