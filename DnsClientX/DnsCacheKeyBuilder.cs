@@ -31,6 +31,7 @@ namespace DnsClientX {
             Append(builder, ((ushort)type).ToString(System.Globalization.CultureInfo.InvariantCulture));
             Append(builder, requestDnsSec ? "do" : "no-do");
             Append(builder, configuration.CheckingDisabled || validateDnsSec ? "cd" : "no-cd");
+            Append(builder, validateDnsSec ? "local-validation" : "no-local-validation");
             Append(builder, configuration.RecursionDesired ? "rd" : "no-rd");
             Append(builder, returnAllTypes ? "all" : "filtered");
             Append(builder, typedRecords ? "typed" : "raw");

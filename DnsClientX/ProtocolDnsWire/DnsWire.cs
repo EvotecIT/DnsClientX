@@ -141,6 +141,7 @@ namespace DnsClientX {
 
             int responseCode = (flags & 0x000F) | (extendedRcode << 4);
             var response = new DnsResponse {
+                ReceivedAtUtc = DateTimeOffset.UtcNow,
                 TransactionId = transactionId,
                 IsResponse = isResponse,
                 OperationCode = opcode,

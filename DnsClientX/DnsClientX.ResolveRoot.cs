@@ -187,6 +187,8 @@ namespace DnsClientX {
                 }
                 response.DnsSecValidationStatus = validation.Status;
                 response.DnsSecValidationMessage = validation.Message;
+                response.DnsSecValidationExpiresUtc = validator.CacheExpiresAtUtc;
+                validator.ApplyAuthenticatedLifetimes(response);
                 if (validation.Status == DnsSecValidationStatus.Bogus
                     || validation.Status == DnsSecValidationStatus.Indeterminate) {
                     string error = $"DNSSEC {validation.Status.ToString().ToLowerInvariant()}: {validation.Message}";

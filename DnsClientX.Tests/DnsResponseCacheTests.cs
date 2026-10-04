@@ -366,5 +366,86 @@ namespace DnsClientX.Tests {
             public bool SupportsAlgorithm(DnsKeyAlgorithm algorithm) => false;
             public bool Verify(DnsKeyAlgorithm algorithm, byte[] publicKey, byte[] data, byte[] signature) => false;
         }
+
+        /// <summary>DO and CD wire flags alone do not identify whether a caller needs local validation.</summary>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task ValidationDoesNotReuseUnvalidatedCacheOrInFlightResponse(bool overlap) {
+            string name = Guid.NewGuid().ToString("N") + ".example";
+            using var handler = new GatedWireResponseHandler();
+            using var http = new HttpClient(handler);
+            var configuration = new Configuration("https://resolver.example/dns-query", DnsRequestFormat.DnsOverHttps) {
+                CheckingDisabled = true
+            };
+            using var client = new ClientX(configuration, enableCache: true);
+            InjectClient(client, http);
+            Task<DnsResponse> first = client.Resolve(name, DnsRecordType.A, requestDnsSec: true, validateDnsSec: false, retryOnTransient: false);
+            await handler.Entered;
+            if (!overlap) { handler.Release(); await first; }
+            Task<DnsResponse> second = client.Resolve(name, DnsRecordType.A, requestDnsSec: true, validateDnsSec: true, retryOnTransient: false);
+            handler.Release();
+            await first;
+            DnsResponse validated = await second;
+            Assert.True(validated.DnsSecValidationAttempted);
+            Assert.Equal(DnsResponseSource.Network, validated.ResponseSource);
+            Assert.Equal(2, handler.RequestCount);
+        }
+
+        private sealed class GatedWireResponseHandler : HttpMessageHandler {
+            private readonly TaskCompletionSource<bool> _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private int _queries;
+            internal Task Entered => _entered.Task;
+            internal int RequestCount => Volatile.Read(ref _queries);
+            internal void Release() => _release.TrySetResult(true);
+            protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
+                string encoded = request.RequestUri!.Query.Substring(5).Replace('-', '+').Replace('_', '/');
+                byte[] query = Convert.FromBase64String(encoded.PadRight((encoded.Length + 3) / 4 * 4, '='));
+                var reader = new DnsWireReader(query, 12, query.Length);
+                reader.ReadName();
+                var type = (DnsRecordType)reader.ReadUInt16(); reader.ReadUInt16();
+                var bytes = query.Take(reader.Position).ToList();
+                bytes[2] = 0x81; bytes[3] = type == DnsRecordType.A ? (byte)0x80 : (byte)0x82;
+                bytes[6] = 0; bytes[7] = type == DnsRecordType.A ? (byte)1 : (byte)0;
+                bytes[8] = bytes[9] = bytes[10] = bytes[11] = 0;
+                if (type == DnsRecordType.A) {
+                    Interlocked.Increment(ref _queries); _entered.TrySetResult(true);
+                    await _release.Task.ConfigureAwait(false);
+                    bytes.AddRange(new byte[] { 0xc0, 0x0c, 0, 1, 0, 1, 0, 0, 0, 60, 0, 4, 192, 0, 2, 1 });
+                }
+                var content = new ByteArrayContent(bytes.ToArray());
+                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/dns-message");
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+            }
+        }
+
+        /// <summary>The original DNSSEC deadline still applies when inserting a response much later.</summary>
+        [Theory]
+        [InlineData(DnsSecValidationStatus.Secure)]
+        [InlineData(DnsSecValidationStatus.Insecure)]
+        public void CannotCacheAnExpiredAuthenticationVerdict(DnsSecValidationStatus status) {
+            using var cache = new DnsResponseCache();
+            var response = new DnsResponse {
+                DnsSecValidationStatus = status,
+                DnsSecValidationExpiresUtc = DateTimeOffset.UtcNow.AddSeconds(-1)
+            };
+            cache.Set("expired", response, TimeSpan.FromHours(1));
+            Assert.False(cache.TryGet("expired", out _));
+        }
+
+        /// <summary>A long answer TTL cannot keep a verdict after its authenticated proof expires.</summary>
+        [Fact]
+        public async Task CacheEvictsWhenAuthenticatedDependencyExpires() {
+            using var cache = new DnsResponseCache();
+            var response = new DnsResponse {
+                DnsSecValidationStatus = DnsSecValidationStatus.Secure,
+                DnsSecValidationExpiresUtc = DateTimeOffset.UtcNow.AddMilliseconds(100)
+            };
+            cache.Set("secure", response, TimeSpan.FromHours(1));
+            Assert.True(cache.TryGet("secure", out _));
+            await Task.Delay(150);
+            Assert.False(cache.TryGet("secure", out _));
+        }
     }
 }

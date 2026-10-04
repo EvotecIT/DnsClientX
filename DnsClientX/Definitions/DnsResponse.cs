@@ -107,6 +107,14 @@ namespace DnsClientX {
         [JsonPropertyName("dnssec_validation_message")]
         public string DnsSecValidationMessage { get; internal set; } = string.Empty;
 
+        /// <summary>Bounds cached validation by the lifetime of every authenticated dependency.</summary>
+        [JsonIgnore]
+        internal DateTimeOffset? DnsSecValidationExpiresUtc { get; set; }
+
+        /// <summary>Receipt time for aging retained wire responses during iterative validation.</summary>
+        [JsonIgnore]
+        internal DateTimeOffset? ReceivedAtUtc { get; set; }
+
         /// <summary>
         /// Gets whether DNSSEC validation was attempted locally rather than inferred from the resolver's AD flag.
         /// </summary>

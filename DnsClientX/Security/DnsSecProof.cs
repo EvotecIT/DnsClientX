@@ -7,7 +7,11 @@ namespace DnsClientX {
     internal static class DnsSecProof {
         private const ushort MaxSupportedNsec3Iterations = 500;
 
-        internal static bool ProvesUnsignedDelegation(DnsResponse response, string name) {
+        internal static bool ProvesUnsignedDelegation(DnsResponse response, string name) =>
+            ProvesUnsignedDelegation(response, name, out _);
+
+        private static bool ProvesUnsignedDelegation(DnsResponse response, string name, out bool optOut) {
+            optOut = false;
             string canonicalName = DnsWireNameCodec.Canonical(name);
             var nsec3 = new List<(string OwnerHash, string Zone, Nsec3Value Value)>();
             foreach (DnsWireResourceRecord record in DnsSecWire.Records(response)) {
@@ -21,7 +25,7 @@ namespace DnsClientX {
                 if (record.Type == DnsRecordType.NSEC3 && TryReadNsec3(response.WireMessage, record, out Nsec3Value value)) {
                     string owner = DnsWireNameCodec.Canonical(record.Name);
                     int dot = owner.IndexOf('.');
-                    if (dot > 0) nsec3.Add((owner.Substring(0, dot), owner.Substring(dot + 1), value));
+                    if (dot > 0) nsec3.Add((owner.Substring(0, dot), Nsec3Zone(owner), value));
                 }
             }
             if (nsec3.Count == 0) return false;
@@ -44,20 +48,29 @@ namespace DnsClientX {
                 return nsec3.Any(item => string.Equals(item.OwnerHash, hash, StringComparison.OrdinalIgnoreCase));
             });
             if (closest == null || !string.Equals(NextCloserName(canonicalName, closest), canonicalName, StringComparison.Ordinal)) return false;
-            return nsec3.Any(item => item.Value.OptOut &&
+            string closestHash = ToBase32Hex(HashName(closest, parameters.Iterations, parameters.Salt));
+            if (nsec3.Any(item => string.Equals(item.OwnerHash, closestHash, StringComparison.OrdinalIgnoreCase)
+                && (IsDelegation(item.Value.Types) || item.Value.Types.Contains((ushort)DnsRecordType.DNAME)))) return false;
+            optOut = nsec3.Any(item => item.Value.OptOut &&
                 CoversHash(item.OwnerHash, ToBase32Hex(item.Value.NextHash), candidate));
+            return optOut;
         }
 
-        internal static bool ProvesNoData(DnsResponse response, string name, DnsRecordType type) {
+        internal static bool ProvesNoData(DnsResponse response, string name, DnsRecordType type) =>
+            ProvesNoData(response, name, type, out _);
+
+        internal static bool ProvesNoData(DnsResponse response, string name, DnsRecordType type, out bool optOut) {
+            optOut = false;
             string canonicalName = DnsWireNameCodec.Canonical(name);
             foreach (DnsWireResourceRecord record in DnsSecWire.Records(response)) {
                 if (record.Type == DnsRecordType.NSEC &&
                     string.Equals(DnsWireNameCodec.Canonical(record.Name), canonicalName, StringComparison.Ordinal) &&
                     TryReadNsec(response.WireMessage, record, out _, out HashSet<ushort> types) &&
-                    !types.Contains((ushort)type) && !types.Contains((ushort)DnsRecordType.CNAME)) return true;
+                    !types.Contains((ushort)type) && !types.Contains((ushort)DnsRecordType.CNAME)
+                    && (type == DnsRecordType.DS ? !types.Contains((ushort)DnsRecordType.SOA) : !IsDelegation(types))) return true;
             }
 
-            return ProvesNsec3NoData(response, canonicalName, type);
+            return ProvesNsec3NoData(response, canonicalName, type, out optOut);
         }
 
         internal static bool ProvesNameError(DnsResponse response, string name) {
@@ -76,7 +89,7 @@ namespace DnsClientX {
                 (string Owner, string Next, HashSet<ushort> Types) exact = nsecs.FirstOrDefault(item =>
                     string.Equals(item.Owner, ancestor, StringComparison.Ordinal));
                 if (exact.Owner == null) continue;
-                if (IsDelegation(exact.Types)) return false;
+                if (IsDelegation(exact.Types) || exact.Types.Contains((ushort)DnsRecordType.DNAME)) return false;
                 closestEncloser = ancestor;
                 break;
             }
@@ -87,16 +100,17 @@ namespace DnsClientX {
                    nsecs.Any(item => Covers(item.Owner, item.Next, wildcard));
         }
 
-        private static bool ProvesNsec3NoData(DnsResponse response, string name, DnsRecordType type) {
+        private static bool ProvesNsec3NoData(DnsResponse response, string name, DnsRecordType type, out bool optOut) {
+            optOut = false;
             foreach (DnsWireResourceRecord record in DnsSecWire.Records(response)) {
                 if (record.Type != DnsRecordType.NSEC3 || !TryReadNsec3(response.WireMessage, record, out Nsec3Value value)) continue;
                 string ownerHash = FirstLabel(record.Name);
                 string candidate = ToBase32Hex(HashName(name, value.Iterations, value.Salt));
                 if (string.Equals(ownerHash, candidate, StringComparison.OrdinalIgnoreCase) &&
-                    !value.Types.Contains((ushort)type) && !value.Types.Contains((ushort)DnsRecordType.CNAME)) return true;
-                if (type == DnsRecordType.DS && value.OptOut &&
-                    CoversHash(ownerHash, ToBase32Hex(value.NextHash), candidate)) return true;
+                    !value.Types.Contains((ushort)type) && !value.Types.Contains((ushort)DnsRecordType.CNAME)
+                    && (type == DnsRecordType.DS ? !value.Types.Contains((ushort)DnsRecordType.SOA) : !IsDelegation(value.Types))) return true;
             }
+            if (type == DnsRecordType.DS) return ProvesUnsignedDelegation(response, name, out optOut);
             return false;
         }
 
@@ -107,7 +121,7 @@ namespace DnsClientX {
                 string canonicalOwner = DnsWireNameCodec.Canonical(record.Name);
                 int dot = canonicalOwner.IndexOf('.');
                 if (dot <= 0) continue;
-                values.Add((canonicalOwner.Substring(0, dot), canonicalOwner.Substring(dot + 1), value));
+                values.Add((canonicalOwner.Substring(0, dot), Nsec3Zone(canonicalOwner), value));
             }
             if (values.Count == 0) return false;
             Nsec3Value parameters = values[0].Value;
@@ -120,7 +134,7 @@ namespace DnsClientX {
                 (string OwnerHash, string Zone, Nsec3Value Value) exact = values.FirstOrDefault(v =>
                     string.Equals(v.OwnerHash, hash, StringComparison.OrdinalIgnoreCase));
                 if (exact.OwnerHash == null) continue;
-                if (IsDelegation(exact.Value.Types)) return false;
+                if (IsDelegation(exact.Value.Types) || exact.Value.Types.Contains((ushort)DnsRecordType.DNAME)) return false;
                 closest = candidate;
                 break;
             }
@@ -133,9 +147,58 @@ namespace DnsClientX {
                    values.Any(v => CoversHash(v.OwnerHash, ToBase32Hex(v.Value.NextHash), wildcardHash));
         }
 
+        internal static string Nsec3Zone(string canonicalOwner) {
+            string suffix = canonicalOwner.Substring(canonicalOwner.IndexOf('.') + 1);
+            return suffix.Length == 0 ? "." : suffix;
+        }
+
         private static bool IsDelegation(HashSet<ushort> types) {
             return types.Contains((ushort)DnsRecordType.NS) &&
                    !types.Contains((ushort)DnsRecordType.SOA);
+        }
+
+        internal static bool ProvesWildcardExpansion(DnsResponse response, string name, byte labels, out bool optOut) {
+            optOut = false;
+            string canonical = DnsWireNameCodec.Canonical(name);
+            string[] parts = canonical.TrimEnd('.').Split('.');
+            if (labels >= parts.Length) return false;
+            string closest = labels == 0 ? "." : string.Join(".", parts.Skip(parts.Length - labels)) + ".";
+            string nextCloser = NextCloserName(canonical, closest);
+            var nsecs = new List<(string Owner, string Next, HashSet<ushort> Types)>();
+            var nsec3s = new List<(string OwnerHash, Nsec3Value Value)>();
+            foreach (DnsWireResourceRecord record in DnsSecWire.Records(response)) {
+                if (record.Type == DnsRecordType.NSEC && TryReadNsec(response.WireMessage, record, out string next, out var types)) {
+                    nsecs.Add((DnsWireNameCodec.Canonical(record.Name), next, types));
+                } else if (record.Type == DnsRecordType.NSEC3 && TryReadNsec3(response.WireMessage, record, out var value)) {
+                    nsec3s.Add((FirstLabel(record.Name), value));
+                }
+            }
+            if (nsecs.Count > 0) {
+                // An existing descendant also proves that the next-closer name exists as an
+                // empty non-terminal. A delegation or DNAME prevents this zone's wildcard.
+                if (nsecs.Any(item => DnsSecValidationEngine.IsNameWithinZone(item.Owner, nextCloser)
+                    || DnsSecValidationEngine.IsNameWithinZone(item.Next, nextCloser)
+                    || DnsSecValidationEngine.IsNameWithinZone(canonical, item.Owner)
+                        && (IsDelegation(item.Types) || item.Types.Contains((ushort)DnsRecordType.DNAME)))) return false;
+                return nsecs.Any(item => Covers(item.Owner, item.Next, nextCloser));
+            }
+            if (nsec3s.Count == 0) return false;
+            Nsec3Value parameters = nsec3s[0].Value;
+            if (nsec3s.Any(item => item.Value.HashAlgorithm != parameters.HashAlgorithm
+                || item.Value.Iterations != parameters.Iterations || !item.Value.Salt.SequenceEqual(parameters.Salt))) return false;
+            string nextHash = ToBase32Hex(HashName(nextCloser, parameters.Iterations, parameters.Salt));
+            if (nsec3s.Any(item => string.Equals(item.OwnerHash, nextHash, StringComparison.OrdinalIgnoreCase))) return false;
+            foreach (string ancestor in Ancestors(canonical)) {
+                string hash = ToBase32Hex(HashName(ancestor, parameters.Iterations, parameters.Salt));
+                if (nsec3s.Any(item => string.Equals(item.OwnerHash, hash, StringComparison.OrdinalIgnoreCase)
+                    && (IsDelegation(item.Value.Types) || item.Value.Types.Contains((ushort)DnsRecordType.DNAME)))) return false;
+            }
+            // RFC 5155 section 8.8: the verified wildcard gives the closest encloser;
+            // a covering next-closer record is sufficient, without a closest-encloser RR.
+            var covers = nsec3s.Where(item => CoversHash(item.OwnerHash, ToBase32Hex(item.Value.NextHash), nextHash)).ToArray();
+            if (covers.Length == 0) return false;
+            optOut = covers.All(item => item.Value.OptOut);
+            return true;
         }
 
         private static bool TryReadNsec(byte[] message, DnsWireResourceRecord record, out string next, out HashSet<ushort> types) {

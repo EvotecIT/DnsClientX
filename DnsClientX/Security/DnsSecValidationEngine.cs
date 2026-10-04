@@ -6,9 +6,11 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DnsClientX {
-    internal sealed class DnsSecValidationEngine {
+    internal sealed partial class DnsSecValidationEngine {
         private readonly Func<string, DnsRecordType, CancellationToken, Task<DnsResponse>> _lookup;
         private readonly DateTimeOffset _now;
+        private readonly bool _useCurrentTime;
+        private DateTimeOffset ValidationTime => _useCurrentTime ? DateTimeOffset.UtcNow : _now;
         private readonly Dictionary<string, Task<ZoneKeysResult>> _zoneCache = new(StringComparer.Ordinal);
         private readonly Rfc5011Store? _trustAnchorStore;
         private readonly IDnsSecSignatureVerifier? _signatureVerifier;
@@ -18,6 +20,7 @@ namespace DnsClientX {
             IDnsSecSignatureVerifier? signatureVerifier = null) {
             _lookup = lookup ?? throw new ArgumentNullException(nameof(lookup));
             _now = now ?? DateTimeOffset.UtcNow;
+            _useCurrentTime = !now.HasValue;
             _signatureVerifier = signatureVerifier;
             if (!string.IsNullOrWhiteSpace(trustAnchorStorePath)) {
                 _trustAnchorStore = new Rfc5011Store(trustAnchorStorePath!);
@@ -26,6 +29,7 @@ namespace DnsClientX {
 
         internal async Task<DnsSecValidationResult> ValidateAsync(DnsResponse response, string name,
             DnsRecordType type, CancellationToken cancellationToken) {
+            cancellationToken.ThrowIfCancellationRequested();
             if (response.WireMessage == null || response.WireMessage.Length == 0) {
                 return DnsSecValidationResult.Indeterminate("Local DNSSEC validation requires a DNS wire-format response.");
             }
@@ -40,15 +44,16 @@ namespace DnsClientX {
                 .ToArray();
 
             if (rrsets.Length > 0) {
-                return await ValidatePositiveAsync(response, answerRecords, rrsets, name, type,
-                    requireTerminal: true, cancellationToken).ConfigureAwait(false);
+                return CompleteValidation(response, await ValidatePositiveAsync(response, answerRecords, rrsets, name, type,
+                    requireTerminal: true, cancellationToken).ConfigureAwait(false));
             }
 
-            return await ValidateNegativeAsync(response, name, type, cancellationToken).ConfigureAwait(false);
+            return CompleteValidation(response, await ValidateNegativeAsync(response, name, type, cancellationToken).ConfigureAwait(false));
         }
 
         internal async Task<DnsSecValidationResult> ValidateAliasAsync(DnsResponse response, string name,
             DnsRecordType type, CancellationToken cancellationToken) {
+            cancellationToken.ThrowIfCancellationRequested();
             if (response.WireMessage == null || response.WireMessage.Length == 0) {
                 return DnsSecValidationResult.Indeterminate("Local DNSSEC validation requires a DNS wire-format response.");
             }
@@ -60,8 +65,8 @@ namespace DnsClientX {
             if (rrsets.Length == 0) {
                 return DnsSecValidationResult.Indeterminate("The iterative alias response contained no answer RRset.");
             }
-            return await ValidatePositiveAsync(response, answers, rrsets, name, type,
-                requireTerminal: false, cancellationToken).ConfigureAwait(false);
+            return CompleteValidation(response, await ValidatePositiveAsync(response, answers, rrsets, name, type,
+                requireTerminal: false, cancellationToken).ConfigureAwait(false));
         }
 
         private async Task<DnsSecValidationResult> ValidatePositiveAsync(
@@ -117,21 +122,28 @@ namespace DnsClientX {
 
             DnsSecValidationResult? unsupported = null;
             foreach (IGrouping<string, DnsSecSignature> signer in signatures.GroupBy(item => item.SignerName, StringComparer.Ordinal)) {
-                if (!IsNameWithinZone(rrset.Name, signer.Key)) {
-                    return DnsSecValidationResult.Bogus(
-                        $"RRSIG signer {signer.Key} is not an ancestor of the {rrset.Name} RRset owner.");
-                }
-                ZoneKeysResult keys = await GetZoneKeysAsync(signer.Key, cancellationToken).ConfigureAwait(false);
-                if (keys.Status == DnsSecValidationStatus.Insecure) return DnsSecValidationResult.Insecure(keys.Message);
-                if (keys.Status != DnsSecValidationStatus.Secure) {
-                    if (keys.Status == DnsSecValidationStatus.Bogus) return DnsSecValidationResult.Bogus(keys.Message);
-                    unsupported = DnsSecValidationResult.Indeterminate(keys.Message);
+                if (rrset.Type == DnsRecordType.DS && !IsStrictAncestor(rrset.Name, signer.Key)) {
                     continue;
                 }
-                DnsSecValidationResult verification = VerifyRrset(response, rrset, signer, keys.Keys);
-                if (verification.Status == DnsSecValidationStatus.Secure) return verification;
-                if (verification.Status == DnsSecValidationStatus.Bogus) return verification;
-                unsupported = verification;
+                if (!IsNameWithinZone(rrset.Name, signer.Key)) {
+                    continue;
+                }
+                ZoneKeysResult keys = await GetZoneKeysAsync(signer.Key, cancellationToken).ConfigureAwait(false);
+                if (keys.Status != DnsSecValidationStatus.Secure) {
+                    unsupported = new DnsSecValidationResult(keys.Status, keys.Message);
+                    continue;
+                }
+                foreach (DnsSecSignature signature in signer) {
+                    if (rrset.Type == DnsRecordType.DS && IsWildcardExpansion(signature)) continue;
+                    DnsSecValidationResult verification = VerifyRrset(response, rrset, new[] { signature }, keys.Keys);
+                    if (verification.Status == DnsSecValidationStatus.Secure) {
+                        if (!IsWildcardExpansion(signature)) return verification;
+                        verification = await ValidateWildcardAsync(response, signature, cancellationToken).ConfigureAwait(false);
+                        if (verification.Status == DnsSecValidationStatus.Secure
+                            || verification.Status == DnsSecValidationStatus.Insecure) return verification;
+                    }
+                    unsupported = verification;
+                }
             }
             return unsupported ?? DnsSecValidationResult.Bogus($"No signature validated the {rrset.Name} {rrset.Type} RRset.");
         }
@@ -143,14 +155,20 @@ namespace DnsClientX {
                 .ToArray();
             if (proofRecords.Length == 0) return await FindUnsignedDelegationAsync(name, cancellationToken).ConfigureAwait(false);
 
-            return await ValidateDenialBySignerAsync(response, proofRecords, name, cancellationToken,
+            bool optOut = false;
+            DnsSecValidationResult result = await ValidateDenialBySignerAsync(response, proofRecords, name, cancellationToken,
                 candidate => response.Status == DnsResponseCode.NXDomain
                     ? DnsSecProof.ProvesNameError(candidate, name)
-                    : DnsSecProof.ProvesNoData(candidate, name, type),
-                "The authenticated denial records prove the requested name or type does not exist.").ConfigureAwait(false);
+                    : DnsSecProof.ProvesNoData(candidate, name, type, out optOut),
+                "The authenticated denial records prove the requested name or type does not exist.",
+                requireParent: type == DnsRecordType.DS && DnsWireNameCodec.Canonical(name) != ".").ConfigureAwait(false);
+            return result.Status == DnsSecValidationStatus.Secure && optOut
+                ? DnsSecValidationResult.Insecure("The authenticated DS-absence proof covers the delegation with NSEC3 Opt-Out.")
+                : result;
         }
 
         private Task<ZoneKeysResult> GetZoneKeysAsync(string zone, CancellationToken cancellationToken) {
+            cancellationToken.ThrowIfCancellationRequested();
             zone = DnsWireNameCodec.Canonical(zone);
             lock (_zoneCache) {
                 if (!_zoneCache.TryGetValue(zone, out Task<ZoneKeysResult>? task)) {
@@ -238,10 +256,22 @@ namespace DnsClientX {
 
             List<DnsSecSignature> dsSignatures = ReadSignatures(dsResponse, zone, DnsRecordType.DS, dsRecords[0].Class);
             if (dsSignatures.Count == 0) return ZoneKeysResult.Bogus($"The DS RRset for {zone} is missing its parent signature.");
-            ZoneKeysResult parent = await GetZoneKeysAsync(dsSignatures[0].SignerName, cancellationToken).ConfigureAwait(false);
-            if (parent.Status != DnsSecValidationStatus.Secure) return parent;
-            DnsSecValidationResult dsSignature = VerifyRrset(dsResponse,
-                new RrsetKey(zone, DnsRecordType.DS, dsRecords[0].Class), dsSignatures, parent.Keys);
+            DnsSecValidationResult dsSignature = DnsSecValidationResult.Bogus(
+                $"No ancestor zone signed the DS RRset for {zone}.");
+            foreach (IGrouping<string, DnsSecSignature> signer in dsSignatures.GroupBy(signature => signature.SignerName)) {
+                // DS belongs to the parent side of a zone cut. Loading the child's keys here
+                // creates a self-dependency; a strict ancestor also prevents multi-zone cycles.
+                if (!IsStrictAncestor(zone, signer.Key)) continue;
+                ZoneKeysResult parent = await GetZoneKeysAsync(signer.Key, cancellationToken).ConfigureAwait(false);
+                if (parent.Status != DnsSecValidationStatus.Secure) {
+                    dsSignature = new DnsSecValidationResult(parent.Status, parent.Message);
+                    continue;
+                }
+                dsSignature = VerifyRrset(dsResponse,
+                    new RrsetKey(zone, DnsRecordType.DS, dsRecords[0].Class),
+                    signer.Where(signature => !IsWildcardExpansion(signature)), parent.Keys);
+                if (dsSignature.Status == DnsSecValidationStatus.Secure) break;
+            }
             if (dsSignature.Status != DnsSecValidationStatus.Secure) return new ZoneKeysResult(dsSignature.Status, Array.Empty<DnsSecKey>(), dsSignature.Message);
 
             bool supportedCombination = false;
@@ -289,7 +319,7 @@ namespace DnsClientX {
             if (proofRecords.Length == 0) return ZoneKeysResult.Indeterminate($"No authenticated DS denial proof was returned for {zone}");
             DnsSecValidationResult result = await ValidateDenialBySignerAsync(response, proofRecords, zone,
                 cancellationToken, candidate => DnsSecProof.ProvesUnsignedDelegation(candidate, zone),
-                $"The secure parent proves that {zone} has no DS record.").ConfigureAwait(false);
+                $"The secure parent proves that {zone} has no DS record.", requireParent: true).ConfigureAwait(false);
             return result.Status == DnsSecValidationStatus.Secure
                 ? ZoneKeysResult.Insecure(result.Message)
                 : new ZoneKeysResult(result.Status, Array.Empty<DnsSecKey>(), result.Message);
@@ -297,12 +327,19 @@ namespace DnsClientX {
 
         private async Task<DnsSecValidationResult> ValidateDenialBySignerAsync(DnsResponse response,
             DnsWireResourceRecord[] proofRecords, string name, CancellationToken cancellationToken,
-            Func<DnsResponse, bool> proves, string successMessage) {
+            Func<DnsResponse, bool> proves, string successMessage, bool requireParent = false,
+            string? requiredSigner = null) {
             var candidates = new Dictionary<string, List<DnsWireResourceRecord>>(StringComparer.Ordinal);
             foreach (DnsWireResourceRecord proof in proofRecords) {
                 string owner = DnsWireNameCodec.Canonical(proof.Name);
                 foreach (DnsSecSignature signature in ReadSignatures(response, owner, proof.Type, proof.Class)) {
+                    if (IsWildcardExpansion(signature)) continue;
                     if (!IsNameWithinZone(name, signature.SignerName)) continue;
+                    if (requireParent && !IsStrictAncestor(name, signature.SignerName)) continue;
+                    if (requiredSigner != null && !string.Equals(requiredSigner, signature.SignerName, StringComparison.Ordinal)) continue;
+                    // NSEC3 hashes describe names in exactly the signer's zone.
+                    if (proof.Type == DnsRecordType.NSEC3
+                        && !string.Equals(DnsSecProof.Nsec3Zone(owner), signature.SignerName, StringComparison.Ordinal)) continue;
                     if (!candidates.TryGetValue(signature.SignerName, out List<DnsWireResourceRecord>? records)) {
                         records = new List<DnsWireResourceRecord>();
                         candidates.Add(signature.SignerName, records);
@@ -315,7 +352,6 @@ namespace DnsClientX {
             DnsSecValidationResult? bestFailure = null;
             foreach (KeyValuePair<string, List<DnsWireResourceRecord>> candidate in candidates) {
                 ZoneKeysResult keys = await GetZoneKeysAsync(candidate.Key, cancellationToken).ConfigureAwait(false);
-                if (keys.Status == DnsSecValidationStatus.Insecure) return DnsSecValidationResult.Insecure(keys.Message);
                 if (keys.Status != DnsSecValidationStatus.Secure) {
                     bestFailure = new DnsSecValidationResult(keys.Status, keys.Message);
                     continue;
@@ -462,15 +498,17 @@ namespace DnsClientX {
             bool timeFailure = false;
             bool signerScopeFailure = false;
             foreach (DnsSecSignature signature in signatures) {
-                if (!IsNameWithinZone(rrset.Name, signature.SignerName)) {
+                int signerLabels = signature.SignerName == "." ? 0 : signature.SignerName.TrimEnd('.').Split('.').Length;
+                if (!IsNameWithinZone(rrset.Name, signature.SignerName) || signature.Labels < signerLabels) {
                     signerScopeFailure = true;
                     continue;
                 }
-                DnsSecKey[] candidates = keys.Where(key => key.KeyTag == signature.KeyTag && key.Algorithm == signature.Algorithm).ToArray();
+                DnsSecKey[] candidates = keys.Where(key => key.KeyTag == signature.KeyTag && key.Algorithm == signature.Algorithm
+                    && string.Equals(key.Name, signature.SignerName, StringComparison.Ordinal)).ToArray();
                 if (candidates.Length == 0
                     || !DnsSecCrypto.IsSupportedAlgorithm(signature.Algorithm, _signatureVerifier)) continue;
                 supported = true;
-                if (!DnsSecWire.SignatureTimeIsValid(signature, _now)) {
+                if (!DnsSecWire.SignatureTimeIsValid(signature, ValidationTime)) {
                     timeFailure = true;
                     continue;
                 }
@@ -481,6 +519,7 @@ namespace DnsClientX {
                     return DnsSecValidationResult.Bogus(ex.Message);
                 }
                 if (candidates.Any(key => DnsSecCrypto.Verify(key, data, signature.Signature, _signatureVerifier))) {
+                    RecordAuthenticatedLifetime(response, rrset, signature);
                     return DnsSecValidationResult.Secure($"Validated {rrset.Name} {rrset.Type} with key tag {signature.KeyTag}.");
                 }
             }
