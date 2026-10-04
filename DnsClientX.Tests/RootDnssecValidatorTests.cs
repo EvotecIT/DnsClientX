@@ -24,6 +24,65 @@ namespace DnsClientX.Tests {
             Assert.Equal(string.Empty, msg);
         }
 
+        /// <summary>A root anchor value attached to another owner is not a root DS.</summary>
+        [Fact]
+        public void ValidateAgainstRoot_DsRecordAtOtherOwner_ReturnsFalse() {
+            var response = new DnsResponse {
+                Answers = new[] {
+                    new DnsAnswer {
+                        Name = "example.com.",
+                        Type = DnsRecordType.DS,
+                        DataRaw = "20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D"
+                    }
+                }
+            };
+
+            Assert.False(DnsSecValidator.ValidateAgainstRoot(response, out string message));
+            Assert.Contains("root", message, System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Incomplete answer owners are reported as invalid input.</summary>
+        [Fact]
+        public void ValidateAgainstRoot_EmptyDsOwner_ReturnsFalse() {
+            var response = new DnsResponse {
+                Answers = new[] {
+                    new DnsAnswer { Name = string.Empty, Type = DnsRecordType.DS,
+                        DataRaw = "20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D" }
+                }
+            };
+
+            Assert.False(DnsSecValidator.ValidateAgainstRoot(response, out string message));
+            Assert.Contains("owner", message, System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Extra non-hexadecimal DS text cannot be discarded after a known anchor digest.</summary>
+        [Fact]
+        public void ValidateAgainstRoot_DsWithTrailingGarbage_ReturnsFalse() {
+            var response = new DnsResponse {
+                Answers = new[] {
+                    new DnsAnswer { Name = ".", Type = DnsRecordType.DS,
+                        DataRaw = "20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D garbage" }
+                }
+            };
+
+            Assert.False(DnsSecValidator.ValidateAgainstRoot(response, out string message));
+            Assert.Contains("parse DS", message);
+        }
+
+        /// <summary>Whitespace inside the hexadecimal presentation digest remains valid.</summary>
+        [Fact]
+        public void ValidateAgainstRoot_DsDigestWithWhitespace_Succeeds() {
+            var response = new DnsResponse {
+                Answers = new[] {
+                    new DnsAnswer { Name = ".", Type = DnsRecordType.DS,
+                        DataRaw = "20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D084 58E880409BBC683457104237C7F8EC8D" }
+                }
+            };
+
+            Assert.True(DnsSecValidator.ValidateAgainstRoot(response, out string message));
+            Assert.Equal(string.Empty, message);
+        }
+
         /// <summary>
         /// Validates a DNSKEY record using the embedded root anchors.
         /// </summary>
