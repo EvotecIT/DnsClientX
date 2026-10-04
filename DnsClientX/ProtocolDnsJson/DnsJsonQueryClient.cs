@@ -50,7 +50,9 @@ public static class DnsJsonQueryClient {
 
         using var request = new HttpRequestMessage(HttpMethod.Get, uriBuilder.Uri);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/dns-json"));
-        using HttpResponseMessage httpResponse = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        using var deadline = DnsHttpResponseBody.CreateTimeout(httpClient.Timeout, cancellationToken);
+        using HttpResponseMessage httpResponse = await httpClient.SendAsync(
+            request, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
         if (!httpResponse.IsSuccessStatusCode) {
             throw new DnsClientException($"DNS JSON endpoint '{endpoint.Host}' returned HTTP {(int)httpResponse.StatusCode} ({httpResponse.ReasonPhrase}).");
         }
@@ -68,7 +70,7 @@ public static class DnsJsonQueryClient {
             throw new DnsClientException($"DNS JSON endpoint '{endpoint.Host}' returned unsupported media type '{mediaType}'.");
         }
 
-        DnsResponse response = await httpResponse.DeserializeResponse(debug).ConfigureAwait(false);
+        DnsResponse response = await httpResponse.DeserializeResponse(debug, deadline.Token).ConfigureAwait(false);
         response.Questions ??= Array.Empty<DnsQuestion>();
         response.Answers ??= Array.Empty<DnsAnswer>();
         response.Authorities ??= Array.Empty<DnsAnswer>();

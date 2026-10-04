@@ -80,6 +80,57 @@ namespace DnsClientX.Tests {
                 DnsWireResolveGrpc.SendAsync = prevSend;
             }
         }
+
+        /// <summary>A declared oversized gRPC reply is rejected before decoding its DNS frame.</summary>
+        [Fact]
+        public async Task ResolveWireFormatGrpc_RejectsOversizedResponse() {
+            var previousClient = DnsWireResolveGrpc.ClientFactory;
+            var previousSend = DnsWireResolveGrpc.SendAsync;
+            try {
+                DnsWireResolveGrpc.ClientFactory = _ => new HttpClient();
+                DnsWireResolveGrpc.SendAsync = (_, _, _) => Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
+                    Content = new ByteArrayContent(new byte[ushort.MaxValue + 6])
+                });
+
+                var config = new Configuration("dummy", DnsRequestFormat.DnsOverGrpc);
+                DnsResponse response = await DnsWireResolveGrpc.ResolveWireFormatGrpc(
+                    "dummy", 443, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None);
+
+                Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
+                Assert.Contains("65540", response.Error, StringComparison.Ordinal);
+            } finally {
+                DnsWireResolveGrpc.ClientFactory = previousClient;
+                DnsWireResolveGrpc.SendAsync = previousSend;
+            }
+        }
+
+        /// <summary>A unary gRPC frame must contain exactly the declared DNS message.</summary>
+        [Fact]
+        public async Task ResolveWireFormatGrpc_RejectsFrameLengthMismatch() {
+            var previousClient = DnsWireResolveGrpc.ClientFactory;
+            var previousSend = DnsWireResolveGrpc.SendAsync;
+            try {
+                DnsWireResolveGrpc.ClientFactory = _ => new HttpClient();
+                DnsWireResolveGrpc.SendAsync = async (_, request, _) => {
+                    byte[] query = await request.Content!.ReadAsByteArrayAsync();
+                    byte[] frame = TestUtilities.CreateGrpcResponseFromRequest(query);
+                    frame[4]++;
+                    return new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
+                        Content = new ByteArrayContent(frame)
+                    };
+                };
+
+                var config = new Configuration("dummy", DnsRequestFormat.DnsOverGrpc);
+                DnsResponse response = await DnsWireResolveGrpc.ResolveWireFormatGrpc(
+                    "dummy", 443, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None);
+
+                Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
+                Assert.Contains("frame length", response.Error, StringComparison.OrdinalIgnoreCase);
+            } finally {
+                DnsWireResolveGrpc.ClientFactory = previousClient;
+                DnsWireResolveGrpc.SendAsync = previousSend;
+            }
+        }
     }
 }
 #endif

@@ -19,8 +19,11 @@ namespace DnsClientX {
             string json = DnsJson.Serialize(payload, DnsJsonContext.Default.UpdateRequest);
             using HttpRequestMessage req = new(HttpMethod.Post, DnsHttpRequestUri.Build(configuration)) { Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json") };
             DnsHttpRequestSettings.Configure(req, configuration);
-            using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
-            DnsResponse response = await res.DeserializeResponse(debug).ConfigureAwait(false);
+            using var deadline = DnsHttpResponseBody.CreateTimeout(
+                System.TimeSpan.FromMilliseconds(System.Math.Max(1, configuration.TimeOut)), cancellationToken);
+            using HttpResponseMessage res = await client.SendAsync(
+                req, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
+            DnsResponse response = await res.DeserializeResponse(debug, deadline.Token).ConfigureAwait(false);
             response.AddServerDetails(configuration);
             return response;
         }
@@ -36,8 +39,11 @@ namespace DnsClientX {
             string json = DnsJson.Serialize(payload, DnsJsonContext.Default.UpdateRequest);
             using HttpRequestMessage req = new(HttpMethod.Post, DnsHttpRequestUri.Build(configuration)) { Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json") };
             DnsHttpRequestSettings.Configure(req, configuration);
-            using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
-            DnsResponse response = await res.DeserializeResponse(debug).ConfigureAwait(false);
+            using var deadline = DnsHttpResponseBody.CreateTimeout(
+                System.TimeSpan.FromMilliseconds(System.Math.Max(1, configuration.TimeOut)), cancellationToken);
+            using HttpResponseMessage res = await client.SendAsync(
+                req, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
+            DnsResponse response = await res.DeserializeResponse(debug, deadline.Token).ConfigureAwait(false);
             response.AddServerDetails(configuration);
             return response;
         }

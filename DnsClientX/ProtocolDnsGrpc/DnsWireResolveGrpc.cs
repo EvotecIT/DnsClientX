@@ -48,7 +48,8 @@ namespace DnsClientX {
                 request.Headers.Add("TE", "trailers");
                 request.Content!.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/grpc");
                 using var responseMsg = await SendAsync(client, request, timeoutCts.Token).ConfigureAwait(false);
-                byte[] responseBytes = await responseMsg.Content.ReadAsByteArrayAsync(timeoutCts.Token).ConfigureAwait(false);
+                byte[] responseBytes = await DnsHttpResponseBody.ReadBoundedAsync(
+                    responseMsg.Content, DnsHttpResponseBody.MaxGrpcBytes, timeoutCts.Token).ConfigureAwait(false);
                 var payload = ParseGrpcPayload(responseBytes);
                 var response = await DnsWire.DeserializeDnsWireResponse(null, debug, payload, query).ConfigureAwait(false);
                 response.AddServerDetails(endpointConfiguration);
@@ -100,14 +101,18 @@ namespace DnsClientX {
 
         private static byte[] ParseGrpcPayload(byte[] responseBytes) {
             if (responseBytes.Length < 5) {
-                return Array.Empty<byte>();
+                throw new DnsClientException("gRPC response is shorter than its 5-byte frame header.");
             }
-            int len = (responseBytes[1] << 24) | (responseBytes[2] << 16) | (responseBytes[3] << 8) | responseBytes[4];
-            if (len <= 0 || responseBytes.Length - 5 < len) {
-                len = responseBytes.Length - 5;
+            if (responseBytes[0] != 0) {
+                throw new DnsClientException("Compressed gRPC DNS responses are not supported.");
             }
-            var payload = new byte[len];
-            Buffer.BlockCopy(responseBytes, 5, payload, 0, len);
+            uint len = ((uint)responseBytes[1] << 24) | ((uint)responseBytes[2] << 16) |
+                       ((uint)responseBytes[3] << 8) | responseBytes[4];
+            if (len == 0 || len > DnsHttpResponseBody.MaxWireBytes || len != responseBytes.Length - 5) {
+                throw new DnsClientException("gRPC DNS response frame length does not match its body.");
+            }
+            var payload = new byte[(int)len];
+            Buffer.BlockCopy(responseBytes, 5, payload, 0, (int)len);
             return payload;
         }
     }
