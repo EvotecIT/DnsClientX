@@ -232,8 +232,12 @@ namespace DnsClientX {
         }
 
         internal static bool SignatureTimeIsValid(DnsSecSignature signature, DateTimeOffset now) {
+            return SignatureTimeIsValid(signature.Inception, signature.Expiration, now);
+        }
+
+        internal static bool SignatureTimeIsValid(uint inception, uint expiration, DateTimeOffset now) {
             uint current = unchecked((uint)now.ToUnixTimeSeconds());
-            return SerialLessOrEqual(signature.Inception, current) && SerialLessOrEqual(current, signature.Expiration);
+            return SerialLessOrEqual(inception, current) && SerialLessOrEqual(current, expiration);
         }
 
         private static bool SerialLessOrEqual(uint left, uint right) => unchecked((int)(left - right)) <= 0;

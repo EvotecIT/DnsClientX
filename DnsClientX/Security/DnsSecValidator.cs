@@ -3,7 +3,6 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Text;
 
 namespace DnsClientX {
     /// <summary>
@@ -46,6 +45,7 @@ namespace DnsClientX {
         }
 
         private readonly struct RrsigRecord {
+            public string Name { get; }
             public DnsRecordType TypeCovered { get; }
             public DnsKeyAlgorithm Algorithm { get; }
             public byte Labels { get; }
@@ -56,7 +56,8 @@ namespace DnsClientX {
             public string SignerName { get; }
             public byte[] Signature { get; }
 
-            public RrsigRecord(DnsRecordType typeCovered, DnsKeyAlgorithm algorithm, byte labels, int originalTtl, DateTime expiration, DateTime inception, ushort keyTag, string signerName, byte[] signature) {
+            public RrsigRecord(string name, DnsRecordType typeCovered, DnsKeyAlgorithm algorithm, byte labels, int originalTtl, DateTime expiration, DateTime inception, ushort keyTag, string signerName, byte[] signature) {
+                Name = name;
                 TypeCovered = typeCovered;
                 Algorithm = algorithm;
                 Labels = labels;
@@ -95,18 +96,20 @@ namespace DnsClientX {
             }
         }
         /// <summary>
-        /// Validates the supplied <see cref="DnsResponse"/> against known root DS records.
+        /// Checks whether root-owned DNSKEY or DS material in the supplied response matches a
+        /// currently valid bundled root trust anchor. This does not validate a DNS response or chain.
         /// </summary>
         /// <param name="response">DNS response to validate.</param>
-        /// <returns><c>true</c> if the response can be validated; otherwise <c>false</c>.</returns>
+        /// <returns><c>true</c> when root-owned material matches an active root anchor; otherwise <c>false</c>.</returns>
         public static bool ValidateAgainstRoot(DnsResponse response) => ValidateAgainstRoot(response, out _);
 
         /// <summary>
-        /// Validates the supplied <see cref="DnsResponse"/> against known root DS records.
+        /// Checks whether root-owned DNSKEY or DS material in the supplied response matches a
+        /// currently valid bundled root trust anchor. This does not validate a DNS response or chain.
         /// </summary>
         /// <param name="response">DNS response to validate.</param>
         /// <param name="message">Detailed failure message when validation fails.</param>
-        /// <returns><c>true</c> if the response can be validated; otherwise <c>false</c>.</returns>
+        /// <returns><c>true</c> when root-owned material matches an active root anchor; otherwise <c>false</c>.</returns>
         public static bool ValidateAgainstRoot(DnsResponse response, out string message) {
             message = string.Empty;
             if (response.Answers == null) {
@@ -116,8 +119,12 @@ namespace DnsClientX {
 
             foreach (DnsAnswer answer in response.Answers) {
                 if (answer.Type == DnsRecordType.DS) {
+                    if (!TryCanonicalName(answer.Name, out string owner) || owner != ".") {
+                        message = "Root trust anchor material must have the root owner.";
+                        continue;
+                    }
                     if (TryParseDs(answer.DataRaw, out RootDsRecord ds)) {
-                        if (RootTrustAnchors.DsRecords.Any(r => r.KeyTag == ds.KeyTag && r.Algorithm == ds.Algorithm && r.DigestType == ds.DigestType && string.Equals(r.Digest, ds.Digest, StringComparison.OrdinalIgnoreCase))) {
+                        if (RootTrustAnchors.DsRecords.Any(r => r.IsValidAt(DateTimeOffset.UtcNow) && r.KeyTag == ds.KeyTag && r.Algorithm == ds.Algorithm && r.DigestType == ds.DigestType && string.Equals(r.Digest, ds.Digest, StringComparison.OrdinalIgnoreCase))) {
                             return true;
                         }
                         message = $"DS record {ds.KeyTag} did not match root anchors.";
@@ -125,10 +132,14 @@ namespace DnsClientX {
                         message = $"Failed to parse DS record '{answer.DataRaw}'.";
                     }
                 } else if (answer.Type == DnsRecordType.DNSKEY) {
+                    if (!TryCanonicalName(answer.Name, out string owner) || owner != ".") {
+                        message = "Root trust anchor material must have the root owner.";
+                        continue;
+                    }
                     if (TryParseDnsKey(answer, out ushort flags, out byte protocol, out DnsKeyAlgorithm algorithm, out byte[] publicKey)) {
                         ushort keyTag = ComputeKeyTag(flags, protocol, algorithm, publicKey);
                         string digest = ComputeDigest(answer.Name, flags, protocol, algorithm, publicKey);
-                        if (RootTrustAnchors.DsRecords.Any(r => r.KeyTag == keyTag && r.Algorithm == algorithm && r.DigestType == 2 && string.Equals(r.Digest, digest, StringComparison.OrdinalIgnoreCase))) {
+                        if (RootTrustAnchors.DsRecords.Any(r => r.IsValidAt(DateTimeOffset.UtcNow) && r.KeyTag == keyTag && r.Algorithm == algorithm && r.DigestType == 2 && string.Equals(r.Digest, digest, StringComparison.OrdinalIgnoreCase))) {
                             return true;
                         }
                         message = $"DNSKEY record with tag {keyTag} did not match root anchors.";
@@ -151,7 +162,8 @@ namespace DnsClientX {
         /// trust and does not validate arbitrary answer RRsets or authenticated denial proofs.
         /// </summary>
         /// <param name="response">DNS response to validate.</param>
-        /// <returns><c>true</c> when validation succeeds; otherwise <c>false</c>.</returns>
+        /// <returns><c>true</c> when at least one supplied DNSKEY RRset has a valid signature and
+        /// every supplied DS matches a key in a verified RRset; this does not mean the answer is DNSSEC Secure.</returns>
         public static bool ValidateChain(DnsResponse response) => ValidateChain(response, out _);
 
         /// <summary>
@@ -161,7 +173,8 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="response">DNS response to validate.</param>
         /// <param name="message">Detailed failure message when validation fails.</param>
-        /// <returns><c>true</c> when validation succeeds; otherwise <c>false</c>.</returns>
+        /// <returns><c>true</c> when at least one supplied DNSKEY RRset has a valid signature and
+        /// every supplied DS matches a key in a verified RRset; this does not mean the answer is DNSSEC Secure.</returns>
         public static bool ValidateChain(DnsResponse response, out string message) {
             message = string.Empty;
             if (response.Answers == null) {
@@ -177,10 +190,16 @@ namespace DnsClientX {
                 if (answer.Type == DnsRecordType.DNSKEY) {
                     if (TryParseDnsKey(answer, out ushort flags, out byte protocol, out DnsKeyAlgorithm algorithm, out byte[] publicKey)) {
                         dnsKeys.Add(new DnsKeyRecord(answer.Name, flags, protocol, algorithm, publicKey));
+                    } else {
+                        message = $"Failed to parse DNSKEY record '{answer.DataRaw}'.";
+                        return false;
                     }
                 } else if (answer.Type == DnsRecordType.DS) {
                     if (TryParseDs(answer.DataRaw, out RootDsRecord ds)) {
                         dsRecords.Add(new DsRecord(answer.Name, ds.KeyTag, ds.Algorithm, ds.DigestType, ds.Digest));
+                    } else {
+                        message = $"Failed to parse DS record '{answer.DataRaw}'.";
+                        return false;
                     }
                 } else if (answer.Type == DnsRecordType.RRSIG) {
                     if (TryParseRrsig(answer, out RrsigRecord sig)) {
@@ -194,25 +213,75 @@ namespace DnsClientX {
                 return false;
             }
 
-            foreach (RrsigRecord sig in rrsigs.Where(s => s.TypeCovered == DnsRecordType.DNSKEY)) {
-                if (!VerifyDnskeyRrsig(sig, dnsKeys)) {
-                    message = $"Invalid RRSIG for signer {sig.SignerName} tag {sig.KeyTag}.";
-                    return false;
+            RrsigRecord[] dnskeySignatures = rrsigs.Where(s => s.TypeCovered == DnsRecordType.DNSKEY).ToArray();
+            if (dnskeySignatures.Length == 0) {
+                message = "Missing DNSKEY-covering RRSIG record.";
+                return false;
+            }
+
+            var verifiedOwners = new HashSet<string>(StringComparer.Ordinal);
+            foreach (RrsigRecord sig in dnskeySignatures) {
+                if (!TryCanonicalName(sig.Name, out string owner) ||
+                    !TryCanonicalName(sig.SignerName, out string signer) || signer != owner ||
+                    sig.Labels != DnsWireNameCodec.EncodeLabels(owner).Length ||
+                    !SignatureTimeIsValid(sig)) {
+                    continue;
+                }
+
+                DnsKeyRecord[] rrset = dnsKeys.Where(k =>
+                    TryCanonicalName(k.Name, out string keyOwner) && keyOwner == owner).ToArray();
+                if (rrset.Length > 0 && VerifyDnskeyRrsig(sig, rrset)) {
+                    verifiedOwners.Add(owner);
                 }
             }
 
-            foreach (DsRecord ds in dsRecords) {
-                DnsKeyRecord key = dnsKeys.FirstOrDefault(k =>
-                    ComputeKeyTag(k.Flags, k.Protocol, k.Algorithm, k.PublicKey) == ds.KeyTag &&
-                    k.Algorithm == ds.Algorithm);
+            if (verifiedOwners.Count == 0) {
+                message = "Invalid RRSIG for supplied DNSKEY records.";
+                return false;
+            }
 
-                if (key.Name is null) {
+            foreach (DsRecord ds in dsRecords) {
+                if (!TryCanonicalName(ds.Name, out string owner)) {
+                    message = "Invalid DS owner name.";
+                    return false;
+                }
+                if (!verifiedOwners.Contains(owner)) {
+                    message = $"No verified DNSKEY RRSIG found for DS owner {ds.Name}.";
+                    return false;
+                }
+
+                DnsKeyRecord[] matchingKeys = dnsKeys.Where(k =>
+                    TryCanonicalName(k.Name, out string keyOwner) && keyOwner == owner &&
+                    k.Protocol == 3 && (k.Flags & 0x0100) != 0 &&
+                    ComputeKeyTag(k.Flags, k.Protocol, k.Algorithm, k.PublicKey) == ds.KeyTag &&
+                    k.Algorithm == ds.Algorithm).ToArray();
+
+                if (matchingKeys.Length == 0) {
                     message = $"No DNSKEY found for DS tag {ds.KeyTag}.";
                     return false;
                 }
 
-                string digest = ComputeDigest(ds.Name, key.Flags, key.Protocol, key.Algorithm, key.PublicKey);
-                if (!digest.Equals(ds.Digest, StringComparison.OrdinalIgnoreCase)) {
+                bool supportedDigest = false;
+                bool digestMatches = false;
+                foreach (DnsKeyRecord key in matchingKeys) {
+                    var dnssecKey = new DnsSecKey(key.Name, key.Flags, key.Protocol, (byte)key.Algorithm, key.PublicKey);
+                    if (!DnsSecCrypto.TryComputeDsDigest(key.Name, dnssecKey, ds.DigestType, out byte[] digest)) {
+                        continue;
+                    }
+                    supportedDigest = true;
+                    if (BitConverter.ToString(digest).Replace("-", string.Empty)
+                        .Equals(ds.Digest, StringComparison.OrdinalIgnoreCase)) {
+                        digestMatches = true;
+                        break;
+                    }
+                }
+
+                if (!supportedDigest) {
+                    message = $"Unsupported DS digest type {ds.DigestType}.";
+                    return false;
+                }
+
+                if (!digestMatches) {
                     message = $"Digest mismatch for DS tag {ds.KeyTag}.";
                     return false;
                 }
@@ -251,8 +320,34 @@ namespace DnsClientX {
             if (!byte.TryParse(parts[2], out byte digestType)) {
                 return false;
             }
-            record = new RootDsRecord(keyTag, parsedAlgorithm, digestType, parts[3].ToUpperInvariant());
+            string digest = string.Concat(parts.Skip(3));
+            if (digest.Length == 0 || (digest.Length & 1) != 0 || !digest.All(Uri.IsHexDigit)) {
+                return false;
+            }
+            int expectedLength = digestType switch {
+                1 => 40,
+                2 => 64,
+                4 => 96,
+                _ => 0
+            };
+            if (expectedLength != 0 && digest.Length != expectedLength) {
+                return false;
+            }
+            record = new RootDsRecord(keyTag, parsedAlgorithm, digestType, digest.ToUpperInvariant());
             return true;
+        }
+
+        private static bool TryCanonicalName(string? name, out string canonical) {
+            canonical = string.Empty;
+            if (string.IsNullOrWhiteSpace(name)) {
+                return false;
+            }
+            try {
+                canonical = DnsWireNameCodec.Canonical(name!);
+                return true;
+            } catch (ArgumentException) {
+                return false;
+            }
         }
 
         /// <summary>
@@ -350,7 +445,7 @@ namespace DnsClientX {
             string sigBase64 = string.Concat(parts.Skip(8));
             try {
                 byte[] sig = Convert.FromBase64String(sigBase64);
-                record = new RrsigRecord(typeCovered, alg, labels, originalTtl, UnixToDateTime(expirationUnix), UnixToDateTime(inceptionUnix), keyTag, signerName, sig);
+                record = new RrsigRecord(answer.Name, typeCovered, alg, labels, originalTtl, UnixToDateTime(expirationUnix), UnixToDateTime(inceptionUnix), keyTag, signerName, sig);
                 return true;
             } catch {
                 return false;
@@ -454,80 +549,22 @@ namespace DnsClientX {
         }
 
         private static bool VerifyDnskeyRrsig(RrsigRecord rrsig, IReadOnlyCollection<DnsKeyRecord> dnsKeys) {
+            byte[] data = BuildDnskeySignedData(rrsig, dnsKeys);
             foreach (DnsKeyRecord key in dnsKeys) {
                 ushort tag = ComputeKeyTag(key.Flags, key.Protocol, key.Algorithm, key.PublicKey);
-                if (tag != rrsig.KeyTag || key.Algorithm != rrsig.Algorithm) {
+                if (tag != rrsig.KeyTag || key.Algorithm != rrsig.Algorithm ||
+                    key.Protocol != 3 || (key.Flags & 0x0100) == 0) {
                     continue;
                 }
 
-                byte[] data = BuildDnskeySignedData(rrsig, dnsKeys);
-
-                if (key.Algorithm == DnsKeyAlgorithm.RSASHA256 || key.Algorithm == DnsKeyAlgorithm.RSASHA512) {
-                    if (TryGetRsaParameters(key.PublicKey, out RSAParameters p)) {
-                        using RSA rsa = RSA.Create();
-                        rsa.ImportParameters(p);
-                        HashAlgorithmName hashAlg = key.Algorithm == DnsKeyAlgorithm.RSASHA256 ? HashAlgorithmName.SHA256 : HashAlgorithmName.SHA512;
-                        if (rsa.VerifyData(data, rrsig.Signature, hashAlg, RSASignaturePadding.Pkcs1)) {
-                            return true;
-                        }
-                    }
+                var dnssecKey = new DnsSecKey(key.Name, key.Flags, key.Protocol, (byte)key.Algorithm, key.PublicKey);
+                if (DnsSecCrypto.Verify(dnssecKey, data, rrsig.Signature)) {
+                    return true;
                 }
-#if NET5_0_OR_GREATER
-                else if (key.Algorithm == DnsKeyAlgorithm.ECDSAP256SHA256 || key.Algorithm == DnsKeyAlgorithm.ECDSAP384SHA384) {
-                    if (TryGetEcdsa(key.PublicKey, key.Algorithm, out ECDsa? ecdsa) && ecdsa != null) {
-                        using (ecdsa) {
-                            HashAlgorithmName hashAlg = key.Algorithm == DnsKeyAlgorithm.ECDSAP256SHA256 ? HashAlgorithmName.SHA256 : HashAlgorithmName.SHA384;
-                            if (ecdsa.VerifyData(data, rrsig.Signature, hashAlg)) {
-                                return true;
-                            }
-                        }
-                    }
-                }
-#endif
             }
 
             return false;
         }
-
-        private static bool TryGetRsaParameters(byte[] keyData, out RSAParameters parameters) {
-            parameters = default;
-            try {
-                int index = 0;
-                int exponentLength = keyData[index++];
-                if (exponentLength == 0) {
-                    exponentLength = (keyData[index] << 8) | keyData[index + 1];
-                    index += 2;
-                }
-                byte[] exponent = new byte[exponentLength];
-                Buffer.BlockCopy(keyData, index, exponent, 0, exponentLength);
-                index += exponentLength;
-                byte[] modulus = new byte[keyData.Length - index];
-                Buffer.BlockCopy(keyData, index, modulus, 0, modulus.Length);
-                parameters = new RSAParameters { Exponent = exponent, Modulus = modulus };
-                return true;
-            } catch {
-                return false;
-            }
-        }
-
-#if NET5_0_OR_GREATER
-        private static bool TryGetEcdsa(byte[] keyData, DnsKeyAlgorithm algorithm, out ECDsa? ecdsa) {
-            ecdsa = null;
-            try {
-                ECParameters ec = new();
-                ec.Curve = algorithm == DnsKeyAlgorithm.ECDSAP384SHA384 ? ECCurve.NamedCurves.nistP384 : ECCurve.NamedCurves.nistP256;
-                int coordLength = keyData.Length / 2;
-                ec.Q = new ECPoint {
-                    X = keyData.AsSpan(0, coordLength).ToArray(),
-                    Y = keyData.AsSpan(coordLength).ToArray()
-                };
-                ecdsa = ECDsa.Create(ec);
-                return true;
-            } catch {
-                return false;
-            }
-        }
-#endif
 
         private sealed class ByteArrayComparer : IComparer<byte[]> {
             internal static readonly ByteArrayComparer Instance = new();
@@ -551,18 +588,13 @@ namespace DnsClientX {
         /// <param name="domain">Domain name to convert.</param>
         /// <returns>Byte array containing the wire format.</returns>
         private static byte[] DomainToWireFormat(string domain) {
-            if (string.IsNullOrEmpty(domain) || domain == ".") {
-                return new byte[] { 0 };
-            }
-            string[] labels = domain.TrimEnd('.').Split('.');
-            var data = new List<byte>();
-            foreach (string label in labels) {
-                byte[] bytes = Encoding.ASCII.GetBytes(label.ToLowerInvariant());
-                data.Add((byte)bytes.Length);
-                data.AddRange(bytes);
-            }
-            data.Add(0);
-            return data.ToArray();
+            return DnsWireNameCodec.ToCanonicalWire(domain);
+        }
+
+        private static bool SignatureTimeIsValid(RrsigRecord signature) {
+            uint inception = unchecked((uint)new DateTimeOffset(signature.Inception).ToUnixTimeSeconds());
+            uint expiration = unchecked((uint)new DateTimeOffset(signature.Expiration).ToUnixTimeSeconds());
+            return DnsSecWire.SignatureTimeIsValid(inception, expiration, DateTimeOffset.UtcNow);
         }
 
         private static DateTime UnixToDateTime(uint seconds) {
