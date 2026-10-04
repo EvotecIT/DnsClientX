@@ -49,19 +49,9 @@ namespace DnsClientX {
                 Settings.Logger.WriteDebug($"Question class: {BitConverter.ToString(queryBytes, queryBytes.Length - 2, 2)}");
             }
 
-            var (address, resolveError) = await DnsServerResolver.ResolveAsync(
-                    dnsServer,
-                    endpointConfiguration.TimeOut,
-                    cancellationToken,
-                    endpointConfiguration.DnsServerResolutionSuccessTtl,
-                    endpointConfiguration.DnsServerResolutionFailureTtl,
-                    endpointConfiguration.DnsServerResolutionAllowStale,
-                    endpointConfiguration.DnsServerResolutionStaleTtl,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffEnabled,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffFactor,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffMaxTtl,
-                    endpointConfiguration.PreferredAddressFamily)
+            var resolution = await DnsServerResolver.ResolveAsync(dnsServer, endpointConfiguration, cancellationToken)
                 .ConfigureAwait(false);
+            var (address, resolveError) = resolution;
             if (address == null) {
                 DnsResponse invalidAddress = new DnsResponse {
                     Questions = [
@@ -72,7 +62,9 @@ namespace DnsClientX {
                             OriginalName = name
                         }
                     ],
-                    Status = DnsResponseCode.ServerFailure
+                    Status = DnsResponseCode.ServerFailure,
+                    ErrorCode = resolution.ErrorCode,
+                    Exception = resolution.Exception
                 };
                 invalidAddress.AddServerDetails(endpointConfiguration);
                 invalidAddress.Error = resolveError ?? $"Invalid DNS server '{dnsServer}'.";
@@ -134,7 +126,9 @@ namespace DnsClientX {
                         OriginalName = name
                     }
                 ],
-                Status = responseCode
+                Status = responseCode,
+                ErrorCode = lastException == null ? DnsQueryErrorCode.ServFail : DnsQueryDiagnostics.ClassifyFailure(lastException),
+                Exception = lastException
             };
             failure.AddServerDetails(endpointConfiguration);
             failure.Error = $"Failed to query type {type} of \"{name}\" => {lastException?.Message + " " + lastException?.InnerException?.Message}";

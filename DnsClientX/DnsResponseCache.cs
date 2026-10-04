@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Collections.Generic;
@@ -10,10 +9,11 @@ namespace DnsClientX {
     /// Stores responses together with their expiration times.
     /// </summary>
     internal class DnsResponseCache : IDisposable {
-        private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
+        private readonly Dictionary<string, CacheEntry> _cache = new(StringComparer.Ordinal);
+        private readonly object _gate = new();
         private readonly Timer _cleanupTimer;
         private readonly int _cleanupThreshold;
-        private readonly ConcurrentQueue<string> _insertionOrder = new();
+        private readonly LinkedList<string> _insertionOrder = new();
         private readonly TimeSpan _cleanupInterval;
         private bool _disposed;
 
@@ -38,9 +38,11 @@ namespace DnsClientX {
             /// </summary>
             /// <param name="response">DNS response to cache.</param>
             /// <param name="expiration">Expiration time of the cached entry.</param>
-            public CacheEntry(DnsResponse response, DateTimeOffset expiration) {
+            /// <param name="node">The single eviction node owned by this entry.</param>
+            public CacheEntry(DnsResponse response, DateTimeOffset expiration, LinkedListNode<string> node) {
                 Response = response;
                 Expiration = expiration;
+                Node = node;
             }
 
             /// <summary>Gets the cached DNS response.</summary>
@@ -48,6 +50,7 @@ namespace DnsClientX {
 
             /// <summary>Gets the expiration time for the cached entry.</summary>
             public DateTimeOffset Expiration { get; }
+            internal LinkedListNode<string> Node { get; }
         }
 
         /// <summary>
@@ -57,12 +60,16 @@ namespace DnsClientX {
         /// <param name="response">Retrieved response if found and not expired.</param>
         /// <returns><c>true</c> if a valid entry was found; otherwise <c>false</c>.</returns>
         public bool TryGet(string key, [NotNullWhen(true)] out DnsResponse? response) {
-            if (_cache.TryGetValue(key, out var entry)) {
-                if (DateTimeOffset.UtcNow < entry.Expiration) {
-                    response = entry.Response.Clone();
-                    return true;
+            CacheEntry? found = null;
+            lock (_gate) {
+                if (_cache.TryGetValue(key, out var entry)) {
+                    if (DateTimeOffset.UtcNow < entry.Expiration) found = entry;
+                    else Remove(entry.Node);
                 }
-                _cache.TryRemove(key, out _);
+            }
+            if (found != null) {
+                response = found.Response.Clone();
+                return true;
             }
             response = default!;
             return false;
@@ -72,10 +79,13 @@ namespace DnsClientX {
         /// Removes expired entries from the cache.
         /// </summary>
         public void Cleanup() {
-            var now = DateTimeOffset.UtcNow;
-            foreach (var item in _cache) {
-                if (item.Value.Expiration <= now) {
-                    _cache.TryRemove(item.Key, out _);
+            lock (_gate) {
+                var now = DateTimeOffset.UtcNow;
+                var node = _insertionOrder.First;
+                while (node != null) {
+                    var next = node.Next;
+                    if (_cache[node.Value].Expiration <= now) Remove(node);
+                    node = next;
                 }
             }
         }
@@ -101,22 +111,31 @@ namespace DnsClientX {
                 }
                 if (expiration <= now) return;
             }
-            bool isNew = !_cache.ContainsKey(key);
-            var entry = new CacheEntry(response.Clone(), expiration);
-            _cache[key] = entry;
-            if (isNew) _insertionOrder.Enqueue(key);
-            if (_cache.Count > _cleanupThreshold) {
-                Cleanup();
-                while (_cache.Count > _cleanupThreshold && _insertionOrder.TryDequeue(out string? oldest)) {
-                    _cache.TryRemove(oldest, out _);
+            DnsResponse snapshot = response.Clone();
+            lock (_gate) {
+                var node = _cache.TryGetValue(key, out var previous)
+                    ? previous.Node : _insertionOrder.AddLast(key);
+                _cache[key] = new CacheEntry(snapshot, expiration, node);
+                if (_cache.Count > _cleanupThreshold) {
+                    Cleanup();
+                    while (_cache.Count > _cleanupThreshold && _insertionOrder.First != null) {
+                        Remove(_insertionOrder.First);
+                    }
                 }
             }
         }
 
         /// <summary>Clears cached entries and insertion-order bookkeeping.</summary>
         internal void Clear() {
-            _cache.Clear();
-            while (_insertionOrder.TryDequeue(out _)) { }
+            lock (_gate) {
+                _cache.Clear();
+                _insertionOrder.Clear();
+            }
+        }
+
+        private void Remove(LinkedListNode<string> node) {
+            _cache.Remove(node.Value);
+            _insertionOrder.Remove(node);
         }
 
         /// <inheritdoc/>

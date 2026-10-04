@@ -81,10 +81,10 @@ public static class DnsWireQueryClient {
     }
 
     private static async Task<IPAddress> ResolveServerAsync(string server, int timeoutMilliseconds, CancellationToken cancellationToken) {
-        (IPAddress? address, string? error) = await DnsServerResolver.ResolveAsync(
+        var resolution = await DnsServerResolver.ResolveAsync(
             server, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
-        if (address == null) throw new DnsClientException(error ?? $"DNS server '{server}' could not be resolved.");
-        return address;
+        if (resolution.Address == null) throw resolution.CreateException();
+        return resolution.Address;
     }
 
     private static Configuration CreateConfiguration(string server, int port, DnsRequestFormat format, int timeoutMilliseconds) {

@@ -3,6 +3,11 @@ namespace DnsClientX {
     /// Configures shared resolver query execution for probe and benchmark workflows.
     /// </summary>
     public sealed class ResolverQueryRunOptions {
+        /// <summary>Gets or sets the IP-literal UDP/TCP bootstrap resolver.</summary>
+        public DnsResolverEndpoint? BootstrapResolver { get; init; }
+
+        /// <summary>Gets or sets whether to request EDNS NSID metadata.</summary>
+        public bool RequestNsid { get; init; }
         /// <summary>
         /// Gets or sets the request timeout in milliseconds.
         /// </summary>

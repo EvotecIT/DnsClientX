@@ -93,6 +93,7 @@ namespace DnsClientX {
                 TypedRecords = request.TypedRecords,
                 ParseTypedTxtRecords = request.ParseTypedTxtRecords,
                 CheckingDisabled = request.CheckingDisabled,
+                BootstrapResolver = request.BootstrapResolver,
                 EdnsOptions = ednsOptions,
                 UserAgent = request.UserAgent,
                 HttpVersion = request.HttpVersion,
@@ -376,6 +377,7 @@ namespace DnsClientX {
         }
 
         private static void ApplyRequestConfiguration(ClientX client, ResolveDnsRequest request, EdnsOptions? ednsOptions) {
+            client.EndpointConfiguration.BootstrapResolver = request.BootstrapResolver;
             client.EndpointConfiguration.TimeOut = request.TimeOutMilliseconds;
             client.EndpointConfiguration.CheckingDisabled = request.CheckingDisabled;
             client.EndpointConfiguration.MaxConcurrency = request.EffectiveMaxConcurrency;

@@ -2,6 +2,7 @@
 #pragma warning disable CA2252
 using System;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Net.Quic;
@@ -19,6 +20,30 @@ namespace DnsClientX.Tests {
     [SupportedOSPlatform("macos")]
     [Collection("NoParallel")]
     public class DnsWireResolveQuicTests {
+        /// <summary>Hostname lookup failure retains diagnostics before opening a QUIC connection.</summary>
+        [Fact]
+        public async Task HostnameFailureRetainsLookupDiagnostics() {
+            var previousResolver = DnsWireResolveQuic.HostEntryResolver;
+            DnsServerResolver.ResetForTests();
+            try {
+                DnsWireResolveQuic.HostEntryResolver = null;
+                var cause = new SocketException((int)SocketError.HostNotFound);
+                DnsServerResolver.ResolveHostAddressesAsync = _ => throw cause;
+                var configuration = new Configuration("missing.example", DnsRequestFormat.DnsOverQuic) {
+                    TimeOut = 1000, DnsServerResolutionAllowStale = false
+                };
+                var response = await DnsWireResolveQuic.ResolveWireFormatQuic("missing.example", 853,
+                    "payload.example", DnsRecordType.A, false, false, false, configuration, default);
+                Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
+                Assert.Equal(DnsQueryErrorCode.Network, response.ErrorCode);
+                Assert.Same(cause, response.Exception);
+                Assert.Equal(cause.Message, response.ServerResolution!.Error);
+            } finally {
+                DnsServerResolver.ResetForTests();
+                DnsWireResolveQuic.HostEntryResolver = previousResolver;
+            }
+        }
+
         private sealed class KeepaliveOption : EdnsOption {
             internal KeepaliveOption() : base(11) { }
             protected override byte[] GetData() => Array.Empty<byte>();

@@ -116,7 +116,7 @@ namespace DnsClientX.Tests {
             Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", "8053");
 
             try {
-                object cliOptions = ParseCliOptions("--benchmark", "--wire-post", "example.com");
+                object cliOptions = ParseCliOptions("--benchmark", "--wire-post", "--nsid", "--bootstrap", "udp@1.1.1.1:53", "example.com");
                 var assembly = Assembly.Load("DnsClientX.Cli");
                 Type programType = assembly.GetType("DnsClientX.Cli.Program")!;
                 MethodInfo createQueryRunOptions = programType.GetMethod("CreateQueryRunOptions", BindingFlags.NonPublic | BindingFlags.Static)!;
@@ -125,6 +125,8 @@ namespace DnsClientX.Tests {
 
                 Assert.True(runOptions.ForceDohWirePost);
                 Assert.Equal(8053, runOptions.PortOverride);
+                Assert.True(runOptions.RequestNsid);
+                Assert.Equal("1.1.1.1", runOptions.BootstrapResolver!.Host);
             } finally {
                 Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", originalPort);
             }

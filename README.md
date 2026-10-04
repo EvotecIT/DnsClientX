@@ -115,6 +115,10 @@ If you want to learn about DNS:
 > [!NOTE]
 > DnsClientX normalizes presentation details such as trailing dots and TXT character-string concatenation, but preserves DNS resource-record boundaries. Resolver answers can legitimately differ because of cache state, anycast location, ECS, filtering policy, or propagation; comparison code should not assume every resolver returns an identical RRset at the same instant.
 
+For TXT and SPF records, `DataRaw` retains the server's presentation, `DataStrings` retains its quoted character-strings, and `DataStringsEscaped` exposes the decoded strings. `Data` and `TxtRecord.Text` concatenate those decoded strings within the same resource record. Spaces, empty chunks, escaped quotes, and payload line breaks are preserved. Use `TxtConcatenatedData` when you deliberately want display output with line breaks removed. Opaque and application record payloads retain their case.
+
+CAA, NAPTR, and TLSA also accept generic hexadecimal RDATA (`\# <length> <hex>`). The declared octet length must match the payload. CAA flags and escaped value bytes are preserved; normalized TLSA association data uses uppercase hexadecimal. Malformed generic encodings retain their raw presentation and project as `UnknownRecord`.
+
 ## Supported .NET Versions and Dependencies
 
 ### Core Library (DnsClientX)
@@ -391,6 +395,8 @@ This behavior is by design and reflects the modern, distributed nature of intern
 - UDP clients reuse healthy connected sockets and automatically retry a truncated response over TCP when `UseTcpFallback` is enabled. TCP and DoT clients reuse persistent RFC 7766 connections, pipeline bounded concurrent queries, and dispatch out-of-order responses by transaction ID.
 - On Windows, dependency-free NRPT discovery honors the Group Policy-over-local-policy precedence rule. Supported suffix, prefix, FQDN, and catch-all matches route through `GenericDNSServers`; `DNSSECValidationRequired` triggers local chain validation. Punycode IDN policy is supported, while Windows-only UTF-8 IDN modes, conflicts, DirectAccess, IPsec, wildcard/subnet, and auto-trigger VPN behavior fail explicitly instead of bypassing policy.
 - There is no silent public-resolver substitution. Missing system DNS is an explicit configuration error unless the caller opts in to `SystemDnsFallback.PublicResolvers`.
+
+Call `client.EndpointConfiguration.RefreshSystemDns()` after a network or VPN change to replace a system endpoint's resolver and policy snapshot. Refresh is explicit; existing clients do not subscribe to operating-system network events. Native scoped resolver behavior beyond the discovered configuration still depends on the host platform.
 
 ```csharp
 using var systemClient = new ClientX(new Configuration(DnsEndpoint.System));
@@ -1129,9 +1135,32 @@ DnsClientTelemetry.QueryCompleted += (_, query) =>
 
 When response caching is enabled, `DnsResponse.ResponseSource` reports `Network`, `Cache`, or `CoalescedNetwork`. Exact-key concurrent misses share one in-flight query, but each caller receives an independent response clone. Canceling one waiter does not cancel the shared fetch.
 
+### Bootstrap and resolver identity
+
+Endpoint hostnames use system address resolution by default. Set an explicit bootstrap resolver to keep that lookup within a chosen DNS path:
+
+```csharp
+using var client = new ClientXBuilder()
+    .WithEndpoint(DnsEndpoint.Google)
+    .WithBootstrapResolver(EndpointParser.ParseBootstrap("udp@1.1.1.1:53"))
+    .WithEdnsOptions(new EdnsOptions { RequestNsid = true })
+    .Build();
+DnsResponse response = await client.Resolve("example.com");
+Console.WriteLine(response.ServerResolution?.Address);
+Console.WriteLine(response.EdnsNsidHex);
+```
+
+Bootstrap accepts an IP-literal UDP/TCP resolver and does not fall back to system DNS after an explicit lookup failure. Queries, RFC 2136 updates, and zone transfers use the configured path. Successful addresses are cached for the shorter of their DNS TTL and the configured success TTL. `ServerResolution` reports the hostname, selected address, bootstrap path, cached or stale address use, and any lookup failure masked by stale reuse. Literal endpoints need no bootstrap lookup. HTTPS retains its original authority for HTTP Host, SNI, and certificate validation, including internationalized names. HTTP bootstrap requires .NET 8 or later and uses the specified HTTP/1.1 or HTTP/2 version without automatic HTTP/3 upgrades; HTTP/3, gRPC, iterative root resolution, multicast, and HTTP proxies reject it explicitly.
+
+Certificate validation policy is captured when a query starts and remains in effect through retries. Changing `IgnoreCertificateErrors` affects subsequent queries. System clients can call `EndpointConfiguration.RefreshSystemDns()` after a network change. A refresh exposing no servers throws without replacing the prior configuration; pass `SystemDnsFallback.PublicResolvers` only when that fallback is desired.
+
+NSID is an opaque EDNS value. `EdnsNsid` retains its bytes, `EdnsNsidHex` is lossless, and `EdnsNsidText` is present only for printable ASCII. JSON transports reject NSID requests because they cannot carry EDNS. The CLI accepts `--bootstrap udp@1.1.1.1:53 --nsid`; PowerShell query, probe, and benchmark cmdlets accept `-BootstrapResolver 'udp@1.1.1.1:53' -RequestNsid`. Use `--explain` or `-FullResponse` to inspect query provenance. JSON output includes `server_resolution`, `edns_nsid_hex`, and `edns_nsid_text` when available.
+
+JSON requests on .NET 8 or later honor `Configuration.HttpVersion`. Set it to HTTP/1.1 when using an endpoint that supports only HTTP/1.1.
+
 ### Library Comparison Benchmark
 
-`DnsClientX.Benchmarks` contains separate BenchmarkDotNet suites for the full wire parser, cache hit/miss paths, and a client comparison with DnsClient.NET. The client comparison uses a controlled loopback DNS responder by default so client overhead is not confused with Internet or resolver latency.
+`DnsClientX.Benchmarks` contains BenchmarkDotNet suites for wire parsing, faithful TXT decoding, cache paths, and uncached UDP/TCP queries. The query comparison uses DnsClient.NET 1.8.0 (Apache-2.0), ARSoft.Tools.Net 3.6.1 (Apache-2.0), and DNS 7.0.0 (MIT) against the same controlled loopback responder with 1 and 16 A records. These dependencies belong only to the non-packable benchmark executable.
 
 Run benchmarks one process at a time so BenchmarkDotNet build artifacts do not contend with each other:
 
@@ -1151,10 +1180,23 @@ To run the comparison against a resolver you control:
 $env:DNS_BENCHMARK_SERVER = '192.0.2.53'
 $env:DNS_BENCHMARK_PORT = '53'
 $env:DNS_BENCHMARK_NAME = 'example.com'
+$env:DNS_BENCHMARK_ANSWERS = '1' # Expected A record count supplied by the lab.
 dotnet run -c Release --project .\DnsClientX.Benchmarks -- --filter '*DnsLibraryNetworkBenchmark*'
 ```
 
-Both clients disable caching and retries, reuse their client instances, and perform one query per benchmark invocation. Treat lab results as environment-specific; use the loopback result for client overhead and the lab result only to detect material regressions under realistic network conditions.
+The clients reuse their public client objects, disable response caching and outer retries, and use a two-second query deadline. DnsClientX enables TCP connection reuse. Each library retains its own public transport implementation and pooling behavior. DNS 7.0.0 has no TCP deadline setting, so its operation uses an external two-second wait. That package ships a non-optimized assembly; its measurements describe the published package, not an optimized source build. ARSoft.Tools.Net requires the .NET 8 ASP.NET Core runtime for this benchmark target.
+
+Setup verifies both record count and address data before timing. The loopback responder runs in the benchmark process, so allocation totals include responder work and connection handling. Its TCP replies use complete frames with Nagle disabled, and completed successful connection tasks are reclaimed during the run. An external lab must return the configured answer count for every selected case. Treat latency and allocation figures as qualified measurements for the recorded runtime, host, CPU placement, and transport; they are not a portable ranking. Run competing lanes on the same CPU domain and keep performance measurements outside ordinary correctness CI.
+
+Export BenchmarkDotNet JSON and use the shared PowerForge importer for normalized results:
+
+```powershell
+dotnet run -c Release --project .\DnsClientX.Benchmarks -- --filter '*DnsLibraryNetworkBenchmark*' --exporters json --artifacts ./Ignore/Benchmarks
+Import-Module PSPublishModule
+Import-BenchmarkResult -Path ./Ignore/Benchmarks -Suite DnsClientX -OutputPath ./Ignore/Benchmarks/normalized.json
+```
+
+For a source baseline, set the MSBuild environment property `DnsClientXSourceProject` to the baseline checkout's `DnsClientX.csproj`, then run the same benchmark cases and options. A baseline that fails payload validation is an invalid lane; do not treat its timings as equivalent successful work.
 
 For concurrent scenarios, use the dependency-free `DnsClientX.LoadTests` runner rather than BenchmarkDotNet. It reports throughput, p50/p95/p99 latency, and failures for each requested concurrency level and can emit JSON for comparisons over time:
 

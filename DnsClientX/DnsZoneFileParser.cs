@@ -1,4 +1,5 @@
 using System;
+using Token = DnsClientX.DnsPresentationFormat.Token;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -249,6 +250,9 @@ namespace DnsClientX {
             foreach (int nameIndex in nameIndexes.Where(item => item >= 0 && item < values.Length)) {
                 values[nameIndex] = MakeAbsolute(values[nameIndex], origin);
             }
+            if (type == DnsRecordType.NAPTR && values.Length == 6) {
+                return $"{values[0]} {values[1]} {tokens[2].Raw} {tokens[3].Raw} {tokens[4].Raw} {values[5]}";
+            }
             return string.Join(" ", values);
         }
 
@@ -335,48 +339,9 @@ namespace DnsClientX {
         }
 
         private static List<Token> Tokenize(string text, int line, ParseState state) {
-            var tokens = new List<Token>();
-            var raw = new StringBuilder();
-            var value = new StringBuilder();
-            bool quoted = false;
-            for (int index = 0; index < text.Length; index++) {
-                char current = text[index];
-                if (char.IsWhiteSpace(current) && !quoted) {
-                    AddToken(tokens, raw, value);
-                    continue;
-                }
-                if (current == '"') {
-                    quoted = !quoted;
-                    raw.Append(current);
-                    continue;
-                }
-                if (current == '\\' && index + 1 < text.Length) {
-                    raw.Append(current);
-                    value.Append(current);
-                    if (index + 3 < text.Length && char.IsDigit(text[index + 1]) && char.IsDigit(text[index + 2]) && char.IsDigit(text[index + 3])) {
-                        string digits = text.Substring(index + 1, 3);
-                        raw.Append(digits);
-                        value.Append(digits);
-                        index += 3;
-                    } else {
-                        raw.Append(text[++index]);
-                        value.Append(text[index]);
-                    }
-                    continue;
-                }
-                raw.Append(current);
-                value.Append(current);
-            }
-            AddToken(tokens, raw, value);
-            if (quoted) AddDiagnostic(state, line, DnsZoneFileDiagnosticSeverity.Error, "Unterminated quoted token.");
+            var tokens = DnsPresentationFormat.Tokenize(text, out bool complete);
+            if (!complete) AddDiagnostic(state, line, DnsZoneFileDiagnosticSeverity.Error, "Unterminated quoted token.");
             return tokens;
-        }
-
-        private static void AddToken(List<Token> tokens, StringBuilder raw, StringBuilder value) {
-            if (raw.Length == 0) return;
-            tokens.Add(new Token(raw.ToString(), value.ToString()));
-            raw.Clear();
-            value.Clear();
         }
 
         private static bool TryParseTtl(string value, out int ttl) {
@@ -547,7 +512,6 @@ namespace DnsClientX {
             internal List<DnsZoneFileDiagnostic> Diagnostics { get; }
         }
 
-        private readonly record struct Token(string Raw, string Value);
         private readonly record struct LogicalLine(string Text, int Line, bool OwnerOmitted);
     }
 }

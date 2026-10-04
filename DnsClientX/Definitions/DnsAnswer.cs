@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -43,7 +44,7 @@ namespace DnsClientX {
                 if (string.IsNullOrEmpty(value)) {
                     _name = value;
                 } else {
-                    _name = value.EndsWith(".", StringComparison.Ordinal) ? value.TrimEnd('.') : value;
+                    _name = DnsWireNameCodec.TrimTrailingRootDot(value);
                 }
             }
         }
@@ -68,10 +69,11 @@ namespace DnsClientX {
         public string DataRaw { get; set; }
 
         /// <summary>
-        /// the value of the DNS record for the given name and type after being processed and converted to a string.
+        /// Gets decoded record data. TXT character-strings are concatenated within one resource
+        /// record without trimming whitespace or changing payload line endings.
         /// </summary>
         [JsonIgnore]
-        public string Data => NormalizeLineEndings(ConvertData());
+        public string Data => ConvertData();
 
         /// <summary>
         /// The value of the DNS record for the given name and type, split into multiple strings if necessary.
@@ -102,22 +104,13 @@ namespace DnsClientX {
         public object? TypedRecord => DnsRecordFactory.Create(this);
 
         /// <summary>
-        /// The value of the DNS record for the given name and type, escaped if necessary removing the quotes completely.
+        /// Gets decoded TXT/SPF character-strings without presentation quotes. Empty strings,
+        /// whitespace, and escaped payload octets are preserved. Other types return DataStrings.
         /// </summary>
         [JsonIgnore]
-        public string[] DataStringsEscaped {
-            get {
-                var data = new List<string>();
-                foreach (var item in DataStrings) {
-                    if (item.StartsWith("\\\"")) {
-                        data.Add(item.Replace("\\\"", string.Empty).Replace("\"", string.Empty));
-                    } else {
-                        data.Add(item);
-                    }
-                }
-                return data.ToArray();
-            }
-        }
+        public string[] DataStringsEscaped => Type is DnsRecordType.TXT or DnsRecordType.SPF
+            ? DnsPresentationFormat.TxtStrings(DataRaw, decoded: true)
+            : DataStrings;
 
         /// <summary>
         /// Converts the raw data to multiple strings. By default, DNS records are stored as a single string.
@@ -125,48 +118,9 @@ namespace DnsClientX {
         /// This method tries to preserve the original format of the data in case user needs to check for that format.
         /// </summary>
         /// <returns>Array of strings representing record data.</returns>
-        private string[] ConvertToMultiString() {
-            string dataToProcess = DataRaw;
-
-            if (dataToProcess is null) {
-                return Array.Empty<string>();
-            }
-
-            // I'm not sure if this is the best way to do this, but it works for now.
-            // This method searches for quotes with space between them or quotes without space
-            // Then it splits the string into multiple strings, adding back the quotes that we split on
-            var data = new List<string>();
-            var temp = new StringBuilder();
-
-            for (int i = 0; i < dataToProcess.Length; i++) {
-                if (i < dataToProcess.Length - 1 && dataToProcess[i] == '"' && dataToProcess[i + 1] == '"') {
-                    temp.Append(dataToProcess[i]);
-                    data.Add(temp.ToString());
-                    temp.Clear();
-                    temp.Append("\""); // Add quotes back
-                    i++; // Skip the next character as it's part of the split
-                } else if (i < dataToProcess.Length - 2 && dataToProcess[i] == '"' && dataToProcess[i + 1] == ' ' && dataToProcess[i + 2] == '"') {
-                    temp.Append(dataToProcess[i]);
-                    data.Add(temp.ToString());
-                    temp.Clear();
-                    temp.Append("\""); // Add quotes back
-                    i += 2; // Skip the next two characters as they're part of the split
-                } else {
-                    temp.Append(dataToProcess[i]);
-                }
-            }
-
-            if (temp.Length > 0) {
-                data.Add(temp.ToString());
-            }
-
-            // Clean up empty strings and whitespace-only entries for TXT records
-            if (Type == DnsRecordType.TXT) {
-                data = data.Where(s => !string.IsNullOrWhiteSpace(s) && s.Trim('"').Trim().Length > 0).ToList();
-            }
-
-            return data.ToArray();
-        }
+        private string[] ConvertToMultiString() => Type is DnsRecordType.TXT or DnsRecordType.SPF
+            ? DnsPresentationFormat.TxtStrings(DataRaw, decoded: false)
+            : DataRaw == null ? Array.Empty<string>() : new[] { DataRaw };
 
         /// <summary>
         /// Converts the data to a string trying to unify the format of the data between different providers
@@ -178,7 +132,7 @@ namespace DnsClientX {
             }
 
             return Type switch {
-                DnsRecordType.TXT => ConvertTxtRecord(),
+                DnsRecordType.TXT or DnsRecordType.SPF => DnsPresentationFormat.ConcatenateTxt(DataRaw),
                 DnsRecordType.CAA => ConvertCaaRecord(),
                 DnsRecordType.DNSKEY => ConvertDnsKeyRecord(),
                 DnsRecordType.DS => ConvertDsRecord(),
@@ -187,72 +141,22 @@ namespace DnsClientX {
                 DnsRecordType.TLSA => ConvertTlsaRecord(),
                 DnsRecordType.PTR => ConvertPtrRecord(),
                 DnsRecordType.NAPTR => ConvertNaptrRecord(),
+                DnsRecordType.AAAA => IPAddress.TryParse(DataRaw, out var address) ? address.ToString() : DataRaw,
                 DnsRecordType.SVCB or DnsRecordType.HTTPS => DataRaw,
-                _ => DataRaw.ToLowerInvariant()
+                DnsRecordType.NS or DnsRecordType.CNAME or DnsRecordType.DNAME or
+                DnsRecordType.MB or DnsRecordType.MD or DnsRecordType.MF or DnsRecordType.MG or DnsRecordType.MR or
+                DnsRecordType.MX or DnsRecordType.AFSDB or DnsRecordType.RT or DnsRecordType.KX or
+                DnsRecordType.SOA or DnsRecordType.SRV or DnsRecordType.MINFO or DnsRecordType.RP => DataRaw.ToLowerInvariant(),
+                _ => DataRaw
             };
         }
 
-        private string ConvertTxtRecord() {
-            string[] segments = ConvertToMultiString();
-            if (segments.Length == 0) return string.Empty;
-
-            var result = new StringBuilder(DataRaw.Length);
-            foreach (string segment in segments) {
-                string value = segment;
-                if (value.Length >= 2 && value[0] == '"' && value[value.Length - 1] == '"') {
-                    value = value.Substring(1, value.Length - 2);
-                }
-                result.Append(UnescapePresentationText(value));
-            }
-            return CleanupTxtRecordData(result.ToString());
-        }
-
-        private static string UnescapePresentationText(string value) {
-            if (string.IsNullOrEmpty(value) || value.IndexOf('\\') < 0) return value;
-            var builder = new StringBuilder(value.Length);
-            for (int i = 0; i < value.Length; i++) {
-                if (value[i] != '\\' || i + 1 >= value.Length) {
-                    builder.Append(value[i]);
-                    continue;
-                }
-
-                if (i + 3 < value.Length &&
-                    value[i + 1] >= '0' && value[i + 1] <= '9' &&
-                    value[i + 2] >= '0' && value[i + 2] <= '9' &&
-                    value[i + 3] >= '0' && value[i + 3] <= '9') {
-                    int octet = (value[i + 1] - '0') * 100 + (value[i + 2] - '0') * 10 + value[i + 3] - '0';
-                    if (octet <= byte.MaxValue) {
-                        builder.Append((char)octet);
-                        i += 3;
-                        continue;
-                    }
-                }
-
-                builder.Append(value[++i]);
-            }
-            return builder.ToString();
-        }
-
         private string ConvertCaaRecord() {
-            // This is a CAA record. Cloudflare returns the data in HEX, so we need to convert it to text.
-            // Other providers don't do this.
             if (DataRaw.StartsWith("\\#", StringComparison.Ordinal)) {
-                var parts = DataRaw.Split(' ')
-                    .Where(part => !string.IsNullOrEmpty(part))
-                    .Select(part => part.Trim())
-                    .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]+\b\Z", RegexOptions.CultureInvariant))
-                    .Select(part => Convert.ToByte(part, 16))
-                    .ToArray();
-
-                // Get the tag length from the third byte
-                int tagLength = parts[2];
-                // Get the tag
-                var tag = Encoding.UTF8.GetString(parts.Skip(3).Take(tagLength).ToArray());
-                // Get the value
-                var valueBytes = parts.Skip(3 + tagLength).ToArray();
-                var value = Encoding.UTF8.GetString(valueBytes);
-
-                return $"0 {tag} \"{value}\"";
+                if (!DnsPresentationFormat.TryDecodeRfc3597(DataRaw, out byte[] rdata)) return DataRaw;
+                try {
+                    return DnsWireRecordFormatter.Format(rdata, DnsRecordType.CAA, 0, (ushort)rdata.Length);
+                } catch (DnsClientException) { return DataRaw; }
             }
 
             return DataRaw;
@@ -322,55 +226,54 @@ namespace DnsClientX {
         }
 
         private string ConvertTlsaRecord() {
-            // This is a TLSA record. The data is in HEX.
-            // The data is in the format: 3 1 1 2b6e0f
-            // The first byte is the certificate usage, the second byte is the selector, the third byte is the matching type, and the rest is the certificate association data
             byte[] parts;
             if (DataRaw.StartsWith("\\#", StringComparison.Ordinal)) {
-                // Handle hexadecimal format
-                parts = DataRaw.Split(' ')
-                    .Skip(2) // Skip the first two parts
-                    .Where(part => !string.IsNullOrEmpty(part))
-                    .Select(part => part.Trim())
-                    .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]+\b\Z", RegexOptions.CultureInvariant))
-                    .Select(part => Convert.ToByte(part, 16)) // Convert from hexadecimal to byte
-                    .ToArray();
+                if (!DnsPresentationFormat.TryDecodeRfc3597(DataRaw, out parts)) return DataRaw;
             } else if (Regex.IsMatch(DataRaw, @"^\d+ \d+ \d+ [\da-fA-F]+$", RegexOptions.CultureInvariant)) {
-                // If the DataRaw string is already in the correct format, return it as it is
-                return DataRaw;
+                return DataRaw.ToUpperInvariant();
             } else {
-                // Handle Base64 format
-                if (string.IsNullOrEmpty(DataRaw)) {
-                    return DataRaw;
-                }
-                parts = Convert.FromBase64String(DataRaw);
+                if (string.IsNullOrEmpty(DataRaw)) return DataRaw;
+                try { parts = Convert.FromBase64String(DataRaw); }
+                catch (FormatException) { return DataRaw; }
             }
-
-            // Get the certificate usage
-            var certificateUsage = parts[0];
-            // Get the selector
-            var selector = parts[1];
-            // Get the matching type
-            var matchingType = parts[2];
-            // Get the certificate association data
-            var certificateAssociationData = string.Join("", parts.Skip(3).Select(part => part.ToString("x2")));
-            //Console.WriteLine($"{certificateUsage} {selector} {matchingType} {certificateAssociationData}");
-            return $"{certificateUsage} {selector} {matchingType} {certificateAssociationData}";
+            if (parts.Length > ushort.MaxValue) return DataRaw;
+            try {
+                return DnsWireRecordFormatter.Format(parts, DnsRecordType.TLSA, 0, (ushort)parts.Length);
+            } catch (DnsClientException) { return DataRaw; }
         }
 
         private string ConvertPtrRecord() {
-            // For PTR records, decode the domain name from the record data
+            // A provider's Base64 form is accepted only when it decodes to a complete DNS name.
+            // Ordinary presentation names such as "mail" may also be valid Base64 text.
             try {
-                // First try to decode as Base64
                 if (!string.IsNullOrEmpty(DataRaw)) {
-                    var output = Encoding.UTF8.GetString(Convert.FromBase64String(DataRaw));
-                    return ConvertSpecialFormatToDotted(output);
+                    byte[] bytes = Convert.FromBase64String(DataRaw);
+                    if (IsCompleteWireName(bytes)) {
+                        return FormatPtrWireName(bytes);
+                    }
                 }
-            } catch (FormatException) {
-                // Ignore and try special format directly
+            } catch (FormatException) { }
+            // Retain the legacy length-prefixed string form only when it is a complete wire name.
+            if (DataRaw.IndexOf('\0') >= 0) {
+                byte[] bytes = Encoding.UTF8.GetBytes(DataRaw);
+                if (IsCompleteWireName(bytes)) return FormatPtrWireName(bytes);
             }
+            return DnsWireNameCodec.TrimTrailingRootDot(DataRaw).ToLowerInvariant();
+        }
 
-            return ConvertSpecialFormatToDotted(DataRaw);
+        private static string FormatPtrWireName(byte[] bytes) => DnsWireNameCodec.TrimTrailingRootDot(
+            DnsWireRecordFormatter.Format(bytes, DnsRecordType.PTR, 0, checked((ushort)bytes.Length))).ToLowerInvariant();
+
+        private static bool IsCompleteWireName(byte[] bytes) {
+            if (bytes.Length == 0 || bytes.Length > 255) return false;
+            int index = 0;
+            while (index < bytes.Length) {
+                int length = bytes[index++];
+                if (length == 0) return index == bytes.Length;
+                if (length > 63 || index + length >= bytes.Length) return false;
+                index += length;
+            }
+            return false;
         }
 
         private string ConvertNaptrRecord() {
@@ -378,17 +281,8 @@ namespace DnsClientX {
             // Handles Base64, Hex, or Plain Text DataRaw
             try {
                 if (DataRaw.StartsWith("\\#", StringComparison.Ordinal)) {
-                    // Hex Encoded (e.g., \# XX XX ...)
-                    byte[] rdataHex = DataRaw.Split(' ')
-                        .Skip(2) // Skip the "\\#" and the length byte
-                        .Where(part => !string.IsNullOrEmpty(part))
-                        .Select(part => part.Trim())
-                        .Where(part => Regex.IsMatch(part, @"\A\b[0-9a-fA-F]{1,2}\b\Z", RegexOptions.CultureInvariant)) // Match 1 or 2 hex chars
-                        .Select(part => Convert.ToByte(part, 16))
-                        .ToArray();
-                    if (rdataHex.Length > 4) { // Basic validation for minimum RDATA length
-                        return ParseNaptrRDataAndFormat(rdataHex);
-                    }
+                    if (!DnsPresentationFormat.TryDecodeRfc3597(DataRaw, out byte[] rdataHex)) return DataRaw;
+                    return ParseNaptrRDataAndFormat(rdataHex);
                 }
             } catch (Exception ex) {
                 Settings.Logger.WriteDebug($"Error parsing NAPTR record from Hex: {ex.Message} for DataRaw: {DataRaw}");
@@ -408,76 +302,21 @@ namespace DnsClientX {
                 // Fall through or return DataRaw at the end
             }
 
-            try {
-                // Plain Text Parsing (e.g., Google JSON: 10 100 s SIP+D2T  _sip._tcp.sip2sip.info.)
-                // Or already formatted: 10 100 "s" "SIP+D2T" "" _sip._tcp.sip2sip.info.
-                var parts = new List<string>();
-                var currentPart = new StringBuilder();
-                bool inQuotes = false;
-                foreach (char c in DataRaw) {
-                    if (c == '\"') {
-                        inQuotes = !inQuotes;
-                        currentPart.Append(c);
-                    } else if (c == ' ' && !inQuotes) {
-                        if (currentPart.Length > 0) {
-                            parts.Add(currentPart.ToString());
-                            currentPart.Clear();
-                        }
-                    } else {
-                        currentPart.Append(c);
-                    }
-                }
-                if (currentPart.Length > 0) {
-                    parts.Add(currentPart.ToString());
-                }
-
-                if (parts.Count >= 5) {
-                    string orderStr = parts[0];
-                    string preferenceStr = parts[1];
-                    string flags = parts[2].Trim('"');
-                    string service = parts[3].Trim('"');
-                    string regexp;
-                    string replacement;
-
-                    if (parts.Count == 5) { // Format like: 10 100 s SIP+D2T _replacement.domain.
-                        regexp = string.Empty;
-                        replacement = parts[4];
-                    } else { // Format like: 10 100 s SIP+D2T "regexp" _replacement.domain. or 10 100 "s" "SIP+D2T" "" target.
-                        regexp = parts[4].Trim('"');
-                        replacement = string.Join(" ", parts.Skip(5).ToArray()); // Should be a single domain part
-                    }
-
-                    // Validate Order and Preference are numbers
-                    if (ushort.TryParse(orderStr, out ushort order) && ushort.TryParse(preferenceStr, out ushort preferenceVal)) {
-                        string finalReplacement = (replacement == ".") ? "." : replacement.TrimEnd('.');
-                        return $"{order} {preferenceVal} \"{flags}\" \"{service}\" \"{regexp}\" {finalReplacement}";
-                    }
-                }
-            } catch (Exception ex) {
-                Settings.Logger.WriteDebug($"Error parsing NAPTR record from plain text: {ex.Message} for DataRaw: {DataRaw}");
+            var tokens = DnsPresentationFormat.Tokenize(DataRaw, out bool complete);
+            if (complete && (tokens.Count == 5 || tokens.Count == 6)
+                && ushort.TryParse(tokens[0].Value, out ushort order)
+                && ushort.TryParse(tokens[1].Value, out ushort preference)) {
+                string flags = DnsPresentationFormat.Unescape(tokens[2].Value);
+                string service = DnsPresentationFormat.Unescape(tokens[3].Value);
+                string regexp = tokens.Count == 6 ? DnsPresentationFormat.Unescape(tokens[4].Value) : string.Empty;
+                string replacement = tokens[tokens.Count - 1].Value;
+                replacement = DnsWireNameCodec.TrimTrailingRootDot(replacement).ToLowerInvariant();
+                return $"{order} {preference} {DnsPresentationFormat.Quote(flags)} {DnsPresentationFormat.Quote(service)} {DnsPresentationFormat.Quote(regexp)} {replacement}";
             }
 
             // If all parsing attempts fail or if it's an unrecognized format for NAPTR that didn't cleanly parse
             Settings.Logger.WriteDebug($"NAPTR DataRaw '{DataRaw}' did not match known Hex, Base64, or plain text patterns, or failed parsing.");
             return DataRaw; // Fallback
-        }
-
-        /// <summary>
-        /// Centralized cleanup method for TXT record data to ensure consistency across all DNS providers.
-        /// Removes empty lines, trims whitespace, and normalizes line endings.
-        /// </summary>
-        /// <param name="data">The TXT record data to clean up</param>
-        /// <returns>Cleaned TXT record data</returns>
-        private string CleanupTxtRecordData(string data) {
-            if (string.IsNullOrWhiteSpace(data)) return string.Empty;
-
-            // Split on various line ending combinations and remove empty entries
-            var lines = data.Split(new string[] { "\n", "\r", "\r\n", "\n\r" }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(line => line.Trim()) // Trim each line
-                .Where(line => !string.IsNullOrWhiteSpace(line)) // Remove empty or whitespace-only lines
-                .ToArray();
-
-            return string.Join("\n", lines);
         }
 
         /// <summary>
@@ -492,81 +331,15 @@ namespace DnsClientX {
         }
 
         /// <summary>
-        /// Converts a special format like "\u0003one\u0003one\u0003one\u0003one\0" to a standard dotted format.
+        /// Formats binary NAPTR data with faithful character-string escaping and a normalized replacement.
         /// </summary>
         /// <param name="rdata">The raw data in special format.</param>
         /// <returns>The data in standard dotted format.</returns>
         private string ParseNaptrRDataAndFormat(byte[] rdata) {
-            using (var memoryStream = new System.IO.MemoryStream(rdata))
-            using (var reader = new System.IO.BinaryReader(memoryStream)) {
-                ushort order = (ushort)(reader.ReadByte() << 8 | reader.ReadByte());
-                ushort preference = (ushort)(reader.ReadByte() << 8 | reader.ReadByte());
-
-                byte flagsLength = reader.ReadByte();
-                string flags = Encoding.ASCII.GetString(reader.ReadBytes(flagsLength));
-
-                byte serviceLength = reader.ReadByte();
-                string service = Encoding.ASCII.GetString(reader.ReadBytes(serviceLength));
-
-                byte regexpLength = reader.ReadByte();
-                string regexp = Encoding.ASCII.GetString(reader.ReadBytes(regexpLength));
-
-                var replacementBuilder = new StringBuilder();
-                byte labelLength = 0; // Initialize to prevent CS0165
-                while (memoryStream.Position < memoryStream.Length && (labelLength = reader.ReadByte()) != 0) {
-                    if (replacementBuilder.Length > 0) {
-                        replacementBuilder.Append('.');
-                    }
-                    replacementBuilder.Append(Encoding.ASCII.GetString(reader.ReadBytes(labelLength)));
-                }
-                string replacement = replacementBuilder.ToString();
-                if (string.IsNullOrEmpty(replacement) && memoryStream.Position == memoryStream.Length && labelLength == 0) { // Check if it was explicitly a root domain
-                    replacement = ".";
-                } else if (string.IsNullOrEmpty(replacement) && replacementBuilder.Length == 0 && labelLength !=0 && memoryStream.Position < memoryStream.Length) {
-                    // This case can happen if replacement is empty but not the root domain (e.g. NAPTR with empty replacement)
-                    // However, RFC3403 implies replacement is a domain-name, which if empty, is the root ".".
-                    // For safety, if it's empty and not explicitly root, it might be better to keep it empty or decide a convention.
-                    // Current behavior: keeps it empty if not explicitly root.
-                }
-
-
-                return $"{order} {preference} \"{flags}\" \"{service}\" \"{regexp}\" {replacement}";
-            }
-        }
-
-        private string ConvertSpecialFormatToDotted(string data) {
-            if (string.IsNullOrWhiteSpace(data)) return data;
-
-            // Check if the data is already in a standard format. Allow '_' as
-            // it commonly appears in service discovery names like "_http".
-            if (data.All(c => char.IsLetterOrDigit(c) || c == '-' || c == '.' || c == '_')) {
-                return data.TrimEnd('.').ToLowerInvariant();
-            }
-
-            var result = new StringBuilder();
-            int i = 0;
-
-            while (i < data.Length) {
-                // Read the length byte
-                int length = data[i];
-                if (length == 0) break; // Null terminator indicates the end of the name
-
-                // Move to the next character
-                i++;
-
-                // Validate available length before slicing the string
-                if (i + length > data.Length) {
-                    return data;
-                }
-
-                // Read the label
-                result.Append(data.Substring(i, length));
-                result.Append('.');
-                i += length;
-            }
-
-            // Remove the trailing dot and return the result
-            return result.ToString().TrimEnd('.').ToLowerInvariant();
+            string formatted = DnsWireRecordFormatter.Format(rdata, DnsRecordType.NAPTR, 0, checked((ushort)rdata.Length));
+            int replacementStart = formatted.LastIndexOf(' ') + 1;
+            return formatted.Substring(0, replacementStart)
+                + DnsWireNameCodec.TrimTrailingRootDot(formatted.Substring(replacementStart)).ToLowerInvariant();
         }
 
     }

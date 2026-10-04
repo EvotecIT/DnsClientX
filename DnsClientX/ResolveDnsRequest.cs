@@ -173,6 +173,9 @@ namespace DnsClientX {
         /// </summary>
         public bool RequestNsid { get; set; }
 
+        /// <summary>Gets or sets the IP-literal UDP/TCP resolver used to bootstrap endpoint hostnames.</summary>
+        public DnsResolverEndpoint? BootstrapResolver { get; set; }
+
         /// <summary>
         /// Gets or sets the EDNS padding length in bytes.
         /// </summary>
@@ -264,6 +267,7 @@ namespace DnsClientX {
         /// Validates the request before execution.
         /// </summary>
         public void Validate() {
+            if (BootstrapResolver != null) DnsBootstrapResolver.Validate(BootstrapResolver);
             bool hasPattern = !string.IsNullOrWhiteSpace(Pattern);
             bool hasNames = Names is { Length: > 0 };
 
@@ -399,7 +403,7 @@ namespace DnsClientX {
             }
 
             if (RequestNsid) {
-                options.Options.Add(new NsidOption());
+                options.RequestNsid = true;
             }
 
             return options;

@@ -15,7 +15,7 @@ namespace DnsClientX {
             int retryDelayMs,
             bool typedRecords,
             bool parseTypedTxtRecords,
-            CancellationToken cancellationToken) {
+            CancellationToken cancellationToken, bool certificatePolicy) {
             SystemDnsConfiguration? systemConfiguration = EndpointConfiguration.SystemDnsConfiguration;
             IReadOnlyList<string> candidates = type != DnsRecordType.PTR
                 && EndpointConfiguration.UseSystemSearchDomains
@@ -47,7 +47,7 @@ namespace DnsClientX {
                         typedRecords,
                         parseTypedTxtRecords,
                         cancellationToken,
-                        queryConfigurationOverride: queryConfiguration).ConfigureAwait(false);
+                        queryConfigurationOverride: queryConfiguration, certificatePolicy: certificatePolicy).ConfigureAwait(false);
                 } catch (DnsClientException ex) when (ex.Response?.Status == DnsResponseCode.NXDomain) {
                     lastResponse = ex.Response;
                 }

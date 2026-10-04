@@ -329,12 +329,19 @@ namespace DnsClientX {
                 }
             } catch (OperationCanceledException oce) when (!ct.IsCancellationRequested) {
                 response = MakeError(ep, name, type, DnsQueryErrorCode.Timeout, oce.Message, oce);
-            } catch (SocketException se) {
-                response = MakeError(ep, name, type, DnsQueryErrorCode.Network, se.Message, se);
-            } catch (DnsClientException dce) {
-                response = MakeError(ep, name, type, DnsQueryErrorCode.InvalidResponse, dce.Message, dce);
+            } catch (OperationCanceledException) {
+                throw;
             } catch (Exception ex) {
-                response = MakeError(ep, name, type, DnsQueryErrorCode.ServFail, ex.Message, ex);
+                DnsResponse? classifiedResponse = ex switch {
+                    DnsClientException { Response: { ErrorCode: not DnsQueryErrorCode.None } failure } => failure,
+                    DnsQueryException { Response: { ErrorCode: not DnsQueryErrorCode.None } failure } => failure,
+                    _ => null
+                };
+                // A failed shared flight can expose the same exception to several callers.
+                // Preserve transport diagnostics without stamping its response in place.
+                response = classifiedResponse?.Clone() ?? MakeError(ep, name, type,
+                    DnsQueryDiagnostics.ClassifyFailure(ex), ex.Message, ex);
+                response.Exception ??= ex;
             }
             sw.Stop();
 
@@ -352,7 +359,8 @@ namespace DnsClientX {
 
         private static void StampResponse(DnsResolverEndpoint ep, DnsResponse response, TimeSpan rtt) {
             if (response == null) return;
-            response.UsedTransport = ep.Transport;
+            // The core has already recorded actual transport, including UDP-to-TCP fallback.
+            if (string.IsNullOrEmpty(response.ServerAddress)) response.UsedTransport = ep.Transport;
             response.UsedEndpoint = ep;
             response.RoundTripTime = rtt;
             response.ComputeTtlMetrics();
@@ -510,6 +518,7 @@ namespace DnsClientX {
                 client.EndpointConfiguration.Port = (ep.DohUrl?.IsDefaultPort ?? true) ? 443 : ep.DohUrl!.Port;
             }
             client.EndpointConfiguration.UseTcpFallback = _options.UseTcpFallback && ep.AllowTcpFallback;
+            client.EndpointConfiguration.BootstrapResolver = _options.BootstrapResolver;
             client.EndpointConfiguration.PreferredAddressFamily = ep.Family ??
                 (_options.PreferIpv6 ? AddressFamily.InterNetworkV6 : (AddressFamily?)null);
             client.EndpointConfiguration.TlsServerName = ep.TlsServerName;

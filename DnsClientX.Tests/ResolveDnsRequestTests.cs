@@ -524,7 +524,7 @@ namespace DnsClientX.Tests {
             Assert.NotNull(options);
             Assert.Equal(16, options!.PaddingLength);
             Assert.Equal(cookie, options.Cookie);
-            Assert.Contains(options.Options, option => option is NsidOption);
+            Assert.Contains(options.GetEffectiveOptions(), option => option is NsidOption);
         }
 
         /// <summary>

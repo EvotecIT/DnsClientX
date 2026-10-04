@@ -5,6 +5,23 @@ namespace DnsClientX.Tests {
     /// Tests for composing the NSID EDNS option.
     /// </summary>
     public class NsidOptionTests {
+        /// <summary>A convenience request must not duplicate an explicitly supplied NSID option.</summary>
+        [Fact]
+        public void ConvenienceRequestDoesNotDuplicateExplicitOption() {
+            var options = new EdnsOptions { RequestNsid = true };
+            options.Options.Add(new NsidOption());
+            Assert.Single(options.Clone().GetEffectiveOptions());
+        }
+
+        /// <summary>Unsupported JSON requests fail instead of silently omitting resolver identity.</summary>
+        [Fact]
+        public async System.Threading.Tasks.Task JsonQueryRejectsNsidRequest() {
+            var configuration = new Configuration("https://localhost/resolve", DnsRequestFormat.DnsOverHttpsJSON) {
+                EdnsOptions = new EdnsOptions { RequestNsid = true }
+            };
+            using var client = new ClientX(configuration);
+            await Assert.ThrowsAsync<System.NotSupportedException>(() => client.Resolve("example.com", retryOnTransient: false));
+        }
         /// <summary>
         /// Verifies that the NSID option is properly serialized when included
         /// in an OPT record.

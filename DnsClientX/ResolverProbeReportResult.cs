@@ -3,6 +3,15 @@ namespace DnsClientX {
     /// Describes one ranked probe candidate in a shared probe report.
     /// </summary>
     public sealed class ResolverProbeReportResult {
+        /// <summary>Gets or sets endpoint hostname resolution provenance for this candidate.</summary>
+        public DnsServerResolutionInfo? ServerResolution { get; set; }
+
+        /// <summary>Gets or sets the lossless NSID hexadecimal value, empty when absent.</summary>
+        public string EdnsNsidHex { get; set; } = string.Empty;
+
+        /// <summary>Gets or sets NSID text when it consists of printable ASCII.</summary>
+        public string? EdnsNsidText { get; set; }
+
         /// <summary>
         /// Gets or sets the candidate label.
         /// </summary>

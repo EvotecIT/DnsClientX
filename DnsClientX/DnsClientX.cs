@@ -87,6 +87,7 @@ namespace DnsClientX {
         /// </summary>
         private readonly Dictionary<DnsSelectionStrategy, HttpClient> _clients = new Dictionary<DnsSelectionStrategy, HttpClient>();
         private readonly HashSet<HttpClient> _managedClients = new HashSet<HttpClient>();
+        private readonly Dictionary<HttpClient, (bool IgnoreCertificateErrors, SecurityProtocolType Protocols, string Bootstrap)> _clientTlsPolicies = new();
 
         private static readonly DnsResponseCache _cache = new();
         private static readonly ConcurrentDictionary<string, Lazy<Task<DnsResponse>>> _cacheInflight =
@@ -130,12 +131,10 @@ namespace DnsClientX {
         /// The security protocol.
         /// </value>
         public SecurityProtocolType SecurityProtocol {
-            get => _securityProtocol;
+            get { lock (_lock) return _securityProtocol; }
             set {
-                _securityProtocol = value;
-                if (handler != null) {
-                    handler.SslProtocols = (SslProtocols)value;
-                }
+                // A handler cannot be changed after use; the next query selects a compatible client.
+                lock (_lock) _securityProtocol = value;
             }
         }
 
@@ -289,36 +288,37 @@ namespace DnsClientX {
         /// <summary>
         /// Creates an optimized HttpClient with proper connection management and realistic timeouts
         /// </summary>
-        private HttpClient CreateOptimizedHttpClient(Configuration configuration) {
-            // Configure TLS protocols
-#if NET472 || NETSTANDARD2_0
-            _securityProtocol = SecurityProtocolType.Tls12;
-#else
-            _securityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
-#endif
-
+        private HttpClient CreateOptimizedHttpClient(Configuration configuration, bool ignoreCertificateErrors) {
             // Create handler with proper connection management
-            handler = new HttpClientHandler();
-            if (IgnoreCertificateErrors) {
-                handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-            }
-
-            handler.SslProtocols = (SslProtocols)SecurityProtocol;
-            if (_webProxy != null) {
-                handler.Proxy = _webProxy;
-                handler.UseProxy = true;
+            HttpMessageHandler transportHandler;
+            if (UsesHttpBootstrap(configuration)) {
+                handler = null;
+                transportHandler = CreateBootstrapHttpHandler(configuration, ignoreCertificateErrors);
             } else {
-                handler.UseProxy = false;
+                handler = new HttpClientHandler();
+                if (ignoreCertificateErrors) {
+                    handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+                }
+
+                handler.SslProtocols = (SslProtocols)SecurityProtocol;
+                if (_webProxy != null) {
+                    handler.Proxy = _webProxy;
+                    handler.UseProxy = true;
+                } else {
+                    handler.UseProxy = false;
+                }
+
+                // Optimize connection settings for DNS workloads
+                handler.MaxConnectionsPerServer = configuration.MaxConnectionsPerServer;
+                handler.UseCookies = false; // DNS doesn't need cookies
+                transportHandler = handler;
             }
 
-            // Optimize connection settings for DNS workloads
-            handler.MaxConnectionsPerServer = configuration.MaxConnectionsPerServer;
-            handler.UseCookies = false; // DNS doesn't need cookies
-
-            var client = new HttpClient(handler) {
+            var client = new HttpClient(transportHandler) {
                 BaseAddress = configuration.BaseUri,
                 Timeout = TimeSpan.FromMilliseconds(configuration.TimeOut)
             };
+            _clientTlsPolicies.Add(client, (ignoreCertificateErrors, _securityProtocol, HttpBootstrapKey(configuration)));
 
             _handlerOwnedByClient = true;
 
@@ -328,7 +328,7 @@ namespace DnsClientX {
 #if NET5_0_OR_GREATER
             // RFC 8484 clients should use HTTP/2 when available. Do not silently downgrade the
             // default HTTP/2 request to HTTP/1.1, which some conforming resolvers reject.
-            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
+            client.DefaultVersionPolicy = DnsHttpRequestSettings.VersionPolicy(configuration);
 #endif
             // Set the user agent to the default value
             client.DefaultRequestHeaders.UserAgent.Clear();
@@ -357,9 +357,13 @@ namespace DnsClientX {
         /// Configures the client to required parameters (legacy method for backward compatibility)
         /// </summary>
         private void ConfigureClient() {
+            if (!IsHttpBasedTransport(EndpointConfiguration.RequestFormat)
+                || EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverGrpc
+                || EndpointConfiguration.BootstrapResolver != null) return;
             lock (_lock) {
                 if (Client != null && TryAddDisposedClient(Client)) {
                     _managedClients.Remove(Client);
+                    _clientTlsPolicies.Remove(Client);
                     Client.Dispose();
                     if (_handlerOwnedByClient && handler != null) {
                         TryAddDisposedClient(handler);
@@ -369,7 +373,7 @@ namespace DnsClientX {
                     handler.Dispose();
                 }
 
-                Client = CreateOptimizedHttpClient(EndpointConfiguration);
+                Client = CreateOptimizedHttpClient(EndpointConfiguration, IgnoreCertificateErrors);
                 _managedClients.Add(Client);
                 _clients[EndpointConfiguration.SelectionStrategy] = Client;
             }
@@ -380,28 +384,33 @@ namespace DnsClientX {
         /// This allows us to have multiple clients for different strategies, so performance is not affected
         /// </summary>
         /// <param name="configuration">Immutable configuration snapshot for the query.</param>
+        /// <param name="certificatePolicy">Certificate policy captured for the operation.</param>
         /// <returns></returns>
-        private HttpClient GetClient(Configuration configuration) {
+        private HttpClient GetClient(Configuration configuration, bool? certificatePolicy = null) {
+            bool ignoreCertificateErrors = certificatePolicy ?? IgnoreCertificateErrors;
             DnsSelectionStrategy strategy = configuration.SelectionStrategy;
             lock (_lock) {
+                ThrowIfDisposed();
                 if (_clients.TryGetValue(strategy, out HttpClient? client) && client != null) {
-                    if (!ClientMatchesConfiguration(client, configuration)) {
-                        RecreateClientForStrategy(strategy, configuration);
+                    if (!ClientMatchesConfiguration(client, configuration, ignoreCertificateErrors)) {
+                        RecreateClientForStrategy(strategy, configuration, ignoreCertificateErrors);
                         client = _clients[strategy];
                     }
                     Client = client;
+                    TrimManagedHttpClients(client);
                     return client;
                 }
 
-                HttpClient created = CreateOptimizedHttpClient(configuration);
+                HttpClient created = CreateOptimizedHttpClient(configuration, ignoreCertificateErrors);
                 _clients[strategy] = created;
                 _managedClients.Add(created);
                 Client = created;
+                TrimManagedHttpClients(created);
                 return created;
             }
         }
 
-        private bool ClientMatchesConfiguration(HttpClient client, Configuration configuration) {
+        private bool ClientMatchesConfiguration(HttpClient client, Configuration configuration, bool ignoreCertificateErrors) {
             if (!_managedClients.Contains(client)) {
                 return true;
             }
@@ -409,13 +418,24 @@ namespace DnsClientX {
             // BaseAddress is deliberately excluded: every request uses the absolute URI captured in
             // its query snapshot, so one pooled client can safely retain connections for several hosts.
             TimeSpan expectedTimeout = TimeSpan.FromMilliseconds(configuration.TimeOut);
-            return client.Timeout == expectedTimeout;
+            return client.Timeout == expectedTimeout
+                && _clientTlsPolicies.TryGetValue(client, out var policy)
+                && policy.IgnoreCertificateErrors == ignoreCertificateErrors
+                && policy.Protocols == _securityProtocol
+                && policy.Bootstrap == HttpBootstrapKey(configuration);
         }
 
-        private void RecreateClientForStrategy(DnsSelectionStrategy strategy, Configuration configuration) {
-            // Do not dispose the previous client here: another query may still be using it. All managed
-            // clients are retained until ClientX is disposed, while the strategy map stays enum-bounded.
-            var replacement = CreateOptimizedHttpClient(configuration);
+        private void RecreateClientForStrategy(DnsSelectionStrategy strategy, Configuration configuration, bool ignoreCertificateErrors) {
+            // Reuse a compatible policy pool. Idle pools are bounded, while leases keep any
+            // superseded client alive until its active requests finish.
+            foreach (HttpClient existing in _managedClients) {
+                if (ClientMatchesConfiguration(existing, configuration, ignoreCertificateErrors)) {
+                    _clients[strategy] = existing;
+                    Client = existing;
+                    return;
+                }
+            }
+            var replacement = CreateOptimizedHttpClient(configuration, ignoreCertificateErrors);
             _managedClients.Add(replacement);
             _clients[strategy] = replacement;
             Client = replacement;

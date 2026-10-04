@@ -13,7 +13,7 @@ namespace DnsClientX {
     /// <remarks>
     /// Instances of this class are used by <see cref="ClientXBuilder"/> to describe the target server and connection settings.
     /// </remarks>
-    public class Configuration {
+    public partial class Configuration {
         /// <summary>
         /// Random generator used for hostname selection on frameworks lacking
         /// <c>Random.Shared</c>.
@@ -31,6 +31,7 @@ namespace DnsClientX {
         private readonly object selectionLock = new();
         private string? baseUriFormat;
         private int hostnameIndex;
+        private uint policyHostnameIndex;
 
         internal IReadOnlyList<string> Hostnames => hostnames;
 
@@ -373,6 +374,8 @@ namespace DnsClientX {
 
         internal void AdvanceToNextHostname() {
             lock (selectionLock) {
+                // Policy routes may have several resolvers even when the base list has one.
+                policyHostnameIndex++;
                 if (hostnames.Count <= 1) {
                     return;
                 }
@@ -461,6 +464,7 @@ namespace DnsClientX {
             lock (selectionLock) {
                 SelectHostNameStrategyCore();
                 Configuration snapshot = (Configuration)MemberwiseClone();
+                snapshot.ServerResolution = null;
                 snapshot.EdnsOptions = EdnsOptions?.Clone();
                 snapshot.LocalEndPoint = LocalEndPoint == null
                     ? null
@@ -499,7 +503,7 @@ namespace DnsClientX {
 #endif
                     break;
                 case DnsSelectionStrategy.Failover:
-                    selectedIndex = hostnameIndex % nameServers.Count;
+                    selectedIndex = (int)(policyHostnameIndex % (uint)nameServers.Count);
                     break;
                 default:
                     selectedIndex = 0;

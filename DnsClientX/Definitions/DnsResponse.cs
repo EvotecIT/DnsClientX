@@ -185,6 +185,10 @@ namespace DnsClientX {
         [JsonIgnore]
         public Transport UsedTransport { get; internal set; }
 
+        /// <summary>Gets endpoint hostname resolution provenance when available.</summary>
+        [JsonPropertyName("server_resolution")]
+        public DnsServerResolutionInfo? ServerResolution { get; internal set; }
+
         /// <summary>
         /// Endpoint used to obtain this response.
         /// </summary>
@@ -303,6 +307,15 @@ namespace DnsClientX {
         [JsonIgnore]
         public byte[] EdnsNsid { get; internal set; } = Array.Empty<byte>();
 
+        /// <summary>Gets NSID as lossless hexadecimal text, or an empty string when absent.</summary>
+        [JsonPropertyName("edns_nsid_hex")]
+        public string EdnsNsidHex => BitConverter.ToString(EdnsNsid ?? Array.Empty<byte>()).Replace("-", string.Empty);
+
+        /// <summary>Gets NSID text only when every octet is printable ASCII; otherwise returns null.</summary>
+        [JsonPropertyName("edns_nsid_text")]
+        public string? EdnsNsidText => EdnsNsid != null && EdnsNsid.Length > 0 && Array.TrueForAll(EdnsNsid, value => value >= 0x20 && value <= 0x7e)
+            ? System.Text.Encoding.ASCII.GetString(EdnsNsid) : null;
+
         /// <summary>
         /// Gets the raw EDNS Cookie option returned by the server.
         /// </summary>
@@ -346,6 +359,7 @@ namespace DnsClientX {
             }
 
             ServerAddress = configuration.Hostname;
+            ServerResolution = configuration.ServerResolution;
             UsedTransport = usedTransport ?? MapTransport(configuration.RequestFormat);
             AppliedSystemDnsPolicy = configuration.AppliedSystemDnsPolicy;
 

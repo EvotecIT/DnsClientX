@@ -340,6 +340,16 @@ namespace DnsClientX {
             lines.Add($"  Resolver: {DescribeSingleOperationResolver(result)}");
             lines.Add($"  Runtime transport support: {DescribeTransportSupport(result.RequestFormat)}");
             lines.Add($"  Actual transport: {response.UsedTransport}");
+            if (response.ServerResolution is { } resolution) {
+                lines.Add($"  Endpoint address: {resolution.Hostname} -> {resolution.Address ?? "unavailable"}");
+                lines.Add($"  Bootstrap resolver: {resolution.BootstrapResolver ?? "system"}");
+                lines.Add($"  Endpoint address cached: {resolution.ServedFromCache}; stale: {resolution.UsedStaleAddress}");
+                if (!string.IsNullOrEmpty(resolution.Error)) lines.Add($"  Endpoint resolution detail: {resolution.Error}");
+            }
+            if (response.EdnsNsid.Length > 0) {
+                lines.Add($"  NSID hex: {response.EdnsNsidHex}");
+                if (response.EdnsNsidText != null) lines.Add($"  NSID text: {response.EdnsNsidText}");
+            }
             lines.Add($"  Cache enabled: {result.CacheEnabled}");
             lines.Add($"  Attempts recorded: {result.AuditTrail.Length}");
             lines.Add($"  Final source: {DescribeSingleOperationFinalSource(result)}");

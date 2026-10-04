@@ -14,6 +14,7 @@ namespace DnsClientX {
         private int _timeout = Configuration.DefaultTimeout;
         private IWebProxy? _proxy;
         private EdnsOptions? _ednsOptions;
+        private DnsResolverEndpoint? _bootstrapResolver;
         private TsigKey? _tsigKey;
         private DnsSelectionStrategy _strategy = DnsSelectionStrategy.First;
         private string? _userAgent;
@@ -135,6 +136,15 @@ namespace DnsClientX {
             return this;
         }
 
+        /// <summary>Resolves endpoint hostnames through an explicit IP-literal UDP/TCP resolver.</summary>
+        /// <param name="resolver">The bootstrap resolver.</param>
+        public ClientXBuilder WithBootstrapResolver(DnsResolverEndpoint resolver) {
+            if (resolver == null) throw new ArgumentNullException(nameof(resolver));
+            DnsBootstrapResolver.Validate(resolver);
+            _bootstrapResolver = resolver;
+            return this;
+        }
+
         /// <summary>
         /// Configures an RFC 8945 TSIG key for authenticated RFC 2136 DNS UPDATE requests.
         /// </summary>
@@ -157,6 +167,7 @@ namespace DnsClientX {
                 client = new ClientX(_endpoint, _strategy, _timeout, _userAgent, _httpVersion, _ignoreCertificateErrors, _enableCache, _useTcpFallback, _proxy);
             }
             client.EndpointConfiguration.SelectHostNameStrategy();
+            client.EndpointConfiguration.BootstrapResolver = _bootstrapResolver;
             if (_ednsOptions != null) {
                 client.EndpointConfiguration.EdnsOptions = _ednsOptions;
             }

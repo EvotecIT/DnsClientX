@@ -65,21 +65,15 @@ namespace DnsClientX {
                 IPHostEntry entry = HostEntryResolver(dnsServer);
                 address = entry.AddressList.Length == 0 ? null : entry.AddressList[0];
             } else {
-                (address, string? error) = await DnsServerResolver.ResolveAsync(
-                    dnsServer,
-                    endpointConfiguration.TimeOut,
-                    cancellationToken,
-                    endpointConfiguration.DnsServerResolutionSuccessTtl,
-                    endpointConfiguration.DnsServerResolutionFailureTtl,
-                    endpointConfiguration.DnsServerResolutionAllowStale,
-                    endpointConfiguration.DnsServerResolutionStaleTtl,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffEnabled,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffFactor,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffMaxTtl,
-                    endpointConfiguration.PreferredAddressFamily).ConfigureAwait(false);
+                var resolution = await DnsServerResolver.ResolveAsync(dnsServer, endpointConfiguration, cancellationToken)
+                .ConfigureAwait(false);
+                address = resolution.Address;
                 if (address == null) {
-                    return Failure(name, type, endpointConfiguration, DnsResponseCode.ServerFailure,
-                        error ?? $"Host '{dnsServer}' resolved to no addresses.");
+                    var failure = Failure(name, type, endpointConfiguration, DnsResponseCode.ServerFailure,
+                        resolution.Error ?? $"Host '{dnsServer}' resolved to no addresses.");
+                    failure.ErrorCode = resolution.ErrorCode;
+                    failure.Exception = resolution.Exception;
+                    return failure;
                 }
             }
 

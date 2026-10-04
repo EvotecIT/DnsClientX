@@ -1,18 +1,12 @@
 using System.Globalization;
-using System.Reflection;
 using System.Threading;
 using Xunit;
 
 namespace DnsClientX.Tests {
     /// <summary>
-    /// Tests for <c>ConvertSpecialFormatToDotted</c> on <see cref="DnsAnswer"/>.
+    /// Tests the public PTR presentation projection on <see cref="DnsAnswer"/>.
     /// </summary>
-    public class ConvertSpecialFormatToDottedTests {
-        private static string Invoke(string data) {
-            var answer = new DnsAnswer();
-            MethodInfo method = typeof(DnsAnswer).GetMethod("ConvertSpecialFormatToDotted", BindingFlags.NonPublic | BindingFlags.Instance)!;
-            return (string)method.Invoke(answer, new object[] { data })!;
-        }
+    public class PtrPresentationTests {
 
         /// <summary>
         /// If the input cannot be parsed, the original string should be returned.
@@ -20,7 +14,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public void MalformedInputReturnsOriginal() {
             string malformed = $"{(char)7}examp"; // length byte larger than remaining data
-            Assert.Equal(malformed, Invoke(malformed));
+            Assert.Equal(malformed, new DnsAnswer { Type = DnsRecordType.PTR, DataRaw = malformed }.Data);
         }
 
         /// <summary>
@@ -34,7 +28,7 @@ namespace DnsClientX.Tests {
             var original = Thread.CurrentThread.CurrentCulture;
             try {
                 Thread.CurrentThread.CurrentCulture = new CultureInfo(culture);
-                Assert.Equal("examplei", Invoke(input));
+                Assert.Equal("examplei", new DnsAnswer { Type = DnsRecordType.PTR, DataRaw = input }.Data);
             } finally {
                 Thread.CurrentThread.CurrentCulture = original;
             }

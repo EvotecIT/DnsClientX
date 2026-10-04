@@ -58,8 +58,8 @@ namespace DnsClientX {
             bool jumped = false;
             int expandedLength = 1;
             int pointerCount = 0;
-            var visited = new HashSet<int>();
-            var labels = new List<string>();
+            Span<int> visited = stackalloc int[128];
+            StringBuilder? name = null;
 
             while (true) {
                 if (current < 0 || current >= _message.Length) throw new DnsClientException("DNS name extends beyond the message boundary.");
@@ -68,7 +68,7 @@ namespace DnsClientX {
                 if (length == 0) {
                     if (!jumped) directPosition = current;
                     Position = directPosition;
-                    return labels.Count == 0 ? "." : string.Join(".", labels) + ".";
+                    return name == null ? "." : name.ToString();
                 }
 
                 if ((length & 0xC0) == 0xC0) {
@@ -76,7 +76,11 @@ namespace DnsClientX {
                     int pointer = ((length & 0x3F) << 8) | _message[current++];
                     int pointerSource = current - 2;
                     if (pointer >= pointerSource) throw new DnsClientException("DNS compression pointer must point to an earlier message offset.");
-                    if (!visited.Add(pointer) || ++pointerCount > 128) throw new DnsClientException("DNS compression pointer loop detected.");
+                    if (pointerCount == visited.Length) throw new DnsClientException("DNS compression pointer loop detected.");
+                    for (int index = 0; index < pointerCount; index++) {
+                        if (visited[index] == pointer) throw new DnsClientException("DNS compression pointer loop detected.");
+                    }
+                    visited[pointerCount++] = pointer;
                     if (!jumped) directPosition = current;
                     current = pointer;
                     jumped = true;
@@ -88,14 +92,15 @@ namespace DnsClientX {
                 if (current + length > limit) throw new DnsClientException("DNS label extends beyond the message boundary.");
                 expandedLength += length + 1;
                 if (expandedLength > 255) throw new DnsClientException("Expanded DNS name exceeds 255 octets.");
-                labels.Add(ToPresentationLabel(_message, current, length));
+                name ??= new StringBuilder();
+                AppendPresentationLabel(name, _message, current, length);
+                name.Append('.');
                 current += length;
                 if (!jumped) directPosition = current;
             }
         }
 
-        private static string ToPresentationLabel(byte[] message, int offset, int length) {
-            var builder = new StringBuilder(length);
+        private static void AppendPresentationLabel(StringBuilder builder, byte[] message, int offset, int length) {
             for (int i = 0; i < length; i++) {
                 byte value = message[offset + i];
                 if (value == (byte)'.' || value == (byte)'\\') {
@@ -106,7 +111,6 @@ namespace DnsClientX {
                     builder.Append((char)value);
                 }
             }
-            return builder.ToString();
         }
 
         private void Ensure(int count) {

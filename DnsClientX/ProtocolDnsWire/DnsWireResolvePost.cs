@@ -43,8 +43,7 @@ namespace DnsClientX {
             request.Headers.Accept.Clear();
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/dns-message"));
 #if NET5_0_OR_GREATER
-            request.Version = endpointConfiguration.HttpVersion;
-            request.VersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
+            DnsHttpRequestSettings.Configure(request, endpointConfiguration);
 #endif
             using HttpResponseMessage postAsync = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
             return await DnsWireResolve.DeserializeDnsWireHttpResponse(

@@ -55,8 +55,7 @@ namespace DnsClientX {
             req.Headers.Accept.Clear();
             req.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/dns-message"));
 #if NET5_0_OR_GREATER
-            req.Version = endpointConfiguration.HttpVersion;
-            req.VersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
+            DnsHttpRequestSettings.Configure(req, endpointConfiguration);
 #endif
 
             if (debug) {
@@ -119,6 +118,8 @@ namespace DnsClientX {
                     }
                 ];
                 response.Status = responseCode;
+                response.ErrorCode = DnsQueryDiagnostics.ClassifyFailure(ex);
+                response.Exception = ex;
                 response.AddServerDetails(endpointConfiguration);
                 response.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message + " " + ex.InnerException?.Message}";
                 return response;

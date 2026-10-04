@@ -6,6 +6,8 @@ namespace DnsClientX {
     /// Options controlling behavior of <see cref="DnsMultiResolver"/>.
     /// </summary>
     public sealed class MultiResolverOptions {
+        /// <summary>Gets or sets the IP-literal UDP/TCP bootstrap resolver for endpoint hostnames.</summary>
+        public DnsResolverEndpoint? BootstrapResolver { get; set; }
         private int _maxParallelism = 4;
         private int? _perEndpointMaxInFlight;
         /// <summary>

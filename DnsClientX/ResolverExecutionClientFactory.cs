@@ -36,6 +36,11 @@ namespace DnsClientX {
             }
 
             client.EnableAudit = options.EnableAudit;
+            client.EndpointConfiguration.BootstrapResolver = options.BootstrapResolver;
+            if (options.RequestNsid) {
+                client.EndpointConfiguration.EdnsOptions ??= new EdnsOptions();
+                client.EndpointConfiguration.EdnsOptions.RequestNsid = true;
+            }
 
             if (options.TimeoutMs.HasValue && options.TimeoutMs.Value > 0) {
                 client.EndpointConfiguration.TimeOut = options.TimeoutMs.Value;

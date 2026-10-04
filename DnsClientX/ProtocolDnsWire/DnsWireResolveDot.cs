@@ -61,19 +61,10 @@ namespace DnsClientX {
 
             DotFailurePhase failurePhase = DotFailurePhase.Connect;
             try {
-                var (address, resolveError) = await DnsServerResolver.ResolveAsync(
-                    dnsServer,
-                    endpointConfiguration.TimeOut,
-                    cancellationToken,
-                    endpointConfiguration.DnsServerResolutionSuccessTtl,
-                    endpointConfiguration.DnsServerResolutionFailureTtl,
-                    endpointConfiguration.DnsServerResolutionAllowStale,
-                    endpointConfiguration.DnsServerResolutionStaleTtl,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffEnabled,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffFactor,
-                    endpointConfiguration.DnsServerResolutionFailureBackoffMaxTtl,
-                    endpointConfiguration.PreferredAddressFamily).ConfigureAwait(false);
-                if (address == null) throw new DnsClientException(resolveError ?? $"Host '{dnsServer}' resolved to no addresses.");
+                var resolution = await DnsServerResolver.ResolveAsync(dnsServer, endpointConfiguration, cancellationToken)
+                .ConfigureAwait(false);
+                var address = resolution.Address;
+                if (address == null) throw resolution.CreateException();
 
                 string targetHost = string.IsNullOrWhiteSpace(endpointConfiguration.TlsServerName)
                     ? dnsServer
@@ -110,7 +101,7 @@ namespace DnsClientX {
                     Questions = [ new DnsQuestion { Name = name, RequestFormat = DnsRequestFormat.DnsOverTLS, Type = type, OriginalName = name } ],
                     Status = status,
                     ErrorCode = errorCode,
-                    Exception = ex
+                    Exception = ex is DnsClientException { Response.Exception: { } cause } ? cause : ex
                 };
                 failureResponse.AddServerDetails(endpointConfiguration);
                 failureResponse.Error = $"Failed to query type {type} of \"{name}\" => {ex.Message}";
@@ -119,6 +110,9 @@ namespace DnsClientX {
         }
 
         private static (DnsResponseCode Status, DnsQueryErrorCode ErrorCode) MapFailure(Exception ex, DotFailurePhase phase) {
+            if (ex is DnsClientException { Response: { ErrorCode: not DnsQueryErrorCode.None } response }) {
+                return (response.Status, response.ErrorCode);
+            }
             if (ex is DnsStreamConnectionException && ex.InnerException != null) {
                 return MapFailure(ex.InnerException, phase);
             }

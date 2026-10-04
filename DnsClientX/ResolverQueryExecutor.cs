@@ -99,6 +99,8 @@ namespace DnsClientX {
         private static ResolverExecutionClientOptions CreateClientOptions(ResolverQueryRunOptions options) {
             return new ResolverExecutionClientOptions {
                 TimeoutMs = Math.Max(1, options.TimeoutMs),
+                BootstrapResolver = options.BootstrapResolver,
+                RequestNsid = options.RequestNsid,
                 PortOverride = options.PortOverride,
                 ForceDohWirePost = options.ForceDohWirePost
             };
@@ -138,6 +140,8 @@ namespace DnsClientX {
                     Response = response,
                     Elapsed = response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : stopwatch.Elapsed
                 };
+            } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                throw;
             } catch (Exception ex) {
                 stopwatch.Stop();
                 return new ResolverQueryAttemptResult {

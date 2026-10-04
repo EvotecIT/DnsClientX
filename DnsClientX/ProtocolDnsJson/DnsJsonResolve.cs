@@ -30,6 +30,7 @@ namespace DnsClientX {
                 requestDnsSec == false ? "" : $"&do=1", validateDnsSec == false ? "" : $"&cd=1");
 
             using HttpRequestMessage req = new(HttpMethod.Get, DnsHttpRequestUri.Build(configuration, url));
+            DnsHttpRequestSettings.Configure(req, configuration);
             try {
                 using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
 
@@ -69,6 +70,8 @@ namespace DnsClientX {
                         }
                     },
                     Status = responseCode,
+                    ErrorCode = DnsQueryDiagnostics.ClassifyFailure(ex),
+                    Exception = ex,
                     Error = message
                 };
                 response.AddServerDetails(configuration);
@@ -96,6 +99,7 @@ namespace DnsClientX {
             using HttpRequestMessage req = new(HttpMethod.Post, DnsHttpRequestUri.Build(configuration)) {
                 Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
             };
+            DnsHttpRequestSettings.Configure(req, configuration);
 
             try {
                 using HttpResponseMessage res = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
@@ -135,6 +139,8 @@ namespace DnsClientX {
                         }
                     },
                     Status = responseCode,
+                    ErrorCode = DnsQueryDiagnostics.ClassifyFailure(ex),
+                    Exception = ex,
                     Error = message
                 };
                 response.AddServerDetails(configuration);
