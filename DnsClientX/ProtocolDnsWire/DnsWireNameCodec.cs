@@ -49,6 +49,17 @@ namespace DnsClientX {
 
         internal static string Canonical(string name) => Normalize(name).ToLowerInvariant();
 
+        internal static string[] CanonicalLabels(string name) =>
+            EncodeLabels(Canonical(name)).Select(ToPresentationLabel).ToArray();
+
+        internal static string ParentName(string name) {
+            string[] labels = CanonicalLabels(name);
+            return labels.Length <= 1 ? "." : string.Join(".", labels.Skip(1)) + ".";
+        }
+
+        internal static bool IsStrictSubdomain(string name, string parent) =>
+            HasLabelSuffix(name, parent, strict: true);
+
         internal static string TrimTrailingRootDot(string name) {
             if (string.IsNullOrEmpty(name) || name == "." || name[name.Length - 1] != '.') return name;
             int escapes = 0;
@@ -56,14 +67,37 @@ namespace DnsClientX {
             return escapes % 2 == 0 ? name.Substring(0, name.Length - 1) : name;
         }
 
-        internal static bool IsSubdomainOrEqual(string name, string parent) {
+        internal static bool IsSubdomainOrEqual(string name, string parent) =>
+            HasLabelSuffix(name, parent, strict: false);
+
+        internal static string RewriteDnameTarget(string name, string owner, string replacement) {
+            string canonicalName = Canonical(name);
+            string canonicalOwner = Canonical(owner);
+            if (!IsStrictSubdomain(canonicalName, canonicalOwner)) {
+                throw new ArgumentException("The DNAME owner must be a strict ancestor of the queried name.", nameof(owner));
+            }
+            string prefix = canonicalName.Substring(0, canonicalName.Length - canonicalOwner.Length);
+            // Remove only the label separator. TrimEnd('.') would also erase an escaped
+            // trailing data dot in a label such as a\..old.example.
+            if (canonicalOwner != ".") prefix = prefix.Substring(0, prefix.Length - 1);
+            string canonicalReplacement = Canonical(replacement);
+            return Canonical(canonicalReplacement == "."
+                ? prefix + "."
+                : prefix + "." + canonicalReplacement);
+        }
+
+        private static bool HasLabelSuffix(string name, string parent, bool strict) {
             string canonicalName = Canonical(name);
             string canonicalParent = Canonical(parent);
-            if (canonicalParent == ".") return true;
-            return string.Equals(canonicalName, canonicalParent, StringComparison.Ordinal)
-                || (canonicalName.Length > canonicalParent.Length
-                    && canonicalName.EndsWith(canonicalParent, StringComparison.Ordinal)
-                    && canonicalName[canonicalName.Length - canonicalParent.Length - 1] == '.');
+            if (canonicalParent == ".") return !strict || canonicalName != ".";
+            if (canonicalName == canonicalParent) return !strict;
+            if (canonicalName.Length <= canonicalParent.Length
+                || !canonicalName.EndsWith(canonicalParent, StringComparison.Ordinal)) return false;
+            int separator = canonicalName.Length - canonicalParent.Length - 1;
+            if (canonicalName[separator] != '.') return false;
+            int escapes = 0;
+            for (int index = separator - 1; index >= 0 && canonicalName[index] == '\\'; index--) escapes++;
+            return escapes % 2 == 0;
         }
 
         internal static byte[] ToCanonicalWire(string name) {

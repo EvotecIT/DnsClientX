@@ -36,19 +36,25 @@ namespace DnsClientX.Tests {
             }));
         }
 
-        internal DnsSecValidationEngine Engine(bool currentTime = false) => new(async (name, type, token) => {
+        internal DnsSecValidationEngine Engine(bool currentTime = false,
+            DnsResponseCode dnskeyStatus = DnsResponseCode.NoError,
+            DnsResponseCode dsStatus = DnsResponseCode.NoError) => new(async (name, type, token) => {
             await Task.Yield();
             token.ThrowIfCancellationRequested();
             if (type == DnsRecordType.DNSKEY) {
                 DnsSecKey key = name == "." ? Root : Zone;
-                return Signed(key.Name, type, new byte[] { 1, 1, 3, 8 }.Concat(key.PublicKey).ToArray(),
+                DnsResponse response = Signed(key.Name, type, new byte[] { 1, 1, 3, 8 }.Concat(key.PublicKey).ToArray(),
                     key, ttl: MaterialTtl, lifetime: KeyLifetime);
+                response.Status = dnskeyStatus;
+                return response;
             }
             if (type == DnsRecordType.DS && DnsWireNameCodec.Canonical(name) == Zone.Name) {
                 AssertDigest(Zone, out byte[] digest);
                 byte[] data = new[] { (byte)(Zone.KeyTag >> 8), (byte)Zone.KeyTag, Zone.Algorithm, (byte)2 }.Concat(digest).ToArray();
                 var signer = new DnsSecKey(DsSigner, Root.Flags, Root.Protocol, Root.Algorithm, Root.PublicKey);
-                return Signed(Zone.Name, type, data, signer, ttl: MaterialTtl, lifetime: DsLifetime);
+                DnsResponse response = Signed(Zone.Name, type, data, signer, ttl: MaterialTtl, lifetime: DsLifetime);
+                response.Status = dsStatus;
+                return response;
             }
             throw new InvalidOperationException($"Unexpected fixture lookup: {name} {type}");
         }, currentTime ? null : Now, AnchorPath);

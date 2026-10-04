@@ -160,7 +160,7 @@ namespace DnsClientX {
         internal static bool ProvesWildcardExpansion(DnsResponse response, string name, byte labels, out bool optOut) {
             optOut = false;
             string canonical = DnsWireNameCodec.Canonical(name);
-            string[] parts = canonical.TrimEnd('.').Split('.');
+            string[] parts = DnsWireNameCodec.CanonicalLabels(canonical);
             if (labels >= parts.Length) return false;
             string closest = labels == 0 ? "." : string.Join(".", parts.Skip(parts.Length - labels)) + ".";
             string nextCloser = NextCloserName(canonical, closest);
@@ -255,22 +255,14 @@ namespace DnsClientX {
             while (true) {
                 yield return current;
                 if (current == ".") yield break;
-                int dot = current.IndexOf('.');
-                current = dot < 0 || dot == current.Length - 1 ? "." : current.Substring(dot + 1);
+                current = DnsWireNameCodec.ParentName(current);
             }
         }
 
         private static string NextCloserName(string name, string closest) {
-            if (closest == ".") {
-                string trimmed = name.TrimEnd('.');
-                int last = trimmed.LastIndexOf('.');
-                return (last < 0 ? trimmed : trimmed.Substring(last + 1)) + ".";
-            }
-            int suffix = name.Length - closest.Length;
-            string prefix = name.Substring(0, suffix).TrimEnd('.');
-            int dot = prefix.LastIndexOf('.');
-            string label = dot < 0 ? prefix : prefix.Substring(dot + 1);
-            return label + "." + closest;
+            string[] labels = DnsWireNameCodec.CanonicalLabels(name);
+            int closestLabels = DnsWireNameCodec.CanonicalLabels(closest).Length;
+            return string.Join(".", labels.Skip(labels.Length - closestLabels - 1)) + ".";
         }
 
         private static bool Covers(string owner, string next, string candidate) {

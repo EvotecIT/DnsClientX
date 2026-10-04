@@ -358,7 +358,8 @@ namespace DnsClientX {
             string queryName,
             DnsRecordType type,
             bool returnAllTypes) {
-            response.RequestedAnswerPresent = HasRequestedAnswer(response, queryName, type);
+            string? requestedOwner = FindRequestedAnswerOwner(response, queryName, type);
+            response.RequestedAnswerPresent = requestedOwner != null;
             DnsAnswer[] allAnswers = response.Answers ?? Array.Empty<DnsAnswer>();
             if (returnAllTypes || type == DnsRecordType.ANY) {
                 response.Answers = allAnswers;
@@ -367,7 +368,8 @@ namespace DnsClientX {
 
             int matchingCount = 0;
             for (int index = 0; index < allAnswers.Length; index++) {
-                if (allAnswers[index].Type == type) matchingCount++;
+                if (allAnswers[index].Type == type && requestedOwner != null
+                    && CanonicalAnswerName(allAnswers[index].Name) == requestedOwner) matchingCount++;
             }
             if (matchingCount == allAnswers.Length) {
                 response.Answers = allAnswers;
@@ -377,7 +379,10 @@ namespace DnsClientX {
             var matchingAnswers = new DnsAnswer[matchingCount];
             int targetIndex = 0;
             for (int index = 0; index < allAnswers.Length; index++) {
-                if (allAnswers[index].Type == type) matchingAnswers[targetIndex++] = allAnswers[index];
+                if (allAnswers[index].Type == type && requestedOwner != null
+                    && CanonicalAnswerName(allAnswers[index].Name) == requestedOwner) {
+                    matchingAnswers[targetIndex++] = allAnswers[index];
+                }
             }
             response.Answers = matchingAnswers;
         }

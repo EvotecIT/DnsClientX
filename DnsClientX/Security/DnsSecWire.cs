@@ -240,7 +240,7 @@ namespace DnsClientX {
 
         private static string SignedOwner(string owner, byte labels) {
             if (owner == ".") return owner;
-            string[] parts = owner.TrimEnd('.').Split('.');
+            string[] parts = DnsWireNameCodec.CanonicalLabels(owner);
             if (labels > parts.Length) throw new DnsClientException("RRSIG labels exceeds the owner-name label count.");
             if (labels == parts.Length) return owner;
             return "*." + string.Join(".", parts.Skip(parts.Length - labels)) + ".";
