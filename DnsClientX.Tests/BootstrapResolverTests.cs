@@ -13,6 +13,21 @@ public sealed class BootstrapResolverTests : IDisposable {
     /// <summary>Restores the default system lookup after each contract test.</summary>
     public void Dispose() => DnsServerResolver.ResetForTests();
 
+    /// <summary>Multi-resolver option snapshots preserve explicit bootstrap instead of using system DNS.</summary>
+    [Fact]
+    public async Task MultiResolverQueryPreservesExplicitBootstrap() {
+        DnsServerResolver.ResolveHostAddressesAsync = _ => throw new InvalidOperationException("System DNS must not be used.");
+        await using var server = new BootstrapDnsServer();
+        using var resolver = new DnsMultiResolver(new[] { new DnsResolverEndpoint {
+            Host = "endpoint.bootstrap.invalid", Port = server.Port, Timeout = TimeSpan.FromSeconds(1)
+        } }, new MultiResolverOptions { BootstrapResolver = server.Endpoint() });
+        var response = await resolver.QueryAsync("payload.example", DnsRecordType.A);
+        Assert.Equal(DnsResponseCode.NoError, response.Status);
+        Assert.Equal("192.0.2.80", Assert.Single(response.Answers).Data);
+        Assert.Equal(1, server.BootstrapQueries);
+        Assert.Equal("127.0.0.1", response.ServerResolution!.Address);
+    }
+
     /// <summary>The same core option resolves UDP/TCP bootstrap addresses and retains endpoint provenance.</summary>
     [Theory]
     [InlineData(Transport.Udp)]

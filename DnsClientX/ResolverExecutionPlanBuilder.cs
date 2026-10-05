@@ -43,7 +43,7 @@ namespace DnsClientX {
             }
 
             return endpoints
-                .GroupBy(DescribeEndpoint, StringComparer.OrdinalIgnoreCase)
+                .GroupBy(ResolverEndpointClientFactory.GetExecutionKey, StringComparer.Ordinal)
                 .Select(group => BuildExplicitTarget(group.First()))
                 .ToArray();
         }
