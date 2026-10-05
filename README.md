@@ -1148,7 +1148,7 @@ DnsClientTelemetry.QueryCompleted += (_, query) =>
 
 `LocalEndPoint` is supported for UDP, TCP, DoT, and DoQ queries and for RFC 2136 updates through the shared TCP engine. HTTP-based transports reject it explicitly because `HttpClient` does not expose a portable per-query source binding. Modern targets also emit `ActivitySource` spans and `Meter` counters under the name `DnsClientX`; when no event, activity, or meter listener is attached, query telemetry does not allocate a scope.
 
-When response caching is enabled, `DnsResponse.ResponseSource` reports `Network`, `Cache`, or `CoalescedNetwork`. Exact-key concurrent misses share one in-flight query, but each caller receives an independent response clone. Canceling one waiter does not cancel the shared fetch.
+When response caching is enabled, `DnsResponse.ResponseSource` reports `Network`, `Cache`, or `CoalescedNetwork`. Concurrent misses on the same `ClientX` share one in-flight query when their answer identity and captured transport timeout match. Each caller receives an independent response clone. Live queries stay with their transport owner; completed cached answers can be reused by other clients. Canceling one waiter preserves surviving waiters. When the final waiter leaves, cancellation waits for transport cleanup before releasing the caller's admission slot.
 
 ### Bootstrap and resolver identity
 
