@@ -160,9 +160,7 @@ namespace DnsClientX.Tests {
             return IPAddress.Parse(ipAddress).GetAddressBytes();
         }
 
-        private static async Task RunDiscoveryServerAsync(int port, Func<byte[], byte[]> buildResponse, TaskCompletionSource<object?> ready, CancellationToken token) {
-            using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
-            ready.TrySetResult(null);
+        private static async Task RunDiscoveryServerAsync(UdpClient udp, Func<byte[], byte[]> buildResponse, CancellationToken token) {
 #if NET5_0_OR_GREATER
             UdpReceiveResult result = await udp.ReceiveAsync(token);
             byte[] response = buildResponse(result.Buffer);
@@ -180,13 +178,11 @@ namespace DnsClientX.Tests {
 #endif
         }
 
-        private static async Task RunAxfrServerAsync(int port, byte[][] responses, TaskCompletionSource<object?> ready, CancellationToken token) {
-            var listener = new TcpListener(IPAddress.Loopback, port);
-            listener.Start();
-            ready.TrySetResult(null);
+        private static async Task RunAxfrServerAsync(TcpListener listener, byte[][] responses, CancellationToken token) {
 
             try {
 #if NETFRAMEWORK
+                using var cancellation = token.Register(listener.Stop);
                 using TcpClient client = await listener.AcceptTcpClientAsync();
 #else
                 using TcpClient client = await listener.AcceptTcpClientAsync(token);
@@ -223,28 +219,61 @@ namespace DnsClientX.Tests {
             }
         }
 
+        private static async Task StopServersAsync(UdpClient udp, TcpListener listener, CancellationTokenSource cancellation, params Task[] servers) {
+            cancellation.Cancel();
+            udp.Dispose();
+            listener.Stop();
+            try {
+                await Task.WhenAll(servers);
+            } catch (OperationCanceledException) when (cancellation.IsCancellationRequested) {
+            } catch (ObjectDisposedException) when (cancellation.IsCancellationRequested) {
+            } catch (SocketException exception) when (cancellation.IsCancellationRequested &&
+                exception.SocketErrorCode is SocketError.OperationAborted or SocketError.Interrupted) {
+            }
+        }
+
+        /// <summary>Ensures failed or unstarted CLI probes can cancel both reserved responders without hanging.</summary>
+        [Fact]
+        public async Task AxfrFixture_CancelsWhenNoQueriesArrive() {
+            var (udp, listener) = TestUtilities.BindUdpAndTcp();
+            using var reservation = udp;
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            Task discovery = RunDiscoveryServerAsync(udp, _ => Array.Empty<byte>(), cancellation.Token);
+            Task transfer = RunAxfrServerAsync(listener, Array.Empty<byte[]>(), cancellation.Token);
+            try {
+                Task cleanup = StopServersAsync(udp, listener, cancellation, discovery, transfer);
+                Assert.Same(cleanup, await Task.WhenAny(cleanup, Task.Delay(TimeSpan.FromSeconds(5))));
+                await cleanup;
+                Assert.True(discovery.IsCompleted);
+                Assert.True(transfer.IsCompleted);
+            } finally {
+                cancellation.Cancel();
+                udp.Dispose();
+                listener.Stop();
+            }
+        }
+
         /// <summary>
         /// Ensures CLI AXFR mode prints the transfer summary and returned records.
         /// </summary>
         [Fact]
         public async Task AxfrOption_PrintsTransferSummaryAndRecords() {
-            int port = TestUtilities.GetFreeTcpPort();
+            var (udp, listener) = TestUtilities.BindUdpAndTcp();
+            using var reservation = udp;
+            int port = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
             byte[] soa = BuildSoaRdata();
             byte[] opening = BuildAxfrMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
             byte[] record = BuildAxfrMessage("example.com", ("www.example.com", DnsRecordType.A, BuildARecordData("203.0.113.10")));
             byte[] closing = BuildAxfrMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var discoveryReady = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var axfrReady = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task discoveryTask = RunDiscoveryServerAsync(port, buffer => {
+            Task discoveryTask = RunDiscoveryServerAsync(udp, buffer => {
                 (ushort id, string questionName, DnsRecordType questionType) = ParseQuestion(buffer);
                 Assert.Equal("example.com", questionName);
                 Assert.Equal(DnsRecordType.NS, questionType);
                 return BuildNsResponse(id, questionName, ("ns1.example.com", "127.0.0.1"));
-            }, discoveryReady, cts.Token);
-            Task axfrTask = RunAxfrServerAsync(port, new[] { opening, record, closing }, axfrReady, cts.Token);
-            await Task.WhenAll(discoveryReady.Task, axfrReady.Task);
+            }, cts.Token);
+            Task axfrTask = RunAxfrServerAsync(listener, new[] { opening, record, closing }, cts.Token);
 
             using var output = new StringWriter();
             TextWriter originalOut = Console.Out;
@@ -264,13 +293,13 @@ namespace DnsClientX.Tests {
                 Assert.Contains("Tried servers: 127.0.0.1", text, StringComparison.Ordinal);
                 Assert.Contains("www.example.com", text, StringComparison.Ordinal);
                 Assert.Contains("203.0.113.10", text, StringComparison.Ordinal);
+                await Task.WhenAll(discoveryTask, axfrTask);
             } finally {
                 Console.SetOut(originalOut);
                 Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", null);
                 SystemInformation.SetDnsServerProvider(null);
+                await StopServersAsync(udp, listener, cts, discoveryTask, axfrTask);
             }
-
-            await Task.WhenAll(discoveryTask, axfrTask);
         }
 
         /// <summary>
@@ -278,23 +307,22 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task AxfrOption_JsonFormat_PrintsStructuredTransferResult() {
-            int port = TestUtilities.GetFreeTcpPort();
+            var (udp, listener) = TestUtilities.BindUdpAndTcp();
+            using var reservation = udp;
+            int port = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
             byte[] soa = BuildSoaRdata();
             byte[] opening = BuildAxfrMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
             byte[] record = BuildAxfrMessage("example.com", ("www.example.com", DnsRecordType.A, BuildARecordData("203.0.113.20")));
             byte[] closing = BuildAxfrMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var discoveryReady = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var axfrReady = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task discoveryTask = RunDiscoveryServerAsync(port, buffer => {
+            Task discoveryTask = RunDiscoveryServerAsync(udp, buffer => {
                 (ushort id, string questionName, DnsRecordType questionType) = ParseQuestion(buffer);
                 Assert.Equal("example.com", questionName);
                 Assert.Equal(DnsRecordType.NS, questionType);
                 return BuildNsResponse(id, questionName, ("ns1.example.com", "127.0.0.1"));
-            }, discoveryReady, cts.Token);
-            Task axfrTask = RunAxfrServerAsync(port, new[] { opening, record, closing }, axfrReady, cts.Token);
-            await Task.WhenAll(discoveryReady.Task, axfrReady.Task);
+            }, cts.Token);
+            Task axfrTask = RunAxfrServerAsync(listener, new[] { opening, record, closing }, cts.Token);
 
             using var output = new StringWriter();
             TextWriter originalOut = Console.Out;
@@ -311,13 +339,13 @@ namespace DnsClientX.Tests {
                 Assert.Contains("\"SelectedAuthority\": \"ns1.example.com\"", text, StringComparison.Ordinal);
                 Assert.Contains("\"SelectedServer\": \"127.0.0.1\"", text, StringComparison.Ordinal);
                 Assert.Contains("\"RecordSets\"", text, StringComparison.Ordinal);
+                await Task.WhenAll(discoveryTask, axfrTask);
             } finally {
                 Console.SetOut(originalOut);
                 Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", null);
                 SystemInformation.SetDnsServerProvider(null);
+                await StopServersAsync(udp, listener, cts, discoveryTask, axfrTask);
             }
-
-            await Task.WhenAll(discoveryTask, axfrTask);
         }
     }
 }
