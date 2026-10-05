@@ -241,6 +241,10 @@ namespace DnsClientX {
         /// </summary>
         public int MaxTcpQueriesPerConnection { get; set; } = 128;
 
+        // Shared flights retain endpoint admission through a canceled transaction's late
+        // response or bounded drain retirement. Ordinary callers keep prompt cancellation.
+        internal bool WaitForCanceledStreamQueryDrain { get; set; }
+
         /// <summary>
         /// Optional cap for client-side query parallelism when resolving multiple names.
         /// When null, the library uses its current behavior (no explicit cap).

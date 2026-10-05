@@ -24,7 +24,8 @@ internal static class DnsBootstrapResolver {
         FormattableString.Invariant($"{endpoint.Transport}|{endpoint.Host}|{endpoint.Port}|{endpoint.Family}|{endpoint.Timeout?.Ticks}|{endpoint.AllowTcpFallback}|{endpoint.EdnsBufferSize}|{endpoint.DnsSecOk}");
 
     internal static async Task<(IPAddress[] Addresses, TimeSpan? Ttl)> ResolveAsync(string hostname, DnsResolverEndpoint endpoint,
-        int timeoutMilliseconds, AddressFamily? preferredFamily) {
+        int timeoutMilliseconds, AddressFamily? preferredFamily, CancellationToken cancellationToken = default) {
+        cancellationToken.ThrowIfCancellationRequested();
         Validate(endpoint);
         int timeout = endpoint.Timeout.HasValue && endpoint.Timeout.Value > TimeSpan.Zero
             ? (int)Math.Min(int.MaxValue, Math.Max(1, endpoint.Timeout.Value.TotalMilliseconds)) : timeoutMilliseconds;
@@ -32,13 +33,15 @@ internal static class DnsBootstrapResolver {
         var configuration = new Configuration(endpoint.Host!, DnsRequestFormatMapper.FromTransport(endpoint.Transport)) {
             Port = endpoint.Port,
             TimeOut = timeout > 0 ? timeout : Configuration.DefaultTimeout,
-            UseTcpFallback = endpoint.AllowTcpFallback
+            UseTcpFallback = endpoint.AllowTcpFallback,
+            WaitForCanceledStreamQueryDrain = true
         };
         if (endpoint.EdnsBufferSize.HasValue) {
             configuration.EnableEdns = true;
             configuration.UdpBufferSize = endpoint.EdnsBufferSize.Value;
         }
-        using var deadline = new CancellationTokenSource(configuration.TimeOut);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(configuration.TimeOut);
         using var client = new ClientX(configuration);
         DnsRecordType first = (preferredFamily ?? endpoint.Family) == AddressFamily.InterNetworkV6 ? DnsRecordType.AAAA : DnsRecordType.A;
         try {
@@ -57,7 +60,7 @@ internal static class DnsBootstrapResolver {
                     return (addresses, TimeSpan.FromSeconds(ttl));
                 }
             }
-        } catch (OperationCanceledException) when (deadline.IsCancellationRequested) {
+        } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && deadline.IsCancellationRequested) {
             throw new TimeoutException($"Bootstrap resolution timed out after {configuration.TimeOut} milliseconds.");
         }
         return (Array.Empty<IPAddress>(), null);

@@ -310,22 +310,23 @@ namespace DnsClientX {
             var sw = Stopwatch.StartNew();
             DnsResponse response;
             try {
-                await _globalLimiter.WaitAsync(cts.Token).ConfigureAwait(false);
-                try {
+                // Waiting behind a busy endpoint must not occupy a global execution slot.
                 SemaphoreSlim? limiter = GetLimiter(ep);
                 if (limiter != null) await limiter.WaitAsync(cts.Token).ConfigureAwait(false);
                 try {
-                    var resolver = ResolveOverride;
-                    if (resolver != null) {
-                        response = await resolver(ep, name, type, cts.Token).ConfigureAwait(false);
-                    } else {
-                        response = await PerformQuery(ep, name, type, cts.Token).ConfigureAwait(false);
+                    await _globalLimiter.WaitAsync(cts.Token).ConfigureAwait(false);
+                    try {
+                        var resolver = ResolveOverride;
+                        if (resolver != null) {
+                            response = await resolver(ep, name, type, cts.Token).ConfigureAwait(false);
+                        } else {
+                            response = await PerformQuery(ep, name, type, cts.Token).ConfigureAwait(false);
+                        }
+                    } finally {
+                        _globalLimiter.Release();
                     }
                 } finally {
                     if (limiter != null) limiter.Release();
-                }
-                } finally {
-                    _globalLimiter.Release();
                 }
             } catch (OperationCanceledException oce) when (!ct.IsCancellationRequested) {
                 response = MakeError(ep, name, type, DnsQueryErrorCode.Timeout, oce.Message, oce);

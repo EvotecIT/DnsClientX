@@ -90,7 +90,7 @@ namespace DnsClientX {
         private readonly Dictionary<HttpClient, (bool IgnoreCertificateErrors, SecurityProtocolType Protocols, string Bootstrap)> _clientTlsPolicies = new();
 
         private static readonly DnsResponseCache _cache = new();
-        private static readonly ConcurrentDictionary<string, Lazy<Task<DnsResponse>>> _cacheInflight =
+        private readonly ConcurrentDictionary<string, DnsQueryFlight<DnsResponse>> _cacheInflight =
             new(StringComparer.Ordinal);
         private readonly bool _cacheEnabled;
         private readonly DnsUdpClientPool _udpClientPool = new();
@@ -111,7 +111,6 @@ namespace DnsClientX {
 
         internal static void ResetResponseCacheForTests() {
             _cache.Clear();
-            _cacheInflight.Clear();
         }
 
         /// <summary>

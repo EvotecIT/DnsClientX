@@ -153,18 +153,14 @@ namespace DnsClientX {
                 }
 
                 if (cacheKey != null && !bypassSingleFlight) {
-                    var candidate = new Lazy<Task<DnsResponse>>(
-                        () => ResolveInternal(inputName, type, requestDnsSec, validateDnsSec, returnAllTypes,
-                            maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords,
-                            CancellationToken.None, dnsSecMaterialQuery, queryConfiguration,
-                            bypassSingleFlight: true, suppressAudit: true, certificatePolicy: ignoreCertificateErrors),
-                        LazyThreadSafetyMode.ExecutionAndPublication);
-                    Lazy<Task<DnsResponse>> flight = _cacheInflight.GetOrAdd(cacheKey, candidate);
-                    bool ownsFlight = ReferenceEquals(candidate, flight);
-                    Task<DnsResponse> flightTask = flight.Value;
-                    _ = RemoveCacheFlightWhenCompletedAsync(cacheKey, flight, flightTask);
-                    DnsResponse shared = await WaitForSharedResponseAsync(flightTask, cancellationToken)
-                        .ConfigureAwait(false);
+                    // Cached answers can be reused across deadlines; live execution cannot.
+                    var executionKey = cacheKey + "timeout:" + queryConfiguration.TimeOut.ToString(CultureInfo.InvariantCulture);
+                    queryConfiguration.WaitForCanceledStreamQueryDrain = true;
+                    var (shared, ownsFlight) = await DnsQueryFlight<DnsResponse>.JoinAsync(_cacheInflight, executionKey,
+                        token => ResolveInternal(inputName, type, requestDnsSec,
+                            validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords,
+                            token, dnsSecMaterialQuery, queryConfiguration, bypassSingleFlight: true,
+                            suppressAudit: true, certificatePolicy: ignoreCertificateErrors), cancellationToken).ConfigureAwait(false);
                     DnsResponse result = shared.Clone();
                     if (!ownsFlight) result.ResponseSource = DnsResponseSource.CoalescedNetwork;
                     FinalizeAuditEntry(auditEntry, result, stopwatch,
@@ -274,7 +270,9 @@ namespace DnsClientX {
                         ResolveInternal(materialName, materialType, requestDnsSec: true, validateDnsSec: false,
                             returnAllTypes: true, maxRetries: 1, retryDelayMs: retryDelayMs,
                             typedRecords: false, parseTypedTxtRecords: false, cancellationToken: token,
-                            dnsSecMaterialQuery: true, certificatePolicy: ignoreCertificateErrors),
+                            dnsSecMaterialQuery: true,
+                            queryConfigurationOverride: queryConfiguration.CreateQuerySnapshot(materialName),
+                            certificatePolicy: ignoreCertificateErrors),
                         trustAnchorStorePath: queryConfiguration.Rfc5011TrustAnchorStorePath,
                         signatureVerifier: queryConfiguration.DnsSecSignatureVerifier);
                     DnsSecValidationResult validation = await validator.ValidateAsync(response, name, type, cancellationToken).ConfigureAwait(false);
@@ -330,26 +328,6 @@ namespace DnsClientX {
             } catch (Exception ex) {
                 FinalizeAuditException(auditEntry, ex, stopwatch);
                 throw;
-            }
-        }
-
-        private static async Task<DnsResponse> WaitForSharedResponseAsync(Task<DnsResponse> task,
-            CancellationToken cancellationToken) {
-            if (!cancellationToken.CanBeCanceled || task.IsCompleted) return await task.ConfigureAwait(false);
-            var canceled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            using var registration = cancellationToken.Register(() => canceled.TrySetResult(true));
-            if (await Task.WhenAny(task, canceled.Task).ConfigureAwait(false) != task) cancellationToken.ThrowIfCancellationRequested();
-            return await task.ConfigureAwait(false);
-        }
-
-        private static async Task RemoveCacheFlightWhenCompletedAsync(string key,
-            Lazy<Task<DnsResponse>> flight, Task<DnsResponse> task) {
-            try {
-                await task.ConfigureAwait(false);
-            } catch {
-                // Every waiter observes the original failure. Removal only controls future attempts.
-            } finally {
-                ((ICollection<KeyValuePair<string, Lazy<Task<DnsResponse>>>>)_cacheInflight).Remove(new(key, flight));
             }
         }
 
