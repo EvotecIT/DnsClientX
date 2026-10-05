@@ -132,8 +132,9 @@ namespace DnsClientX.Tests {
             var engine = fixture.Engine(currentTime: true);
             DnsResponse alias = fixture.Signed("alias.example.com", DnsRecordType.CNAME,
                 DnsWireNameCodec.ToCanonicalWire("www.example.com"));
-            Assert.Equal(DnsSecValidationStatus.Secure,
-                (await engine.ValidateAliasAsync(alias, "alias.example.com", DnsRecordType.A, default)).Status);
+            var initial = await engine.ValidateAliasAsync(alias, "alias.example.com", DnsRecordType.A, default);
+            Assert.True(initial.Status == DnsSecValidationStatus.Secure,
+                $"Initial validation: {initial.Status}; {initial.Message}; fixture age: {DateTimeOffset.UtcNow - fixture.Now}.");
             // Expiration is inclusive at its whole-second timestamp (RFC 1982 arithmetic).
             await Task.Delay(TimeSpan.FromMilliseconds(3100));
             DnsResponse answer = fixture.Signed("www.example.com", DnsRecordType.A, new byte[] { 192, 0, 2, 1 });

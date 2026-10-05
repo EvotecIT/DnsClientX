@@ -10,7 +10,7 @@ namespace DnsClientX.Tests {
     internal sealed class DnsSecSignedFixture : IDisposable {
         private readonly RSA _rsa = RSA.Create();
         private readonly string _directory = Path.Combine(Path.GetTempPath(), "DnsClientX-signed-" + Guid.NewGuid().ToString("N"));
-        internal DateTimeOffset Now { get; } = DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        internal DateTimeOffset Now { get; }
         internal DnsSecKey Root { get; }
         internal DnsSecKey Zone { get; }
         internal string AnchorPath => Path.Combine(_directory, "anchors.json");
@@ -26,6 +26,8 @@ namespace DnsClientX.Tests {
             Root = new DnsSecKey(".", 257, 3, 8, key);
             Zone = new DnsSecKey("example.com", 257, 3, 8, key);
             Directory.CreateDirectory(_directory);
+            // Start short signature lifetimes after potentially slow RSA key generation.
+            Now = DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
             File.WriteAllText(AnchorPath, DnsClientXJsonSerializer.Serialize(new Rfc5011StateFile {
                 LastSuccessfulRefreshUtc = Now.AddDays(-1),
                 Keys = new List<Rfc5011StateKey> { new() {
