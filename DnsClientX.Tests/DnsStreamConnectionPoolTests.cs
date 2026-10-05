@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
@@ -245,6 +246,10 @@ namespace DnsClientX.Tests {
         [InlineData(false)]
         [InlineData(true)]
         public async Task CancelledTransactionIdMovesToFreshConnection(bool waitBeforeCancellation) {
+            var events = new ConcurrentQueue<string>();
+            void Record(string message) => events.Enqueue($"{Stopwatch.GetTimestamp()}: {message}");
+            Exception? failure = null;
+            Record($"waitBeforeCancellation={waitBeforeCancellation}; runtime={Environment.Version}; OS={Environment.OSVersion}");
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -253,20 +258,25 @@ namespace DnsClientX.Tests {
             var replacementResponseReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task server = Task.Run(async () => {
                 using TcpClient connection = await AcceptAsync(listener, guard.Token);
+                Record($"first accepted {connection.Client.LocalEndPoint} <- {connection.Client.RemoteEndPoint}");
                 NetworkStream stream = connection.GetStream();
                 byte[] firstQuery = await ReadFrameAsync(stream, guard.Token);
+                Record("first frame received");
                 firstReceived.TrySetResult(true);
 
                 Task<byte[]> oldRead = ReadFrameAsync(stream, guard.Token);
                 using TcpClient replacement = await AcceptAsync(listener, guard.Token);
+                Record($"replacement accepted {replacement.Client.LocalEndPoint} <- {replacement.Client.RemoteEndPoint}");
                 NetworkStream replacementStream = replacement.GetStream();
                 byte[] secondQuery = await ReadFrameAsync(replacementStream, guard.Token);
+                Record("replacement frame received");
                 Assert.Equal(firstQuery[0], secondQuery[0]);
                 Assert.Equal(firstQuery[1], secondQuery[1]);
                 await WriteFrameAsync(replacementStream, TestUtilities.CreateResponseFromQuery(secondQuery), guard.Token);
                 // Keep the replacement open until its reply is received before checking the retired socket.
                 await replacementResponseReceived.Task;
-                await Assert.ThrowsAnyAsync<IOException>(() => oldRead);
+                IOException retired = await Assert.ThrowsAnyAsync<IOException>(() => oldRead);
+                Record($"retired peer read: {retired}");
             }, guard.Token);
 
             try {
@@ -282,20 +292,37 @@ namespace DnsClientX.Tests {
                 Task<byte[]>? second = waitBeforeCancellation ? pool.QueryTcpAsync(IPAddress.Loopback, port, null,
                     secondQuery, 3000, 2, guard.Token) : null;
                 if (second != null) Assert.False(second.IsCompleted);
+                Record("cancel first caller");
                 cancellation.Cancel();
                 await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
 
                 second ??= pool.QueryTcpAsync(IPAddress.Loopback, port, null,
                     secondQuery, 3000, 2, guard.Token);
 
+                Record("await replacement query");
                 byte[] response = await second;
+                Record("replacement reply received by client");
                 replacementResponseReceived.TrySetResult(true);
                 DnsResponse parsed = await DnsWire.DeserializeDnsWireFormat(null, false, response);
                 Assert.Equal("new.example", Assert.Single(parsed.Questions).Name);
                 await server;
+            } catch (Exception exception) {
+                failure = exception;
+                Record($"client/assertion failure: {exception}");
             } finally {
                 replacementResponseReceived.TrySetResult(true);
+                guard.Cancel();
                 listener.Stop();
+                try {
+                    await server;
+                } catch (Exception exception) {
+                    Record($"server/cleanup failure: {exception}");
+                    failure ??= exception;
+                }
+            }
+            if (failure != null) {
+                throw new Xunit.Sdk.XunitException(
+                    $"Canceled transaction recovery failed: {failure}\n" + string.Join("\n", events));
             }
         }
 
