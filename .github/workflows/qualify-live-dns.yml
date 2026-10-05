@@ -49,7 +49,7 @@ jobs:
         run: ./scripts/qualification/Invoke-NrptQualification.ps1 -AssemblyPath scripts/qualification/bin/Release/${{ matrix.framework }}/Qualification.dll -OutputDirectory artifacts/live-dns/nrpt
       - name: Keep qualification diagnostics
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: live-dns-${{ matrix.os }}-${{ matrix.framework }}
           path: artifacts/live-dns/
