@@ -13,7 +13,7 @@ namespace DnsClientX {
         public string? Host { get; init; }
 
         /// <summary>
-        /// Port number. Defaults to 53 for UDP/TCP, 853 for DoT/DoQ, and 443 for DoH/gRPC when not specified.
+        /// Port number. Defaults to 53 for UDP/TCP, 853 for DoT/DoQ, 443 for DoH/gRPC, and 5353 for multicast when not specified.
         /// </summary>
         public int Port {
             get => _port ?? (RequestFormat.HasValue ? DnsRequestFormatMapper.ToTransport(RequestFormat.Value) : Transport) switch {
