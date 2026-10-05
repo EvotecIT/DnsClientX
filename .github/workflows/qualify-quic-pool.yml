@@ -1,0 +1,56 @@
+name: Qualify QUIC pool lifetime
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/qualify-quic-pool.yml'
+      - 'DnsClientX/ProtocolDnsQuic/DnsQuicConnectionPool.cs'
+      - 'DnsClientX.Tests/DnsQuicConnectionPool*'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/qualify-quic-pool.yml'
+      - 'DnsClientX/ProtocolDnsQuic/DnsQuicConnectionPool.cs'
+      - 'DnsClientX.Tests/DnsQuicConnectionPool*'
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: QUIC pool (${{ matrix.os }}, ${{ matrix.framework }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        framework: [net8.0, net10.0]
+    env:
+      DNSCLIENTX_REQUIRE_QUIC: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.x
+            10.x
+      - name: Install Linux QUIC platform runtime
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libmsquic
+          dpkg-query -W libmsquic
+      - name: Verify pool lifetime with native loopback connections
+        run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj -c Release -f ${{ matrix.framework }} --filter FullyQualifiedName~DnsQuicConnectionPool --logger trx --results-directory artifacts/quic-pool
+      - name: Keep native qualification results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quic-pool-${{ matrix.os }}-${{ matrix.framework }}
+          path: artifacts/quic-pool/
+          retention-days: 7
+          if-no-files-found: error
