@@ -35,7 +35,7 @@ namespace DnsClientX.Tests {
             Assert.Equal(version, httpClient.DefaultRequestVersion);
 #endif
 #if NET5_0_OR_GREATER
-            Assert.Equal(HttpVersionPolicy.RequestVersionOrHigher, httpClient.DefaultVersionPolicy);
+            Assert.Equal(HttpVersionPolicy.RequestVersionExact, httpClient.DefaultVersionPolicy);
 #endif
         }
 
