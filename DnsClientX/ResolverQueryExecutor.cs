@@ -74,15 +74,8 @@ namespace DnsClientX {
                     ExplicitEndpoint = endpoint
                 },
                 CreateClientOptions(options));
-            client.EndpointConfiguration.UseTcpFallback = endpoint.AllowTcpFallback;
-            if (endpoint.EdnsBufferSize.HasValue) {
-                client.EndpointConfiguration.UdpBufferSize = endpoint.EdnsBufferSize.Value;
-            }
             if (endpoint.Timeout.HasValue) {
-                client.EndpointConfiguration.TimeOut = (int)Math.Max(1, endpoint.Timeout.Value.TotalMilliseconds);
-            }
-            if (endpoint.Transport != Transport.Doh && !options.PortOverride.HasValue) {
-                client.EndpointConfiguration.Port = endpoint.Port;
+                client.EndpointConfiguration.TimeOut = ResolverEndpointClientFactory.ToTimeoutMilliseconds(endpoint.Timeout.Value);
             }
 
             return await ExecuteWithClientAsync(

@@ -48,18 +48,19 @@ namespace DnsClientX {
             if (_endpoints.Length == 0) throw new ArgumentException("No endpoints provided", nameof(endpoints));
             _options = (options ?? new MultiResolverOptions()).Clone();
             _globalLimiter = new SemaphoreSlim(_options.MaxParallelism, _options.MaxParallelism);
-            _endpointSetKey = ComputeSetKey(_endpoints);
 
             // Validate endpoints early to fail-fast on obvious misconfiguration
             foreach (var ep in _endpoints) {
                 if (ep == null) throw new ArgumentException("Endpoint cannot be null.", nameof(endpoints));
-                if (ep.Transport == Transport.Doh) {
-                    if (ep.DohUrl == null || !string.Equals(ep.DohUrl.Scheme, "https", StringComparison.OrdinalIgnoreCase)) {
+                DnsRequestFormat format = ep.RequestFormat ?? DnsRequestFormatMapper.FromTransport(ep.Transport);
+                if (ResolverEndpointClientFactory.IsUriBasedRequestFormat(format) || ep.Transport == Transport.Doh || ep.DohUrl != null) {
+                    Uri dohUri = EndpointParser.BuildDohUri(ep);
+                    if (!string.Equals(dohUri.Scheme, "https", StringComparison.OrdinalIgnoreCase)) {
                         throw new ArgumentException($"Invalid DoH endpoint: {ep}. HTTPS URL is required.", nameof(endpoints));
                     }
                     // Validate custom DoH port when specified
-                    if (!ep.DohUrl.IsDefaultPort) {
-                        int p = ep.DohUrl.Port;
+                    if (!dohUri.IsDefaultPort) {
+                        int p = dohUri.Port;
                         if (p <= 0 || p > 65535) {
                             throw new ArgumentOutOfRangeException(nameof(ep.DohUrl), p, "DoH URL port must be between 1 and 65535.");
                         }
@@ -73,6 +74,7 @@ namespace DnsClientX {
                     }
                 }
             }
+            _endpointSetKey = ComputeSetKey(_endpoints);
         }
 
         /// <summary>
@@ -371,9 +373,7 @@ namespace DnsClientX {
             var keys = endpoints.Select(EndpointKey).OrderBy(k => k, StringComparer.Ordinal);
             return string.Join("|", keys);
         }
-        private static string EndpointKey(DnsResolverEndpoint ep) =>
-            $"{ep.Transport}:{(ep.RequestFormat ?? MapTransport(ep.Transport))}:{(ep.DohUrl?.ToString() ?? (ep.Host ?? string.Empty))}:{ep.Port}:" +
-            $"{ep.Family}:{ep.TlsServerName}:{ep.AllowTcpFallback}:{ep.EdnsBufferSize}:{ep.DnsSecOk}:{ep.Timeout?.Ticks}";
+        private static string EndpointKey(DnsResolverEndpoint ep) => ResolverEndpointClientFactory.GetExecutionKey(ep);
 
         private static DnsResponse ChooseBetterError(DnsResponse? current, DnsResponse candidate) {
             if (current == null) return candidate;
@@ -415,17 +415,6 @@ namespace DnsClientX {
             string key = ComputeSetKey(endpoints);
             FastestCache.TryRemove(key, out _);
         }
-
-        private static DnsRequestFormat MapTransport(Transport t) => t switch {
-            Transport.Udp => DnsRequestFormat.DnsOverUDP,
-            Transport.Tcp => DnsRequestFormat.DnsOverTCP,
-            Transport.Dot => DnsRequestFormat.DnsOverTLS,
-            Transport.Doh => DnsRequestFormat.DnsOverHttps,
-            Transport.Quic => DnsRequestFormat.DnsOverQuic,
-            Transport.Grpc => DnsRequestFormat.DnsOverGrpc,
-            Transport.Multicast => DnsRequestFormat.Multicast,
-            _ => DnsRequestFormat.DnsOverUDP
-        };
 
         private async Task<DnsResponse> PerformQuery(DnsResolverEndpoint ep, string name, DnsRecordType type, CancellationToken ct) {
             ClientX client = _clients.GetOrAdd(EndpointKey(ep), _ =>
@@ -477,56 +466,24 @@ namespace DnsClientX {
 #endif
 
         private ClientX CreateClient(DnsResolverEndpoint ep) {
-            ClientX client;
-            DnsRequestFormat requestFormat = ep.RequestFormat ?? MapTransport(ep.Transport);
+            Configuration configuration = ResolverEndpointClientFactory.CreateConfiguration(ep);
             TimeSpan effectiveTimeout = (_options.RespectEndpointTimeout && ep.Timeout.HasValue)
                 ? ep.Timeout.Value
                 : (_options.DefaultTimeout ?? TimeSpan.FromMilliseconds(DefaultPerQueryTimeoutMs));
-            int effectiveTimeoutMilliseconds = effectiveTimeout <= TimeSpan.Zero
-                ? int.MaxValue
-                : (int)Math.Min(int.MaxValue, Math.Max(1, effectiveTimeout.TotalMilliseconds));
-            if (ep.Transport == Transport.Doh) {
-                var dohUri = ep.DohUrl ?? new Uri($"https://{ep.Host}/dns-query");
-                client = new ClientX(
-                    baseUri: dohUri,
-                    requestFormat: requestFormat,
-                    timeOutMilliseconds: effectiveTimeoutMilliseconds,
-                    userAgent: _options.UserAgent,
-                    httpVersion: _options.HttpVersion,
-                    ignoreCertificateErrors: _options.IgnoreCertificateErrors,
-                    enableCache: _options.EnableResponseCache,
-                    useTcpFallback: _options.UseTcpFallback,
-                    webProxy: _options.WebProxy,
-                    maxConnectionsPerServer: _options.MaxConnectionsPerServer > 0 ? _options.MaxConnectionsPerServer : Configuration.DefaultMaxConnectionsPerServer);
-            } else {
-                if (string.IsNullOrWhiteSpace(ep.Host)) throw new ArgumentException("Endpoint.Host is required for non-DoH transports");
-                client = new ClientX(
-                    hostname: ep.Host!,
-                    requestFormat: requestFormat,
-                    timeOutMilliseconds: effectiveTimeoutMilliseconds,
-                    userAgent: _options.UserAgent,
-                    httpVersion: _options.HttpVersion,
-                    ignoreCertificateErrors: _options.IgnoreCertificateErrors,
-                    enableCache: _options.EnableResponseCache,
-                    useTcpFallback: _options.UseTcpFallback,
-                    webProxy: _options.WebProxy,
-                    maxConnectionsPerServer: _options.MaxConnectionsPerServer > 0 ? _options.MaxConnectionsPerServer : Configuration.DefaultMaxConnectionsPerServer);
-            }
-
-            if (ep.Transport != Transport.Doh) {
-                client.EndpointConfiguration.Port = ep.Port > 0 ? ep.Port : (ep.Transport == Transport.Dot ? 853 : 53);
-            } else {
-                client.EndpointConfiguration.Port = (ep.DohUrl?.IsDefaultPort ?? true) ? 443 : ep.DohUrl!.Port;
-            }
-            client.EndpointConfiguration.UseTcpFallback = _options.UseTcpFallback && ep.AllowTcpFallback;
-            client.EndpointConfiguration.BootstrapResolver = _options.BootstrapResolver;
-            client.EndpointConfiguration.PreferredAddressFamily = ep.Family ??
+            configuration.TimeOut = ResolverEndpointClientFactory.ToTimeoutMilliseconds(effectiveTimeout);
+            if (_options.UserAgent != null) configuration.UserAgent = _options.UserAgent;
+            if (_options.HttpVersion != null) configuration.HttpVersion = _options.HttpVersion;
+            configuration.MaxConnectionsPerServer = _options.MaxConnectionsPerServer > 0
+                ? _options.MaxConnectionsPerServer : Configuration.DefaultMaxConnectionsPerServer;
+            configuration.UseTcpFallback &= _options.UseTcpFallback;
+            configuration.BootstrapResolver = _options.BootstrapResolver;
+            configuration.PreferredAddressFamily = ep.Family ??
                 (_options.PreferIpv6 ? AddressFamily.InterNetworkV6 : (AddressFamily?)null);
-            client.EndpointConfiguration.TlsServerName = ep.TlsServerName;
-            client.EndpointConfiguration.MaxConcurrency = _options.MaxConcurrency;
-            if (ep.EdnsBufferSize.HasValue) client.EndpointConfiguration.UdpBufferSize = ep.EdnsBufferSize.Value;
-            client.EndpointConfiguration.CheckingDisabled = _options.CheckingDisabled;
-            if (_options.EdnsOptions != null) client.EndpointConfiguration.EdnsOptions = _options.EdnsOptions;
+            configuration.MaxConcurrency = _options.MaxConcurrency;
+            configuration.CheckingDisabled = _options.CheckingDisabled;
+            if (_options.EdnsOptions != null) configuration.EdnsOptions = _options.EdnsOptions.Clone();
+            var client = new ClientX(configuration, ignoreCertificateErrors: _options.IgnoreCertificateErrors,
+                enableCache: _options.EnableResponseCache, webProxy: _options.WebProxy);
             if (_options.EnableResponseCache && _options.MaxCacheTtl.HasValue) client.MaxCacheTtl = _options.MaxCacheTtl.Value;
             return client;
         }

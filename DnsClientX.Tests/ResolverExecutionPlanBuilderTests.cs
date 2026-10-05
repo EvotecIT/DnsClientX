@@ -1,10 +1,34 @@
 using System;
+using System.Net.Sockets;
 
 namespace DnsClientX.Tests {
     /// <summary>
     /// Tests normalized resolver execution target planning.
     /// </summary>
     public class ResolverExecutionPlanBuilderTests {
+        /// <summary>Relative and absolute resolver names have different OS search semantics.</summary>
+        [Fact]
+        public void BuildExplicitTargets_PreservesAbsoluteHostnameMarker() {
+            var targets = ResolverExecutionPlanBuilder.BuildExplicitTargets(new[] {
+                new DnsResolverEndpoint { Host = "resolver" },
+                new DnsResolverEndpoint { Host = "resolver." }
+            });
+            Assert.Equal(2, targets.Length);
+        }
+        /// <summary>Human-readable labels cannot merge different protocol/security execution targets.</summary>
+        [Fact]
+        public void BuildExplicitTargets_PreservesBehaviorAndCaseSensitivePaths() {
+            var endpoints = new[] {
+                new DnsResolverEndpoint { Transport = Transport.Doh, DohUrl = new Uri("https://dns.example/Query"), RequestFormat = DnsRequestFormat.DnsOverHttps },
+                new DnsResolverEndpoint { Transport = Transport.Doh, DohUrl = new Uri("https://dns.example/query"), RequestFormat = DnsRequestFormat.DnsOverHttps },
+                new DnsResolverEndpoint { Transport = Transport.Doh, DohUrl = new Uri("https://dns.example/query"), RequestFormat = DnsRequestFormat.DnsOverHttpsJSON },
+                new DnsResolverEndpoint { Transport = Transport.Dot, Host = "127.0.0.1", Port = 853, TlsServerName = "first.example" },
+                new DnsResolverEndpoint { Transport = Transport.Dot, Host = "127.0.0.1", Port = 853, TlsServerName = "second.example" },
+                new DnsResolverEndpoint { Host = "resolver.example", Family = AddressFamily.InterNetwork },
+                new DnsResolverEndpoint { Host = "resolver.example", Family = AddressFamily.InterNetworkV6 }
+            };
+            Assert.Equal(endpoints.Length, ResolverExecutionPlanBuilder.BuildExplicitTargets(endpoints).Length);
+        }
         /// <summary>
         /// Ensures built-in selections normalize to a single built-in execution target.
         /// </summary>

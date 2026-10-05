@@ -1,10 +1,61 @@
 using System;
+using System.Net.Sockets;
 
 namespace DnsClientX.Tests {
     /// <summary>
     /// Tests custom resolver endpoint client creation helpers.
     /// </summary>
     public class ResolverEndpointClientFactoryTests {
+        /// <summary>Omitted ports follow the effective protocol; explicitly assigned ports remain authoritative.</summary>
+        [Theory]
+        [InlineData(Transport.Udp, 53)]
+        [InlineData(Transport.Dot, 853)]
+        [InlineData(Transport.Quic, 853)]
+        [InlineData(Transport.Doh, 443)]
+        [InlineData(Transport.Grpc, 443)]
+        [InlineData(Transport.Multicast, 5353)]
+        public void EndpointDefaultPortMatchesTransport(Transport transport, int expected) {
+            Assert.Equal(expected, new DnsResolverEndpoint { Transport = transport }.Port);
+            Assert.Equal(53, new DnsResolverEndpoint { Transport = transport, Port = 53 }.Port);
+        }
+
+        /// <summary>An explicit request format also determines the default port and endpoint URI.</summary>
+        [Fact]
+        public void CreateClient_RequestFormatOverrideUsesProtocolDefaultPort() {
+            using var client = ResolverEndpointClientFactory.CreateClient(new DnsResolverEndpoint {
+                Host = "dns.example", RequestFormat = DnsRequestFormat.DnsOverHttps
+            });
+            Assert.Equal(new Uri("https://dns.example/dns-query"), client.EndpointConfiguration.BaseUri);
+            Assert.Equal(443, client.EndpointConfiguration.Port);
+        }
+
+        /// <summary>The multi-resolver accepts the host-only DoH shape emitted by the supported parser.</summary>
+        [Fact]
+        public void MultiResolverAcceptsParsedHostOnlyDohEndpoint() {
+            var endpoints = EndpointParser.TryParseMany(new[] { "doh@resolver.example:8443" }, out var errors);
+            Assert.Empty(errors);
+            Assert.Single(endpoints);
+            using var resolver = new DnsMultiResolver(endpoints);
+        }
+        /// <summary>Explicit endpoint security, deadline and wire options reach each transport.</summary>
+        [Theory]
+        [InlineData(Transport.Dot, DnsRequestFormat.DnsOverTLS)]
+        [InlineData(Transport.Doh, DnsRequestFormat.DnsOverHttpsJSON)]
+        public void CreateClient_PreservesEndpointBehavior(Transport transport, DnsRequestFormat format) {
+            using var client = ResolverEndpointClientFactory.CreateClient(new DnsResolverEndpoint {
+                Transport = transport, RequestFormat = format, Host = "127.0.0.1", Port = 8443,
+                TlsServerName = "resolver.example", Family = AddressFamily.InterNetwork,
+                Timeout = TimeSpan.FromMilliseconds(321), AllowTcpFallback = false, EdnsBufferSize = 1232
+            });
+            var actual = client.EndpointConfiguration;
+            Assert.Equal("resolver.example", actual.TlsServerName);
+            Assert.Equal(AddressFamily.InterNetwork, actual.PreferredAddressFamily);
+            Assert.Equal(321, actual.TimeOut);
+            Assert.False(actual.UseTcpFallback);
+            Assert.Equal(1232, actual.UdpBufferSize);
+            Assert.Equal(8443, actual.Port);
+            Assert.False(client.IgnoreCertificateErrors);
+        }
         /// <summary>
         /// Ensures explicit request formats are preserved when creating DoH clients from resolver endpoints.
         /// </summary>

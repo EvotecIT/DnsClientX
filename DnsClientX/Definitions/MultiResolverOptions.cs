@@ -156,6 +156,7 @@ namespace DnsClientX {
 
         internal MultiResolverOptions Clone() {
             return new MultiResolverOptions {
+                BootstrapResolver = BootstrapResolver,
                 Strategy = Strategy,
                 MaxParallelism = MaxParallelism,
                 PreferIpv6 = PreferIpv6,
