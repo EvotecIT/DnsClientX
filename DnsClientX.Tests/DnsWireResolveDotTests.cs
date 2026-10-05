@@ -17,7 +17,7 @@ namespace DnsClientX.Tests {
     /// </summary>
     [Collection("NoParallel")]
     public class DnsWireResolveDotTests {
-        private static async Task RunInvalidTlsServerAsync(TcpListener listener, CancellationToken token) {
+        private static async Task RunInvalidTlsServerAsync(TcpListener listener, TaskCompletionSource<bool> clientHelloReceived, CancellationToken token) {
             try {
 #if NET8_0_OR_GREATER
                 using TcpClient client = await listener.AcceptTcpClientAsync(token);
@@ -25,9 +25,26 @@ namespace DnsClientX.Tests {
                 using TcpClient client = await listener.AcceptTcpClientAsync();
 #endif
                 NetworkStream stream = client.GetStream();
+                // Consume ClientHello before replying and keep the peer alive until the assertion.
+                // Closing with unread input can reset the socket instead of failing TLS authentication.
+                var header = new byte[5];
+                await TestUtilities.ReadExactlyAsync(stream, header, header.Length, token);
+                Assert.Equal(22, header[0]);
+                int recordLength = (header[3] << 8) | header[4];
+                Assert.InRange(recordLength, 1, 16384);
+                var hello = new byte[recordLength];
+                await TestUtilities.ReadExactlyAsync(stream, hello, hello.Length, token);
+                clientHelloReceived.TrySetResult(true);
                 byte[] data = Encoding.ASCII.GetBytes("plain text");
                 await stream.WriteAsync(data, 0, data.Length, token);
                 await stream.FlushAsync(token);
+                await Task.Delay(Timeout.Infinite, token);
+            } catch (OperationCanceledException) when (token.IsCancellationRequested) {
+                // Expected after the client assertion completes.
+            } catch (SocketException) when (token.IsCancellationRequested) {
+                // Stopping the listener also releases the non-cancelable .NET Framework accept.
+            } catch (System.IO.IOException) when (token.IsCancellationRequested) {
+                // Test shutdown can interrupt a pending read or write.
             } finally {
                 listener.Stop();
             }
@@ -66,20 +83,27 @@ namespace DnsClientX.Tests {
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var serverTask = RunInvalidTlsServerAsync(listener, cts.Token);
+            var clientHelloReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var serverTask = RunInvalidTlsServerAsync(listener, clientHelloReceived, cts.Token);
 
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTLS) { Port = port };
 
-            var ex = await Assert.ThrowsAsync<DnsClientException>(async () =>
-                await DnsWireResolveDot.ResolveWireFormatDoT("127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, true, cts.Token));
+            try {
+                var ex = await Assert.ThrowsAsync<DnsClientException>(async () =>
+                    await DnsWireResolveDot.ResolveWireFormatDoT("127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, true, cts.Token));
 
-            Assert.NotNull(ex.Response);
-            Assert.Equal(config.Hostname, ex.Response!.Questions[0].HostName);
-            Assert.Equal(config.Port, ex.Response.Questions[0].Port);
-            Assert.Equal(DnsResponseCode.ServerFailure, ex.Response.Status);
-            Assert.NotEqual(DnsQueryErrorCode.None, ex.Response.ErrorCode);
-
-            await serverTask;
+                Assert.True(clientHelloReceived.Task.IsCompleted, "The server must consume ClientHello before the authentication failure is asserted.");
+                Assert.True(ex.GetBaseException() is AuthenticationException, $"Expected a TLS authentication failure, received: {ex}");
+                Assert.NotNull(ex.Response);
+                Assert.Equal(config.Hostname, ex.Response!.Questions[0].HostName);
+                Assert.Equal(config.Port, ex.Response.Questions[0].Port);
+                Assert.Equal(DnsResponseCode.ServerFailure, ex.Response.Status);
+                Assert.Equal(DnsQueryErrorCode.ServFail, ex.Response.ErrorCode);
+            } finally {
+                cts.Cancel();
+                listener.Stop();
+                await serverTask;
+            }
         }
 
 #if NET6_0_OR_GREATER
