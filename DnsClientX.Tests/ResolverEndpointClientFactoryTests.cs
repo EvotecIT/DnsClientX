@@ -13,6 +13,7 @@ namespace DnsClientX.Tests {
         [InlineData(Transport.Quic, 853)]
         [InlineData(Transport.Doh, 443)]
         [InlineData(Transport.Grpc, 443)]
+        [InlineData(Transport.Multicast, 5353)]
         public void EndpointDefaultPortMatchesTransport(Transport transport, int expected) {
             Assert.Equal(expected, new DnsResolverEndpoint { Transport = transport }.Port);
             Assert.Equal(53, new DnsResolverEndpoint { Transport = transport, Port = 53 }.Port);
@@ -26,6 +27,15 @@ namespace DnsClientX.Tests {
             });
             Assert.Equal(new Uri("https://dns.example/dns-query"), client.EndpointConfiguration.BaseUri);
             Assert.Equal(443, client.EndpointConfiguration.Port);
+        }
+
+        /// <summary>The multi-resolver accepts the host-only DoH shape emitted by the supported parser.</summary>
+        [Fact]
+        public void MultiResolverAcceptsParsedHostOnlyDohEndpoint() {
+            var endpoints = EndpointParser.TryParseMany(new[] { "doh@resolver.example:8443" }, out var errors);
+            Assert.Empty(errors);
+            Assert.Single(endpoints);
+            using var resolver = new DnsMultiResolver(endpoints);
         }
         /// <summary>Explicit endpoint security, deadline and wire options reach each transport.</summary>
         [Theory]

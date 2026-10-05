@@ -55,7 +55,7 @@ namespace DnsClientX {
             DnsRequestFormat format = endpoint.RequestFormat ?? DnsRequestFormatMapper.FromTransport(endpoint.Transport);
             string address = IsUriBasedRequestFormat(format) || endpoint.Transport == Transport.Doh || endpoint.DohUrl != null
                 ? EndpointParser.BuildDohUri(endpoint).AbsoluteUri
-                : (endpoint.Host ?? string.Empty).TrimEnd('.').ToLowerInvariant();
+                : (endpoint.Host ?? string.Empty).ToLowerInvariant();
             return string.Join("|", format.ToString(), address, endpoint.Port.ToString(CultureInfo.InvariantCulture),
                 endpoint.Family?.ToString() ?? string.Empty, endpoint.TlsServerName?.ToLowerInvariant() ?? string.Empty,
                 endpoint.AllowTcpFallback.ToString(), endpoint.EdnsBufferSize?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,

@@ -19,6 +19,7 @@ namespace DnsClientX {
             get => _port ?? (RequestFormat.HasValue ? DnsRequestFormatMapper.ToTransport(RequestFormat.Value) : Transport) switch {
                 Transport.Dot or Transport.Quic => 853,
                 Transport.Doh or Transport.Grpc => 443,
+                Transport.Multicast => 5353,
                 _ => 53
             };
             init => _port = value;

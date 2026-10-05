@@ -48,18 +48,19 @@ namespace DnsClientX {
             if (_endpoints.Length == 0) throw new ArgumentException("No endpoints provided", nameof(endpoints));
             _options = (options ?? new MultiResolverOptions()).Clone();
             _globalLimiter = new SemaphoreSlim(_options.MaxParallelism, _options.MaxParallelism);
-            _endpointSetKey = ComputeSetKey(_endpoints);
 
             // Validate endpoints early to fail-fast on obvious misconfiguration
             foreach (var ep in _endpoints) {
                 if (ep == null) throw new ArgumentException("Endpoint cannot be null.", nameof(endpoints));
-                if (ep.Transport == Transport.Doh) {
-                    if (ep.DohUrl == null || !string.Equals(ep.DohUrl.Scheme, "https", StringComparison.OrdinalIgnoreCase)) {
+                DnsRequestFormat format = ep.RequestFormat ?? DnsRequestFormatMapper.FromTransport(ep.Transport);
+                if (ResolverEndpointClientFactory.IsUriBasedRequestFormat(format) || ep.Transport == Transport.Doh || ep.DohUrl != null) {
+                    Uri dohUri = EndpointParser.BuildDohUri(ep);
+                    if (!string.Equals(dohUri.Scheme, "https", StringComparison.OrdinalIgnoreCase)) {
                         throw new ArgumentException($"Invalid DoH endpoint: {ep}. HTTPS URL is required.", nameof(endpoints));
                     }
                     // Validate custom DoH port when specified
-                    if (!ep.DohUrl.IsDefaultPort) {
-                        int p = ep.DohUrl.Port;
+                    if (!dohUri.IsDefaultPort) {
+                        int p = dohUri.Port;
                         if (p <= 0 || p > 65535) {
                             throw new ArgumentOutOfRangeException(nameof(ep.DohUrl), p, "DoH URL port must be between 1 and 65535.");
                         }
@@ -73,6 +74,7 @@ namespace DnsClientX {
                     }
                 }
             }
+            _endpointSetKey = ComputeSetKey(_endpoints);
         }
 
         /// <summary>

@@ -6,6 +6,15 @@ namespace DnsClientX.Tests {
     /// Tests normalized resolver execution target planning.
     /// </summary>
     public class ResolverExecutionPlanBuilderTests {
+        /// <summary>Relative and absolute resolver names have different OS search semantics.</summary>
+        [Fact]
+        public void BuildExplicitTargets_PreservesAbsoluteHostnameMarker() {
+            var targets = ResolverExecutionPlanBuilder.BuildExplicitTargets(new[] {
+                new DnsResolverEndpoint { Host = "resolver" },
+                new DnsResolverEndpoint { Host = "resolver." }
+            });
+            Assert.Equal(2, targets.Length);
+        }
         /// <summary>Human-readable labels cannot merge different protocol/security execution targets.</summary>
         [Fact]
         public void BuildExplicitTargets_PreservesBehaviorAndCaseSensitivePaths() {
