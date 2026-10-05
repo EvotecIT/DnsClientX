@@ -498,7 +498,7 @@ using var client = new ClientX(DnsEndpoint.Cloudflare,
     maxConnectionsPerServer: 10);
 ```
 
-IP-literal HTTPS endpoints use the specified HTTP/1.1 or HTTP/2 version without automatic HTTP/3 upgrades. Select `DnsRequestFormat.DnsOverHttp3` or an explicit HTTP version of `3.0` to request HTTP/3. Hostname endpoints retain HTTP version negotiation.
+On .NET 8 or later, IP-literal HTTPS endpoints use the specified HTTP/1.1 or HTTP/2 version without automatic HTTP/3 upgrades. Select `DnsRequestFormat.DnsOverHttp3` or an explicit HTTP version of `3.0` to request HTTP/3. Hostname endpoints retain HTTP version negotiation.
 
 #### Custom Endpoint Configuration
 ```csharp
