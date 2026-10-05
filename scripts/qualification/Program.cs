@@ -42,7 +42,7 @@ if (!nrptOnly) {
                     entry.Name, Type = entry.RecordType.ToString(), entry.ResolverHost,
                     DurationMilliseconds = entry.Duration.TotalMilliseconds, Status = entry.Response?.Status.ToString(),
                     ErrorCode = entry.Response?.ErrorCode.ToString(), Error = entry.Response?.Error,
-                    Exception = (entry.Exception ?? entry.Response?.Exception)?.ToString(), entry.Response?.ExtendedDnsErrors
+                    Exception = (entry.Response?.Exception ?? entry.Exception)?.ToString(), entry.Response?.ExtendedDnsErrors
                 }).ToArray() });
             });
         }
