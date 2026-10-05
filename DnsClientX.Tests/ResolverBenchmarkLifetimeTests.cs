@@ -34,4 +34,62 @@ public class ResolverBenchmarkLifetimeTests {
             try { await run; } catch (Exception) { }
         }
     }
+
+    /// <summary>Warm sessions reuse transport connections while every attempt still reaches the wire.</summary>
+    [Theory]
+    [InlineData(ResolverQueryConnectionMode.Cold, 8)]
+    [InlineData(ResolverQueryConnectionMode.Warm, 1)]
+    public async Task ConnectionModeDoesNotCacheAnswersAndDisposesConnections(ResolverQueryConnectionMode mode, int connections) {
+        var server = new ResolverBenchmarkTcpFixture();
+        try {
+            var results = await ResolverBenchmarkRunner.RunAsync(
+                Targets(server.Port), new[] { "example.com" }, new[] { DnsRecordType.A }, 8, 1,
+                new ResolverQueryRunOptions { ConnectionMode = mode, TimeoutMs = 2000 });
+            Assert.Equal(8, server.Queries);
+            Assert.Equal(connections, server.Connections);
+            Assert.All(results, result => {
+                Assert.True(result.Succeeded, result.EffectiveError);
+                Assert.Equal(mode, result.ConnectionMode);
+                Assert.True(result.Elapsed > TimeSpan.Zero);
+                Assert.NotNull(result.TransportElapsed);
+                Assert.True(result.Elapsed >= result.TransportElapsed.Value);
+            });
+            await server.WaitForClosureAsync(connections);
+        } finally { await server.DisposeAsync(); }
+    }
+
+    /// <summary>A consumer failure closes retained sockets before the failed run returns.</summary>
+    [Fact]
+    public async Task WarmProgressFailureDisposesConnectionsAndDoesNotAdmitQueuedQueries() {
+        var server = new ResolverBenchmarkTcpFixture();
+        try {
+            await Assert.ThrowsAsync<InvalidOperationException>(() => ResolverBenchmarkRunner.RunAsync(
+                Targets(server.Port), new[] { "example.com" }, new[] { DnsRecordType.A }, 8, 1,
+                new ResolverQueryRunOptions { ConnectionMode = ResolverQueryConnectionMode.Warm, TimeoutMs = 2000 },
+                progress: (_, _) => throw new InvalidOperationException("progress failed")));
+            Assert.Equal(1, server.Queries);
+            await server.WaitForClosureAsync(1);
+        } finally { await server.DisposeAsync(); }
+    }
+
+    /// <summary>Caller cancellation propagates and releases the session's connections.</summary>
+    [Fact]
+    public async Task WarmCancellationDisposesConnections() {
+        using var cancellation = new CancellationTokenSource();
+        var server = new ResolverBenchmarkTcpFixture();
+        try {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => ResolverBenchmarkRunner.RunAsync(
+                Targets(server.Port), new[] { "example.com" }, new[] { DnsRecordType.A }, 8, 1,
+                new ResolverQueryRunOptions { ConnectionMode = ResolverQueryConnectionMode.Warm, TimeoutMs = 2000 },
+                progress: (_, _) => cancellation.Cancel(), cancellationToken: cancellation.Token));
+            Assert.Equal(1, server.Queries);
+            await server.WaitForClosureAsync(1);
+        } finally { await server.DisposeAsync(); }
+    }
+
+    private static ResolverExecutionTarget[] Targets(int port) => new[] {
+        new ResolverExecutionTarget { DisplayName = "loopback", ExplicitEndpoint = new DnsResolverEndpoint {
+            Host = "127.0.0.1", Port = port, Transport = Transport.Tcp, AllowTcpFallback = false
+        } }
+    };
 }

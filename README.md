@@ -1297,6 +1297,11 @@ Resolve-Dns -Name 'google.com' -Type A, AAAA, MX | Format-Table
 ```
 
 #### Benchmarking and Resolver Comparison
+
+Benchmarks use `Cold` connections by default: each attempt owns a fresh client. Choose `-ConnectionMode Warm` to retain one client per resolver for the run, or `--benchmark-connections warm` in the CLI. Both modes send each attempt to the resolver with answer caching disabled. Client lifetime does not isolate operating-system caches or TLS session state.
+
+Latency covers the complete request, including first-use client setup, bootstrap lookups and DNSSEC validation. The core attempt result also exposes `TransportElapsed` when the response reports a transport duration. Reports and saved score summaries include `ConnectionMode` so results from different modes can be identified. Maximum concurrency applies across the entire run.
+
 ```powershell
 # Benchmark built-in providers and return ranked candidate rows
 Test-DnsBenchmark -Name 'example.com' -DnsProvider Cloudflare,Google,Quad9 -Attempts 3 |

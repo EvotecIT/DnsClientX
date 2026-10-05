@@ -26,9 +26,15 @@ namespace DnsClientX {
         public DnsResponse? Response { get; init; }
 
         /// <summary>
-        /// Gets or sets the elapsed duration of the attempt.
+        /// Gets or sets the complete request duration, including client setup, bootstrap and DNSSEC work.
         /// </summary>
         public TimeSpan Elapsed { get; init; }
+
+        /// <summary>Gets or sets the transport duration reported by the DNS response, when available.</summary>
+        public TimeSpan? TransportElapsed { get; init; }
+
+        /// <summary>Gets or sets the connection ownership mode used by the attempt.</summary>
+        public ResolverQueryConnectionMode ConnectionMode { get; init; }
 
         /// <summary>
         /// Gets or sets the execution error message, when one occurred.

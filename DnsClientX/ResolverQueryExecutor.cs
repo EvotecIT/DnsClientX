@@ -5,98 +5,56 @@ using System.Threading.Tasks;
 
 namespace DnsClientX {
     internal static class ResolverQueryExecutor {
-        internal static Task<ResolverQueryAttemptResult> ExecuteAsync(
+        internal static async Task<ResolverQueryAttemptResult> ExecuteAsync(
             ResolverExecutionTarget target,
             string name,
             DnsRecordType recordType,
             ResolverQueryRunOptions options,
             Func<DnsEndpoint, string, DnsRecordType, CancellationToken, Task<ResolverQueryAttemptResult>>? builtInOverride,
             Func<DnsResolverEndpoint, string, DnsRecordType, CancellationToken, Task<ResolverQueryAttemptResult>>? explicitOverride,
-            CancellationToken cancellationToken) {
+            CancellationToken cancellationToken,
+            Func<ClientX>? retainedClient = null) {
             if (target == null) {
                 throw new ArgumentNullException(nameof(target));
             }
-
             if (options == null) {
                 throw new ArgumentNullException(nameof(options));
             }
-
-            if (target.ExplicitEndpoint != null) {
-                return explicitOverride != null
-                    ? explicitOverride(target.ExplicitEndpoint, name, recordType, cancellationToken)
-                    : ExecuteExplicitAsync(target.ExplicitEndpoint, target.DisplayName, name, recordType, options, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (target.ExplicitEndpoint != null && explicitOverride != null) {
+                return await explicitOverride(target.ExplicitEndpoint, name, recordType, cancellationToken).ConfigureAwait(false);
+            }
+            if (target.ExplicitEndpoint == null && target.BuiltInEndpoint.HasValue && builtInOverride != null) {
+                return await builtInOverride(target.BuiltInEndpoint.Value, name, recordType, cancellationToken).ConfigureAwait(false);
             }
 
-            if (!target.BuiltInEndpoint.HasValue) {
-                throw new ArgumentException("Execution target must specify either a built-in or explicit endpoint.", nameof(target));
+            // Start before obtaining the client so first-use setup is included in both modes.
+            var stopwatch = Stopwatch.StartNew();
+            ClientX client = retainedClient != null ? retainedClient() : CreateClient(target, options);
+            try {
+                return await ExecuteWithClientAsync(client, target.DisplayName, name, recordType,
+                    options.RequestDnsSec || target.ExplicitEndpoint?.DnsSecOk == true,
+                    options, stopwatch, retainedClient != null ? options.ConnectionMode : ResolverQueryConnectionMode.Cold,
+                    cancellationToken).ConfigureAwait(false);
+            } finally {
+                if (retainedClient == null) {
+                    await client.DisposeAsync().ConfigureAwait(false);
+                }
             }
-
-            return builtInOverride != null
-                ? builtInOverride(target.BuiltInEndpoint.Value, name, recordType, cancellationToken)
-                : ExecuteBuiltInAsync(target.BuiltInEndpoint.Value, target.DisplayName, name, recordType, options, cancellationToken);
         }
 
-        private static async Task<ResolverQueryAttemptResult> ExecuteBuiltInAsync(
-            DnsEndpoint endpoint,
-            string displayName,
-            string name,
-            DnsRecordType recordType,
-            ResolverQueryRunOptions options,
-            CancellationToken cancellationToken) {
-            await using var client = ResolverExecutionClientFactory.CreateClient(
-                new ResolverExecutionTarget {
-                    DisplayName = displayName,
-                    BuiltInEndpoint = endpoint
-                },
-                CreateClientOptions(options));
-
-            return await ExecuteWithClientAsync(
-                client,
-                displayName,
-                name,
-                recordType,
-                options.RequestDnsSec,
-                options.ValidateDnsSec,
-                options,
-                cancellationToken).ConfigureAwait(false);
-        }
-
-        private static async Task<ResolverQueryAttemptResult> ExecuteExplicitAsync(
-            DnsResolverEndpoint endpoint,
-            string displayName,
-            string name,
-            DnsRecordType recordType,
-            ResolverQueryRunOptions options,
-            CancellationToken cancellationToken) {
-            await using var client = ResolverExecutionClientFactory.CreateClient(
-                new ResolverExecutionTarget {
-                    DisplayName = displayName,
-                    ExplicitEndpoint = endpoint
-                },
-                CreateClientOptions(options));
-            if (endpoint.Timeout.HasValue) {
-                client.EndpointConfiguration.TimeOut = ResolverEndpointClientFactory.ToTimeoutMilliseconds(endpoint.Timeout.Value);
-            }
-
-            return await ExecuteWithClientAsync(
-                client,
-                displayName,
-                name,
-                recordType,
-                options.RequestDnsSec || endpoint.DnsSecOk == true,
-                options.ValidateDnsSec,
-                options,
-                cancellationToken).ConfigureAwait(false);
-        }
-
-        private static ResolverExecutionClientOptions CreateClientOptions(ResolverQueryRunOptions options) {
-            return new ResolverExecutionClientOptions {
+        internal static ClientX CreateClient(ResolverExecutionTarget target, ResolverQueryRunOptions options) {
+            ClientX client = ResolverExecutionClientFactory.CreateClient(target, new ResolverExecutionClientOptions {
                 TimeoutMs = Math.Max(1, options.TimeoutMs),
                 BootstrapResolver = options.BootstrapResolver,
                 RequestNsid = options.RequestNsid,
                 PortOverride = options.PortOverride,
                 ForceDohWirePost = options.ForceDohWirePost
-            };
+            });
+            if (target.ExplicitEndpoint?.Timeout is TimeSpan timeout) {
+                client.EndpointConfiguration.TimeOut = ResolverEndpointClientFactory.ToTimeoutMilliseconds(timeout);
+            }
+            return client;
         }
 
         private static async Task<ResolverQueryAttemptResult> ExecuteWithClientAsync(
@@ -105,33 +63,29 @@ namespace DnsClientX {
             string name,
             DnsRecordType recordType,
             bool requestDnsSec,
-            bool validateDnsSec,
             ResolverQueryRunOptions options,
+            Stopwatch stopwatch,
+            ResolverQueryConnectionMode connectionMode,
             CancellationToken cancellationToken) {
             DnsRequestFormat requestFormat = client.EndpointConfiguration.RequestFormat;
             if (!DnsTransportCapabilities.Supports(requestFormat)) {
-                return CreateUnsupportedAttemptResult(client, displayName, name, recordType, requestFormat);
+                return CreateUnsupportedAttemptResult(client, displayName, name, recordType, requestFormat, stopwatch.Elapsed, connectionMode);
             }
 
-            var stopwatch = Stopwatch.StartNew();
             try {
                 DnsResponse response = await client.Resolve(
-                    name,
-                    recordType,
-                    requestDnsSec,
-                    validateDnsSec,
-                    retryOnTransient: false,
-                    maxRetries: options.MaxRetries,
-                    retryDelayMs: options.RetryDelayMs,
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                    name, recordType, requestDnsSec, options.ValidateDnsSec,
+                    retryOnTransient: false, maxRetries: options.MaxRetries,
+                    retryDelayMs: options.RetryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
                 stopwatch.Stop();
-
                 return new ResolverQueryAttemptResult {
                     Target = displayName,
                     RequestFormat = requestFormat,
                     Resolver = !string.IsNullOrWhiteSpace(response.ServerAddress) ? response.ServerAddress! : ResolverEndpointClientFactory.DescribeConfiguredResolver(client),
                     Response = response,
-                    Elapsed = response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : stopwatch.Elapsed
+                    Elapsed = stopwatch.Elapsed,
+                    TransportElapsed = response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : null,
+                    ConnectionMode = connectionMode
                 };
             } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
                 throw;
@@ -142,6 +96,7 @@ namespace DnsClientX {
                     RequestFormat = requestFormat,
                     Resolver = ResolverEndpointClientFactory.DescribeConfiguredResolver(client),
                     Elapsed = stopwatch.Elapsed,
+                    ConnectionMode = connectionMode,
                     Error = ex.Message
                 };
             }
@@ -152,7 +107,7 @@ namespace DnsClientX {
             string displayName,
             string name,
             DnsRecordType recordType,
-            DnsRequestFormat requestFormat) {
+            DnsRequestFormat requestFormat, TimeSpan elapsed, ResolverQueryConnectionMode connectionMode) {
             var response = new DnsResponse {
                 Questions = new[] {
                     new DnsQuestion {
@@ -172,7 +127,8 @@ namespace DnsClientX {
                 RequestFormat = requestFormat,
                 Resolver = ResolverEndpointClientFactory.DescribeConfiguredResolver(client),
                 Response = response,
-                Elapsed = TimeSpan.Zero
+                Elapsed = elapsed,
+                ConnectionMode = connectionMode
             };
         }
     }

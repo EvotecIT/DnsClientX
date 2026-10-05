@@ -5,6 +5,9 @@ namespace DnsClientX {
     /// Describes the run-level outcome for a persisted resolver score snapshot.
     /// </summary>
     public sealed class ResolverScoreSummary {
+        /// <summary>Gets or sets connection reuse for the benchmark run.</summary>
+        public ResolverQueryConnectionMode ConnectionMode { get; set; }
+
         /// <summary>
         /// Gets or sets the workflow that produced the snapshot.
         /// </summary>

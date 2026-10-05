@@ -166,6 +166,7 @@ namespace DnsClientX {
             return string.Join(" ", new[] {
                 "BENCHMARK_SUMMARY",
                 "summary_version=1",
+                $"connections={summary.ConnectionMode}",
                 $"result={(summary.PolicyPassed ? "pass" : "fail")}",
                 $"exit_code={exitCode}",
                 $"candidates={summary.CandidateCount}",

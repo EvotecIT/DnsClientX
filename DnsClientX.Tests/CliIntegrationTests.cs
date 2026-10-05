@@ -148,6 +148,18 @@ namespace DnsClientX.Tests {
             Assert.Contains("not supported in the CLI", parameters[2]?.ToString(), StringComparison.OrdinalIgnoreCase);
         }
 
+
+        /// <summary>The CLI forwards the selected connection lifetime to the core benchmark owner.</summary>
+        [Theory]
+        [InlineData("cold", ResolverQueryConnectionMode.Cold)]
+        [InlineData("warm", ResolverQueryConnectionMode.Warm)]
+        public void BenchmarkConnectionsReachSharedOptions(string mode, ResolverQueryConnectionMode expected) {
+            object options = ParseCliOptions("--benchmark-connections", mode, "example.com");
+            Type program = Assembly.Load("DnsClientX.Cli").GetType("DnsClientX.Cli.Program")!;
+            var actual = (ResolverQueryRunOptions)program.GetMethod("CreateQueryRunOptions", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, new[] { options })!;
+            Assert.Equal(expected, actual.ConnectionMode);
+        }
+
         private static object ParseCliOptions(params string[] args) {
             var assembly = Assembly.Load("DnsClientX.Cli");
             Type programType = assembly.GetType("DnsClientX.Cli.Program")!;
