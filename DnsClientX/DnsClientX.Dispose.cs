@@ -13,6 +13,7 @@ namespace DnsClientX {
     /// </remarks>
     public partial class ClientX : IDisposable, IAsyncDisposable {
         private bool _disposed;
+        private TaskCompletionSource<bool>? _disposalCompletion;
         private volatile int _disposalCountIncremented = 0;
         private readonly HashSet<object> _disposedClients = new();
         private static int _disposalCount;
@@ -45,36 +46,45 @@ namespace DnsClientX {
         /// <param name="disposing">Whether managed resources should be disposed.</param>
         protected virtual void Dispose(bool disposing) {
             if (!TryBeginDispose(out HttpClientHandler? handlerLocal, out List<HttpClient> clients,
-                    out HttpClient? mainClient)) return;
-            if (disposing) {
-                _udpClientPool.Dispose();
-                _streamConnectionPool.Dispose();
-#if NET8_0_OR_GREATER
-                _quicConnectionPool.DisposeAsync().AsTask().GetAwaiter().GetResult();
-#endif
-                foreach (HttpClient client in clients) {
-                    if (TryAddDisposedClient(client)) {
-                        client.Dispose();
-                    }
-                }
-
-                if (mainClient != null && TryAddDisposedClient(mainClient)) {
-                    mainClient.Dispose();
-                    if (_handlerOwnedByClient && handlerLocal != null) {
-                        TryAddDisposedClient(handlerLocal);
-                    }
-                }
-
-                if (!_handlerOwnedByClient && handlerLocal != null && TryAddDisposedClient(handlerLocal)) {
-                    handlerLocal.Dispose();
-                }
-
-                lock (_lock) {
-                    _disposedClients.Clear();
-                }
+                    out HttpClient? mainClient)) {
+                if (disposing) _disposalCompletion!.Task.GetAwaiter().GetResult();
+                return;
             }
+            try {
+                if (disposing) {
+                    _udpClientPool.Dispose();
+                    _streamConnectionPool.Dispose();
+#if NET8_0_OR_GREATER
+                    _quicConnectionPool.DisposeAsync().AsTask().GetAwaiter().GetResult();
+#endif
+                    foreach (HttpClient client in clients) {
+                        if (TryAddDisposedClient(client)) {
+                            client.Dispose();
+                        }
+                    }
 
-            IncrementDisposalCount();
+                    if (mainClient != null && TryAddDisposedClient(mainClient)) {
+                        mainClient.Dispose();
+                        if (_handlerOwnedByClient && handlerLocal != null) {
+                            TryAddDisposedClient(handlerLocal);
+                        }
+                    }
+
+                    if (!_handlerOwnedByClient && handlerLocal != null && TryAddDisposedClient(handlerLocal)) {
+                        handlerLocal.Dispose();
+                    }
+
+                    lock (_lock) {
+                        _disposedClients.Clear();
+                    }
+                }
+
+                IncrementDisposalCount();
+                _disposalCompletion!.TrySetResult(true);
+            } catch (Exception exception) {
+                _disposalCompletion!.TrySetException(exception);
+            }
+            _disposalCompletion!.Task.GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
@@ -93,70 +103,78 @@ namespace DnsClientX {
             await Task.CompletedTask;
 #endif
             if (!TryBeginDispose(out HttpClientHandler? handlerLocal, out List<HttpClient> clients,
-                    out HttpClient? mainClient)) return;
-
-            _udpClientPool.Dispose();
-            await _streamConnectionPool.DisposeAsync().ConfigureAwait(false);
+                    out HttpClient? mainClient)) {
+                await _disposalCompletion!.Task.ConfigureAwait(false);
+                return;
+            }
+            try {
+                _udpClientPool.Dispose();
+                await _streamConnectionPool.DisposeAsync().ConfigureAwait(false);
 #if NET8_0_OR_GREATER
-            await _quicConnectionPool.DisposeAsync().ConfigureAwait(false);
+                await _quicConnectionPool.DisposeAsync().ConfigureAwait(false);
 #endif
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-            foreach (HttpClient client in clients) {
-                if (TryAddDisposedClient(client)) {
-                    if (client is IAsyncDisposable asyncClient) {
-                        await asyncClient.DisposeAsync().ConfigureAwait(false);
-                    } else {
+                foreach (HttpClient client in clients) {
+                    if (TryAddDisposedClient(client)) {
+                        if (client is IAsyncDisposable asyncClient) {
+                            await asyncClient.DisposeAsync().ConfigureAwait(false);
+                        } else {
+                            client.Dispose();
+                        }
+                    }
+                }
+#else
+                foreach (HttpClient client in clients) {
+                    if (TryAddDisposedClient(client)) {
                         client.Dispose();
                     }
                 }
-            }
-#else
-            foreach (HttpClient client in clients) {
-                if (TryAddDisposedClient(client)) {
-                    client.Dispose();
-                }
-            }
 #endif
 
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-            if (mainClient != null && TryAddDisposedClient(mainClient)) {
-                if (mainClient is IAsyncDisposable asyncClient) {
-                    await asyncClient.DisposeAsync().ConfigureAwait(false);
-                } else {
+                if (mainClient != null && TryAddDisposedClient(mainClient)) {
+                    if (mainClient is IAsyncDisposable asyncClient) {
+                        await asyncClient.DisposeAsync().ConfigureAwait(false);
+                    } else {
+                        mainClient.Dispose();
+                    }
+                    if (_handlerOwnedByClient && handlerLocal != null) {
+                        TryAddDisposedClient(handlerLocal);
+                    }
+                }
+#else
+                if (mainClient != null && TryAddDisposedClient(mainClient)) {
                     mainClient.Dispose();
+                    if (_handlerOwnedByClient && handlerLocal != null) {
+                        TryAddDisposedClient(handlerLocal);
+                    }
                 }
-                if (_handlerOwnedByClient && handlerLocal != null) {
-                    TryAddDisposedClient(handlerLocal);
-                }
-            }
-#else
-            if (mainClient != null && TryAddDisposedClient(mainClient)) {
-                mainClient.Dispose();
-                if (_handlerOwnedByClient && handlerLocal != null) {
-                    TryAddDisposedClient(handlerLocal);
-                }
-            }
 #endif
 
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-            if (!_handlerOwnedByClient && handlerLocal != null && TryAddDisposedClient(handlerLocal)) {
-                if (handlerLocal is IAsyncDisposable asyncHandler) {
-                    await asyncHandler.DisposeAsync().ConfigureAwait(false);
-                } else {
+                if (!_handlerOwnedByClient && handlerLocal != null && TryAddDisposedClient(handlerLocal)) {
+                    if (handlerLocal is IAsyncDisposable asyncHandler) {
+                        await asyncHandler.DisposeAsync().ConfigureAwait(false);
+                    } else {
+                        handlerLocal.Dispose();
+                    }
+                }
+#else
+                if (!_handlerOwnedByClient && handlerLocal != null && TryAddDisposedClient(handlerLocal)) {
                     handlerLocal.Dispose();
                 }
-            }
-#else
-            if (!_handlerOwnedByClient && handlerLocal != null && TryAddDisposedClient(handlerLocal)) {
-                handlerLocal.Dispose();
-            }
 #endif
 
-            lock (_lock) {
-                _disposedClients.Clear();
-            }
+                lock (_lock) {
+                    _disposedClients.Clear();
+                }
 
-            IncrementDisposalCount();
+                IncrementDisposalCount();
+                _disposalCompletion!.TrySetResult(true);
+            } catch (Exception exception) {
+                _disposalCompletion!.TrySetException(exception);
+            }
+            await _disposalCompletion!.Task.ConfigureAwait(false);
         }
 
         private bool TryBeginDispose(out HttpClientHandler? handlerLocal,
@@ -169,6 +187,7 @@ namespace DnsClientX {
                     return false;
                 }
 
+                _disposalCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 _disposed = true;
                 clients = new List<HttpClient>(_managedClients);
                 foreach (HttpClient mappedClient in _clients.Values) {

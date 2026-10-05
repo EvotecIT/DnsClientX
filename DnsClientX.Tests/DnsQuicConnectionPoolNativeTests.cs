@@ -8,8 +8,8 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace DnsClientX.Tests;
 
-internal sealed class NativeQuicFactAttribute : FactAttribute {
-    public NativeQuicFactAttribute() {
+internal sealed class NativeQuicTheoryAttribute : TheoryAttribute {
+    public NativeQuicTheoryAttribute() {
         if (!QuicListener.IsSupported && Environment.GetEnvironmentVariable("DNSCLIENTX_REQUIRE_QUIC") != "1")
             Skip = "Native QUIC is unavailable. The dedicated Linux/Windows qualification requires it.";
     }
@@ -18,8 +18,10 @@ internal sealed class NativeQuicFactAttribute : FactAttribute {
 /// <summary>Checks publication and resource ownership using real native QUIC connections.</summary>
 public class DnsQuicConnectionPoolNativeTests {
     /// <summary>A connection completed after shutdown is disposed instead of escaping the closed pool.</summary>
-    [NativeQuicFact]
-    public async Task LateNativeConnectionIsDisposedBeforeShutdownCompletes() {
+    [NativeQuicTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeConnectionIsDisposedBeforeShutdownCompletes(bool latePublication) {
         Assert.True(QuicListener.IsSupported, "Native QUIC is required by this qualification job.");
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         using var key = RSA.Create(2048);
@@ -55,18 +57,21 @@ public class DnsQuicConnectionPoolNativeTests {
             using var registration = token.Register(() => canceled.TrySetResult(true));
             connected.TrySetResult(true);
             // Model a platform connection completing while shutdown wins the publication gate.
-            await release.Task.WaitAsync(timeout.Token);
+            if (latePublication) await release.Task.WaitAsync(timeout.Token);
             return created;
         }, timeout.Token).AsTask();
         try {
             await connected.Task.WaitAsync(timeout.Token);
             await using var peer = await accepting;
+            if (!latePublication) await pending;
             Task closing = pool.DisposeAsync().AsTask();
             Assert.Same(closing, pool.DisposeAsync().AsTask());
-            await canceled.Task.WaitAsync(timeout.Token);
-            Assert.False(closing.IsCompleted);
-            release.TrySetResult(true);
-            await Assert.ThrowsAsync<ObjectDisposedException>(() => pending);
+            if (latePublication) {
+                await canceled.Task.WaitAsync(timeout.Token);
+                Assert.False(closing.IsCompleted);
+                release.TrySetResult(true);
+                await Assert.ThrowsAsync<ObjectDisposedException>(() => pending);
+            }
             await closing.WaitAsync(timeout.Token);
             Assert.NotNull(created);
             await Assert.ThrowsAsync<ObjectDisposedException>(() => created!.OpenOutboundStreamAsync(QuicStreamType.Bidirectional).AsTask());
