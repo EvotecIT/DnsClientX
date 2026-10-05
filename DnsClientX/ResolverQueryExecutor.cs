@@ -84,7 +84,7 @@ namespace DnsClientX {
                     Resolver = !string.IsNullOrWhiteSpace(response.ServerAddress) ? response.ServerAddress! : ResolverEndpointClientFactory.DescribeConfiguredResolver(client),
                     Response = response,
                     Elapsed = stopwatch.Elapsed,
-                    TransportElapsed = response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : null,
+                    TransportElapsed = response.TransportElapsed,
                     ConnectionMode = connectionMode
                 };
             } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {

@@ -83,6 +83,9 @@ namespace DnsClientX {
                                     targetList[targetIndex], nameList[nameIndex], typeList[typeIndex], options,
                                     builtInOverride, explicitOverride, stop.Token,
                                     clients == null ? null : () => clients.GetClient(targetIndex)).ConfigureAwait(false);
+                                if (results[index].ConnectionMode != options.ConnectionMode) {
+                                    results[index] = results[index].WithConnectionMode(options.ConnectionMode);
+                                }
                                 lock (progressGate) {
                                     stop.Token.ThrowIfCancellationRequested();
                                     progress?.Invoke(++completed, totalQueries);

@@ -28,6 +28,7 @@ namespace DnsClientX {
                 .Select(group => ResolverBenchmarkAggregator.Aggregate(
                     group.Key,
                     group.Select(result => new ResolverBenchmarkAttemptObservation {
+                        ConnectionMode = result.ConnectionMode,
                         Resolver = result.Resolver,
                         Transport = result.Transport,
                         ElapsedMs = Math.Round(result.Elapsed.TotalMilliseconds, 2, MidpointRounding.AwayFromZero),
@@ -77,6 +78,7 @@ namespace DnsClientX {
                     ResolverBenchmarkCandidate candidate = candidateMap[entry.Target];
                     return new ResolverBenchmarkReportResult {
                         Target = candidate.Target,
+                        ConnectionMode = candidate.ConnectionMode,
                         Resolver = candidate.Resolver,
                         Transport = candidate.Transport,
                         Domains = names ?? Array.Empty<string>(),
@@ -109,6 +111,7 @@ namespace DnsClientX {
                 .ToArray();
 
             ResolverBenchmarkReportSummary summary = new ResolverBenchmarkReportSummary {
+                ConnectionMode = ResolverQueryConnectionModes.Combine(candidates.Select(candidate => candidate.ConnectionMode)),
                 Domains = names ?? Array.Empty<string>(),
                 RecordTypes = recordTypes ?? Array.Empty<DnsRecordType>(),
                 AttemptsPerCombination = attemptsPerCombination,

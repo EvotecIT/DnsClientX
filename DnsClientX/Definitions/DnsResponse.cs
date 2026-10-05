@@ -219,6 +219,14 @@ namespace DnsClientX {
         public TimeSpan RoundTripTime { get; internal set; }
 
         /// <summary>
+        /// Duration of the primary transport execution, including connection and transport-level
+        /// address setup, but excluding HTTP bootstrap preparation and subsequent DNSSEC validation.
+        /// Null when no individual exchange was measured (including root iteration and cache hits).
+        /// </summary>
+        [JsonIgnore]
+        public TimeSpan? TransportElapsed { get; internal set; }
+
+        /// <summary>
         /// Normalized error code for failures.
         /// </summary>
         [JsonIgnore]

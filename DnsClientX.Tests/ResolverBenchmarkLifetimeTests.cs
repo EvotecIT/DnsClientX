@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -85,6 +86,64 @@ public class ResolverBenchmarkLifetimeTests {
             Assert.Equal(1, server.Queries);
             await server.WaitForClosureAsync(1);
         } finally { await server.DisposeAsync(); }
+    }
+
+    /// <summary>DNSSEC child lookups belong to request duration rather than the primary transport exchange.</summary>
+    [Fact]
+    public async Task TransportMetricExcludesDnsSecMaterialQueries() {
+        var server = new ResolverBenchmarkTcpFixture { MaterialDelayMs = 200 };
+        try {
+            var results = await ResolverBenchmarkRunner.RunAsync(Targets(server.Port), new[] { "example.com" },
+                new[] { DnsRecordType.A }, 1, 1, new ResolverQueryRunOptions { ValidateDnsSec = true, TimeoutMs = 2000 });
+            var result = Assert.Single(results);
+            Assert.True(server.Queries > 1, "Validation must perform actual child DNS queries.");
+            Assert.NotNull(result.TransportElapsed);
+            Assert.True(result.Elapsed - result.TransportElapsed.Value >= TimeSpan.FromMilliseconds(150),
+                "Transport elapsed must exclude the deliberately delayed DNSSEC material lookup.");
+        } finally { await server.DisposeAsync(); }
+    }
+
+    /// <summary>Cancellation drains simultaneous warm clients without admitting the remaining matrix.</summary>
+    [Fact]
+    public async Task WarmCancellationClosesAllConcurrentConnections() {
+        var server = new ResolverBenchmarkTcpFixture { HoldResponses = true };
+        using var cancellation = new CancellationTokenSource();
+        var targets = Enumerable.Range(0, 20).Select(index => new ResolverExecutionTarget {
+            DisplayName = "loopback-" + index, ExplicitEndpoint = Targets(server.Port)[0].ExplicitEndpoint
+        }).ToArray();
+        var run = ResolverBenchmarkRunner.RunAsync(targets, new[] { "example.com" },
+            new[] { DnsRecordType.A }, 1, 3,
+            new ResolverQueryRunOptions { ConnectionMode = ResolverQueryConnectionMode.Warm, TimeoutMs = 2000 },
+            cancellationToken: cancellation.Token);
+        try {
+            await server.WaitForQueriesAsync(3);
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+            Assert.Equal(3, server.Queries);
+            Assert.Equal(3, server.Connections);
+            server.ReleaseResponses();
+            await server.WaitForClosureAsync(3);
+        } finally {
+            cancellation.Cancel(); server.ReleaseResponses();
+            try { await run; } catch (OperationCanceledException) { }
+            await server.DisposeAsync();
+        }
+    }
+
+    /// <summary>Adapters carry the execution mode through public report builders too.</summary>
+    [Fact]
+    public async Task WarmAdapterObservationsUseRequestedMode() {
+        var results = await ResolverBenchmarkRunner.RunAsync(
+            new[] { new ResolverExecutionTarget { DisplayName = "adapter", BuiltInEndpoint = DnsEndpoint.Cloudflare } },
+            new[] { "example.com" }, new[] { DnsRecordType.A }, 1, 1,
+            new ResolverQueryRunOptions { ConnectionMode = ResolverQueryConnectionMode.Warm },
+            builtInOverride: (_, _, _, _) => Task.FromResult(new ResolverQueryAttemptResult {
+                Target = "adapter", Response = new DnsResponse { Status = DnsResponseCode.NoError }
+            }));
+        Assert.Equal(ResolverQueryConnectionMode.Warm, results[0].ConnectionMode);
+        var report = ResolverBenchmarkReportBuilder.Build(results, new[] { "example.com" }, new[] { DnsRecordType.A },
+            1, 1, 1000, new ResolverBenchmarkPolicy());
+        Assert.Equal(ResolverQueryConnectionMode.Warm, report.Summary.ConnectionMode);
     }
 
     private static ResolverExecutionTarget[] Targets(int port) => new[] {

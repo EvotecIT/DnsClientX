@@ -147,6 +147,7 @@ namespace DnsClientX {
                         ignoreCertificateErrors);
                     if (_cache.TryGet(cacheKey, out var cached)) {
                         cached.ResponseSource = DnsResponseSource.Cache;
+                        cached.TransportElapsed = null;
                         FinalizeAuditEntry(auditEntry, cached, stopwatch, servedFromCache: true);
                         return cached;
                     }
@@ -195,6 +196,7 @@ namespace DnsClientX {
                     if (bootstrapFailure != null) {
                         response = bootstrapFailure;
                     } else {
+                        var transportClock = Stopwatch.StartNew();
                         // Get the HTTP client only for transports that can use it. Root iteration stays
                         // entirely on the shared wire engine and does not allocate an unused handler.
                         using HttpClientLease? queryLease = IsHttpBasedTransport(queryConfiguration.RequestFormat)
@@ -262,6 +264,8 @@ namespace DnsClientX {
                         } else {
                             throw new DnsClientException($"Invalid RequestFormat: {queryConfiguration.RequestFormat}");
                         }
+                        transportClock.Stop();
+                        response.TransportElapsed = transportClock.Elapsed;
                     }
                 }
                 if (validateDnsSec && !dnsSecMaterialQuery

@@ -30,7 +30,7 @@ namespace DnsClientX {
         /// </summary>
         public TimeSpan Elapsed { get; init; }
 
-        /// <summary>Gets or sets the transport duration reported by the DNS response, when available.</summary>
+        /// <summary>Gets or sets the primary transport execution duration, excluding HTTP bootstrap preparation and DNSSEC validation, when measured.</summary>
         public TimeSpan? TransportElapsed { get; init; }
 
         /// <summary>Gets or sets the connection ownership mode used by the attempt.</summary>
@@ -40,6 +40,11 @@ namespace DnsClientX {
         /// Gets or sets the execution error message, when one occurred.
         /// </summary>
         public string? Error { get; init; }
+
+        internal ResolverQueryAttemptResult WithConnectionMode(ResolverQueryConnectionMode mode) => new() {
+            Target = Target, RequestFormat = RequestFormat, Resolver = Resolver, Response = Response,
+            Elapsed = Elapsed, TransportElapsed = TransportElapsed, Error = Error, ConnectionMode = mode
+        };
 
         /// <summary>
         /// Gets a value indicating whether the attempt completed successfully.

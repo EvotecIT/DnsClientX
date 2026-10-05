@@ -102,11 +102,6 @@ namespace DnsClientX {
                 maxConcurrency,
                 timeoutMs,
                 policy);
-            report.Summary.ConnectionMode = runOptions.ConnectionMode;
-            report.Snapshot.Summary.ConnectionMode = runOptions.ConnectionMode;
-            foreach (ResolverBenchmarkReportResult result in report.Results) {
-                result.ConnectionMode = runOptions.ConnectionMode;
-            }
             return report;
         }
     }
