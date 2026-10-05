@@ -6,7 +6,6 @@ using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Diagnostics;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -17,7 +16,7 @@ namespace DnsClientX.Tests {
     /// </summary>
     [Collection("NoParallel")]
     public class DnsWireResolveDotTests {
-        private static async Task RunInvalidTlsServerAsync(TcpListener listener, TaskCompletionSource<bool> clientHelloReceived, CancellationToken token) {
+        private static async Task RunRejectingTlsServerAsync(TcpListener listener, TaskCompletionSource<bool> clientHelloReceived, CancellationToken token) {
             try {
 #if NET8_0_OR_GREATER
                 using TcpClient client = await listener.AcceptTcpClientAsync(token);
@@ -35,7 +34,9 @@ namespace DnsClientX.Tests {
                 var hello = new byte[recordLength];
                 await TestUtilities.ReadExactlyAsync(stream, hello, hello.Length, token);
                 clientHelloReceived.TrySetResult(true);
-                byte[] data = Encoding.ASCII.GetBytes("plain text");
+                // A fatal handshake_failure alert is complete TLS framing on both SChannel and OpenSSL.
+                // Arbitrary plaintext can leave the .NET Framework TLS reader waiting for more bytes.
+                byte[] data = { 21, 3, 3, 0, 2, 2, 40 };
                 await stream.WriteAsync(data, 0, data.Length, token);
                 await stream.FlushAsync(token);
                 await Task.Delay(Timeout.Infinite, token);
@@ -84,7 +85,7 @@ namespace DnsClientX.Tests {
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var clientHelloReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var serverTask = RunInvalidTlsServerAsync(listener, clientHelloReceived, cts.Token);
+            var serverTask = RunRejectingTlsServerAsync(listener, clientHelloReceived, cts.Token);
 
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTLS) { Port = port };
 
@@ -93,7 +94,11 @@ namespace DnsClientX.Tests {
                     await DnsWireResolveDot.ResolveWireFormatDoT("127.0.0.1", port, "example.com", DnsRecordType.A, false, false, false, config, true, cts.Token));
 
                 Assert.True(clientHelloReceived.Task.IsCompleted, "The server must consume ClientHello before the authentication failure is asserted.");
-                Assert.True(ex.GetBaseException() is AuthenticationException, $"Expected a TLS authentication failure, received: {ex}");
+                Exception? authenticationFailure = ex;
+                while (authenticationFailure != null && authenticationFailure is not AuthenticationException) {
+                    authenticationFailure = authenticationFailure.InnerException;
+                }
+                Assert.True(authenticationFailure is AuthenticationException, $"Expected a TLS authentication failure, received: {ex}");
                 Assert.NotNull(ex.Response);
                 Assert.Equal(config.Hostname, ex.Response!.Questions[0].HostName);
                 Assert.Equal(config.Port, ex.Response.Questions[0].Port);
