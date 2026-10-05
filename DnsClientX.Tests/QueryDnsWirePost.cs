@@ -48,7 +48,9 @@ namespace DnsClientX.Tests {
             Assert.Equal("application/dns-message", handler.Request?.Content?.Headers.ContentType?.MediaType);
 #if NET5_0_OR_GREATER
             Assert.Equal(HttpVersion.Version20, handler.Request?.Version);
-            Assert.Equal(HttpVersionPolicy.RequestVersionOrHigher, handler.Request?.VersionPolicy);
+            Assert.Equal(endpoint == DnsEndpoint.CloudflareWireFormatPost
+                ? HttpVersionPolicy.RequestVersionExact
+                : HttpVersionPolicy.RequestVersionOrHigher, handler.Request?.VersionPolicy);
 #endif
             Assert.NotNull(response);
         }
