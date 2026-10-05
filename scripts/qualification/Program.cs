@@ -32,18 +32,18 @@ if (!nrptOnly) {
             await Capture($"live-dnssec:{endpoint}:{name}", async () => {
                 using var client = new ClientX(endpoint, timeOutMilliseconds: 5000);
                 client.EndpointConfiguration.CheckingDisabled = true;
+                client.EnableAudit = true;
                 using var guard = new CancellationTokenSource(TimeSpan.FromMilliseconds(deadlineMilliseconds));
                 var result = await client.Resolve(name, requestDnsSec: true, validateDnsSec: true, retryOnTransient: false, cancellationToken: guard.Token);
                 bool passed = name == "cloudflare.com." ? result.DnsSecValidationStatus == DnsSecValidationStatus.Secure : result.DnsSecValidationStatus == DnsSecValidationStatus.Bogus;
                 if (!passed) failures++;
                 rows.Add(new { Case = "live-dnssec", Endpoint = endpoint.ToString(), Name = name, Status = result.Status.ToString(), Validation = result.DnsSecValidationStatus.ToString(), Answers = result.Answers.Length, result.ServerAddress, result.Error, ExpectedOutcomeObserved = passed });
-                if (result.DnsSecValidationStatus == DnsSecValidationStatus.Indeterminate) {
-                    await Capture($"material-diagnostic:{endpoint}:{name}", async () => {
-                        using var diagnosticGuard = new CancellationTokenSource(TimeSpan.FromMilliseconds(deadlineMilliseconds));
-                        var material = await client.Resolve(name, DnsRecordType.DNSKEY, requestDnsSec: true, returnAllTypes: true, retryOnTransient: false, cancellationToken: diagnosticGuard.Token);
-                        rows.Add(new { Case = "material-diagnostic", Endpoint = endpoint.ToString(), Name = name, Status = material.Status.ToString(), Answers = material.Answers.Length, material.ServerAddress, ErrorCode = material.ErrorCode.ToString(), material.Error, Exception = material.Exception?.ToString(), material.ExtendedDnsErrors });
-                    });
-                }
+                rows.Add(new { Case = "dnssec-audit", Endpoint = endpoint.ToString(), Name = name, Entries = client.AuditTrail.Select(entry => new {
+                    entry.Name, Type = entry.RecordType.ToString(), entry.ResolverHost,
+                    DurationMilliseconds = entry.Duration.TotalMilliseconds, Status = entry.Response?.Status.ToString(),
+                    ErrorCode = entry.Response?.ErrorCode.ToString(), Error = entry.Response?.Error,
+                    Exception = (entry.Exception ?? entry.Response?.Exception)?.ToString(), entry.Response?.ExtendedDnsErrors
+                }).ToArray() });
             });
         }
     }
