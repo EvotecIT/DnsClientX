@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -401,7 +403,7 @@ namespace DnsClientX {
             clone.ExtendedDnsErrors = ExtendedDnsErrors == null ? Array.Empty<ExtendedDnsError>() : (ExtendedDnsError[])ExtendedDnsErrors.Clone();
             clone.EdnsNsid = EdnsNsid == null ? Array.Empty<byte>() : (byte[])EdnsNsid.Clone();
             clone.EdnsCookie = EdnsCookie == null ? Array.Empty<byte>() : (byte[])EdnsCookie.Clone();
-            clone.TypedAnswers = TypedAnswers == null ? null : (object[])TypedAnswers.Clone();
+            clone.TypedAnswers = TypedAnswers?.Select(CloneTypedAnswer).ToArray();
             clone._answersMinimal = (DnsAnswerMinimal[])_answersMinimal.Clone();
             clone.WireMessage = WireMessage == null ? Array.Empty<byte>() : (byte[])WireMessage.Clone();
             clone.WireAnswers = WireAnswers == null ? Array.Empty<DnsWireResourceRecord>() : (DnsWireResourceRecord[])WireAnswers.Clone();
@@ -410,6 +412,27 @@ namespace DnsClientX {
             clone.RefreshDerivedData();
             return clone;
         }
+
+        // Strings and scalar-only record models are immutable. Copy every library-owned
+        // collection/address exposed by a typed model so cache snapshots remain independent.
+        private static object CloneTypedAnswer(object record) => record switch {
+            KeyValueTxtRecord tags => new KeyValueTxtRecord((TagRecord[])tags.Tags.Clone()),
+            DkimRecord dkim => new DkimRecord(CloneTags(dkim.Tags)),
+            DmarcRecord dmarc => new DmarcRecord(CloneTags(dmarc.Tags)),
+            SpfRecord spf => new SpfRecord(spf.Version, spf.Mechanisms.ToArray()),
+            ARecord ipv4 => new ARecord(CloneAddress(ipv4.Address)),
+            AAAARecord ipv6 => new AAAARecord(CloneAddress(ipv6.Address)),
+            _ => record
+        };
+
+        private static Dictionary<string, string> CloneTags(IReadOnlyDictionary<string, string> tags) =>
+            tags.ToDictionary(pair => pair.Key, pair => pair.Value,
+                tags is Dictionary<string, string> dictionary ? dictionary.Comparer : StringComparer.Ordinal);
+
+        private static IPAddress CloneAddress(IPAddress address) =>
+            address.AddressFamily == AddressFamily.InterNetworkV6
+                ? new IPAddress(address.GetAddressBytes(), address.ScopeId)
+                : new IPAddress(address.GetAddressBytes());
 
         /// <summary>
         /// Creates an independent response copy with a replacement answer projection while preserving
