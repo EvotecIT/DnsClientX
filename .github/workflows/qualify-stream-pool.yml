@@ -41,7 +41,7 @@ jobs:
           }
       - name: Keep native qualification diagnostics
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: stream-pool-${{ matrix.framework }}
           path: qualification/
