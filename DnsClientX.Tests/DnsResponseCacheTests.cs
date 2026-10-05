@@ -41,6 +41,82 @@ namespace DnsClientX.Tests {
             Assert.Equal("192.0.2.1", second.Answers[0].DataRaw);
         }
 
+        /// <summary>Mutable typed TXT collections never cross cache insertion, sibling, or later-hit boundaries.</summary>
+        [Theory]
+        [InlineData("key=original")]
+        [InlineData("v=DKIM1; p=original")]
+        [InlineData("v=DMARC1; p=reject")]
+        [InlineData("v=spf1 -all")]
+        public void TypedTxtCollectionsAreIndependent(string raw) {
+            using var cache = new DnsResponseCache();
+            var answer = new DnsAnswer { Name = "example.com", Type = DnsRecordType.TXT, TTL = 60, DataRaw = raw };
+            var response = new DnsResponse { Answers = new[] { answer }, TypedAnswers = new[] { DnsRecordFactory.Create(answer, true)! } };
+            cache.Set("typed", response, TimeSpan.FromMinutes(1));
+            var expected = TypedValue(response.TypedAnswers[0]);
+            MutateTypedValue(response.TypedAnswers[0]);
+            Assert.True(cache.TryGet("typed", out var first));
+            Assert.True(cache.TryGet("typed", out var sibling));
+            Assert.Equal(expected, TypedValue(first.TypedAnswers![0]));
+            MutateTypedValue(first.TypedAnswers[0]);
+            Assert.Equal(expected, TypedValue(sibling.TypedAnswers![0]));
+            Assert.True(cache.TryGet("typed", out var later));
+            Assert.Equal(expected, TypedValue(later.TypedAnswers![0]));
+            Assert.Equal(raw, later.Answers[0].DataRaw);
+        }
+
+        /// <summary>IPv6 scope mutation cannot change a cached or sibling typed address.</summary>
+        [Fact]
+        public void TypedAddressesAreIndependent() {
+            var address = IPAddress.Parse("fe80::1%3");
+            var response = new DnsResponse { TypedAnswers = new object[] { new AAAARecord(address) } };
+            var clone = response.Clone();
+            address.ScopeId = 9;
+            Assert.Equal(3, Assert.IsType<AAAARecord>(clone.TypedAnswers![0]).Address.ScopeId);
+        }
+
+        /// <summary>The public typed query path isolates coalesced results and subsequent hits without another request.</summary>
+        [Fact]
+        public async Task TypedTxtSingleFlightAndCacheAgreeWithRawAnswer() {
+            ClientX.ResetResponseCacheForTests();
+            var name = Guid.NewGuid().ToString("N") + ".example";
+            var json = "{\"Status\":0,\"Answer\":[{\"name\":\"" + name + "\",\"type\":16,\"TTL\":60,\"data\":\"key=original\"}]}";
+            var handler = new GatedJsonResponseHandler(json);
+            using var client = new ClientX("https://resolver.example/dns-query", DnsRequestFormat.DnsOverHttpsJSON, enableCache: true);
+            InjectClient(client, new HttpClient(handler) { BaseAddress = client.EndpointConfiguration.BaseUri });
+            var owner = client.Resolve(name, DnsRecordType.TXT, typedRecords: true, parseTypedTxtRecords: true, retryOnTransient: false);
+            await handler.Entered;
+            var joining = client.Resolve(name, DnsRecordType.TXT, typedRecords: true, parseTypedTxtRecords: true, retryOnTransient: false);
+            handler.Release();
+            var first = await owner;
+            var sibling = await joining;
+            Assert.Equal(DnsResponseSource.CoalescedNetwork, sibling.ResponseSource);
+            MutateTypedValue(first.TypedAnswers![0]);
+            Assert.Equal("original", TypedValue(sibling.TypedAnswers![0]));
+            var later = await client.Resolve(name, DnsRecordType.TXT, typedRecords: true, parseTypedTxtRecords: true, retryOnTransient: false);
+            Assert.Equal(DnsResponseSource.Cache, later.ResponseSource);
+            Assert.Equal("original", TypedValue(later.TypedAnswers![0]));
+            Assert.Equal("key=original", Assert.Single(later.Answers).DataRaw);
+            Assert.Equal(1, handler.RequestCount);
+        }
+
+        private static string TypedValue(object record) => record switch {
+            KeyValueTxtRecord tags => tags.GetTagValue("key")!,
+            DkimRecord dkim => dkim.Tags["P"], // Keep the parser's case-insensitive tag lookup.
+            DmarcRecord dmarc => dmarc.Tags["P"],
+            SpfRecord spf => spf.Mechanisms[0],
+            _ => throw new InvalidOperationException()
+        };
+
+        private static void MutateTypedValue(object record) {
+            switch (record) {
+                case KeyValueTxtRecord tags: tags.Tags[0] = new TagRecord("key", "changed"); break;
+                case DkimRecord dkim: ((IDictionary<string, string>)dkim.Tags)["p"] = "changed"; break;
+                case DmarcRecord dmarc: ((IDictionary<string, string>)dmarc.Tags)["p"] = "changed"; break;
+                case SpfRecord spf: ((IList<string>)spf.Mechanisms)[0] = "changed"; break;
+                default: throw new InvalidOperationException();
+            }
+        }
+
         /// <summary>
         /// Items should be removed once their TTL expires.
         /// </summary>
