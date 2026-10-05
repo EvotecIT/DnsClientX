@@ -155,35 +155,20 @@ namespace DnsClientX {
                 if (cacheKey != null && !bypassSingleFlight) {
                     // Cached answers can be reused across deadlines; live execution cannot.
                     var executionKey = cacheKey + "timeout:" + queryConfiguration.TimeOut.ToString(CultureInfo.InvariantCulture);
-                    DnsCacheFlight flight;
-                    bool ownsFlight;
-                    while (true) {
-                        var candidate = new DnsCacheFlight(token => ResolveInternal(inputName, type, requestDnsSec,
+                    queryConfiguration.WaitForCanceledStreamQueryDrain = true;
+                    var (shared, ownsFlight) = await DnsQueryFlight<DnsResponse>.JoinAsync(_cacheInflight, executionKey,
+                        token => ResolveInternal(inputName, type, requestDnsSec,
                             validateDnsSec, returnAllTypes, maxRetries, retryDelayMs, typedRecords, parseTypedTxtRecords,
                             token, dnsSecMaterialQuery, queryConfiguration, bypassSingleFlight: true,
-                            suppressAudit: true, certificatePolicy: ignoreCertificateErrors));
-                        flight = _cacheInflight.GetOrAdd(executionKey, candidate);
-                        ownsFlight = ReferenceEquals(candidate, flight);
-                        if (!ownsFlight) candidate.DiscardUnused();
-                        if (flight.TryAcquire()) break;
-                        RemoveCacheFlight(executionKey, flight);
-                    }
-                    try {
-                        var task = flight.Task;
-                        if (ownsFlight) _ = RemoveCacheFlightWhenCompletedAsync(executionKey, flight, task);
-                        DnsResponse shared = await WaitForSharedResponseAsync(task, cancellationToken).ConfigureAwait(false);
-                        DnsResponse result = shared.Clone();
-                        if (!ownsFlight) result.ResponseSource = DnsResponseSource.CoalescedNetwork;
-                        FinalizeAuditEntry(auditEntry, result, stopwatch,
-                            result.Status != DnsResponseCode.NoError || !string.IsNullOrEmpty(result.Error)
-                                ? new DnsClientException(result.Error ?? "DNS query failed", result)
-                                : null,
-                            servedFromCache: result.ResponseSource == DnsResponseSource.Cache);
-                        return result;
-                    } finally {
-                        // Preserve admission until the final departing waiter's real transport stops.
-                        if (await flight.ReleaseAsync().ConfigureAwait(false)) RemoveCacheFlight(executionKey, flight);
-                    }
+                            suppressAudit: true, certificatePolicy: ignoreCertificateErrors), cancellationToken).ConfigureAwait(false);
+                    DnsResponse result = shared.Clone();
+                    if (!ownsFlight) result.ResponseSource = DnsResponseSource.CoalescedNetwork;
+                    FinalizeAuditEntry(auditEntry, result, stopwatch,
+                        result.Status != DnsResponseCode.NoError || !string.IsNullOrEmpty(result.Error)
+                            ? new DnsClientException(result.Error ?? "DNS query failed", result)
+                            : null,
+                        servedFromCache: result.ResponseSource == DnsResponseSource.Cache);
+                    return result;
                 }
 
                 DnsResponse response;
@@ -343,29 +328,6 @@ namespace DnsClientX {
                 throw;
             }
         }
-
-        private static async Task<DnsResponse> WaitForSharedResponseAsync(Task<DnsResponse> task,
-            CancellationToken cancellationToken) {
-            if (!cancellationToken.CanBeCanceled || task.IsCompleted) return await task.ConfigureAwait(false);
-            var canceled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            using var registration = cancellationToken.Register(() => canceled.TrySetResult(true));
-            if (await Task.WhenAny(task, canceled.Task).ConfigureAwait(false) != task) cancellationToken.ThrowIfCancellationRequested();
-            return await task.ConfigureAwait(false);
-        }
-
-        private async Task RemoveCacheFlightWhenCompletedAsync(string key,
-            DnsCacheFlight flight, Task<DnsResponse> task) {
-            try {
-                await task.ConfigureAwait(false);
-            } catch {
-                // Every waiter observes the original failure. Removal only controls future attempts.
-            } finally {
-                RemoveCacheFlight(key, flight);
-            }
-        }
-
-        private void RemoveCacheFlight(string key, DnsCacheFlight flight) =>
-            ((ICollection<KeyValuePair<string, DnsCacheFlight>>)_cacheInflight).Remove(new(key, flight));
 
         internal static void ApplyAnswerProjection(
             DnsResponse response,

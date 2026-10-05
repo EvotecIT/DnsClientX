@@ -27,22 +27,24 @@ namespace DnsClientX {
         }
 
         internal Task<byte[]> QueryTcpAsync(IPAddress address, int port, IPEndPoint? localEndPoint,
-            byte[] query, int timeoutMilliseconds, int maxInFlight, CancellationToken cancellationToken) {
+            byte[] query, int timeoutMilliseconds, int maxInFlight, CancellationToken cancellationToken,
+            bool waitForCanceledQueryDrain = false) {
             var key = new PoolKey(address, port, localEndPoint, false, string.Empty, false,
                 SslProtocols.None, maxInFlight);
-            return QueryAsync(key, query, timeoutMilliseconds, cancellationToken);
+            return QueryAsync(key, query, timeoutMilliseconds, cancellationToken, waitForCanceledQueryDrain);
         }
 
         internal Task<byte[]> QueryTlsAsync(IPAddress address, int port, IPEndPoint? localEndPoint,
             string tlsServerName, bool ignoreCertificateErrors, SslProtocols protocols,
-            byte[] query, int timeoutMilliseconds, int maxInFlight, CancellationToken cancellationToken) {
+            byte[] query, int timeoutMilliseconds, int maxInFlight, CancellationToken cancellationToken,
+            bool waitForCanceledQueryDrain = false) {
             var key = new PoolKey(address, port, localEndPoint, true, tlsServerName,
                 ignoreCertificateErrors, protocols, maxInFlight);
-            return QueryAsync(key, query, timeoutMilliseconds, cancellationToken);
+            return QueryAsync(key, query, timeoutMilliseconds, cancellationToken, waitForCanceledQueryDrain);
         }
 
         private async Task<byte[]> QueryAsync(PoolKey key, byte[] query, int timeoutMilliseconds,
-            CancellationToken cancellationToken) {
+            CancellationToken cancellationToken, bool waitForCanceledQueryDrain) {
             ThrowIfDisposed();
             if (query == null) throw new ArgumentNullException(nameof(query));
             if (query.Length < 2 || query.Length > ushort.MaxValue) {
@@ -64,7 +66,7 @@ namespace DnsClientX {
                     }
                     try {
                         return await connection.QueryAsync(
-                                query, timeoutMilliseconds, cancellationToken, deadline.Token)
+                                query, timeoutMilliseconds, cancellationToken, deadline.Token, waitForCanceledQueryDrain)
                             .ConfigureAwait(false);
                     } catch (DnsStreamConnectionException exception) {
                         connection.Retire(exception);
@@ -198,7 +200,7 @@ namespace DnsClientX {
             }
 
             internal async Task<byte[]> QueryAsync(byte[] query, int timeoutMilliseconds,
-                CancellationToken cancellationToken, CancellationToken deadlineToken) {
+                CancellationToken cancellationToken, CancellationToken deadlineToken, bool waitForCanceledQueryDrain) {
                 ThrowIfUnavailable();
                 await _capacity.WaitAsync(deadlineToken).ConfigureAwait(false);
                 bool capacityOwnedByPendingQuery = false;
@@ -239,6 +241,9 @@ namespace DnsClientX {
                     pending.Completion.TrySetCanceled();
                     pending.ReleaseCapacity();
                     _ = RetireUndrainedQueryAsync(transactionId, pending, timeoutMilliseconds);
+                    if (waitForCanceledQueryDrain) {
+                        await pending.ReservationReleased.Task.ConfigureAwait(false);
+                    }
                     cancellationToken.ThrowIfCancellationRequested();
                     deadlineToken.ThrowIfCancellationRequested();
                     throw new TimeoutException($"The DNS stream query timed out after {timeoutMilliseconds} milliseconds.");

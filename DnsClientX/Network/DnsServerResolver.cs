@@ -42,6 +42,7 @@ namespace DnsClientX {
 
         private static readonly ConcurrentDictionary<string, CacheEntry> Cache = new(StringComparer.OrdinalIgnoreCase);
         private static readonly ConcurrentDictionary<string, Lazy<Task<CacheEntry>>> Inflight = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly ConcurrentDictionary<string, DnsQueryFlight<CacheEntry>> BootstrapInflight = new(StringComparer.OrdinalIgnoreCase);
         private static readonly TimeSpan DefaultSuccessTtl = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan DefaultFailureTtl = TimeSpan.FromSeconds(30);
         private static readonly TimeSpan DefaultStaleTtl = TimeSpan.FromMinutes(10);
@@ -102,6 +103,17 @@ namespace DnsClientX {
                 hasStale = allowStale && cached.Address != null && cached.StaleUntil > now;
             }
 
+            if (bootstrapResolver != null) {
+                var (bootstrapEntry, _) = await DnsQueryFlight<CacheEntry>.JoinAsync(BootstrapInflight, cacheKey,
+                    token => ResolveAndCacheAsync(dnsServer, cacheKey, timeoutMilliseconds, successCacheTtl,
+                        failureCacheTtl, staleCacheTtl, failureBackoffEnabled, failureBackoffFactor,
+                        failureBackoffMaxTtl, preferredAddressFamily, cached, hasStale, bootstrapResolver, token),
+                    cancellationToken).ConfigureAwait(false);
+                return Finish(bootstrapEntry.Address, bootstrapEntry.UsedStaleAddress ? null : bootstrapEntry.Error,
+                    false, bootstrapEntry.UsedStaleAddress, bootstrapEntry.Error, bootstrapEntry.ErrorCode, bootstrapEntry.Exception);
+            }
+
+            // The OS resolver may be uncancellable; retain its existing bounded shared wait.
             var resolver = Inflight.GetOrAdd(
                 cacheKey,
                 _ => new Lazy<Task<CacheEntry>>(
@@ -153,6 +165,7 @@ namespace DnsClientX {
         internal static void ResetForTests() {
             Cache.Clear();
             Inflight.Clear();
+            BootstrapInflight.Clear();
             ResolveHostAddressesAsync = DefaultResolver;
             MaxEntries = DefaultMaxEntries;
         }
@@ -169,14 +182,14 @@ namespace DnsClientX {
             TimeSpan? failureBackoffMaxTtl,
             AddressFamily? preferredAddressFamily,
             CacheEntry? cached,
-            bool hasStale, DnsResolverEndpoint? bootstrapResolver) {
+            bool hasStale, DnsResolverEndpoint? bootstrapResolver, CancellationToken cancellationToken = default) {
             var now = DateTimeOffset.UtcNow;
             var failureCount = cached?.FailureCount ?? 0;
             try {
                 Task<(IPAddress[] Addresses, TimeSpan? Ttl)> resolveTask = bootstrapResolver == null ? ResolveSystemAsync(dnsServer)
-                    : DnsBootstrapResolver.ResolveAsync(dnsServer, bootstrapResolver, timeoutMilliseconds, preferredAddressFamily);
+                    : DnsBootstrapResolver.ResolveAsync(dnsServer, bootstrapResolver, timeoutMilliseconds, preferredAddressFamily, cancellationToken);
                 using var timerCancellation = new CancellationTokenSource();
-                if (timeoutMilliseconds > 0) {
+                if (bootstrapResolver == null && timeoutMilliseconds > 0) {
                     Task delayTask = Task.Delay(timeoutMilliseconds, timerCancellation.Token);
                     Task completed = await Task.WhenAny(resolveTask, delayTask).ConfigureAwait(false);
                     if (completed != resolveTask) {
