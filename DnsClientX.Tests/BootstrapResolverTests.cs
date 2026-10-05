@@ -145,40 +145,9 @@ public sealed class BootstrapResolverTests : IDisposable {
         internal TaskCompletionSource<bool> Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         internal BootstrapDnsServer() {
-            (_udp, _tcp) = BindServer();
+            (_udp, _tcp) = TestUtilities.BindUdpAndTcp();
             _udpLoop = UdpLoopAsync();
             _tcpLoop = TcpLoopAsync();
-        }
-
-        private static (UdpClient Udp, TcpListener Tcp) BindServer() {
-            // A TCP-selected ephemeral port need not be available to UDP. Reserve UDP first,
-            // retaining rejected candidates so the allocator cannot repeatedly select the same port.
-            var rejected = new List<UdpClient>();
-            SocketException? lastFailure = null;
-            try {
-                for (int attempt = 0; attempt < 16; attempt++) {
-                    var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
-                    int port = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
-                    var tcp = new TcpListener(IPAddress.Loopback, port);
-                    try {
-                        tcp.Start();
-                        return (udp, tcp);
-                    } catch (SocketException exception) when (exception.SocketErrorCode is SocketError.AddressAlreadyInUse or SocketError.AccessDenied) {
-                        rejected.Add(udp);
-                        lastFailure = exception;
-                        tcp.Stop();
-                    } catch {
-                        udp.Dispose();
-                        tcp.Stop();
-                        throw;
-                    }
-                }
-                throw new IOException("Could not reserve a local DNS port for both UDP and TCP.", lastFailure);
-            } finally {
-                foreach (var udp in rejected) {
-                    udp.Dispose();
-                }
-            }
         }
 
         internal DnsResolverEndpoint Endpoint(Transport transport = Transport.Udp) => new() { Host = "127.0.0.1", Port = Port, Transport = transport };

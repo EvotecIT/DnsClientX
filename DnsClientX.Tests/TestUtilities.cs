@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 #if NET8_0_OR_GREATER
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -115,6 +116,38 @@ namespace DnsClientX.Tests {
             using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
             return ((IPEndPoint)socket.LocalEndPoint!).Port;
+        }
+
+        /// <summary>Reserves a loopback DNS port for both protocols; callers own both bound sockets.</summary>
+        internal static (UdpClient Udp, TcpListener Tcp) BindUdpAndTcp() {
+            // TCP and UDP can have different port exclusions. Reserve UDP first and retain
+            // rejected candidates so the allocator cannot repeatedly choose the same port.
+            var rejected = new List<UdpClient>();
+            SocketException? lastFailure = null;
+            try {
+                for (int attempt = 0; attempt < 16; attempt++) {
+                    var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+                    int port = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
+                    var tcp = new TcpListener(IPAddress.Loopback, port);
+                    try {
+                        tcp.Start();
+                        return (udp, tcp);
+                    } catch (SocketException exception) when (exception.SocketErrorCode is SocketError.AddressAlreadyInUse or SocketError.AccessDenied) {
+                        rejected.Add(udp);
+                        lastFailure = exception;
+                        tcp.Stop();
+                    } catch {
+                        udp.Dispose();
+                        tcp.Stop();
+                        throw;
+                    }
+                }
+                throw new IOException("Could not reserve a local DNS port for both UDP and TCP.", lastFailure);
+            } finally {
+                foreach (var udp in rejected) {
+                    udp.Dispose();
+                }
+            }
         }
 
         public static async Task ReadExactlyAsync(Stream stream, byte[] buffer, int length, CancellationToken token) {
