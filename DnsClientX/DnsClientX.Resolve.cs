@@ -270,7 +270,9 @@ namespace DnsClientX {
                         ResolveInternal(materialName, materialType, requestDnsSec: true, validateDnsSec: false,
                             returnAllTypes: true, maxRetries: 1, retryDelayMs: retryDelayMs,
                             typedRecords: false, parseTypedTxtRecords: false, cancellationToken: token,
-                            dnsSecMaterialQuery: true, certificatePolicy: ignoreCertificateErrors),
+                            dnsSecMaterialQuery: true,
+                            queryConfigurationOverride: queryConfiguration.CreateQuerySnapshot(materialName),
+                            certificatePolicy: ignoreCertificateErrors),
                         trustAnchorStorePath: queryConfiguration.Rfc5011TrustAnchorStorePath,
                         signatureVerifier: queryConfiguration.DnsSecSignatureVerifier);
                     DnsSecValidationResult validation = await validator.ValidateAsync(response, name, type, cancellationToken).ConfigureAwait(false);

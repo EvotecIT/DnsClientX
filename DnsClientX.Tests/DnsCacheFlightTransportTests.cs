@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -87,6 +88,43 @@ public class DnsCacheFlightTransportTests {
         }
     }
 
+    /// <summary>Final cached cancellation also waits for an in-flight DNSSEC material transaction.</summary>
+    [Fact]
+    public async Task FinalCanceledDnsSecMaterialWaiterRetainsStreamReservation() {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
+        using var fixture = new DnsSecSignedFixture();
+        try {
+            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverTCP,
+                timeOutMilliseconds: 3000, enableCache: true);
+            client.EndpointConfiguration.Port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            client.EndpointConfiguration.EnableTcpConnectionReuse = true;
+            string name = Guid.NewGuid().ToString("N") + ".example.com";
+            var run = client.Resolve(name, requestDnsSec: true, validateDnsSec: true,
+                retryOnTransient: false, cancellationToken: caller.Token);
+            using var peer = await Bounded(listener.AcceptTcpClientAsync());
+            using var stream = peer.GetStream();
+            byte[] query = await ReadFrame(stream, deadline.Token);
+            var signed = fixture.Signed(name, DnsRecordType.A, new byte[] { 192, 0, 2, 1 });
+            await WriteFrame(stream, SignedAnswer(query, signed), deadline.Token);
+            byte[] materialQuery = await ReadFrame(stream, deadline.Token);
+            int questionEnd = QuestionEnd(materialQuery);
+            Assert.Equal((ushort)DnsRecordType.DNSKEY,
+                (ushort)((materialQuery[questionEnd - 4] << 8) | materialQuery[questionEnd - 3]));
+            caller.Cancel();
+            var observation = Task.Delay(100, deadline.Token);
+            Assert.Same(observation, await Task.WhenAny(run, observation));
+            // Drain the real child transaction; cancellation must complete only after this point.
+            await WriteFrame(stream, EmptyAnswer(materialQuery), deadline.Token);
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+        } finally {
+            caller.Cancel();
+            listener.Stop();
+        }
+    }
+
     private static ClientX CreateClient(UdpClient bootstrap, int port) {
         var client = new ClientX("resolver-" + Guid.NewGuid().ToString("N") + ".invalid", DnsRequestFormat.DnsOverUDP,
             timeOutMilliseconds: 2000, enableCache: true);
@@ -128,9 +166,7 @@ public class DnsCacheFlightTransportTests {
     }
 
     private static byte[] Answer(byte[] query, byte[] address) {
-        var end = 12;
-        while (query[end] != 0) end += query[end] + 1;
-        end += 5;
+        int end = QuestionEnd(query);
         var record = new byte[] { 0xc0, 0x0c, 0, 1, 0, 1, 0, 0, 0, 60, 0, 4, address[0], address[1], address[2], address[3] };
         var response = new byte[end + record.Length];
         Array.Copy(query, response, end);
@@ -139,5 +175,35 @@ public class DnsCacheFlightTransportTests {
         Array.Clear(response, 8, 4);
         record.CopyTo(response, end);
         return response;
+    }
+
+    private static int QuestionEnd(byte[] query) {
+        int end = 12;
+        while (query[end] != 0) end += query[end] + 1;
+        return end + 5;
+    }
+
+    private static byte[] EmptyAnswer(byte[] query) {
+        var response = new byte[QuestionEnd(query)];
+        Array.Copy(query, response, response.Length);
+        response[2] = 0x81; response[3] = 0x80;
+        Array.Clear(response, 6, 6);
+        return response;
+    }
+
+    private static byte[] SignedAnswer(byte[] query, DnsResponse signed) {
+        var response = new List<byte>(EmptyAnswer(query));
+        response[7] = (byte)signed.WireAnswers.Length;
+        foreach (var record in signed.WireAnswers) {
+            response.AddRange(DnsWireNameCodec.ToCanonicalWire(record.Name));
+            response.Add((byte)((ushort)record.Type >> 8)); response.Add((byte)record.Type);
+            response.Add(0); response.Add(1);
+            response.Add(0); response.Add(0); response.Add(0); response.Add(60);
+            response.Add((byte)(record.RdataLength >> 8)); response.Add((byte)record.RdataLength);
+            for (int i = 0; i < record.RdataLength; i++) {
+                response.Add(signed.WireMessage[record.RdataOffset + i]);
+            }
+        }
+        return response.ToArray();
     }
 }
