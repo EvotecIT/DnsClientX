@@ -312,13 +312,27 @@ namespace DnsClientX {
         }
 
         private static byte[] HashName(string name, ushort iterations, byte[] salt) {
-            byte[] value = DnsWireNameCodec.ToCanonicalWire(name);
+            byte[] canonical = DnsWireNameCodec.ToCanonicalWire(name);
+            // The initial name may be shorter than the 20-byte digest (notably the root).
+            var input = new byte[Math.Max(canonical.Length, 20) + salt.Length];
+            Buffer.BlockCopy(canonical, 0, input, 0, canonical.Length);
+            Buffer.BlockCopy(salt, 0, input, canonical.Length, salt.Length);
+            int inputLength = canonical.Length + salt.Length;
+            byte[] value = new byte[20];
             using SHA1 sha1 = SHA1.Create();
             for (int i = 0; i <= iterations; i++) {
-                var input = new byte[value.Length + salt.Length];
-                Buffer.BlockCopy(value, 0, input, 0, value.Length);
-                Buffer.BlockCopy(salt, 0, input, value.Length, salt.Length);
-                value = sha1.ComputeHash(input);
+#if NET8_0_OR_GREATER
+                if (!sha1.TryComputeHash(input.AsSpan(0, inputLength), value, out int written) || written != value.Length) {
+                    throw new CryptographicException("SHA-1 did not produce a complete NSEC3 digest.");
+                }
+#else
+                value = sha1.ComputeHash(input, 0, inputLength);
+#endif
+                if (i < iterations) {
+                    Buffer.BlockCopy(value, 0, input, 0, value.Length);
+                    Buffer.BlockCopy(salt, 0, input, value.Length, salt.Length);
+                    inputLength = value.Length + salt.Length;
+                }
             }
             return value;
         }
