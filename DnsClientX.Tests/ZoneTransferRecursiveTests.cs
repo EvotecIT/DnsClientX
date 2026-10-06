@@ -119,11 +119,12 @@ namespace DnsClientX.Tests {
 
                 byte[] authorityBytes = EncodeName(authority);
                 ms.Write(authorityBytes, 0, authorityBytes.Length);
-                WriteUInt16(ms, (ushort)DnsRecordType.A);
+                IPAddress address = IPAddress.Parse(glueAddress);
+                WriteUInt16(ms, (ushort)(address.AddressFamily == AddressFamily.InterNetworkV6 ? DnsRecordType.AAAA : DnsRecordType.A));
                 WriteUInt16(ms, 1);
                 WriteUInt32(ms, 60);
 
-                byte[] addressBytes = IPAddress.Parse(glueAddress).GetAddressBytes();
+                byte[] addressBytes = address.GetAddressBytes();
                 WriteUInt16(ms, (ushort)addressBytes.Length);
                 ms.Write(addressBytes, 0, addressBytes.Length);
             }
@@ -143,6 +144,20 @@ namespace DnsClientX.Tests {
             WriteUInt32(ms, 86400);
             WriteUInt32(ms, 60);
             return ms.ToArray();
+        }
+
+        private static byte[] BuildDiscoveryResponse(byte[] query, params (string Authority, string? GlueAddress)[] authorities) {
+            (ushort id, string questionName, DnsRecordType questionType) = ParseQuestion(query);
+            if (questionType == DnsRecordType.NS) {
+                Assert.Equal("example.com", questionName);
+                return BuildNsResponse(id, questionName, authorities);
+            }
+
+            Assert.Contains(authorities, authority => authority.Authority == questionName);
+            Assert.True(questionType is DnsRecordType.A or DnsRecordType.AAAA);
+            // Glue supplies the transfer addresses. Address lookups still receive a
+            // correlated NODATA reply instead of depending on a closed UDP socket.
+            return TestUtilities.CreateResponseFromQuery(query);
         }
 
         private static byte[] BuildAxfrMessage(string zone, params (string Name, DnsRecordType Type, byte[] Data)[] answers) {
@@ -172,73 +187,91 @@ namespace DnsClientX.Tests {
             return ms.ToArray();
         }
 
-        private static UdpServer RunDiscoveryServerAsync(Func<byte[], byte[]> buildResponse, CancellationToken token) {
+        private static UdpServer RunDiscoveryServerAsync(Func<byte[], byte[]> buildResponse, CancellationToken token, int responseDelayMs = 0) {
             var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
             int port = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
 
             async Task Serve() {
                 using (udp) {
+                    using var registration = token.Register(udp.Dispose);
+                    try {
+                        while (!token.IsCancellationRequested) {
 #if NET5_0_OR_GREATER
-                    UdpReceiveResult result = await udp.ReceiveAsync(token);
-                    byte[] response = buildResponse(result.Buffer);
-                    await udp.SendAsync(response, result.RemoteEndPoint, token);
+                            UdpReceiveResult result = await udp.ReceiveAsync(token);
 #else
-                    var receiveTask = udp.ReceiveAsync();
-                    var completed = await Task.WhenAny(receiveTask, Task.Delay(Timeout.Infinite, token));
-                    if (completed != receiveTask) {
-                        throw new OperationCanceledException(token);
-                    }
-
-                    UdpReceiveResult result = receiveTask.Result;
-                    byte[] response = buildResponse(result.Buffer);
-                    await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
+                            UdpReceiveResult result = await udp.ReceiveAsync();
 #endif
+                            if (responseDelayMs > 0 && ParseQuestion(result.Buffer).QuestionType == DnsRecordType.NS) {
+                                await Task.Delay(responseDelayMs, token);
+                            }
+                            byte[] response = buildResponse(result.Buffer);
+#if NET5_0_OR_GREATER
+                            await udp.SendAsync(response, result.RemoteEndPoint, token);
+#else
+                            await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
+#endif
+                        }
+                    } catch (Exception exception) when (token.IsCancellationRequested &&
+                        exception is OperationCanceledException or ObjectDisposedException or SocketException) {
+                        // Cancellation owns the fixture sockets on every target framework.
+                    }
                 }
             }
 
             return new UdpServer(port, Serve());
         }
 
-        private static AxfrServer RunAxfrServerAsync(byte[][] responses, CancellationToken token) {
-            var listener = new TcpListener(IPAddress.Loopback, 0);
+        private static AxfrServer RunAxfrServerAsync(byte[][] responses, CancellationToken token, IPAddress? address = null, int requestedPort = 0) {
+            var listener = new TcpListener(address ?? IPAddress.Loopback, requestedPort);
+            if (listener.Server.AddressFamily == AddressFamily.InterNetworkV6) {
+                listener.Server.DualMode = false;
+            }
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
 
             async Task Serve() {
+                using var registration = token.Register(listener.Stop);
+                try {
 #if NETFRAMEWORK
-                using TcpClient client = await listener.AcceptTcpClientAsync();
+                    using TcpClient client = await listener.AcceptTcpClientAsync();
 #else
-                using TcpClient client = await listener.AcceptTcpClientAsync(token);
+                    using TcpClient client = await listener.AcceptTcpClientAsync(token);
 #endif
-                using NetworkStream stream = client.GetStream();
-                byte[] len = new byte[2];
-                await TestUtilities.ReadExactlyAsync(stream, len, 2, token);
-                if (BitConverter.IsLittleEndian) {
-                    Array.Reverse(len);
-                }
-
-                int qLen = BitConverter.ToUInt16(len, 0);
-                byte[] query = new byte[qLen];
-                await TestUtilities.ReadExactlyAsync(stream, query, qLen, token);
-
-                foreach (byte[] response in responses) {
-                    response[0] = query[0];
-                    response[1] = query[1];
-                    byte[] prefix = BitConverter.GetBytes((ushort)response.Length);
+                    using var clientRegistration = token.Register(client.Dispose);
+                    using NetworkStream stream = client.GetStream();
+                    byte[] len = new byte[2];
+                    await TestUtilities.ReadExactlyAsync(stream, len, 2, token);
                     if (BitConverter.IsLittleEndian) {
-                        Array.Reverse(prefix);
+                        Array.Reverse(len);
                     }
 
-#if NET5_0_OR_GREATER
-                    await stream.WriteAsync(prefix, token);
-                    await stream.WriteAsync(response, token);
-#else
-                    await stream.WriteAsync(prefix, 0, prefix.Length, token);
-                    await stream.WriteAsync(response, 0, response.Length, token);
-#endif
-                }
+                    int qLen = BitConverter.ToUInt16(len, 0);
+                    byte[] query = new byte[qLen];
+                    await TestUtilities.ReadExactlyAsync(stream, query, qLen, token);
 
-                listener.Stop();
+                    foreach (byte[] response in responses) {
+                        response[0] = query[0];
+                        response[1] = query[1];
+                        byte[] prefix = BitConverter.GetBytes((ushort)response.Length);
+                        if (BitConverter.IsLittleEndian) {
+                            Array.Reverse(prefix);
+                        }
+
+#if NET5_0_OR_GREATER
+                        await stream.WriteAsync(prefix, token);
+                        await stream.WriteAsync(response, token);
+#else
+                        await stream.WriteAsync(prefix, 0, prefix.Length, token);
+                        await stream.WriteAsync(response, 0, response.Length, token);
+#endif
+                    }
+
+                } catch (Exception exception) when (token.IsCancellationRequested &&
+                    exception is OperationCanceledException or ObjectDisposedException or SocketException or IOException) {
+                    // Stop also releases an unconnected legacy AcceptTcpClientAsync.
+                } finally {
+                    listener.Stop();
+                }
             }
 
             return new AxfrServer(port, Serve());
@@ -256,64 +289,84 @@ namespace DnsClientX.Tests {
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             AxfrServer axfrServer = RunAxfrServerAsync(new[] { opening, record, closing }, cts.Token);
-            UdpServer discoveryServer = RunDiscoveryServerAsync(buffer => {
-                (ushort id, string questionName, DnsRecordType questionType) = ParseQuestion(buffer);
-                Assert.Equal("example.com", questionName);
-                Assert.Equal(DnsRecordType.NS, questionType);
-                return BuildNsResponse(id, questionName, ("ns1.example.com", "127.0.0.1"));
-            }, cts.Token);
+            UdpServer? discoveryServer = null;
 
-            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP) { EndpointConfiguration = { Port = discoveryServer.Port } };
-            RecursiveZoneTransferResult result = await client.ZoneTransferRecursiveAsync("example.com", port: axfrServer.Port, cancellationToken: cts.Token);
+            try {
+                discoveryServer = RunDiscoveryServerAsync(
+                    buffer => BuildDiscoveryResponse(buffer, ("ns1.example.com", "127.0.0.1")), cts.Token);
+                using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP) { EndpointConfiguration = { Port = discoveryServer.Port } };
+                RecursiveZoneTransferResult result = await client.ZoneTransferRecursiveAsync("example.com", port: axfrServer.Port, cancellationToken: cts.Token);
 
-            await Task.WhenAll(axfrServer.Task, discoveryServer.Task);
+                await axfrServer.Task;
 
-            Assert.Equal("example.com", result.Zone);
-            Assert.Equal("ns1.example.com", result.SelectedAuthority);
-            Assert.Equal("127.0.0.1", result.SelectedServer);
-            Assert.Single(result.Authorities);
-            Assert.Single(result.TriedServers);
-            Assert.Equal(3, result.RecordSets.Length);
-            Assert.True(result.RecordSets[0].IsOpening);
-            Assert.True(result.RecordSets[2].IsClosing);
+                Assert.Equal("example.com", result.Zone);
+                Assert.Equal("ns1.example.com", result.SelectedAuthority);
+                Assert.Equal("127.0.0.1", result.SelectedServer);
+                Assert.Single(result.Authorities);
+                Assert.Single(result.TriedServers);
+                Assert.Equal(3, result.RecordSets.Length);
+                Assert.True(result.RecordSets[0].IsOpening);
+                Assert.True(result.RecordSets[2].IsClosing);
+            } finally {
+                cts.Cancel();
+                await Task.WhenAll(axfrServer.Task, discoveryServer?.Task ?? Task.CompletedTask);
+            }
         }
 
         /// <summary>
         /// Ensures recursive AXFR falls back to the next authoritative server when the first one fails.
         /// </summary>
-        [Fact]
-        public async Task ZoneTransferRecursiveAsync_FallsBackToNextAuthority() {
+        [Theory]
+        [InlineData(0)]
+        [InlineData(750)]
+        public async Task ZoneTransferRecursiveAsync_FallsBackToNextAuthority(int discoveryDelayMs) {
             byte[] soa = BuildSoaRdata();
             byte[] opening = BuildAxfrMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
             byte[] record = BuildAxfrMessage("example.com", ("www.example.com", DnsRecordType.A, new byte[] { 5, 6, 7, 8 }));
             byte[] closing = BuildAxfrMessage("example.com", ("example.com", DnsRecordType.SOA, soa));
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             AxfrServer axfrServer = RunAxfrServerAsync(new[] { opening, record, closing }, cts.Token);
-            UdpServer discoveryServer = RunDiscoveryServerAsync(buffer => {
-                (ushort id, string questionName, DnsRecordType questionType) = ParseQuestion(buffer);
-                Assert.Equal("example.com", questionName);
-                Assert.Equal(DnsRecordType.NS, questionType);
-                return BuildNsResponse(
-                    id,
-                    questionName,
-                    ("ns1.example.com", "127.0.0.2"),
-                    ("ns2.example.com", "127.0.0.1"));
-            }, cts.Token);
+            byte[] refused = BuildAxfrMessage("example.com");
+            refused[3] |= (byte)DnsResponseCode.Refused;
+            AxfrServer? rejectedServer = null;
+            UdpServer? discoveryServer = null;
 
-            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
-                EndpointConfiguration = { Port = discoveryServer.Port, TimeOut = 500 }
-            };
-            RecursiveZoneTransferResult result = await client.ZoneTransferRecursiveAsync("example.com", port: axfrServer.Port, retryDelayMs: 0, cancellationToken: cts.Token);
+            try {
+                rejectedServer = RunAxfrServerAsync(new[] { refused }, cts.Token, IPAddress.IPv6Loopback, axfrServer.Port);
+                discoveryServer = RunDiscoveryServerAsync(
+                    buffer => BuildDiscoveryResponse(buffer, ("ns1.example.com", "::1"), ("ns2.example.com", "127.0.0.1")),
+                    cts.Token, discoveryDelayMs);
+                using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
+                    // Authority fallback is the contract; discovery has its own fixture budget.
+                    EndpointConfiguration = { Port = discoveryServer.Port, TimeOut = 5000 }
+                };
+                RecursiveZoneTransferResult result = await client.ZoneTransferRecursiveAsync("example.com", port: axfrServer.Port, retryDelayMs: 0, cancellationToken: cts.Token);
 
-            await Task.WhenAll(axfrServer.Task, discoveryServer.Task);
+                await Task.WhenAll(axfrServer.Task, rejectedServer.Task);
 
-            Assert.Equal("ns2.example.com", result.SelectedAuthority);
-            Assert.Equal("127.0.0.1", result.SelectedServer);
-            Assert.Equal(2, result.TriedServers.Length);
-            Assert.Equal("127.0.0.2", result.TriedServers[0]);
-            Assert.Equal("127.0.0.1", result.TriedServers[1]);
-            Assert.Equal(3, result.RecordSets.Length);
+                Assert.Equal("ns2.example.com", result.SelectedAuthority);
+                Assert.Equal("127.0.0.1", result.SelectedServer);
+                Assert.Equal(2, result.TriedServers.Length);
+                Assert.Equal("::1", result.TriedServers[0]);
+                Assert.Equal("127.0.0.1", result.TriedServers[1]);
+                Assert.Equal(3, result.RecordSets.Length);
+            } finally {
+                cts.Cancel();
+                await Task.WhenAll(axfrServer.Task, rejectedServer?.Task ?? Task.CompletedTask, discoveryServer?.Task ?? Task.CompletedTask);
+            }
+        }
+
+        /// <summary>Ensures idle discovery and transfer fixtures release their sockets on cancellation.</summary>
+        [Fact]
+        public async Task RecursiveFixtures_CancelWithoutQueries() {
+            using var cts = new CancellationTokenSource();
+            AxfrServer axfrServer = RunAxfrServerAsync(Array.Empty<byte[]>(), cts.Token);
+            UdpServer discoveryServer = RunDiscoveryServerAsync(query => TestUtilities.CreateResponseFromQuery(query), cts.Token);
+            Task completion = Task.WhenAll(axfrServer.Task, discoveryServer.Task);
+            cts.Cancel();
+            Assert.Same(completion, await Task.WhenAny(completion, Task.Delay(TimeSpan.FromSeconds(5))));
+            await completion;
         }
     }
 }
