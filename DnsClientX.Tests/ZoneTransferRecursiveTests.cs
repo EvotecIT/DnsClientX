@@ -221,11 +221,8 @@ namespace DnsClientX.Tests {
             return new UdpServer(port, Serve());
         }
 
-        private static AxfrServer RunAxfrServerAsync(byte[][] responses, CancellationToken token, IPAddress? address = null, int requestedPort = 0) {
-            var listener = new TcpListener(address ?? IPAddress.Loopback, requestedPort);
-            if (listener.Server.AddressFamily == AddressFamily.InterNetworkV6) {
-                listener.Server.DualMode = false;
-            }
+        private static AxfrServer RunAxfrServerAsync(byte[][] responses, CancellationToken token) {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
 
@@ -327,33 +324,31 @@ namespace DnsClientX.Tests {
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             AxfrServer axfrServer = RunAxfrServerAsync(new[] { opening, record, closing }, cts.Token);
-            byte[] refused = BuildAxfrMessage("example.com");
-            refused[3] |= (byte)DnsResponseCode.Refused;
-            AxfrServer? rejectedServer = null;
             UdpServer? discoveryServer = null;
 
             try {
-                rejectedServer = RunAxfrServerAsync(new[] { refused }, cts.Token, IPAddress.IPv6Loopback, axfrServer.Port);
                 discoveryServer = RunDiscoveryServerAsync(
-                    buffer => BuildDiscoveryResponse(buffer, ("ns1.example.com", "::1"), ("ns2.example.com", "127.0.0.1")),
+                    buffer => BuildDiscoveryResponse(buffer, ("ns1.example.com", "127.0.0.2"), ("ns2.example.com", "127.0.0.1")),
                     cts.Token, discoveryDelayMs);
                 using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
                     // Authority fallback is the contract; discovery has its own fixture budget.
                     EndpointConfiguration = { Port = discoveryServer.Port, TimeOut = 5000 }
                 };
-                RecursiveZoneTransferResult result = await client.ZoneTransferRecursiveAsync("example.com", port: axfrServer.Port, retryDelayMs: 0, cancellationToken: cts.Token);
+                // Exercise authority fallback once per target. A non-local loopback alias
+                // may time out instead of refusing immediately on some platforms.
+                RecursiveZoneTransferResult result = await client.ZoneTransferRecursiveAsync("example.com", port: axfrServer.Port, retryOnTransient: false, retryDelayMs: 0, cancellationToken: cts.Token);
 
-                await Task.WhenAll(axfrServer.Task, rejectedServer.Task);
+                await axfrServer.Task;
 
                 Assert.Equal("ns2.example.com", result.SelectedAuthority);
                 Assert.Equal("127.0.0.1", result.SelectedServer);
                 Assert.Equal(2, result.TriedServers.Length);
-                Assert.Equal("::1", result.TriedServers[0]);
+                Assert.Equal("127.0.0.2", result.TriedServers[0]);
                 Assert.Equal("127.0.0.1", result.TriedServers[1]);
                 Assert.Equal(3, result.RecordSets.Length);
             } finally {
                 cts.Cancel();
-                await Task.WhenAll(axfrServer.Task, rejectedServer?.Task ?? Task.CompletedTask, discoveryServer?.Task ?? Task.CompletedTask);
+                await Task.WhenAll(axfrServer.Task, discoveryServer?.Task ?? Task.CompletedTask);
             }
         }
 

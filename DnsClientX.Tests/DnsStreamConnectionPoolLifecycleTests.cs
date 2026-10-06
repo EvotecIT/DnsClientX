@@ -26,6 +26,7 @@ public sealed class DnsStreamConnectionPoolLifecycleTests {
         var request = new CertificateRequest("CN=localhost", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         using X509Certificate2 certificate = TestUtilities.CreateTlsCertificate(request);
         int applicationBytesReceived = 0;
+        bool poolDisposed = false;
         Task server = Task.Run(async () => {
             using TcpClient peer = await listener.AcceptTcpClientAsync(deadline.Token);
             using NetworkStream network = peer.GetStream();
@@ -40,10 +41,10 @@ public sealed class DnsStreamConnectionPoolLifecycleTests {
                     }, deadline.Token);
                 }
                 applicationBytesReceived = await stream.ReadAsync(new byte[1], deadline.Token);
-            } catch (IOException exception) when (exception.InnerException is SocketException {
-                SocketErrorCode: SocketError.ConnectionReset
+            } catch (IOException exception) when (poolDisposed && exception.InnerException is SocketException {
+                SocketErrorCode: SocketError.ConnectionReset or SocketError.ConnectionAborted
             }) {
-                // Closing a rejected TLS connection can report reset on Windows and EOF on Unix.
+                // Confirmed owner disposal can report reset/abort on Windows and EOF on Unix.
             }
         }, deadline.Token);
         using var pool = new DnsStreamConnectionPool(connectOverride: async (client, address, selectedPort, _, token) => {
@@ -60,6 +61,7 @@ public sealed class DnsStreamConnectionPoolLifecycleTests {
                 : pool.QueryTcpAsync(IPAddress.Loopback, port, null, queryBytes, 10000, 1, deadline.Token);
             await entered.Task.WaitAsync(deadline.Token);
             pool.Dispose();
+            poolDisposed = true;
             release.TrySetResult(true);
             Exception? failure = await Record.ExceptionAsync(async () => await query);
             await server;
