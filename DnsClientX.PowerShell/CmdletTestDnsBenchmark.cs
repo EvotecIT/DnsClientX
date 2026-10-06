@@ -47,6 +47,9 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         public int MaxConcurrency { get; set; }
 
+        /// <summary>Connection reuse used for the benchmark run.</summary>
+        public ResolverQueryConnectionMode ConnectionMode { get; set; }
+
         /// <summary>
         /// Per-query timeout in milliseconds used for the run.
         /// </summary>
@@ -176,6 +179,9 @@ namespace DnsClientX.PowerShell {
         /// Maximum concurrent in-flight benchmark queries used for the run.
         /// </summary>
         public int MaxConcurrency { get; set; }
+
+        /// <summary>Connection reuse used for the benchmark run.</summary>
+        public ResolverQueryConnectionMode ConnectionMode { get; set; }
 
         /// <summary>
         /// Per-query timeout in milliseconds used for the run.
@@ -367,6 +373,10 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
         [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
         public int MaxConcurrency { get; set; } = 4;
+
+        /// <summary>Use a fresh client per attempt, or retain one per target without caching DNS answers.</summary>
+        [Parameter(Mandatory = false)]
+        public ResolverQueryConnectionMode ConnectionMode { get; set; } = ResolverQueryConnectionMode.Cold;
 
         /// <summary>
         /// Per-query timeout in milliseconds.
@@ -577,6 +587,7 @@ namespace DnsClientX.PowerShell {
         private ResolverQueryRunOptions CreateQueryRunOptions() {
             return new ResolverQueryRunOptions {
                 TimeoutMs = TimeOut,
+                ConnectionMode = ConnectionMode,
                 RequestDnsSec = RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent,
                 ValidateDnsSec = ValidateDnsSec.IsPresent,
                 RequestNsid = RequestNsid.IsPresent,
@@ -595,6 +606,7 @@ namespace DnsClientX.PowerShell {
                 RecordTypes = result.RecordTypes,
                 AttemptsPerCombination = result.AttemptsPerCombination,
                 MaxConcurrency = result.MaxConcurrency,
+                ConnectionMode = result.ConnectionMode,
                 TimeoutMs = result.TimeoutMs,
                 TotalQueries = result.TotalQueries,
                 SuccessCount = result.SuccessCount,
@@ -625,6 +637,7 @@ namespace DnsClientX.PowerShell {
                 RecordTypes = summary.RecordTypes,
                 AttemptsPerCombination = summary.AttemptsPerCombination,
                 MaxConcurrency = summary.MaxConcurrency,
+                ConnectionMode = summary.ConnectionMode,
                 TimeoutMs = summary.TimeoutMs,
                 CandidateCount = summary.CandidateCount,
                 SuccessfulCandidates = summary.SuccessfulCandidates,

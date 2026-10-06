@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace DnsClientX {
     /// <summary>
@@ -83,6 +84,7 @@ namespace DnsClientX {
             return new ResolverScoreSnapshot {
                 Summary = new ResolverScoreSummary {
                     Mode = ResolverScoreMode.Benchmark,
+                    ConnectionMode = ResolverQueryConnectionModes.Combine(Results.Select(result => result.ConnectionMode)),
                     Domains = domains ?? Array.Empty<string>(),
                     RecordTypes = recordTypes ?? Array.Empty<DnsRecordType>(),
                     AttemptsPerCombination = attemptsPerCombination,
@@ -108,6 +110,7 @@ namespace DnsClientX {
                 },
                 Results = Array.ConvertAll(Results, result => new ResolverScoreEntry {
                     Target = result.Target,
+                    ConnectionMode = result.ConnectionMode,
                     Resolver = result.Resolver,
                     Transport = result.Transport,
                     TotalQueries = result.TotalQueries,

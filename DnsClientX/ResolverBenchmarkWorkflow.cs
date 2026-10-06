@@ -94,7 +94,7 @@ namespace DnsClientX {
                 explicitOverride,
                 cancellationToken).ConfigureAwait(false);
 
-            return ResolverBenchmarkReportBuilder.Build(
+            ResolverBenchmarkReport report = ResolverBenchmarkReportBuilder.Build(
                 attempts,
                 names as string[] ?? new List<string>(names).ToArray(),
                 recordTypes as DnsRecordType[] ?? new List<DnsRecordType>(recordTypes).ToArray(),
@@ -102,6 +102,7 @@ namespace DnsClientX {
                 maxConcurrency,
                 timeoutMs,
                 policy);
+            return report;
         }
     }
 }

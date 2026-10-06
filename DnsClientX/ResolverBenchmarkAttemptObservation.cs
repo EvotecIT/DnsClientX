@@ -3,6 +3,9 @@ namespace DnsClientX {
     /// Represents one individual benchmark attempt observation before candidate aggregation.
     /// </summary>
     public sealed class ResolverBenchmarkAttemptObservation {
+        /// <summary>Gets or sets the observed connection ownership mode, or Mixed for combined modes.</summary>
+        public ResolverQueryConnectionMode ConnectionMode { get; set; }
+
         /// <summary>
         /// Gets or sets the resolver observed for the attempt.
         /// </summary>

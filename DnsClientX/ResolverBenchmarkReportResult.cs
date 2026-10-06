@@ -3,6 +3,9 @@ namespace DnsClientX {
     /// Describes one ranked benchmark candidate in a shared benchmark report.
     /// </summary>
     public sealed class ResolverBenchmarkReportResult {
+        /// <summary>Gets or sets connection reuse for the benchmark run.</summary>
+        public ResolverQueryConnectionMode ConnectionMode { get; set; }
+
         /// <summary>Gets or sets the candidate label.</summary>
         public string Target { get; set; } = string.Empty;
         /// <summary>Gets or sets the resolver observed for the candidate.</summary>

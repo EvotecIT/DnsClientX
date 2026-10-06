@@ -3,6 +3,9 @@ namespace DnsClientX {
     /// Configures shared resolver query execution for probe and benchmark workflows.
     /// </summary>
     public sealed class ResolverQueryRunOptions {
+        /// <summary>Gets or sets connection reuse for benchmark runs. The default is a fresh client per attempt.</summary>
+        public ResolverQueryConnectionMode ConnectionMode { get; init; } = ResolverQueryConnectionMode.Cold;
+
         /// <summary>Gets or sets the IP-literal UDP/TCP bootstrap resolver.</summary>
         public DnsResolverEndpoint? BootstrapResolver { get; init; }
 

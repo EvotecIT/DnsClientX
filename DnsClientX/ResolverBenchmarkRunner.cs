@@ -34,60 +34,77 @@ namespace DnsClientX {
             Func<DnsEndpoint, string, DnsRecordType, CancellationToken, Task<ResolverQueryAttemptResult>>? builtInOverride = null,
             Func<DnsResolverEndpoint, string, DnsRecordType, CancellationToken, Task<ResolverQueryAttemptResult>>? explicitOverride = null,
             CancellationToken cancellationToken = default) {
-            if (targets == null) {
-                throw new ArgumentNullException(nameof(targets));
+            if (targets == null) { throw new ArgumentNullException(nameof(targets)); }
+            if (names == null) { throw new ArgumentNullException(nameof(names)); }
+            if (recordTypes == null) { throw new ArgumentNullException(nameof(recordTypes)); }
+            if (options == null) { throw new ArgumentNullException(nameof(options)); }
+            if (attemptsPerCombination < 1) { throw new ArgumentOutOfRangeException(nameof(attemptsPerCombination)); }
+            if (maxConcurrency < 1) { throw new ArgumentOutOfRangeException(nameof(maxConcurrency)); }
+            if (options.ConnectionMode != ResolverQueryConnectionMode.Cold && options.ConnectionMode != ResolverQueryConnectionMode.Warm) {
+                throw new ArgumentOutOfRangeException(nameof(options.ConnectionMode));
             }
-
-            int totalQueries = targets.Count * names.Count * recordTypes.Count * attemptsPerCombination;
-            int completed = 0;
-            using var semaphore = new SemaphoreSlim(Math.Max(1, maxConcurrency));
-            var tasks = new List<Task<(int TargetIndex, ResolverQueryAttemptResult Result)>>(totalQueries);
-
-            for (int targetIndex = 0; targetIndex < targets.Count; targetIndex++) {
-                ResolverExecutionTarget target = targets[targetIndex];
-                foreach (string name in names) {
-                    foreach (DnsRecordType recordType in recordTypes) {
-                        for (int attempt = 0; attempt < attemptsPerCombination; attempt++) {
-                            tasks.Add(RunAttemptAsync(targetIndex, target, name, recordType, semaphore, options, builtInOverride, explicitOverride, () => {
-                                int finished = Interlocked.Increment(ref completed);
-                                progress?.Invoke(finished, totalQueries);
-                            }, cancellationToken));
-                        }
-                    }
-                }
-            }
-
-            return (await Task.WhenAll(tasks).ConfigureAwait(false))
-                .OrderBy(item => item.TargetIndex)
-                .Select(item => item.Result)
-                .ToArray();
-        }
-
-        private static async Task<(int TargetIndex, ResolverQueryAttemptResult Result)> RunAttemptAsync(
-            int targetIndex,
-            ResolverExecutionTarget target,
-            string name,
-            DnsRecordType recordType,
-            SemaphoreSlim semaphore,
-            ResolverQueryRunOptions options,
-            Func<DnsEndpoint, string, DnsRecordType, CancellationToken, Task<ResolverQueryAttemptResult>>? builtInOverride,
-            Func<DnsResolverEndpoint, string, DnsRecordType, CancellationToken, Task<ResolverQueryAttemptResult>>? explicitOverride,
-            Action onCompleted,
-            CancellationToken cancellationToken) {
-            await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            int totalQueries;
             try {
-                ResolverQueryAttemptResult result = await ResolverQueryExecutor.ExecuteAsync(
-                    target,
-                    name,
-                    recordType,
-                    options,
-                    builtInOverride,
-                    explicitOverride,
-                    cancellationToken).ConfigureAwait(false);
-                return (targetIndex, result);
+                totalQueries = checked(targets.Count * names.Count * recordTypes.Count * attemptsPerCombination);
+            } catch (OverflowException) {
+                throw new ArgumentException("The requested benchmark exceeds the supported number of attempts.");
+            }
+            if (totalQueries == 0) { return Array.Empty<ResolverQueryAttemptResult>(); }
+            ResolverExecutionTarget[] targetList = targets.ToArray();
+            string[] nameList = names.ToArray();
+            DnsRecordType[] typeList = recordTypes.ToArray();
+
+            var results = new ResolverQueryAttemptResult[totalQueries];
+            using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            ResolverQueryClientSession? clients = options.ConnectionMode == ResolverQueryConnectionMode.Warm
+                ? new ResolverQueryClientSession(targetList, options) : null;
+            int next = -1;
+            int completed = 0;
+            var progressGate = new object();
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo? failure = null;
+            try {
+                // Only the worker count creates tasks; output order follows the input matrix,
+                // regardless of completion order. A failing callback cancels and drains peers.
+                var workers = new Task[Math.Min(maxConcurrency, totalQueries)];
+                for (int worker = 0; worker < workers.Length; worker++) {
+                    workers[worker] = Task.Run(async () => {
+                        try {
+                            while (true) {
+                                stop.Token.ThrowIfCancellationRequested();
+                                int index = Interlocked.Increment(ref next);
+                                if (index >= totalQueries) { return; }
+                                int combination = index / attemptsPerCombination;
+                                int typeIndex = combination % typeList.Length;
+                                combination /= typeList.Length;
+                                int nameIndex = combination % nameList.Length;
+                                int targetIndex = combination / nameList.Length;
+                                results[index] = await ResolverQueryExecutor.ExecuteAsync(
+                                    targetList[targetIndex], nameList[nameIndex], typeList[typeIndex], options,
+                                    builtInOverride, explicitOverride, stop.Token,
+                                    clients == null ? null : () => clients.GetClient(targetIndex)).ConfigureAwait(false);
+                                if (results[index].ConnectionMode != options.ConnectionMode) {
+                                    results[index] = results[index].WithConnectionMode(options.ConnectionMode);
+                                }
+                                lock (progressGate) {
+                                    stop.Token.ThrowIfCancellationRequested();
+                                    progress?.Invoke(++completed, totalQueries);
+                                }
+                            }
+                        } catch (Exception ex) {
+                            lock (progressGate) {
+                                failure ??= System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex);
+                            }
+                            stop.Cancel();
+                        }
+                    });
+                }
+                await Task.WhenAll(workers).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                failure?.Throw();
+                return results;
             } finally {
-                onCompleted();
-                semaphore.Release();
+                if (clients != null) { await clients.DisposeAsync().ConfigureAwait(false); }
             }
         }
     }

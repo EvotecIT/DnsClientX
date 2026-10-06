@@ -3,6 +3,9 @@ namespace DnsClientX {
     /// Represents one scored resolver candidate within a persisted probe or benchmark snapshot.
     /// </summary>
     public sealed class ResolverScoreEntry {
+        /// <summary>Gets or sets the observed connection ownership mode, or Mixed for combined modes.</summary>
+        public ResolverQueryConnectionMode ConnectionMode { get; set; }
+
         /// <summary>
         /// Gets or sets the human-readable candidate label.
         /// </summary>

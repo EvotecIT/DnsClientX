@@ -34,6 +34,7 @@ namespace DnsClientX {
 
             return new ResolverBenchmarkCandidate {
                 Target = displayName,
+                ConnectionMode = ResolverQueryConnectionModes.Combine(allAttempts.Select(attempt => attempt.ConnectionMode)),
                 Resolver = fastest?.Resolver ?? "none",
                 Transport = fastest?.Transport ?? "none",
                 TotalQueries = totalQueries,
@@ -49,6 +50,7 @@ namespace DnsClientX {
 
         private static ResolverBenchmarkAttemptObservation NormalizeAttempt(ResolverBenchmarkAttemptObservation? attempt) {
             return new ResolverBenchmarkAttemptObservation {
+                ConnectionMode = attempt?.ConnectionMode ?? ResolverQueryConnectionMode.Cold,
                 Resolver = string.IsNullOrWhiteSpace(attempt?.Resolver) ? "none" : attempt!.Resolver,
                 Transport = string.IsNullOrWhiteSpace(attempt?.Transport) ? "none" : attempt!.Transport,
                 ElapsedMs = Math.Round(Math.Max(0, attempt?.ElapsedMs ?? 0), 2, MidpointRounding.AwayFromZero),

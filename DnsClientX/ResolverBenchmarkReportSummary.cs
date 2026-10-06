@@ -3,6 +3,9 @@ namespace DnsClientX {
     /// Describes the shared summary of a benchmark run.
     /// </summary>
     public sealed class ResolverBenchmarkReportSummary {
+        /// <summary>Gets or sets connection reuse for the benchmark run.</summary>
+        public ResolverQueryConnectionMode ConnectionMode { get; set; }
+
         /// <summary>Gets or sets the benchmark domains.</summary>
         public string[] Domains { get; set; } = System.Array.Empty<string>();
         /// <summary>Gets or sets the benchmark record types.</summary>

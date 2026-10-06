@@ -57,6 +57,40 @@ namespace DnsClientX.Tests {
             }
         }
 
+        /// <summary>Warm metadata survives every public report and snapshot composition.</summary>
+        [Fact]
+        public void DirectBuilderAndEvaluationSnapshotPreserveWarmMode() {
+            var attempt = new ResolverQueryAttemptResult {
+                Target = "warm", ConnectionMode = ResolverQueryConnectionMode.Warm,
+                Response = new DnsResponse { Status = DnsResponseCode.NoError }, Elapsed = TimeSpan.FromMilliseconds(5)
+            };
+            var policy = new ResolverBenchmarkPolicy();
+            var report = ResolverBenchmarkReportBuilder.Build(new[] { attempt }, new[] { "example.com" },
+                new[] { DnsRecordType.A }, 1, 1, 1000, policy);
+            Assert.Equal(ResolverQueryConnectionMode.Warm, report.Results[0].ConnectionMode);
+            Assert.Equal(ResolverQueryConnectionMode.Warm, report.Summary.ConnectionMode);
+            Assert.Equal(ResolverQueryConnectionMode.Warm, report.Snapshot.Summary.ConnectionMode);
+            Assert.Equal(ResolverQueryConnectionMode.Warm, report.Snapshot.Results[0].ConnectionMode);
+            Assert.Equal(ResolverQueryConnectionMode.Warm,
+                report.Evaluation.CreateSnapshot(policy, new[] { "example.com" }, new[] { DnsRecordType.A }, 1, 1, 1000).Summary.ConnectionMode);
+        }
+
+        /// <summary>Mixed cold and warm observations remain identifiable in aggregated and persisted results.</summary>
+        [Fact]
+        public void MixedModesRemainMixedThroughAggregationAndScoring() {
+            var candidate = ResolverBenchmarkAggregator.Aggregate("mixed", new[] {
+                new ResolverBenchmarkAttemptObservation { ConnectionMode = ResolverQueryConnectionMode.Cold, Succeeded = true },
+                new ResolverBenchmarkAttemptObservation { ConnectionMode = ResolverQueryConnectionMode.Warm, Succeeded = true }
+            });
+            Assert.Equal(ResolverQueryConnectionMode.Mixed, candidate.ConnectionMode);
+            var report = ResolverBenchmarkReportBuilder.Build(new[] { candidate }, new[] { "example.com" },
+                new[] { DnsRecordType.A }, 2, 1, 1000, new ResolverBenchmarkPolicy());
+            Assert.Equal(ResolverQueryConnectionMode.Mixed, report.Results[0].ConnectionMode);
+            Assert.Equal(ResolverQueryConnectionMode.Mixed, report.Summary.ConnectionMode);
+            Assert.Equal(ResolverQueryConnectionMode.Mixed, report.Snapshot.Results[0].ConnectionMode);
+            Assert.Equal(ResolverQueryConnectionMode.Mixed, report.Snapshot.Summary.ConnectionMode);
+        }
+
         private static ResolverQueryAttemptResult CreateAttempt(string target, string resolver, string transport, int elapsedMs, bool succeeded, DnsRequestFormat requestFormat = DnsRequestFormat.DnsOverHttps) {
             return new ResolverQueryAttemptResult {
                 Target = target,

@@ -34,6 +34,7 @@ namespace DnsClientX.Cli {
             public int BenchmarkAttempts { get; set; } = 3;
             public int BenchmarkTimeoutMs { get; set; } = 2000;
             public int BenchmarkConcurrency { get; set; } = 4;
+            public ResolverQueryConnectionMode BenchmarkConnectionMode { get; set; }
             public int? BenchmarkMinSuccessPercent { get; set; }
             public int? BenchmarkMinSuccessfulCandidates { get; set; }
             public bool BenchmarkSummaryOnly { get; set; }
@@ -264,6 +265,19 @@ namespace DnsClientX.Cli {
                         break;
                     case var opt when opt.Equals("--benchmark", StringComparison.OrdinalIgnoreCase):
                         options.Benchmark = true;
+                        break;
+                    case var opt when opt.Equals("--benchmark-connections", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--benchmark-connections", out string? connectionMode, out errorMessage) ||
+                            (connectionMode != "cold" && connectionMode != "warm") ||
+                            !Enum.TryParse(connectionMode, true, out ResolverQueryConnectionMode parsedMode) ||
+                            (parsedMode != ResolverQueryConnectionMode.Cold && parsedMode != ResolverQueryConnectionMode.Warm)) {
+                            errorMessage = "--benchmark-connections accepts cold or warm.";
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        options.Benchmark = true;
+                        options.BenchmarkConnectionMode = parsedMode;
                         break;
                     case var opt when opt.Equals("--benchmark-attempts", StringComparison.OrdinalIgnoreCase):
                         if (!TryReadNext(args, ref i, "--benchmark-attempts", out string? benchmarkAttemptsValue, out errorMessage) ||
@@ -1182,6 +1196,7 @@ namespace DnsClientX.Cli {
             Console.WriteLine($"  Attempts per combination: {options.BenchmarkAttempts}");
             Console.WriteLine($"  Timeout (ms): {options.BenchmarkTimeoutMs}");
             Console.WriteLine($"  Concurrency: {options.BenchmarkConcurrency}");
+            Console.WriteLine($"  Connections: {options.BenchmarkConnectionMode}");
             Console.WriteLine($"  Detail mode: {(options.BenchmarkSummaryOnly ? "summary-only" : "full")}");
             if (!string.IsNullOrWhiteSpace(endpointProfile)) {
                 WriteHumanLine($"  Endpoint profile: {endpointProfile}");
@@ -1303,6 +1318,7 @@ namespace DnsClientX.Cli {
             ResolverExecutionClientOptions clientOptions = CreateExecutionClientOptions(options, useBenchmarkTimeout: options.Benchmark);
             return new ResolverQueryRunOptions {
                 TimeoutMs = options.Benchmark ? options.BenchmarkTimeoutMs : Configuration.DefaultTimeout,
+                ConnectionMode = options.BenchmarkConnectionMode,
                 RequestDnsSec = options.RequestDnsSec,
                 ValidateDnsSec = options.ValidateDnsSec,
                 MaxRetries = 1,
@@ -1709,7 +1725,8 @@ namespace DnsClientX.Cli {
             Console.WriteLine("      --benchmark          Benchmark one or more endpoints across repeated queries");
             Console.WriteLine("      --benchmark-attempts <count>  Repeat each domain/type combination this many times");
             Console.WriteLine("      --benchmark-timeout <ms>  Per-query timeout to apply during benchmark runs");
-            Console.WriteLine("      --benchmark-concurrency <count>  Max concurrent benchmark queries per candidate");
+            Console.WriteLine("      --benchmark-concurrency <count>  Max concurrent queries across the benchmark run");
+            Console.WriteLine("      --benchmark-connections <cold|warm>  Fresh clients per attempt or retained clients per target (default cold)");
             Console.WriteLine("      --benchmark-min-success-percent <percent>  Require a minimum overall benchmark success rate");
             Console.WriteLine("      --benchmark-min-successful-candidates <count>  Require this many candidates to return at least one success");
             Console.WriteLine("      --benchmark-summary-only  Suppress per-candidate benchmark rows and print only the header and summary");

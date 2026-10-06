@@ -36,6 +36,7 @@ namespace DnsClientX {
                 Results = ranked
                     .Select((result, index) => new ResolverBenchmarkEvaluationEntry {
                         Target = result.Target,
+                        ConnectionMode = result.ConnectionMode,
                         Resolver = result.Resolver,
                         Transport = result.Transport,
                         TotalQueries = result.TotalQueries,
@@ -80,6 +81,7 @@ namespace DnsClientX {
 
             return new ResolverBenchmarkCandidate {
                 Target = candidate?.Target?.Trim() ?? string.Empty,
+                ConnectionMode = candidate?.ConnectionMode ?? ResolverQueryConnectionMode.Cold,
                 Resolver = string.IsNullOrWhiteSpace(candidate?.Resolver) ? "none" : candidate!.Resolver,
                 Transport = string.IsNullOrWhiteSpace(candidate?.Transport) ? "none" : candidate!.Transport,
                 TotalQueries = totalQueries,
