@@ -5,7 +5,7 @@
 - Adds Windows NRPT discovery and policy-aware system resolver routing.
 - Adds bounded IXFR, RFC 9103 XFR-over-TLS, and RFC 8976 ZONEMD validation.
 - Adds RFC 9156 QNAME minimization and opt-in RFC 5011 managed root trust anchors.
-- Adds the separately versioned `DnsClientX.DnsSec.EdDsa` package for RFC 8080 Ed25519 and Ed448 validation without adding dependencies to the core package.
+- Adds the optional `DnsClientX.DnsSec.EdDsa` package for RFC 8080 Ed25519 and Ed448 validation without adding dependencies to the core package. It shares the DnsClientX release version.
 
 ### 2.0.0 breaking RFC and reliability release
 * Enforce DNS response correlation and wire-format bounds, including transaction ID, QR/opcode/question validation, compression-loop protection, complete section parsing, and EDNS extended response codes

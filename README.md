@@ -1709,6 +1709,49 @@ DnsClientX.exe --benchmark --endpoint Cloudflare,Google,Quad9 \
 
 
 
+## Building and publishing
+
+Run the unified build from the repository root with PSPublishModule 3.0.158 or later installed:
+
+```powershell
+# Refresh the PowerShell manifest without building or publishing packages.
+./Module/Build/Build-Module.ps1 -RunMode Manifest -SignModule:$false
+
+# Build the NuGet packages and PowerShell module without publishing.
+./Module/Build/Build-Module.ps1 -RunMode Build
+
+# Build, sign, and publish NuGet packages, the PowerShell module, and a GitHub release.
+./Module/Build/Build-Module.ps1 -RunMode Publish
+```
+
+The release uses one three-part `2.1.x` version for `DnsClientX`, the optional
+`DnsClientX.DnsSec.EdDsa` package, and the PowerShell module. PowerForge resolves the
+next package version, synchronizes it with the module's published versions, and
+updates the PowerShell and CLI assembly versions. The packages build before the
+module. Publication runs in order: NuGet, PowerShell Gallery, then GitHub.
+
+GitHub uses the tag `DnsClientX-v<version>` and generates release notes from the
+repository's changes. Package, module, and release artifacts are staged under
+`Artefacts/UploadReady`; the project packages are under `Artefacts/ProjectBuild`.
+
+Signing uses the certificate configured in the build files. For an unsigned local
+module build, pass `-SignModule:$false`. NuGet signing is configured separately in
+`Build/project.build.json`. The same file holds the NuGet API-key path; the module
+entrypoint accepts `-PowerShellGalleryApiKeyPath` and `-GitHubApiKeyPath` for those
+destinations. The GitHub key override applies to both package and module publishing;
+relative GitHub key paths resolve from the current working directory. The default
+paths refer to the maintainer's local credential files.
+Only `Publish` mode reads publication credentials and uploads packages.
+
+To inspect the package version plan without changing source files or publishing:
+
+```powershell
+./Build/Build-Project.ps1 -Plan $true
+```
+
+`Build/Build-Project.ps1` remains available for package-only work. Use the module
+entrypoint for a coordinated NuGet, PowerShell Gallery, and GitHub release.
+
 ## Please share with the community
 
 Please consider sharing a post about DnsClientX and the value it provides. It really does help!

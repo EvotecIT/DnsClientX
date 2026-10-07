@@ -3,10 +3,31 @@
   "RootPath": "..",
   "ExpectedVersionMap": {
     "DnsClientX": "2.1.X",
-    "DnsClientX.DnsSec.EdDsa": "1.0.X"
+    "DnsClientX.DnsSec.EdDsa": "2.1.X"
   },
   "ExpectedVersionMapAsInclude": true,
   "ExpectedVersionMapUseWildcards": false,
+  "AlignPackageVersions": true,
+  "VersionBindings": [
+    {
+      "Path": "DnsClientX.PowerShell/DnsClientX.PowerShell.csproj",
+      "Project": "DnsClientX",
+      "Pattern": "(?m)^[ \\t]*<VersionPrefix>[^<]+</VersionPrefix>\\r?\\n[ \\t]*<AssemblyVersion>[^<]+</AssemblyVersion>\\r?\\n[ \\t]*<FileVersion>[^<]+</FileVersion>",
+      "Replacement": "        <VersionPrefix>{Version}</VersionPrefix>\n        <AssemblyVersion>{Version}</AssemblyVersion>\n        <FileVersion>{Version}</FileVersion>"
+    },
+    {
+      "Path": "DnsClientX.Cli/DnsClientX.Cli.csproj",
+      "Project": "DnsClientX",
+      "Pattern": "(?m)^[ \\t]*<VersionPrefix>[^<]+</VersionPrefix>\\r?\\n[ \\t]*<AssemblyVersion>[^<]+</AssemblyVersion>\\r?\\n[ \\t]*<FileVersion>[^<]+</FileVersion>",
+      "Replacement": "    <VersionPrefix>{Version}</VersionPrefix>\n    <AssemblyVersion>{Version}</AssemblyVersion>\n    <FileVersion>{Version}</FileVersion>"
+    },
+    {
+      "Path": "Module/DnsClientX.psd1",
+      "Project": "DnsClientX",
+      "Pattern": "(?m)^[ \\t]*ModuleVersion[ \\t]*=[ \\t]*'[^']+'",
+      "Replacement": "    ModuleVersion        = '{Version}'"
+    }
+  ],
   "ExcludeProjects": [
     "DnsClientX.Benchmarks",
     "DnsClientX.Cli",
@@ -41,6 +62,6 @@
   "GitHubGenerateReleaseNotes": true,
   "GitHubReleaseMode": "Single",
   "GitHubPrimaryProject": "DnsClientX",
-  "GitHubTagTemplate": "{Repo}-v{UtcTimestamp}",
-  "GitHubReleaseName": "{Repo} {UtcDateTime}"
+  "GitHubTagTemplate": "{Repo}-v{PrimaryVersion}",
+  "GitHubReleaseName": "{Repo} {PrimaryVersion}"
 }
