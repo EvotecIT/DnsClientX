@@ -109,6 +109,24 @@ Describe 'Resolve-Dns binding' {
             Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
     }
 
+    It 'rejects multi-resolver options for a single built-in provider' {
+        { Resolve-Dns example.com TXT -DnsProvider Cloudflare -ResponseCache -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
+        { Resolve-Dns example.com TXT -DnsProvider Cloudflare -ResolverStrategy FastestWins -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
+    }
+
+    It 'accepts multi-resolver options when the source uses multi-resolver execution: <Case>' -TestCases @(
+        @{ Case = 'MultipleProviders'; Source = @{ DnsProvider = @('Cloudflare', 'Google') } }
+        @{ Case = 'ExplicitResolverProvider'; Source = @{ ResolverDnsProvider = 'Cloudflare' } }
+        @{ Case = 'ExplicitEndpoint'; Source = @{ ResolverEndpoint = 'udp@127.0.0.1:53' } }
+    ) {
+        param($Source)
+
+        { Resolve-Dns example.com TXT @Source -ResponseCache -ResolverStrategy FastestWins -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.ArgumentOutOfRangeException]) -ExpectedMessage '*TimeOutMilliseconds*'
+    }
+
     It 'exports benchmark cmdlet from the manifest' {
         (Get-Command Test-DnsBenchmark -ErrorAction Stop).Name | Should -Be 'Test-DnsBenchmark'
     }

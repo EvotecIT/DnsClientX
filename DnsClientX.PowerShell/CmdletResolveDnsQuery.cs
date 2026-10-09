@@ -415,13 +415,13 @@ namespace DnsClientX.PowerShell {
                 throw new PSArgumentException("Server transport and server selection options cannot be combined with another resolver source.");
             }
 
-            bool hasMultiResolverSource = bound.ContainsKey(nameof(DnsProvider)) || hasEndpointParameters ||
+            bool hasMultiResolverSource = (bound.ContainsKey(nameof(DnsProvider)) && DnsProvider is { Length: > 1 }) || hasEndpointParameters ||
                 bound.ContainsKey(nameof(ResolverDnsProvider));
             if ((!hasMultiResolverSource || bound.ContainsKey(nameof(Server)) || bound.ContainsKey(nameof(ResolverSelectionPath))) && new[] {
                     nameof(ResolverStrategy), nameof(MaxParallelism), nameof(RespectEndpointTimeout), nameof(FastestCacheMinutes),
                     nameof(PerEndpointMaxInFlight), nameof(ResponseCache), nameof(MaxCacheTtlSeconds)
                 }.Any(bound.ContainsKey)) {
-                throw new PSArgumentException("Multi-resolver options require DnsProvider, ResolverEndpoint, or ResolverDnsProvider.");
+                throw new PSArgumentException("Multi-resolver options require multiple DnsProvider values, ResolverEndpoint, or ResolverDnsProvider.");
             }
         }
 
