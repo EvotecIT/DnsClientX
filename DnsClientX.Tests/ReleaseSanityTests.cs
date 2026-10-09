@@ -162,14 +162,17 @@ namespace DnsClientX.Tests {
             throw new InvalidOperationException("Unsupported cmdlet verb in PowerShell source.");
         }
 
-        private static string FindRepositoryRoot() {
-            DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
-            while (directory != null) {
-                if (File.Exists(CombineRelative(directory.FullName, "DnsClientX.sln"))) {
-                    return directory.FullName;
-                }
+        private static string FindRepositoryRoot([System.Runtime.CompilerServices.CallerFilePath] string sourcePath = "") {
+            // The compiler's source path locates the checkout when the test host runs from external artifacts.
+            foreach (string start in new[] { AppContext.BaseDirectory, Path.GetDirectoryName(sourcePath)! }) {
+                DirectoryInfo? directory = new DirectoryInfo(start);
+                while (directory != null) {
+                    if (File.Exists(CombineRelative(directory.FullName, "DnsClientX.sln"))) {
+                        return directory.FullName;
+                    }
 
-                directory = directory.Parent;
+                    directory = directory.Parent;
+                }
             }
 
             throw new DirectoryNotFoundException("Could not find repository root containing DnsClientX.sln.");

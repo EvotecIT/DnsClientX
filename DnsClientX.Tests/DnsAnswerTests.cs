@@ -91,7 +91,11 @@ namespace DnsClientX.Tests {
             Assert.Equal(expected, string.Concat(answer.DataStringsEscaped));
             Assert.Equal(chunks, answer.DataStrings.Length);
             Assert.Equal(chunks, answer.DataStringsEscaped.Length);
-            Assert.Equal(expected, Assert.IsType<TxtRecord>(answer.TypedRecord).Text);
+            var typed = Assert.IsType<TxtRecord>(answer.TypedRecord);
+            Assert.Equal(expected, typed.Text);
+            Assert.Equal(answer.DataStringsEscaped, typed.Strings);
+            Assert.Equal(answer.DataStrings, typed.RawStrings);
+            Assert.Equal(raw, typed.RawText);
             Assert.Equal(raw, answer.DataRaw);
         }
 
