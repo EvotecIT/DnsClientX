@@ -129,6 +129,15 @@ namespace DnsClientX {
         [JsonPropertyName("dnssec_validated_locally")]
         public bool DnsSecValidatedLocally => DnsSecValidationStatus == DnsSecValidationStatus.Secure;
 
+        /// <summary>Gets whether local validation authenticated an RFC 9824 NXNAME denial proof.</summary>
+        [JsonPropertyName("dnssec_compact_denial")]
+        public bool DnsSecCompactDenial { get; internal set; }
+
+        /// <summary>Gets the response code with authenticated compact name errors represented as NXDOMAIN.</summary>
+        /// <remarks><see cref="Status"/> retains the server's response code. Unvalidated NXNAME data does not change this value.</remarks>
+        [JsonPropertyName("effective_status")]
+        public DnsResponseCode EffectiveStatus => DnsSecValidatedLocally && DnsSecCompactDenial ? DnsResponseCode.NXDomain : Status;
+
         /// <summary>
         /// The questions that were asked in the DNS query. Some providers do
         /// not return the question section in their response. In those cases
@@ -323,6 +332,10 @@ namespace DnsClientX {
         /// </summary>
         [JsonIgnore]
         public bool EdnsDnsSecOk { get; internal set; }
+
+        /// <summary>Gets whether the response OPT record advertises RFC 9824 compact answers.</summary>
+        [JsonIgnore]
+        public bool EdnsCompactAnswersOk { get; internal set; }
 
         /// <summary>
         /// Gets the raw EDNS NSID option returned by the server.

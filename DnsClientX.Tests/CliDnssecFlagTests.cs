@@ -47,7 +47,7 @@ namespace DnsClientX.Tests {
             ushort type = (ushort)((query[offset + 1] << 8) | query[offset + 2]);
             Assert.Equal((ushort)DnsRecordType.OPT, type);
             uint ttl = (uint)((query[offset + 5] << 24) | (query[offset + 6] << 16) | (query[offset + 7] << 8) | query[offset + 8]);
-            Assert.Equal(0x00008000u, ttl);
+            Assert.Equal(0x0000C000u, ttl);
         }
 
         /// <summary>

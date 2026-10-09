@@ -37,6 +37,7 @@ public static class DnsJsonQueryClient {
             throw new ArgumentException("The DNS JSON endpoint must be an absolute HTTP or HTTPS URI.", nameof(endpoint));
         }
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("The DNS name cannot be empty.", nameof(name));
+        if (type == DnsRecordType.NXNAME) throw new ArgumentException("NXNAME is a denial-proof meta-type and cannot be queried.", nameof(type));
 
         string normalizedName = name.Trim().TrimEnd('.');
         var uriBuilder = new UriBuilder(endpoint) { Fragment = string.Empty };

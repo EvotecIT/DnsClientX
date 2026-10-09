@@ -10,6 +10,9 @@ namespace DnsClientX {
         /// </summary>
         public bool EnableEdns { get; set; } = true;
 
+        /// <summary>Gets or sets whether DNSSEC wire queries advertise support for RFC 9824 compact answers.</summary>
+        public bool CompactAnswersOk { get; set; } = true;
+
         /// <summary>
         /// Gets or sets the UDP buffer size used for EDNS queries.
         /// </summary>
@@ -59,6 +62,7 @@ namespace DnsClientX {
         internal EdnsOptions Clone() {
             var clone = new EdnsOptions {
                 EnableEdns = EnableEdns,
+                CompactAnswersOk = CompactAnswersOk,
                 UdpBufferSize = UdpBufferSize,
                 Subnet = Subnet,
                 PaddingLength = PaddingLength,

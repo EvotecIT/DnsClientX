@@ -40,7 +40,12 @@ namespace DnsClientX.Tests {
 
         internal DnsSecValidationEngine Engine(bool currentTime = false,
             DnsResponseCode dnskeyStatus = DnsResponseCode.NoError,
-            DnsResponseCode dsStatus = DnsResponseCode.NoError) => new(async (name, type, token) => {
+            DnsResponseCode dsStatus = DnsResponseCode.NoError) => new((name, type, token) =>
+                LookupAsync(name, type, token, dnskeyStatus, dsStatus), currentTime ? null : Now, AnchorPath);
+
+        internal async Task<DnsResponse> LookupAsync(string name, DnsRecordType type,
+            System.Threading.CancellationToken token, DnsResponseCode dnskeyStatus = DnsResponseCode.NoError,
+            DnsResponseCode dsStatus = DnsResponseCode.NoError) {
             await Task.Yield();
             token.ThrowIfCancellationRequested();
             if (type == DnsRecordType.DNSKEY) {
@@ -59,7 +64,7 @@ namespace DnsClientX.Tests {
                 return response;
             }
             throw new InvalidOperationException($"Unexpected fixture lookup: {name} {type}");
-        }, currentTime ? null : Now, AnchorPath);
+        }
 
         private static void AssertDigest(DnsSecKey key, out byte[] digest) {
             if (!DnsSecCrypto.TryComputeDsDigest(key.Name, key, 2, out digest)) throw new InvalidOperationException("SHA-256 DS is unavailable.");
@@ -104,6 +109,14 @@ namespace DnsClientX.Tests {
 
         internal DnsResponse RootNsec3(string name, string next, params DnsRecordType[] types) {
             return Nsec3ForZone(name, next, Root, false, types);
+        }
+
+        internal DnsResponse CompactNsec3(string name, params DnsRecordType[] types) {
+            byte[] hash = Hash(name);
+            byte[] nextHash = (byte[])hash.Clone();
+            for (int index = nextHash.Length - 1; index >= 0 && ++nextHash[index] == 0; index--) { }
+            byte[] data = new byte[] { 1, 0, 0, 0, 0, 20 }.Concat(nextHash).Concat(Bitmap(types)).ToArray();
+            return Signed(Base32(hash) + "." + Zone.Name, DnsRecordType.NSEC3, data, authority: true);
         }
 
         private DnsResponse Nsec3ForZone(string name, string next, DnsSecKey key, bool optOut, DnsRecordType[] types) {

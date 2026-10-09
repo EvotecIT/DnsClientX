@@ -48,6 +48,7 @@ namespace DnsClientX {
             bool parseTypedTxtRecords = false,
             CancellationToken cancellationToken = default) {
             ThrowIfDisposed();
+            if (type == DnsRecordType.NXNAME) throw new ArgumentException("NXNAME is a denial bitmap signal and cannot be queried.", nameof(type));
             bool certificatePolicy = IgnoreCertificateErrors;
             using DnsClientTelemetry.DnsQueryTelemetryScope? telemetry = DnsClientTelemetry.StartQuery(name, type, EndpointConfiguration);
             try {
@@ -187,6 +188,7 @@ namespace DnsClientX {
                         requestDnsSec,
                         validateDnsSec,
                         queryConfiguration.EnableQNameMinimization,
+                        queryConfiguration.EdnsOptions?.CompactAnswersOk ?? true,
                         queryConfiguration.Rfc5011TrustAnchorStorePath,
                         queryConfiguration.DnsSecSignatureVerifier,
                         cancellationToken).ConfigureAwait(false);
