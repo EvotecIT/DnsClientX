@@ -215,7 +215,7 @@ namespace DnsClientX {
                     index++;
                     break;
                 } else if (token.Equals("CH", StringComparison.OrdinalIgnoreCase) || token.Equals("HS", StringComparison.OrdinalIgnoreCase)) {
-                    AddDiagnostic(state, line, DnsZoneFileDiagnosticSeverity.Error, $"DNS class {token} is not representable by DnsAnswer.");
+                    AddDiagnostic(state, line, DnsZoneFileDiagnosticSeverity.Error, $"Zone-file parsing currently supports IN-class records only; {token} record semantics are unsupported.");
                     return;
                 } else {
                     AddDiagnostic(state, line, DnsZoneFileDiagnosticSeverity.Error, $"Unexpected record token '{token}'.");
@@ -229,7 +229,7 @@ namespace DnsClientX {
             }
 
             string data = BuildRdata(tokens.Skip(index).ToList(), type.Value, state.Origin);
-            state.Records.Add(new DnsAnswer { Name = absoluteOwner, TTL = ttl, Type = type.Value, DataRaw = data });
+            state.Records.Add(new DnsAnswer { Name = absoluteOwner, TTL = ttl, Type = type.Value, DataRaw = data, Class = 1 });
         }
 
         private static string BuildRdata(List<Token> tokens, DnsRecordType type, string? origin) {

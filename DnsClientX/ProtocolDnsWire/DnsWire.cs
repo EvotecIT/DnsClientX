@@ -114,7 +114,7 @@ namespace DnsClientX {
                 string name = reader.ReadName();
                 DnsRecordType type = (DnsRecordType)reader.ReadUInt16();
                 ushort queryClass = reader.ReadUInt16();
-                questions[i] = new DnsQuestion { Name = name, Type = type, OriginalName = name };
+                questions[i] = new DnsQuestion { Name = name, Type = type, OriginalName = name, Class = queryClass };
                 questionClasses[i] = queryClass;
             }
 
@@ -158,6 +158,7 @@ namespace DnsClientX {
             }
 
             int responseCode = (flags & 0x000F) | (extendedRcode << 4);
+            byte[] immutableMessage = (byte[])message.Clone();
             var response = new DnsResponse {
                 ReceivedAtUtc = DateTimeOffset.UtcNow,
                 TransactionId = transactionId,
@@ -171,9 +172,9 @@ namespace DnsClientX {
                 AuthenticData = (flags & 0x0020) != 0,
                 CheckingDisabled = (flags & 0x0010) != 0,
                 Questions = questions,
-                Answers = ToAnswers(answerRecords),
-                Authorities = ToAnswers(authorityRecords),
-                Additional = ToAnswers(additionalRecords),
+                Answers = ToAnswers(immutableMessage, answerRecords),
+                Authorities = ToAnswers(immutableMessage, authorityRecords),
+                Additional = ToAnswers(immutableMessage, additionalRecords),
                 ExtendedDnsErrors = extendedErrors.ToArray(),
                 EdnsClientSubnet = ednsClientSubnet,
                 EdnsUdpPayloadSize = ednsPayloadSize,
@@ -181,7 +182,7 @@ namespace DnsClientX {
                 EdnsDnsSecOk = ednsDnsSecOk,
                 EdnsNsid = nsid,
                 EdnsCookie = cookie,
-                WireMessage = (byte[])message.Clone(),
+                WireMessage = immutableMessage,
                 WireAnswers = answerRecords,
                 WireAuthorities = authorityRecords,
                 WireAdditional = additionalRecords
@@ -214,7 +215,7 @@ namespace DnsClientX {
             return records;
         }
 
-        private static DnsAnswer[] ToAnswers(DnsWireResourceRecord[] records) {
+        private static DnsAnswer[] ToAnswers(byte[] message, DnsWireResourceRecord[] records) {
             var answers = new DnsAnswer[records.Length];
             for (int i = 0; i < records.Length; i++) {
                 answers[i] = new DnsAnswer {
@@ -223,6 +224,7 @@ namespace DnsClientX {
                     TTL = records[i].Ttl,
                     DataRaw = records[i].Data
                 };
+                answers[i].AttachWireEvidence(message, records[i]);
             }
             return answers;
         }

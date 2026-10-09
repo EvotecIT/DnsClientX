@@ -298,10 +298,7 @@ namespace DnsClientX {
                 ApplyAnswerProjection(response, name, type, returnAllTypes);
 
                 if (typedRecords) {
-                    response.TypedAnswers = response.Answers
-                        .Select(a => DnsRecordFactory.Create(a, parseTypedTxtRecords))
-                        .Where(o => o != null)
-                        .ToArray()!;
+                    response.PopulateTypedRecords(parseTypedTxtRecords);
                 }
                 response.RefreshDerivedData();
 

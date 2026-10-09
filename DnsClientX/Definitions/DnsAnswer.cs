@@ -11,8 +11,10 @@ namespace DnsClientX {
     /// See <a href="https://www.rfc-editor.org/rfc/rfc1035">RFC 1035</a>
     /// for the resource record format.
     /// </summary>
-    public struct DnsAnswer {
+    public partial struct DnsAnswer : IEquatable<DnsAnswer> {
         private string _name;
+        private byte[]? _rawRdata;
+        private byte[]? _sourceWireMessage;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DnsAnswer"/> struct.
@@ -23,6 +25,33 @@ namespace DnsClientX {
             Type = DnsRecordType.A;
             TTL = 0;
             DataRaw = string.Empty;
+            Class = null;
+            _rawRdata = null;
+            _sourceWireMessage = null;
+        }
+
+        /// <summary>Gets or sets the DNS CLASS field, or null when the provider omitted it.</summary>
+        /// <remarks>For OPT records this wire field is the advertised UDP payload size.</remarks>
+        [JsonPropertyName("class")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public ushort? Class { get; set; }
+
+        /// <summary>Gets an independent copy of original wire RDATA, or null when unavailable.</summary>
+        /// <remarks>Compression pointers refer to <see cref="SourceWireMessage"/>;
+        /// these bytes are evidence and are not necessarily standalone record encodings.</remarks>
+        [JsonIgnore]
+        public byte[]? RawRdata => _rawRdata == null ? null : (byte[])_rawRdata.Clone();
+
+        /// <summary>Gets an independent copy of the wire message containing this record, or null when unavailable.</summary>
+        /// <remarks>Retains the correct compression-pointer context when records from multiple messages are combined.</remarks>
+        [JsonIgnore]
+        public byte[]? SourceWireMessage => _sourceWireMessage == null ? null : (byte[])_sourceWireMessage.Clone();
+
+        internal void AttachWireEvidence(byte[] immutableMessage, DnsWireResourceRecord record) {
+            Class = record.Class;
+            _sourceWireMessage = immutableMessage;
+            _rawRdata = new byte[record.RdataLength];
+            Buffer.BlockCopy(immutableMessage, record.RdataOffset, _rawRdata, 0, _rawRdata.Length);
         }
         /// <summary>
         /// This is the name of the record.
@@ -143,6 +172,7 @@ namespace DnsClientX {
                 DnsRecordType.NSEC => DnsRecordDataPresentation.Nsec(data),
                 DnsRecordType.TLSA or DnsRecordType.SMIMEA => ConvertTlsaRecord(data),
                 DnsRecordType.SSHFP => DnsRecordDataPresentation.Sshfp(data),
+                DnsRecordType.SVCB or DnsRecordType.HTTPS => DnsSvcbCodec.TryParse(data, out var service) ? service!.ToString() : data,
                 DnsRecordType.PTR => ConvertPtrRecord(data),
                 DnsRecordType.NAPTR => ConvertNaptrRecord(data),
                 DnsRecordType.A or DnsRecordType.AAAA => IPAddress.TryParse(data, out var address) ? address.ToString() : data,

@@ -677,6 +677,18 @@ foreach (var typedAnswer in response.TypedAnswers!) {
 | DS          | `DsRecord`                                            | `KeyTag`, `Algorithm`, `DigestType`, `Digest`                       |
 | NAPTR       | `NaptrRecord`                                         | `Order`, `Preference`, `Flags`, `Services`, `Regexp`, `Replacement` |
 | LOC         | `LocRecord`                                           | `Latitude`, `Longitude`, `Altitude`, `Size`, etc.                   |
+| SVCB, HTTPS | `SvcbRecord`                                          | `Priority`, `Target`, `Alpn`, `Port`, address hints, ECH, `Parameters` |
+
+With `typedRecords: true`, `TypedAnswers`, `TypedAuthorities`, and `TypedAdditional` use the same parsers and TXT parsing option. SVCB and HTTPS share an immutable model and a canonical presentation across wire and JSON responses. Unknown service parameters retain their numeric keys and exact byte values in `Parameters`.
+
+```csharp
+var bindings = await client.Resolve("cloudflare.com", DnsRecordType.HTTPS, typedRecords: true);
+foreach (var record in bindings.TypedAnswers!.OfType<SvcbRecord>()) {
+    Console.WriteLine($"{record.Priority} {record.Target}: {string.Join(", ", record.Alpn)}");
+}
+```
+
+`DataRaw` retains the received text and `Data` supplies the normalized presentation. Wire responses also expose the record's `Class`, `RawRdata`, and `SourceWireMessage`, plus the response's `RawWireMessage`. Byte getters return independent copies. RDATA can contain compression pointers, so retain its source message when interpreting those bytes. JSON responses leave unavailable class and wire evidence null; the library does not infer bytes that the provider did not supply.
 
 **Specialized TXT Record Parsing:**
 

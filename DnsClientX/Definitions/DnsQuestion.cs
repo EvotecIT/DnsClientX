@@ -20,7 +20,13 @@ namespace DnsClientX {
             BaseUri = null;
             RequestFormat = DnsRequestFormat.DnsOverHttps;
             Port = 0;
+            Class = null;
         }
+
+        /// <summary>Gets or sets the question's DNS class, or null when the provider omitted it.</summary>
+        [JsonPropertyName("class")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public ushort? Class { get; set; }
 
         /// <summary>
         /// The FQDN record name requested.
