@@ -274,23 +274,23 @@
     <command:examples>
       <command:example>
         <maml:title>EXAMPLE 1</maml:title>
-        <dev:code>Clear-DnsMultiResolverCache -All</dev:code>
+        <dev:code>Clear-DnsMultiResolverCache</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Clears the entire FastestWins cache.</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
         <maml:title>EXAMPLE 2</maml:title>
-        <dev:code>Clear-DnsMultiResolverCache -DnsProvider @('Value')</dev:code>
+        <dev:code>Clear-DnsMultiResolverCache -ResolverDnsProvider Cloudflare,Google</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Clears cache entries only for the specified provider set.</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
         <maml:title>EXAMPLE 3</maml:title>
-        <dev:code>Clear-DnsMultiResolverCache -ResolverDnsProvider @('Value')</dev:code>
+        <dev:code>Clear-DnsMultiResolverCache -ResolverEndpoint '1.1.1.1:53','https://dns.google/dns-query'</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Clears cache entries only for the specified endpoints.</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -363,9 +363,9 @@
     <command:examples>
       <command:example>
         <maml:title>EXAMPLE 1</maml:title>
-        <dev:code>ConvertFrom-DnsStamp -Stamp 'Value'</dev:code>
+        <dev:code>ConvertFrom-DnsStamp -Stamp 'sdns://AgUAAAAAAAAABzEuMS4xLjEAGm1vemlsbGEuY2xvdWRmbGFyZS1kbnMuY29tCi9kbnMtcXVlcnk'</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Parse a DNS-over-HTTPS stamp</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -432,9 +432,16 @@
     <command:examples>
       <command:example>
         <maml:title>EXAMPLE 1</maml:title>
-        <dev:code>Find-DnsService -Domain 'Value'</dev:code>
+        <dev:code>Find-DnsService -Domain example.com</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Find services under a domain</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 2</maml:title>
+        <dev:code>Find-DnsService -Domain example.com | Where-Object {$_.ServiceName -like '*http*'}</dev:code>
+        <dev:remarks>
+          <maml:para>Filter for a specific service type</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -536,9 +543,16 @@
     <command:examples>
       <command:example>
         <maml:title>EXAMPLE 1</maml:title>
-        <dev:code>Get-DnsResolverSelection -Path 'C:\Path'</dev:code>
+        <dev:code>Get-DnsResolverSelection -Path '.\resolver-score.json'</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Get the recommended resolver selection as an object</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 2</maml:title>
+        <dev:code>Get-DnsResolverSelection -Path '.\resolver-score.json' -AsString</dev:code>
+        <dev:remarks>
+          <maml:para>Get only the raw selected target string for scripting</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -605,9 +619,16 @@
     <command:examples>
       <command:example>
         <maml:title>EXAMPLE 1</maml:title>
-        <dev:code>Get-DnsService -Domain 'Value'</dev:code>
+        <dev:code>Get-DnsService -Domain example.com</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Discover services under a domain</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 2</maml:title>
+        <dev:code>Get-DnsService -Domain example.com | Select-Object ServiceName,Target,Port</dev:code>
+        <dev:remarks>
+          <maml:para>Pipe results to select useful fields</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -680,9 +701,16 @@
     <command:examples>
       <command:example>
         <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>Get-DnsTransportCapability</dev:code>
+        <dev:remarks>
+          <maml:para>List the full core transport capability report</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 2</maml:title>
         <dev:code>Get-DnsTransportCapability -ModernOnly</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Show only the runtime-gated modern transport entries</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -974,16 +1002,23 @@
     <command:examples>
       <command:example>
         <maml:title>EXAMPLE 1</maml:title>
-        <dev:code>Get-DnsZone -Zone 'Value' -Server 'Value'</dev:code>
+        <dev:code>Get-DnsZone -Zone example.com -Server 127.0.0.1</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Transfer a zone (default port 53)</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
         <maml:title>EXAMPLE 2</maml:title>
-        <dev:code>Get-DnsZone -Zone 'Value' -Recursive</dev:code>
+        <dev:code>Get-DnsZone -Zone example.com -Server 127.0.0.1 -Port 5353</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Transfer a zone from a custom port</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 3</maml:title>
+        <dev:code>Get-DnsZone -Zone example.com -Recursive</dev:code>
+        <dev:remarks>
+          <maml:para>Discover authoritative servers and transfer from the first one that allows AXFR</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -6589,9 +6624,16 @@ specified. When false, returns simple TXT records.</maml:para>
     <command:examples>
       <command:example>
         <maml:title>EXAMPLE 1</maml:title>
-        <dev:code>Test-DnsResolverCatalog -ResolverEndpoint @('Value')</dev:code>
+        <dev:code>Test-DnsResolverCatalog -ResolverEndpoint udp@1.1.1.1:53,doh@https://dns.google/dns-query</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Validate inline resolver endpoint syntax</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 2</maml:title>
+        <dev:code>Test-DnsResolverCatalog -ResolverEndpointFile .\resolvers.txt</dev:code>
+        <dev:remarks>
+          <maml:para>Validate resolver endpoints from a file</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>

@@ -25,9 +25,17 @@ Checks inline resolver endpoints, resolver endpoint files, and resolver endpoint
 
 ### EXAMPLE 1
 ```powershell
-Test-DnsResolverCatalog -ResolverEndpoint @('Value')
+Test-DnsResolverCatalog -ResolverEndpoint udp@1.1.1.1:53,doh@https://dns.google/dns-query
 ```
 
+Validate inline resolver endpoint syntax
+
+### EXAMPLE 2
+```powershell
+Test-DnsResolverCatalog -ResolverEndpointFile .\resolvers.txt
+```
+
+Validate resolver endpoints from a file
 
 ## PARAMETERS
 

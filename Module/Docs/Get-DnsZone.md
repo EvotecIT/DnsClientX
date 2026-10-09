@@ -30,15 +30,24 @@ Retrieves all records for the specified zone using TCP based zone transfer.
 
 ### EXAMPLE 1
 ```powershell
-Get-DnsZone -Zone 'Value' -Server 'Value'
+Get-DnsZone -Zone example.com -Server 127.0.0.1
 ```
 
+Transfer a zone (default port 53)
 
 ### EXAMPLE 2
 ```powershell
-Get-DnsZone -Zone 'Value' -Recursive
+Get-DnsZone -Zone example.com -Server 127.0.0.1 -Port 5353
 ```
 
+Transfer a zone from a custom port
+
+### EXAMPLE 3
+```powershell
+Get-DnsZone -Zone example.com -Recursive
+```
+
+Discover authoritative servers and transfer from the first one that allows AXFR
 
 ## PARAMETERS
 

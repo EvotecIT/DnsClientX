@@ -40,21 +40,24 @@ Clears the in-memory cache used to remember the fastest endpoint for a given set
 
 ### EXAMPLE 1
 ```powershell
-Clear-DnsMultiResolverCache -All
+Clear-DnsMultiResolverCache
 ```
 
+Clears the entire FastestWins cache.
 
 ### EXAMPLE 2
 ```powershell
-Clear-DnsMultiResolverCache -DnsProvider @('Value')
+Clear-DnsMultiResolverCache -ResolverDnsProvider Cloudflare,Google
 ```
 
+Clears cache entries only for the specified provider set.
 
 ### EXAMPLE 3
 ```powershell
-Clear-DnsMultiResolverCache -ResolverDnsProvider @('Value')
+Clear-DnsMultiResolverCache -ResolverEndpoint '1.1.1.1:53','https://dns.google/dns-query'
 ```
 
+Clears cache entries only for the specified endpoints.
 
 ## PARAMETERS
 
