@@ -10,61 +10,25 @@ Resolves DNS records (A, AAAA, MX, TXT, …) over UDP, TCP, DoT, DoH, QUIC, or m
 
 Supports single-provider queries, explicit servers with transport selection, multiple providers with FirstSuccess/FastestWins/SequentialFallback/RoundRobin, direct resolver endpoints, DNSSEC, EDNS/ECS, concurrency control, and TTL-based response caching.
 
+Specify either Name or Pattern. When no resolver source is specified, the library's default resolver is used. Timeout, retry, response, typed-record, and DNSSEC options apply to every resolver source.
+
 ## SYNTAX
-### ServerName (Default)
+### Name (Default)
 ```powershell
-Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverDnsProvider <DnsEndpoint[]>] [-ResolverSelectionPath <string>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
-### DnsProvider
+### Pattern
 ```powershell
-Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
-```
-
-### ResolverEndpoint
-```powershell
-Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
-```
-
-### ResolverDnsProvider
-```powershell
-Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] -ResolverDnsProvider <DnsEndpoint[]> [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
-```
-
-### ResolverSelection
-```powershell
-Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] -ResolverSelectionPath <string> [-DnsSelectionStrategy <DnsSelectionStrategy>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
-```
-
-### PatternDnsProvider
-```powershell
-Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
-```
-
-### PatternServerName
-```powershell
-Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
-```
-
-### PatternResolverEndpoint
-```powershell
-Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
-```
-
-### PatternResolverDnsProvider
-```powershell
-Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] -ResolverDnsProvider <DnsEndpoint[]> [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
-```
-
-### PatternResolverSelection
-```powershell
-Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] -ResolverSelectionPath <string> [-DnsSelectionStrategy <DnsSelectionStrategy>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverDnsProvider <DnsEndpoint[]>] [-ResolverSelectionPath <string>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 Resolves DNS records (A, AAAA, MX, TXT, …) over UDP, TCP, DoT, DoH, QUIC, or multicast with optional multi-resolver strategies.
 
 Supports single-provider queries, explicit servers with transport selection, multiple providers with FirstSuccess/FastestWins/SequentialFallback/RoundRobin, direct resolver endpoints, DNSSEC, EDNS/ECS, concurrency control, and TTL-based response caching.
+
+Specify either Name or Pattern. When no resolver source is specified, the library's default resolver is used. Timeout, retry, response, typed-record, and DNSSEC options apply to every resolver source.
 
 ## EXAMPLES
 
@@ -80,12 +44,6 @@ Resolve-Dns -Pattern 'Value'
 ```
 
 
-### EXAMPLE 3
-```powershell
-Resolve-Dns -Pattern 'Value' -ResolverDnsProvider @('Value')
-```
-
-
 ## PARAMETERS
 
 ### -AllServers
@@ -95,7 +53,7 @@ When not specified, only the first server is queried for faster results.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: ServerName, PatternServerName
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -111,7 +69,7 @@ Resolves endpoint hostnames through an IP-literal UDP/TCP endpoint, such as udp@
 
 ```yaml
 Type: String
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -127,7 +85,7 @@ Sets the CD (checking disabled) bit on outgoing queries.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -143,7 +101,7 @@ Sets the EDNS Client Subnet (ECS) in CIDR notation, for example 192.0.2.0/24.
 
 ```yaml
 Type: String
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -163,7 +121,7 @@ If not specified, the default provider System (UDP) is used.
 
 ```yaml
 Type: DnsEndpoint[]
-Parameter Sets: DnsProvider, PatternDnsProvider
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values: System, SystemTcp, Cloudflare, CloudflareSecurity, CloudflareFamily, CloudflareWireFormat, CloudflareWireFormatPost, CloudflareJsonPost, Google, GoogleWireFormat, GoogleWireFormatPost, GoogleJsonPost, Quad9, Quad9ECS, Quad9Unsecure, OpenDNS, OpenDNSFamily, CloudflareQuic, Quad9Http3, Quad9Quic, GoogleQuic, AdGuard, AdGuardFamily, AdGuardNonFiltering, NextDNS, DnsCryptCloudflare, DnsCryptQuad9, DnsCryptRelay, RootServer, CloudflareOdoh, Custom
 
@@ -179,7 +137,7 @@ Local optional DNSSEC provider DLL path, with its dependencies beside it. Enable
 
 ```yaml
 Type: String
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -195,7 +153,7 @@ How to choose among built-in provider hostnames when a single provider exposes m
 
 ```yaml
 Type: DnsSelectionStrategy
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values: First, Random, Failover
 
@@ -211,7 +169,7 @@ Sets the EDNS UDP buffer size. When specified, EDNS is enabled automatically.
 
 ```yaml
 Type: Int32
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -227,7 +185,7 @@ Enables EDNS on outgoing queries.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -245,7 +203,7 @@ This option stops on the first server that returns DnsResponseCode.NoError.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: ServerName, PatternServerName
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -261,7 +219,7 @@ Cache duration in minutes for FastestWins strategy.
 
 ```yaml
 Type: Int32
-Parameter Sets: DnsProvider, ResolverEndpoint, ResolverDnsProvider, PatternDnsProvider, PatternResolverEndpoint, PatternResolverDnsProvider
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -279,7 +237,7 @@ If specified, the full response is provided (answer, authority, and additional s
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -295,7 +253,7 @@ Optional preferred HTTP protocol version, for example 2.0 or 3.0.
 
 ```yaml
 Type: Version
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -311,7 +269,7 @@ Ignore TLS certificate validation errors.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -327,7 +285,7 @@ Maximal TTL allowed for cached entries (seconds). 0 leaves library default.
 
 ```yaml
 Type: Int32
-Parameter Sets: DnsProvider, ResolverEndpoint, ResolverDnsProvider, PatternDnsProvider, PatternResolverEndpoint, PatternResolverDnsProvider
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -343,7 +301,7 @@ Optional cap on client-side query concurrency for single-resolver operations. Wh
 
 ```yaml
 Type: Int32
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -359,7 +317,7 @@ Maximum HTTP connections allowed per server. When 0, the library default is used
 
 ```yaml
 Type: Int32
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -375,7 +333,7 @@ Limits concurrent queries across endpoints. Defaults to 4.
 
 ```yaml
 Type: Int32
-Parameter Sets: DnsProvider, ResolverEndpoint, ResolverDnsProvider, PatternDnsProvider, PatternResolverEndpoint, PatternResolverDnsProvider
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -391,7 +349,7 @@ The name of the DNS record to query for
 
 ```yaml
 Type: String[]
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection
+Parameter Sets: Name
 Aliases: None
 Possible values:
 
@@ -409,7 +367,7 @@ specified. When false, returns simple TXT records.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -425,7 +383,7 @@ Pattern to expand into multiple DNS queries.
 
 ```yaml
 Type: String
-Parameter Sets: PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Pattern
 Aliases: None
 Possible values:
 
@@ -441,7 +399,7 @@ Limits concurrent queries per endpoint when using the multi-resolver. Set to a p
 
 ```yaml
 Type: Int32
-Parameter Sets: DnsProvider, ResolverEndpoint, ResolverDnsProvider, PatternDnsProvider, PatternResolverEndpoint, PatternResolverDnsProvider
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -457,7 +415,7 @@ Optional port override for the -Server path. If omitted, the selected request fo
 
 ```yaml
 Type: Int32
-Parameter Sets: ServerName, PatternServerName
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -473,7 +431,7 @@ Optional web proxy URI for HTTP-based transports.
 
 ```yaml
 Type: Uri
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -489,7 +447,7 @@ If specified, the order of servers defined in Server is randomized before queryi
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: ServerName, PatternServerName
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -505,7 +463,7 @@ Request DNSSEC data (sets the DO bit).
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -521,7 +479,7 @@ Explicit request format for the -Server path, such as DnsOverUDP, DnsOverTCP, Dn
 
 ```yaml
 Type: DnsRequestFormat
-Parameter Sets: ServerName, PatternServerName
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values: DnsOverHttps, DnsOverHttpsJSON, DnsOverHttpsPOST, DnsOverHttpsWirePost, DnsOverHttpsJSONPOST, DnsOverUDP, DnsOverTCP, DnsOverTLS, DnsOverQuic, DnsOverHttp2, DnsOverHttp3, DnsCrypt, DnsCryptRelay, ObliviousDnsOverHttps, DnsOverGrpc, Multicast
 
@@ -537,7 +495,7 @@ Requests the NSID EDNS option so compatible servers may include resolver identit
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -555,11 +513,11 @@ This enables strategy control (FirstSuccess/FastestWins/SequentialFallback) and 
 
 ```yaml
 Type: DnsEndpoint[]
-Parameter Sets: ResolverDnsProvider, PatternResolverDnsProvider
+Parameter Sets: Name, Pattern
 Aliases: DnsProviders
 Possible values: System, SystemTcp, Cloudflare, CloudflareSecurity, CloudflareFamily, CloudflareWireFormat, CloudflareWireFormatPost, CloudflareJsonPost, Google, GoogleWireFormat, GoogleWireFormatPost, GoogleJsonPost, Quad9, Quad9ECS, Quad9Unsecure, OpenDNS, OpenDNSFamily, CloudflareQuic, Quad9Http3, Quad9Quic, GoogleQuic, AdGuard, AdGuardFamily, AdGuardNonFiltering, NextDNS, DnsCryptCloudflare, DnsCryptQuad9, DnsCryptRelay, RootServer, CloudflareOdoh, Custom
 
-Required: True
+Required: False
 Position: named
 Default value: None
 Accept pipeline input: False
@@ -571,7 +529,7 @@ One or more resolver endpoints in string format. Accepted: "1.1.1.1:53", "[2606:
 
 ```yaml
 Type: String[]
-Parameter Sets: ResolverEndpoint, PatternResolverEndpoint
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -587,7 +545,7 @@ One or more files containing resolver endpoints for the multi-resolver. Blank li
 
 ```yaml
 Type: String[]
-Parameter Sets: ResolverEndpoint, PatternResolverEndpoint
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -603,7 +561,7 @@ One or more HTTP or HTTPS URLs exposing resolver endpoints for the multi-resolve
 
 ```yaml
 Type: String[]
-Parameter Sets: ResolverEndpoint, PatternResolverEndpoint
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -619,11 +577,11 @@ Path to a saved resolver score snapshot whose recommended resolver should be reu
 
 ```yaml
 Type: String
-Parameter Sets: ResolverSelection, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
-Required: True
+Required: False
 Position: named
 Default value: None
 Accept pipeline input: False
@@ -635,7 +593,7 @@ Multi-resolver strategy to use when multiple endpoints are provided.
 
 ```yaml
 Type: MultiResolverStrategy
-Parameter Sets: DnsProvider, ResolverEndpoint, ResolverDnsProvider, PatternDnsProvider, PatternResolverEndpoint, PatternResolverDnsProvider
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values: FirstSuccess, FastestWins, SequentialFallback, RoundRobin, Random
 
@@ -651,7 +609,7 @@ Respect endpoint-level timeouts if present. When not set, the cmdlet's -TimeOut 
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: DnsProvider, ResolverEndpoint, ResolverDnsProvider, PatternDnsProvider, PatternResolverEndpoint, PatternResolverDnsProvider
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -667,7 +625,7 @@ Enables response caching based on TTLs for repeated queries of the same (name,ty
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: DnsProvider, ResolverEndpoint, ResolverDnsProvider, PatternDnsProvider, PatternResolverEndpoint, PatternResolverDnsProvider
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -683,7 +641,7 @@ Number of retry attempts on transient errors.
 
 ```yaml
 Type: Int32
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -699,7 +657,7 @@ Delay between retry attempts in milliseconds.
 
 ```yaml
 Type: Int32
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -717,7 +675,7 @@ Once a server is specified, the query will be sent to that server.
 
 ```yaml
 Type: List`1
-Parameter Sets: ServerName, PatternServerName
+Parameter Sets: Name, Pattern
 Aliases: ServerName
 Possible values:
 
@@ -733,7 +691,7 @@ Specifies the timeout for the DNS query, in milliseconds. If the DNS server does
 
 ```yaml
 Type: Int32
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -749,7 +707,7 @@ The type of the record to query for. If not specified, A record is queried.
 
 ```yaml
 Type: DnsRecordType[]
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values: Reserved, A, NS, MD, MF, CNAME, SOA, MB, MG, MR, NULL, WKS, PTR, HINFO, MINFO, MX, TXT, RP, AFSDB, X25, ISDN, RT, NSAP, NSAP_PTR, SIG, PX, AAAA, LOC, NXT, SRV, ATMA, NAPTR, KX, CERT, A6, DNAME, SINK, OPT, APL, DS, SSHFP, IPSECKEY, RRSIG, NSEC, DNSKEY, DHCID, NSEC3, NSEC3PARAM, TLSA, SMIMEA, HIP, NINFO, RKEY, TALINK, CDS, CDNSKEY, OPENPGPKEY, CSYNC, ZONEMD, SVCB, HTTPS, SPF, LP, TKEY, TSIG, IXFR, AXFR, MAILB, MAILA, ANY, URI, CAA, AVC, DOA, AMTRELAY, RESINFO, TA, DLV
 
@@ -765,7 +723,7 @@ When set, attempts to parse answers into typed record objects.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -781,7 +739,7 @@ Optional User-Agent header for HTTP-based transports.
 
 ```yaml
 Type: String
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -797,7 +755,7 @@ Controls whether UDP queries may fall back to TCP when truncated.
 
 ```yaml
 Type: Boolean
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 
@@ -813,7 +771,7 @@ Validate DNSSEC signatures. Implies requesting DNSSEC data.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
 

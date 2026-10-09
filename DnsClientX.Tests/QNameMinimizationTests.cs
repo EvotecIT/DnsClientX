@@ -78,7 +78,8 @@ namespace DnsClientX.Tests {
 
             using var client = new ClientX();
             client.EndpointConfiguration.EnableQNameMinimization = false;
-            client.EndpointConfiguration.TimeOut = 100;
+            // Allow scheduling latency on hosted runners while keeping dead-server failover bounded.
+            client.EndpointConfiguration.TimeOut = 1000;
             DnsResponse response = await client.ResolveFromRoot(
                 "www.example.com", DnsRecordType.A, new[] { "127.0.0.1" },
                 maxHops: 10, port: port, cancellationToken: timeout.Token);
@@ -122,7 +123,7 @@ namespace DnsClientX.Tests {
 
             using var client = new ClientX();
             client.EndpointConfiguration.EnableQNameMinimization = false;
-            client.EndpointConfiguration.TimeOut = 100;
+            client.EndpointConfiguration.TimeOut = 1000;
             DnsResponse response = await client.ResolveFromRoot(
                 "www.child.test", DnsRecordType.A, new[] { "127.0.0.1" },
                 maxHops: 10, port: port, cancellationToken: timeout.Token);
