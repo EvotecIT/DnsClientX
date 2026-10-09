@@ -17,7 +17,8 @@ public class DnsSecCompactRootTests {
         var denial = fixture.Nsec(Missing, "\\000." + Missing, DnsRecordType.NSEC, DnsRecordType.RRSIG, DnsRecordType.NXNAME);
         var observed = new List<(DnsRecordType Type, bool Compact)>();
         var response = await Resolve(fixture, Missing, compact, (_, _) => denial, observed);
-        Assert.Equal(DnsSecValidationStatus.Secure, response.DnsSecValidationStatus);
+        Assert.True(response.DnsSecValidationStatus == DnsSecValidationStatus.Secure,
+            $"{response.DnsSecValidationStatus}: {response.DnsSecValidationMessage}; {response.Error}");
         Assert.Equal(DnsResponseCode.NXDomain, response.EffectiveStatus);
         Assert.Contains(observed, query => query.Type == DnsRecordType.DNSKEY);
         Assert.Contains(observed, query => query.Type == DnsRecordType.DS);
@@ -46,6 +47,14 @@ public class DnsSecCompactRootTests {
 
     private static async Task<DnsResponse> Resolve(DnsSecSignedFixture fixture, string name, bool compact,
         Func<string, DnsRecordType, DnsResponse> answer, List<(DnsRecordType Type, bool Compact)> observed) {
+        // Sign trust material before the query deadline starts. The loopback server
+        // should answer prepared records, not compete with parallel RSA tests.
+        string zone = DnsWireNameCodec.TrimTrailingRootDot(fixture.Zone.Name);
+        var material = new Dictionary<(string Owner, DnsRecordType Type), DnsResponse> {
+            [(".", DnsRecordType.DNSKEY)] = await fixture.LookupAsync(".", DnsRecordType.DNSKEY, CancellationToken.None),
+            [(zone, DnsRecordType.DNSKEY)] = await fixture.LookupAsync(zone, DnsRecordType.DNSKEY, CancellationToken.None),
+            [(zone, DnsRecordType.DS)] = await fixture.LookupAsync(zone, DnsRecordType.DS, CancellationToken.None)
+        };
         using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         int port = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -74,7 +83,7 @@ public class DnsSecCompactRootTests {
                     int questionEnd = reader.Position;
                     observed.Add((type, (query.Buffer[query.Buffer.Length - 4] & 0x40) != 0));
                     var response = type is DnsRecordType.DNSKEY or DnsRecordType.DS
-                        ? await fixture.LookupAsync(owner, type, deadline.Token) : answer(owner, type);
+                        ? material[(owner, type)] : answer(owner, type);
                     byte[] bytes = Serialize(query.Buffer, questionEnd, response);
                     await udp.SendAsync(bytes, bytes.Length, query.RemoteEndPoint);
                 }
