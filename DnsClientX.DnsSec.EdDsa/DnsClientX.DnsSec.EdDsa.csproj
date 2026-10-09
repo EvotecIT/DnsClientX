@@ -4,9 +4,9 @@
     <Description>Optional RFC 8080 Ed25519 and Ed448 DNSSEC signature verification for DnsClientX.</Description>
     <AssemblyName>DnsClientX.DnsSec.EdDsa</AssemblyName>
     <RootNamespace>DnsClientX.DnsSec.EdDsa</RootNamespace>
-    <VersionPrefix>2.1.0</VersionPrefix>
-    <AssemblyVersion>2.1.0</AssemblyVersion>
-    <FileVersion>2.1.0</FileVersion>
+    <VersionPrefix>2.1.1</VersionPrefix>
+    <AssemblyVersion>2.1.1</AssemblyVersion>
+    <FileVersion>2.1.1</FileVersion>
     <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`Windows`))' ">netstandard2.0;net472;net8.0;net10.0</TargetFrameworks>
     <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`OSX`))' Or '$([MSBuild]::IsOsPlatform(`Linux`))' ">netstandard2.0;net8.0;net10.0</TargetFrameworks>
     <LangVersion>Latest</LangVersion>
