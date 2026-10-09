@@ -21,12 +21,17 @@ namespace DnsClientX {
             RequestFormat = DnsRequestFormat.DnsOverHttps;
             Port = 0;
             Class = null;
+            UnicastResponseRequested = null;
         }
 
         /// <summary>Gets or sets the question's DNS class, or null when the provider omitted it.</summary>
         [JsonPropertyName("class")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public ushort? Class { get; set; }
+
+        /// <summary>Gets the mDNS question's unicast-response bit, or null outside multicast DNS.</summary>
+        [JsonIgnore]
+        public bool? UnicastResponseRequested { get; internal set; }
 
         /// <summary>
         /// The FQDN record name requested.

@@ -253,6 +253,9 @@ namespace DnsClientX {
             if (type == DnsRecordType.NAPTR && values.Length == 6) {
                 return $"{values[0]} {values[1]} {tokens[2].Raw} {tokens[3].Raw} {tokens[4].Raw} {values[5]}";
             }
+            if ((type == DnsRecordType.SVCB || type == DnsRecordType.HTTPS) && values.Length >= 2) {
+                return string.Join(" ", new[] { values[0], values[1] }.Concat(tokens.Skip(2).Select(token => token.Raw)));
+            }
             return string.Join(" ", values);
         }
 

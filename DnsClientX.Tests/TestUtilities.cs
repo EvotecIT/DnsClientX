@@ -124,32 +124,31 @@ namespace DnsClientX.Tests {
 
         /// <summary>Reserves a loopback DNS port for both protocols; callers own both bound sockets.</summary>
         internal static (UdpClient Udp, TcpListener Tcp) BindUdpAndTcp() {
-            // TCP and UDP can have different port exclusions. Reserve UDP first and retain
-            // rejected candidates so the allocator cannot repeatedly choose the same port.
-            var rejected = new List<UdpClient>();
+            // Windows can allocate a UDP port inside a TCP exclusion range. Let the TCP
+            // allocator choose an eligible port first, then reserve UDP on the same port.
+            // Retain rejected candidates so the allocator cannot repeatedly reuse them.
+            var rejected = new List<TcpListener>();
             SocketException? lastFailure = null;
             try {
                 for (int attempt = 0; attempt < 16; attempt++) {
-                    var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
-                    int port = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
-                    var tcp = new TcpListener(IPAddress.Loopback, port);
+                    var tcp = new TcpListener(IPAddress.Loopback, 0);
+                    tcp.Start();
+                    int port = ((IPEndPoint)tcp.LocalEndpoint).Port;
                     try {
-                        tcp.Start();
+                        var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
                         return (udp, tcp);
                     } catch (SocketException exception) when (exception.SocketErrorCode is SocketError.AddressAlreadyInUse or SocketError.AccessDenied) {
-                        rejected.Add(udp);
+                        rejected.Add(tcp);
                         lastFailure = exception;
-                        tcp.Stop();
                     } catch {
-                        udp.Dispose();
                         tcp.Stop();
                         throw;
                     }
                 }
                 throw new IOException("Could not reserve a local DNS port for both UDP and TCP.", lastFailure);
             } finally {
-                foreach (var udp in rejected) {
-                    udp.Dispose();
+                foreach (var tcp in rejected) {
+                    tcp.Stop();
                 }
             }
         }

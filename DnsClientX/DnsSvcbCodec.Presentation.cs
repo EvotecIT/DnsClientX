@@ -20,7 +20,10 @@ internal static partial class DnsSvcbCodec {
                 int separator = token.Raw.IndexOf('=');
                 string name = separator < 0 ? token.Raw : token.Raw.Substring(0, separator);
                 if (!TryKey(name, out ushort key, out bool numeric)) return false;
-                byte[] value = DecodeString(separator < 0 ? string.Empty : token.Raw.Substring(separator + 1));
+                string presentationValue = separator < 0 ? string.Empty : token.Raw.Substring(separator + 1);
+                // These named parameter grammars explicitly prohibit DNS escape sequences.
+                if (!numeric && (key is 0 or 3 or 4 or 6 or 9) && presentationValue.IndexOf('\\') >= 0) return false;
+                byte[] value = DecodeString(presentationValue);
                 parameters.Add(new SvcbParameter(key, numeric ? value : EncodeParameter(key, value)));
             }
             record = new SvcbRecord(priority, tokens[1].Raw, parameters);
@@ -47,7 +50,8 @@ internal static partial class DnsSvcbCodec {
                 }
                 return keys.OrderBy(required => required).SelectMany(required => new[] { (byte)(required >> 8), (byte)required }).ToArray();
             case 1:
-                return DecodeList(value).SelectMany(identifier => {
+            case 10:
+                return DecodeList(value, allowEmpty: key == 10).SelectMany(identifier => {
                     if (identifier.Length > byte.MaxValue) throw new FormatException("ALPN identifier is too long.");
                     return new[] { (byte)identifier.Length }.Concat(identifier);
                 }).ToArray();
@@ -64,6 +68,10 @@ internal static partial class DnsSvcbCodec {
                 }).ToArray();
             case 5:
                 return Convert.FromBase64String(text);
+            case 9:
+                return EncodeGroups(text);
+            case 12:
+                return EncodeTransportWeights(text);
             default:
                 return value;
         }
@@ -76,10 +84,14 @@ internal static partial class DnsSvcbCodec {
             case 0:
                 return name + "=" + string.Join(",", ReadKeys(value).Select(KeyName));
             case 1:
+            case 10:
                 // Comma-list escaping is applied before DNS character-string escaping.
+                if (parameter.Key == 10 && value.Length == 1 && value[0] == 0) return "key10=" + Quote(value);
                 var list = new List<byte>();
-                foreach (string identifier in ReadAlpn(value)) {
-                    if (list.Count > 0) list.Add((byte)',');
+                bool first = true;
+                foreach (string identifier in ReadAlpn(value, allowEmpty: parameter.Key == 10)) {
+                    if (!first) list.Add((byte)',');
+                    first = false;
                     foreach (char octet in identifier) {
                         if (octet is ',' or '\\') list.Add((byte)'\\');
                         list.Add((byte)octet);
@@ -88,6 +100,7 @@ internal static partial class DnsSvcbCodec {
                 return name + "=" + Quote(list.ToArray());
             case 2:
             case 8:
+            case 11:
                 return name;
             case 3:
                 return name + "=" + ((value[0] << 8) | value[1]).ToString(CultureInfo.InvariantCulture);
@@ -103,6 +116,15 @@ internal static partial class DnsSvcbCodec {
                 return name + "=" + string.Join(",", addresses);
             case 5:
                 return name + "=" + Convert.ToBase64String(value);
+            case 9:
+                return name + "=" + string.Join(",", ReadKeys(value).Select(group => group.ToString(CultureInfo.InvariantCulture)));
+            case 12:
+                // Preserve received weight octets, including values above 100. The draft
+                // clamps their interpretation, so generic notation retains exact evidence.
+                return ReadTransportWeights(value).Any(entry => entry.Value > 100 || entry.Key.Any(character => character is ',' or ':' || char.IsWhiteSpace(character)))
+                    ? "key12=" + Quote(value)
+                    : name + "=" + Quote(Encoding.ASCII.GetBytes(string.Join(",", ReadTransportWeights(value)
+                        .Select(entry => entry.Key + ":" + entry.Value.ToString(CultureInfo.InvariantCulture)))));
             default:
                 return name + "=" + Quote(value);
         }
@@ -132,11 +154,12 @@ internal static partial class DnsSvcbCodec {
         return bytes.ToArray();
     }
 
-    private static IEnumerable<byte[]> DecodeList(byte[] bytes) {
+    private static IEnumerable<byte[]> DecodeList(byte[] bytes, bool allowEmpty = false) {
+        if (allowEmpty && bytes.Length == 0) yield break;
         var item = new List<byte>();
         for (int index = 0; index <= bytes.Length; index++) {
             if (index == bytes.Length || bytes[index] == (byte)',') {
-                if (item.Count == 0) throw new FormatException("SVCB list items must be nonempty.");
+                if (!allowEmpty && item.Count == 0) throw new FormatException("SVCB list items must be nonempty.");
                 yield return item.ToArray();
                 item.Clear();
             } else if (bytes[index] == (byte)'\\') {

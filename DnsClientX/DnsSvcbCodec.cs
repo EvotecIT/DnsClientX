@@ -10,6 +10,7 @@ internal static partial class DnsSvcbCodec {
     internal static string KeyName(ushort key) => key switch {
         0 => "mandatory", 1 => "alpn", 2 => "no-default-alpn", 3 => "port",
         4 => "ipv4hint", 5 => "ech", 6 => "ipv6hint", 7 => "dohpath", 8 => "ohttp",
+        9 => "tls-supported-groups", 10 => "docpath", 11 => "pvd", 12 => "oots",
         _ => "key" + key.ToString(CultureInfo.InvariantCulture)
     };
 
@@ -17,7 +18,7 @@ internal static partial class DnsSvcbCodec {
         numeric = name.StartsWith("key", StringComparison.Ordinal);
         if (numeric) return ushort.TryParse(name.Substring(3), NumberStyles.None, CultureInfo.InvariantCulture, out key)
             && name == "key" + key.ToString(CultureInfo.InvariantCulture);
-        for (ushort known = 0; known <= 8; known++) {
+        for (ushort known = 0; known <= 12; known++) {
             if (name == KeyName(known)) { key = known; return true; }
         }
         key = 0;
@@ -58,10 +59,11 @@ internal static partial class DnsSvcbCodec {
         bool valid = parameter.Key switch {
             0 => value.Length > 0 && value.Length % 2 == 0,
             1 => value.Length > 0,
-            2 or 8 => value.Length == 0,
+            2 or 8 or 11 => value.Length == 0,
             3 => value.Length == 2,
             4 => value.Length > 0 && value.Length % 4 == 0,
             6 => value.Length > 0 && value.Length % 16 == 0,
+            9 => value.Length > 0 && value.Length % 2 == 0,
             _ => true
         };
         if (!valid) throw new ArgumentException("SVCB " + parameter.Name + " parameter has an invalid length.");
@@ -73,6 +75,10 @@ internal static partial class DnsSvcbCodec {
             }
         }
         if (parameter.Key == 1) ReadAlpn(value);
+        if (parameter.Key == 9 && ReadKeys(value).Distinct().Count() != value.Length / 2)
+            throw new ArgumentException("SVCB tls-supported-groups contains duplicate groups.");
+        if (parameter.Key == 10) ReadAlpn(value, allowEmpty: true);
+        if (parameter.Key == 12) ReadTransportWeights(value);
     }
 
     internal static void ValidateRecord(SvcbRecord record) {
@@ -92,11 +98,11 @@ internal static partial class DnsSvcbCodec {
         return keys;
     }
 
-    internal static string[] ReadAlpn(byte[] bytes) {
+    internal static string[] ReadAlpn(byte[] bytes, bool allowEmpty = false) {
         var protocols = new List<string>();
         for (int offset = 0; offset < bytes.Length;) {
             int length = bytes[offset++];
-            if (length == 0 || offset + length > bytes.Length) throw new ArgumentException("SVCB alpn value contains an empty or truncated identifier.");
+            if (!allowEmpty && length == 0 || offset + length > bytes.Length) throw new ArgumentException("SVCB length-prefixed string is empty or truncated.");
             var identifier = new char[length];
             for (int index = 0; index < length; index++) identifier[index] = (char)bytes[offset + index];
             protocols.Add(new string(identifier));

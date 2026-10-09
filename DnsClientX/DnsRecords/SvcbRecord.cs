@@ -24,34 +24,34 @@ public sealed class SvcbRecord {
 
     /// <summary>Gets the keys explicitly required by the mandatory parameter.</summary>
     [JsonIgnore]
-    public IReadOnlyList<ushort> MandatoryKeys => Array.AsReadOnly(Parameters.TryGetValue(0, out var parameter)
+    public IReadOnlyList<ushort> MandatoryKeys => IsAliasMode ? Array.Empty<ushort>() : Array.AsReadOnly(Parameters.TryGetValue(0, out var parameter)
         ? DnsSvcbCodec.ReadKeys(parameter.Bytes) : Array.Empty<ushort>());
 
     /// <summary>Gets ALPN identifiers as octet-preserving strings.</summary>
     [JsonIgnore]
-    public IReadOnlyList<string> Alpn => Array.AsReadOnly(Parameters.TryGetValue(1, out var parameter)
+    public IReadOnlyList<string> Alpn => IsAliasMode ? Array.Empty<string>() : Array.AsReadOnly(Parameters.TryGetValue(1, out var parameter)
         ? DnsSvcbCodec.ReadAlpn(parameter.Bytes) : Array.Empty<string>());
 
     /// <summary>Gets whether the no-default-alpn parameter is present.</summary>
     [JsonIgnore]
-    public bool NoDefaultAlpn => Parameters.ContainsKey(2);
+    public bool NoDefaultAlpn => !IsAliasMode && Parameters.ContainsKey(2);
 
     /// <summary>Gets the advertised port, or null when no port parameter is present.</summary>
     [JsonIgnore]
-    public ushort? Port => Parameters.TryGetValue(3, out var parameter)
+    public ushort? Port => !IsAliasMode && Parameters.TryGetValue(3, out var parameter)
         ? (ushort)((parameter.Bytes[0] << 8) | parameter.Bytes[1]) : null;
 
     /// <summary>Gets independent copies of the advertised IPv4 address hints.</summary>
     [JsonIgnore]
-    public IReadOnlyList<IPAddress> Ipv4Hints => ReadAddresses(4, 4);
+    public IReadOnlyList<IPAddress> Ipv4Hints => IsAliasMode ? Array.Empty<IPAddress>() : ReadAddresses(4, 4);
 
     /// <summary>Gets independent copies of the advertised IPv6 address hints.</summary>
     [JsonIgnore]
-    public IReadOnlyList<IPAddress> Ipv6Hints => ReadAddresses(6, 16);
+    public IReadOnlyList<IPAddress> Ipv6Hints => IsAliasMode ? Array.Empty<IPAddress>() : ReadAddresses(6, 16);
 
     /// <summary>Gets an independent copy of the ECH configuration, or null when absent.</summary>
     [JsonIgnore]
-    public byte[]? EchConfiguration => Parameters.TryGetValue(5, out var parameter) ? parameter.Value : null;
+    public byte[]? EchConfiguration => !IsAliasMode && Parameters.TryGetValue(5, out var parameter) ? parameter.Value : null;
 
     internal string OriginalTarget { get; }
 

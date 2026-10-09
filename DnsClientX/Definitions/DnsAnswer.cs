@@ -26,6 +26,7 @@ namespace DnsClientX {
             TTL = 0;
             DataRaw = string.Empty;
             Class = null;
+            CacheFlush = null;
             _rawRdata = null;
             _sourceWireMessage = null;
         }
@@ -35,6 +36,11 @@ namespace DnsClientX {
         [JsonPropertyName("class")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public ushort? Class { get; set; }
+
+        /// <summary>Gets the mDNS cache-flush flag, or null outside multicast DNS.</summary>
+        /// <remarks>This flag is separate from the normalized DNS class; source wire evidence retains its original bit.</remarks>
+        [JsonIgnore]
+        public bool? CacheFlush { get; internal set; }
 
         /// <summary>Gets an independent copy of original wire RDATA, or null when unavailable.</summary>
         /// <remarks>Compression pointers refer to <see cref="SourceWireMessage"/>;
@@ -47,8 +53,10 @@ namespace DnsClientX {
         [JsonIgnore]
         public byte[]? SourceWireMessage => _sourceWireMessage == null ? null : (byte[])_sourceWireMessage.Clone();
 
-        internal void AttachWireEvidence(byte[] immutableMessage, DnsWireResourceRecord record) {
-            Class = record.Class;
+        internal void AttachWireEvidence(byte[] immutableMessage, DnsWireResourceRecord record, bool multicast = false) {
+            bool classFlags = multicast && record.Type != DnsRecordType.OPT;
+            Class = classFlags ? (ushort)(record.Class & 0x7fff) : record.Class;
+            CacheFlush = classFlags ? (record.Class & 0x8000) != 0 : null;
             _sourceWireMessage = immutableMessage;
             _rawRdata = new byte[record.RdataLength];
             Buffer.BlockCopy(immutableMessage, record.RdataOffset, _rawRdata, 0, _rawRdata.Length);

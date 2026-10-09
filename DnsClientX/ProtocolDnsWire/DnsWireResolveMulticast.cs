@@ -116,7 +116,7 @@ namespace DnsClientX {
             while (!deadline.IsCancellationRequested && responses.Count < MaxCollectedResponses) {
                 try {
                     UdpReceiveResult received = await Receive(client, deadline.Token).ConfigureAwait(false);
-                    DnsResponse response = await DnsWire.DeserializeDnsWireFormat(null, debug, received.Buffer).ConfigureAwait(false);
+                    DnsResponse response = await DnsWire.DeserializeDnsMulticastResponse(received.Buffer, debug).ConfigureAwait(false);
                     if (!response.IsResponse
                         || response.TransactionId != query.TransactionId
                         || !IsRelevantResponse(response, query.Name, query.Type)) {
