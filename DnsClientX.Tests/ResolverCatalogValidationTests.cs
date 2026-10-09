@@ -25,7 +25,8 @@ namespace DnsClientX.Tests {
             return await task;
         }
 
-        private static async Task RunStallingHttpServerAsync(int port, ManualResetEventSlim ready, CancellationToken token) {
+        private static async Task RunStallingHttpServerAsync(int port, ManualResetEventSlim ready,
+            TaskCompletionSource<bool> requestReceived, CancellationToken token) {
 #if NET8_0_OR_GREATER
             using var listener = new TcpListener(IPAddress.Loopback, port);
 #else
@@ -51,6 +52,7 @@ namespace DnsClientX.Tests {
                 using (client)
                 using (NetworkStream stream = client.GetStream())
                 using (var reader = new StreamReader(stream, Encoding.ASCII, false, 1024, true)) {
+                    using var cancelRead = token.Register(client.Dispose);
                     while (!token.IsCancellationRequested) {
                         string? line = await reader.ReadLineAsync();
                         if (line is null || line.Length == 0) {
@@ -58,10 +60,13 @@ namespace DnsClientX.Tests {
                         }
                     }
 
+                    requestReceived.TrySetResult(true);
                     await Task.Delay(Timeout.Infinite, token);
                 }
             } catch (OperationCanceledException) when (token.IsCancellationRequested) {
                 // Expected during test cleanup after the client-side cancellation path is verified.
+            } catch (IOException) when (token.IsCancellationRequested) {
+                // Cleanup closes an accepted stream if the peer did not finish its headers.
             } finally {
                 listener.Stop();
             }
@@ -148,16 +153,21 @@ namespace DnsClientX.Tests {
             int port = TestUtilities.GetFreeTcpPort();
             using var ready = new ManualResetEventSlim(false);
             using var serverCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            Task serverTask = RunStallingHttpServerAsync(port, ready, serverCts.Token);
+            var requestReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task serverTask = RunStallingHttpServerAsync(port, ready, requestReceived, serverCts.Token);
             Assert.True(ready.Wait(TimeSpan.FromSeconds(2)));
 
-            using var clientCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+            using var clientCts = new CancellationTokenSource();
 
             try {
-                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => EndpointParser.ValidateManyAsync(
+                Task<ResolverEndpointValidationResult[]> validation = EndpointParser.ValidateManyAsync(
                     urls: new[] { $"http://127.0.0.1:{port}/resolvers.txt" },
-                    cancellationToken: clientCts.Token));
+                    cancellationToken: clientCts.Token);
+                Assert.Same(requestReceived.Task, await Task.WhenAny(requestReceived.Task, Task.Delay(TimeSpan.FromSeconds(3))));
+                clientCts.Cancel();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => validation);
             } finally {
+                clientCts.Cancel();
                 serverCts.Cancel();
                 await serverTask;
             }

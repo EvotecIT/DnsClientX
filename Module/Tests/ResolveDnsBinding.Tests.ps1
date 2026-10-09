@@ -44,6 +44,89 @@ Describe 'Resolve-Dns binding' {
         $syntax | Should -Match 'Server .*Port'
     }
 
+    It 'binds shared query options for <Case>' -TestCases @(
+        @{ Case = 'Name/DefaultResolver'; Target = @{ Name = 'example.com' }; Source = @{} }
+        @{ Case = 'Pattern/DefaultResolver'; Target = @{ Pattern = 'host[1-2].example.com' }; Source = @{} }
+        @{ Case = 'Name/DnsProvider'; Target = @{ Name = 'example.com' }; Source = @{ DnsProvider = 'Cloudflare' } }
+        @{ Case = 'Pattern/DnsProvider'; Target = @{ Pattern = 'host[1-2].example.com' }; Source = @{ DnsProvider = 'Cloudflare' } }
+        @{ Case = 'Name/Server'; Target = @{ Name = 'example.com' }; Source = @{ Server = '127.0.0.1' } }
+        @{ Case = 'Pattern/Server'; Target = @{ Pattern = 'host[1-2].example.com' }; Source = @{ Server = '127.0.0.1' } }
+        @{ Case = 'Name/ResolverEndpoint'; Target = @{ Name = 'example.com' }; Source = @{ ResolverEndpoint = 'udp@127.0.0.1:53' } }
+        @{ Case = 'Pattern/ResolverEndpoint'; Target = @{ Pattern = 'host[1-2].example.com' }; Source = @{ ResolverEndpoint = 'udp@127.0.0.1:53' } }
+        @{ Case = 'Name/ResolverDnsProvider'; Target = @{ Name = 'example.com' }; Source = @{ ResolverDnsProvider = 'Cloudflare' } }
+        @{ Case = 'Pattern/ResolverDnsProvider'; Target = @{ Pattern = 'host[1-2].example.com' }; Source = @{ ResolverDnsProvider = 'Cloudflare' } }
+        @{ Case = 'Name/ResolverSelection'; Target = @{ Name = 'example.com' }; Source = @{ ResolverSelectionPath = 'unused-selection.json' } }
+        @{ Case = 'Pattern/ResolverSelection'; Target = @{ Pattern = 'host[1-2].example.com' }; Source = @{ ResolverSelectionPath = 'unused-selection.json' } }
+    ) {
+        param($Target, $Source)
+
+        $options = @{
+            Type = 'TXT'
+            FullResponse = $true
+            TypedRecords = $true
+            ParseTypedTxtRecords = $true
+            TimeOut = 0
+            RetryCount = 1
+            RetryDelayMs = 0
+            RequestDnsSec = $false
+            ValidateDnsSec = $false
+        }
+
+        # Invalid timeout reaches request validation after binding, before any network or file access.
+        { Resolve-Dns @Target @Source @options -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.ArgumentOutOfRangeException]) -ExpectedMessage '*TimeOutMilliseconds*'
+    }
+
+    It 'requires either a name or a pattern when using the default resolver' {
+        { Resolve-Dns -Name 'example.com' -Pattern 'host[1-2].example.com' -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.Management.Automation.ParameterBindingException])
+    }
+
+    It 'preserves positional record types for name and pattern queries' {
+        { Resolve-Dns example.com TXT -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.ArgumentOutOfRangeException]) -ExpectedMessage '*TimeOutMilliseconds*'
+        { Resolve-Dns -Pattern 'host[1-2].example.com' TXT -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.ArgumentOutOfRangeException]) -ExpectedMessage '*TimeOutMilliseconds*'
+        { Resolve-Dns example.com TXT -DnsProvider Cloudflare -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.ArgumentOutOfRangeException]) -ExpectedMessage '*TimeOutMilliseconds*'
+    }
+
+    It 'keeps resolver sources and server-only transport settings separate' {
+        { Resolve-Dns -Name 'example.com' -DnsProvider Cloudflare -Server '127.0.0.1' -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.InvalidOperationException]) -ExpectedMessage '*Specify only one resolver source*'
+        { Resolve-Dns -Name 'example.com' -DnsProvider Cloudflare -RequestFormat DnsOverTCP -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Server transport*'
+        { Resolve-Dns -Name 'example.com' -Server '127.0.0.1' -ResolverStrategy FastestWins -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
+    }
+
+    It 'requires an explicit multi-resolver source for strategy and cache options' {
+        { Resolve-Dns example.com TXT -ResponseCache -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
+        { Resolve-Dns example.com TXT -ResolverStrategy FastestWins -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
+        { Resolve-Dns -Name 'example.com' -ResolverSelectionPath 'unused.json' -ResponseCache -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
+    }
+
+    It 'rejects multi-resolver options for a single built-in provider' {
+        { Resolve-Dns example.com TXT -DnsProvider Cloudflare -ResponseCache -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
+        { Resolve-Dns example.com TXT -DnsProvider Cloudflare -ResolverStrategy FastestWins -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
+    }
+
+    It 'accepts multi-resolver options when the source uses multi-resolver execution: <Case>' -TestCases @(
+        @{ Case = 'MultipleProviders'; Source = @{ DnsProvider = @('Cloudflare', 'Google') } }
+        @{ Case = 'ExplicitResolverProvider'; Source = @{ ResolverDnsProvider = 'Cloudflare' } }
+        @{ Case = 'ExplicitEndpoint'; Source = @{ ResolverEndpoint = 'udp@127.0.0.1:53' } }
+    ) {
+        param($Source)
+
+        { Resolve-Dns example.com TXT @Source -ResponseCache -ResolverStrategy FastestWins -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.ArgumentOutOfRangeException]) -ExpectedMessage '*TimeOutMilliseconds*'
+    }
+
     It 'exports benchmark cmdlet from the manifest' {
         (Get-Command Test-DnsBenchmark -ErrorAction Stop).Name | Should -Be 'Test-DnsBenchmark'
     }

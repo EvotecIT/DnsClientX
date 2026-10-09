@@ -15,7 +15,7 @@ namespace DnsClientX {
     /// <remarks>
     /// Instances are produced by <see cref="ClientX"/> when a query completes.
     /// </remarks>
-    public class DnsResponse {
+    public partial class DnsResponse {
         /// <summary>
         /// Gets the transaction identifier from a DNS wire response.
         /// </summary>
@@ -177,6 +177,19 @@ namespace DnsClientX {
         /// </summary>
         [JsonIgnore]
         public object[]? TypedAnswers { get; internal set; }
+
+        /// <summary>Gets typed Authority records when typed parsing is enabled.</summary>
+        [JsonIgnore]
+        public object[]? TypedAuthorities { get; internal set; }
+
+        /// <summary>Gets typed Additional records when typed parsing is enabled.</summary>
+        [JsonIgnore]
+        public object[]? TypedAdditional { get; internal set; }
+
+        /// <summary>Gets an independent copy of the complete original wire message, or null for JSON-only responses.</summary>
+        /// <remarks>The message retains all received sections, including records omitted by an answer projection.</remarks>
+        [JsonIgnore]
+        public byte[]? RawWireMessage => WireMessage == null || WireMessage.Length == 0 ? null : (byte[])WireMessage.Clone();
 
         /// <summary>
         /// Gets the answers in their minimal form.
@@ -425,6 +438,8 @@ namespace DnsClientX {
             clone.EdnsNsid = EdnsNsid == null ? Array.Empty<byte>() : (byte[])EdnsNsid.Clone();
             clone.EdnsCookie = EdnsCookie == null ? Array.Empty<byte>() : (byte[])EdnsCookie.Clone();
             clone.TypedAnswers = TypedAnswers?.Select(CloneTypedAnswer).ToArray();
+            clone.TypedAuthorities = TypedAuthorities?.Select(CloneTypedAnswer).ToArray();
+            clone.TypedAdditional = TypedAdditional?.Select(CloneTypedAnswer).ToArray();
             clone._answersMinimal = (DnsAnswerMinimal[])_answersMinimal.Clone();
             clone.WireMessage = WireMessage == null ? Array.Empty<byte>() : (byte[])WireMessage.Clone();
             clone.WireAnswers = WireAnswers == null ? Array.Empty<DnsWireResourceRecord>() : (DnsWireResourceRecord[])WireAnswers.Clone();

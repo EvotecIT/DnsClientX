@@ -15,6 +15,9 @@ namespace DnsClientX.Tests {
             Assert.Equal(26, servers.Length);
             Assert.Equal(13, servers.Count(s => !s.Contains(':')));
             Assert.Equal(13, servers.Count(s => s.Contains(':')));
+            // B-root changed both addresses; count-only checks do not catch stale hints.
+            Assert.Contains("170.247.170.2", servers);
+            Assert.Contains("2801:1b8:10::b", servers);
         }
 
         /// <summary>
