@@ -9,7 +9,7 @@ namespace DnsClientX {
         public static readonly string[] Servers = {
             // IPv4
             "198.41.0.4",      // A.ROOT-SERVERS.NET
-            "199.9.14.201",   // B.ROOT-SERVERS.NET
+            "170.247.170.2",  // B.ROOT-SERVERS.NET
             "192.33.4.12",    // C.ROOT-SERVERS.NET
             "199.7.91.13",    // D.ROOT-SERVERS.NET
             "192.203.230.10", // E.ROOT-SERVERS.NET
@@ -23,7 +23,7 @@ namespace DnsClientX {
             "202.12.27.33",   // M.ROOT-SERVERS.NET
             // IPv6
             "2001:503:ba3e::2:30", // A.ROOT-SERVERS.NET
-            "2001:500:200::b",     // B.ROOT-SERVERS.NET
+            "2801:1b8:10::b",      // B.ROOT-SERVERS.NET
             "2001:500:2::c",       // C.ROOT-SERVERS.NET
             "2001:500:2d::d",      // D.ROOT-SERVERS.NET
             "2001:500:a8::e",      // E.ROOT-SERVERS.NET

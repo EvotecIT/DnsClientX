@@ -277,66 +277,7 @@ namespace DnsClientX {
             return $"{usage} {selector} {matchingType} {ToHex(reader.ReadBytes(reader.End - reader.Position))}";
         }
 
-        private static string FormatSvcb(DnsWireReader reader) {
-            ushort priority = reader.ReadUInt16();
-            string target = reader.ReadName();
-            var parameters = new List<string>();
-            ushort? previousKey = null;
-            while (!reader.IsAtEnd) {
-                ushort key = reader.ReadUInt16();
-                ushort length = reader.ReadUInt16();
-                if (previousKey.HasValue && key <= previousKey.Value) throw new DnsClientException("SVCB parameters are not in strictly increasing key order.");
-                previousKey = key;
-                byte[] value = reader.ReadBytes(length);
-                parameters.Add(FormatSvcbParameter(key, value));
-            }
-            return parameters.Count == 0
-                ? $"{priority} {target}"
-                : $"{priority} {target} {string.Join(" ", parameters)}";
-        }
-
-        private static string FormatSvcbParameter(ushort key, byte[] value) {
-            string name = key switch {
-                0 => "mandatory", 1 => "alpn", 2 => "no-default-alpn", 3 => "port",
-                4 => "ipv4hint", 5 => "ech", 6 => "ipv6hint", 7 => "dohpath", 8 => "ohttp",
-                _ => "key" + key.ToString(CultureInfo.InvariantCulture)
-            };
-            switch (key) {
-                case 0:
-                    if (value.Length == 0 || value.Length % 2 != 0) throw new DnsClientException("SVCB mandatory value must contain one or more 16-bit keys.");
-                    var mandatory = new List<string>();
-                    for (int i = 0; i < value.Length; i += 2) mandatory.Add(SvcbKeyName((ushort)((value[i] << 8) | value[i + 1])));
-                    return name + "=" + string.Join(",", mandatory);
-                case 1:
-                    var alpns = new List<string>();
-                    for (int i = 0; i < value.Length;) {
-                        int length = value[i++];
-                        if (i + length > value.Length) throw new DnsClientException("SVCB alpn value is truncated.");
-                        alpns.Add(EscapeSvcb(value, i, length));
-                        i += length;
-                    }
-                    return name + "=" + string.Join(",", alpns);
-                case 2:
-                case 8:
-                    if (value.Length != 0) throw new DnsClientException($"SVCB {name} parameter must be empty.");
-                    return name;
-                case 3:
-                    if (value.Length != 2) throw new DnsClientException("SVCB port parameter must be two bytes.");
-                    return name + "=" + ((value[0] << 8) | value[1]).ToString(CultureInfo.InvariantCulture);
-                case 4:
-                    if (value.Length == 0 || value.Length % 4 != 0) throw new DnsClientException("SVCB ipv4hint contains an invalid address list.");
-                    return name + "=" + FormatAddresses(value, 4);
-                case 5:
-                    return name + "=" + Convert.ToBase64String(value);
-                case 6:
-                    if (value.Length == 0 || value.Length % 16 != 0) throw new DnsClientException("SVCB ipv6hint contains an invalid address list.");
-                    return name + "=" + FormatAddresses(value, 16);
-                case 7:
-                    return name + "=" + Quote(value);
-                default:
-                    return name + "=\\#" + value.Length.ToString(CultureInfo.InvariantCulture) + " " + ToHex(value);
-            }
-        }
+        private static string FormatSvcb(DnsWireReader reader) => DnsSvcbCodec.Format(DnsSvcbCodec.Read(reader), normalizeTarget: false);
 
         private static string FormatTypeBitmaps(DnsWireReader reader) {
             var types = new List<string>();
@@ -375,32 +316,6 @@ namespace DnsClientX {
             }
             return builder.Append('"').ToString();
         }
-
-        private static string EscapeSvcb(byte[] value, int offset, int length) {
-            var builder = new StringBuilder(length);
-            for (int i = 0; i < length; i++) {
-                byte b = value[offset + i];
-                if (b == (byte)',' || b == (byte)'\\') builder.Append('\\');
-                builder.Append((char)b);
-            }
-            return builder.ToString();
-        }
-
-        private static string FormatAddresses(byte[] value, int addressLength) {
-            var addresses = new List<string>();
-            for (int i = 0; i < value.Length; i += addressLength) {
-                var bytes = new byte[addressLength];
-                Buffer.BlockCopy(value, i, bytes, 0, addressLength);
-                addresses.Add(new IPAddress(bytes).ToString());
-            }
-            return string.Join(",", addresses);
-        }
-
-        private static string SvcbKeyName(ushort key) => key switch {
-            0 => "mandatory", 1 => "alpn", 2 => "no-default-alpn", 3 => "port",
-            4 => "ipv4hint", 5 => "ech", 6 => "ipv6hint", 7 => "dohpath", 8 => "ohttp",
-            _ => "key" + key.ToString(CultureInfo.InvariantCulture)
-        };
 
         private static string ToBase32Hex(byte[] bytes) {
             const string alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUV";

@@ -18,6 +18,9 @@ namespace DnsClientX {
             bool debug, byte[]? bytes, DnsMessage query) =>
             DeserializeDnsWireCore(res, debug, bytes, query, requireResponse: true);
 
+        internal static Task<DnsResponse> DeserializeDnsMulticastResponse(byte[] bytes, bool debug = false) =>
+            DeserializeDnsWireCore(null, debug, bytes, query: null, requireResponse: true, multicast: true);
+
         internal static async Task<DnsResponse> DeserializeDnsUpdateResponse(byte[] bytes, bool debug,
             ushort transactionId, string zone) {
             DnsResponse response = await DeserializeDnsWireCore(null, debug, bytes, query: null, requireResponse: true).ConfigureAwait(false);
@@ -41,7 +44,7 @@ namespace DnsClientX {
         }
 
         private static async Task<DnsResponse> DeserializeDnsWireCore(HttpResponseMessage? res,
-            bool debug, byte[]? bytes, DnsMessage? query, bool requireResponse) {
+            bool debug, byte[]? bytes, DnsMessage? query, bool requireResponse, bool multicast = false) {
             if (res == null && bytes == null) throw new ArgumentNullException(nameof(res));
             try {
                 byte[] message;
@@ -63,7 +66,7 @@ namespace DnsClientX {
                     Settings.Logger.WriteDebug("DNS response bytes: " + BitConverter.ToString(message));
                 }
 
-                return ParseMessage(message, query, requireResponse || query != null);
+                return ParseMessage(message, query, requireResponse || query != null, multicast);
             } catch (DnsClientException) {
                 throw;
             } catch (Exception ex) {
@@ -80,7 +83,7 @@ namespace DnsClientX {
             return DnsWireRecordFormatter.Format(rdata, type, 0, rdLength);
         }
 
-        private static DnsResponse ParseMessage(byte[] message, DnsMessage? query, bool requireResponse) {
+        private static DnsResponse ParseMessage(byte[] message, DnsMessage? query, bool requireResponse, bool multicast) {
             if (message.Length < 12) throw new DnsClientException("DNS message is shorter than its 12-byte header.");
             if (message.Length > ushort.MaxValue) throw new DnsClientException("DNS message exceeds the 65535-octet protocol limit.");
             var reader = new DnsWireReader(message);
@@ -114,7 +117,9 @@ namespace DnsClientX {
                 string name = reader.ReadName();
                 DnsRecordType type = (DnsRecordType)reader.ReadUInt16();
                 ushort queryClass = reader.ReadUInt16();
-                questions[i] = new DnsQuestion { Name = name, Type = type, OriginalName = name };
+                questions[i] = new DnsQuestion { Name = name, Type = type, OriginalName = name,
+                    Class = multicast ? (ushort)(queryClass & 0x7fff) : queryClass,
+                    UnicastResponseRequested = multicast ? (queryClass & 0x8000) != 0 : null };
                 questionClasses[i] = queryClass;
             }
 
@@ -158,6 +163,7 @@ namespace DnsClientX {
             }
 
             int responseCode = (flags & 0x000F) | (extendedRcode << 4);
+            byte[] immutableMessage = (byte[])message.Clone();
             var response = new DnsResponse {
                 ReceivedAtUtc = DateTimeOffset.UtcNow,
                 TransactionId = transactionId,
@@ -171,9 +177,9 @@ namespace DnsClientX {
                 AuthenticData = (flags & 0x0020) != 0,
                 CheckingDisabled = (flags & 0x0010) != 0,
                 Questions = questions,
-                Answers = ToAnswers(answerRecords),
-                Authorities = ToAnswers(authorityRecords),
-                Additional = ToAnswers(additionalRecords),
+                Answers = ToAnswers(immutableMessage, answerRecords, multicast),
+                Authorities = ToAnswers(immutableMessage, authorityRecords, multicast),
+                Additional = ToAnswers(immutableMessage, additionalRecords, multicast),
                 ExtendedDnsErrors = extendedErrors.ToArray(),
                 EdnsClientSubnet = ednsClientSubnet,
                 EdnsUdpPayloadSize = ednsPayloadSize,
@@ -181,7 +187,7 @@ namespace DnsClientX {
                 EdnsDnsSecOk = ednsDnsSecOk,
                 EdnsNsid = nsid,
                 EdnsCookie = cookie,
-                WireMessage = (byte[])message.Clone(),
+                WireMessage = immutableMessage,
                 WireAnswers = answerRecords,
                 WireAuthorities = authorityRecords,
                 WireAdditional = additionalRecords
@@ -214,7 +220,7 @@ namespace DnsClientX {
             return records;
         }
 
-        private static DnsAnswer[] ToAnswers(DnsWireResourceRecord[] records) {
+        private static DnsAnswer[] ToAnswers(byte[] message, DnsWireResourceRecord[] records, bool multicast) {
             var answers = new DnsAnswer[records.Length];
             for (int i = 0; i < records.Length; i++) {
                 answers[i] = new DnsAnswer {
@@ -223,6 +229,7 @@ namespace DnsClientX {
                     TTL = records[i].Ttl,
                     DataRaw = records[i].Data
                 };
+                answers[i].AttachWireEvidence(message, records[i], multicast);
             }
             return answers;
         }

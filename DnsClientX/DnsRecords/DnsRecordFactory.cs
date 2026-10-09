@@ -11,7 +11,7 @@ public static class DnsRecordFactory {
     /// </summary>
     /// <param name="answer">Answer to parse.</param>
     /// <param name="parseTypedTxtRecords">Whether to parse TXT records into specialized types (DMARC, SPF, etc.). When false, returns simple TXT records.</param>
-    /// <returns>Typed record instance or <c>null</c> if the type is not supported.</returns>
+    /// <returns>A typed record, or an <see cref="UnknownRecord"/> preserving unsupported or malformed data.</returns>
     public static object? Create(DnsAnswer answer, bool parseTypedTxtRecords = false) {
         string data = answer.Data;
         if (data.TrimStart().StartsWith("\\#", StringComparison.Ordinal)) return new UnknownRecord(data);
@@ -129,6 +129,10 @@ public static class DnsRecordFactory {
                 return new DnameRecord(DnsWireNameCodec.TrimTrailingRootDot(data));
             case DnsRecordType.LOC:
                 if (DnsLocPresentation.TryParse(data, out var location)) return location;
+                break;
+            case DnsRecordType.SVCB:
+            case DnsRecordType.HTTPS:
+                if (DnsSvcbCodec.TryParse(data, out var service)) return service;
                 break;
             default:
                 return new UnknownRecord(data);
