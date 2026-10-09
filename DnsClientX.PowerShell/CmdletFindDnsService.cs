@@ -12,7 +12,7 @@ namespace DnsClientX.PowerShell {
     /// </example>
     /// <example>
     ///   <para>Filter for a specific service type</para>
-    ///   <code>Find-DnsService -Domain example.com | Where-Object {$_.ServiceName -like '*http*'}</code>
+    ///   <code>Find-DnsService -Domain example.com | Where-Object {$_.ServiceType -like '_http._tcp.*'}</code>
     /// </example>
     [Cmdlet(VerbsCommon.Find, "DnsService")]
     public sealed class CmdletFindDnsService : AsyncPSCmdlet {

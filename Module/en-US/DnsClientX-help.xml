@@ -439,7 +439,7 @@
       </command:example>
       <command:example>
         <maml:title>EXAMPLE 2</maml:title>
-        <dev:code>Find-DnsService -Domain example.com | Where-Object {$_.ServiceName -like '*http*'}</dev:code>
+        <dev:code>Find-DnsService -Domain example.com | Where-Object {$_.ServiceType -like '_http._tcp.*'}</dev:code>
         <dev:remarks>
           <maml:para>Filter for a specific service type</maml:para>
         </dev:remarks>
