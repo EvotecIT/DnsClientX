@@ -791,27 +791,30 @@ foreach (var answer in response.TypedAnswers!) {
 ```csharp
 using var client = new ClientX(DnsEndpoint.Cloudflare);
 
-var response = await client.Resolve("google.com",
+var responses = await client.Resolve("google.com",
     new[] { DnsRecordType.A, DnsRecordType.MX, DnsRecordType.TXT },
-    typedRecords: true);
+    typedRecords: true,
+    parseTypedTxtRecords: true);
 
-foreach (var answer in response.TypedAnswers!) {
-    switch (answer) {
-        case ARecord a:
-            Console.WriteLine($"A Record: {a.Address}");
-            break;
-        case MxRecord mx:
-            Console.WriteLine($"MX Record: {mx.Exchange} (Priority: {mx.Preference})");
-            break;
-        case SpfRecord spf:
-            Console.WriteLine($"SPF Record: {string.Join(" ", spf.Mechanisms)}");
-            break;
-        case TxtRecord txt:
-            Console.WriteLine($"TXT Record: {txt.Text}");
-            break;
-        case UnknownRecord unknown:
-            Console.WriteLine($"Unknown Record: {unknown.Data}");
-            break;
+foreach (var response in responses) {
+    foreach (var answer in response.TypedAnswers!) {
+        switch (answer) {
+            case ARecord a:
+                Console.WriteLine($"A Record: {a.Address}");
+                break;
+            case MxRecord mx:
+                Console.WriteLine($"MX Record: {mx.Exchange} (Priority: {mx.Preference})");
+                break;
+            case SpfRecord spf:
+                Console.WriteLine($"SPF Record: {string.Join(" ", spf.Mechanisms)}");
+                break;
+            case TxtRecord txt:
+                Console.WriteLine($"TXT Record: {txt.Text}");
+                break;
+            case UnknownRecord unknown:
+                Console.WriteLine($"Unknown Record: {unknown.Data}");
+                break;
+        }
     }
 }
 ```
