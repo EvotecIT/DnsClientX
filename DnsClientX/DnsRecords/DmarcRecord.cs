@@ -1,7 +1,6 @@
 namespace DnsClientX;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 /// <summary>
 /// Represents a parsed DMARC TXT record.
@@ -20,15 +19,7 @@ public sealed class DmarcRecord {
     /// <returns><c>true</c> if parsing succeeded.</returns>
     public static bool TryParse(string record, out DmarcRecord? result) {
         result = null;
-        if (string.IsNullOrWhiteSpace(record) || !record.StartsWith("v=DMARC1", StringComparison.OrdinalIgnoreCase)) {
-            return false;
-        }
-        var tags = record.Split(';')
-            .Select(t => t.Trim())
-            .Where(t => t.Length > 0)
-            .Select(t => t.Split(new[] { '=' }, 2))
-            .Where(parts => parts.Length >= 1)
-            .ToDictionary(parts => parts[0], parts => parts.Length > 1 ? parts[1] : string.Empty, StringComparer.OrdinalIgnoreCase);
+        if (!DnsTxtTags.TryParse(record, "DMARC1", out var tags)) return false;
         result = new DmarcRecord(tags);
         return true;
     }
