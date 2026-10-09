@@ -63,7 +63,9 @@ internal static partial class DnsSvcbCodec {
                 return text.Split(',').SelectMany(item => {
                     if (!IPAddress.TryParse(item, out var address) || address.AddressFamily != (key == 4
                         ? AddressFamily.InterNetwork : AddressFamily.InterNetworkV6)
-                        || key == 6 && address.ScopeId != 0) throw new FormatException("Invalid SVCB address hint.");
+                        || key == 4 && !IsCanonicalIpv4(item)
+                        || key == 6 && (item.IndexOf('%') >= 0 || item.IndexOf('.') >= 0
+                            && !IsCanonicalIpv4(item.Substring(item.LastIndexOf(':') + 1)))) throw new FormatException("Invalid SVCB address hint.");
                     return address.GetAddressBytes();
                 }).ToArray();
             case 5:
@@ -76,6 +78,12 @@ internal static partial class DnsSvcbCodec {
                 return value;
         }
     }
+
+    // IPAddress accepts legacy shorthand, hexadecimal and octal IPv4 forms. SVCB
+    // requires dotted decimal, including when IPv4 is embedded in an IPv6 hint.
+    private static bool IsCanonicalIpv4(string text) => IPAddress.TryParse(text, out var address)
+        && address.AddressFamily == AddressFamily.InterNetwork
+        && string.Equals(text, address.ToString(), StringComparison.Ordinal);
 
     private static string FormatParameter(SvcbParameter parameter) {
         byte[] value = parameter.Bytes;

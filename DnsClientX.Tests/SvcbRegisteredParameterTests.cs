@@ -55,7 +55,18 @@ public class SvcbRegisteredParameterTests {
         Assert.Equal(value, reparsed.Parameters[key].Value);
     }
 
-    /// <summary>Escapes forbidden by the named grammars cannot become usable typed data.</summary>
+    /// <summary>Valid IPv6 spellings retain their address value, including embedded IPv4.</summary>
+    [Theory]
+    [InlineData("2001:DB8:0:0:0:0:0:1", "2001:db8::1")]
+    [InlineData("::ffff:192.0.2.1", "::ffff:192.0.2.1")]
+    public void StandardIpv6HintsRemainUsable(string presentation, string expected) {
+        var record = Assert.IsType<SvcbRecord>(new DnsAnswer {
+            Type = DnsRecordType.HTTPS, DataRaw = "1 . ipv6hint=" + presentation
+        }.TypedRecord);
+        Assert.Equal(System.Net.IPAddress.Parse(expected), Assert.Single(record.Ipv6Hints));
+    }
+
+    /// <summary>Invalid named grammars cannot become usable typed data.</summary>
     [Theory]
     [InlineData("port=\\052\\052\\051")]
     [InlineData("mandatory=po\\114t port=443")]
@@ -67,6 +78,11 @@ public class SvcbRegisteredParameterTests {
     [InlineData("pvd=value")]
     [InlineData("oots=dot:101")]
     [InlineData("oots=dot:10,dot:20")]
+    [InlineData("ipv4hint=1.1.1.010")]
+    [InlineData("ipv4hint=192.0.2")]
+    [InlineData("ipv4hint=0xC0000201")]
+    [InlineData("ipv6hint=::ffff:1.1.1.010")]
+    [InlineData("ipv6hint=2001:db8::1%0")]
     public void InvalidNamedValuesRemainOpaque(string parameter) {
         string text = "1 . " + parameter;
         var answer = new DnsAnswer { Type = DnsRecordType.HTTPS, DataRaw = text };
