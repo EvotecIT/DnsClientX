@@ -7,6 +7,7 @@ namespace DnsClientX.PowerShell {
     /// <summary>
     /// <para type="synopsis">Validates resolver endpoint catalog inputs without querying DNS.</para>
     /// <para type="description">Checks inline resolver endpoints, resolver endpoint files, and resolver endpoint URLs using the same parser used by probe and benchmark workflows.</para>
+    /// </summary>
     /// <example>
     ///   <para>Validate inline resolver endpoint syntax</para>
     ///   <code>Test-DnsResolverCatalog -ResolverEndpoint udp@1.1.1.1:53,doh@https://dns.google/dns-query</code>
@@ -15,7 +16,6 @@ namespace DnsClientX.PowerShell {
     ///   <para>Validate resolver endpoints from a file</para>
     ///   <code>Test-DnsResolverCatalog -ResolverEndpointFile .\resolvers.txt</code>
     /// </example>
-    /// </summary>
     [Cmdlet(VerbsDiagnostic.Test, "DnsResolverCatalog")]
     [OutputType(typeof(ResolverEndpointValidationResult))]
     public sealed class CmdletTestDnsResolverCatalog : AsyncPSCmdlet {

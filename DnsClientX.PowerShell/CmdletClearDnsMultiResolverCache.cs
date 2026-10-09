@@ -7,6 +7,7 @@ namespace DnsClientX.PowerShell {
     /// <summary>
     /// <para type="synopsis">Clears the multi-resolver fastest-endpoint cache used by the FastestWins strategy.</para>
     /// <para type="description">Clears the in-memory cache used to remember the fastest endpoint for a given set of endpoints. Use this when you change network conditions or want to force re-probing. Does not affect TTL-based response caching, which expires automatically.</para>
+    /// </summary>
     /// <example>
     /// <code>Clear-DnsMultiResolverCache</code>
     /// <para>Clears the entire FastestWins cache.</para>
@@ -19,7 +20,6 @@ namespace DnsClientX.PowerShell {
     /// <code>Clear-DnsMultiResolverCache -ResolverEndpoint '1.1.1.1:53','https://dns.google/dns-query'</code>
     /// <para>Clears cache entries only for the specified endpoints.</para>
     /// </example>
-    /// </summary>
     [Cmdlet(VerbsCommon.Clear, "DnsMultiResolverCache", DefaultParameterSetName = "All")]
     public sealed class CmdletClearDnsMultiResolverCache : PSCmdlet {
         /// <summary>

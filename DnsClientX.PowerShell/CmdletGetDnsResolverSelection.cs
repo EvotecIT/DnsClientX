@@ -6,6 +6,7 @@ namespace DnsClientX.PowerShell {
     /// <summary>
     /// <para type="synopsis">Loads a saved resolver score snapshot and returns the recommended resolver selection.</para>
     /// <para type="description">Reads a persisted resolver score snapshot, applies the shared recommendation logic, and returns either the structured selection object or the raw target string for automation use.</para>
+    /// </summary>
     /// <example>
     ///   <para>Get the recommended resolver selection as an object</para>
     ///   <code>Get-DnsResolverSelection -Path '.\resolver-score.json'</code>
@@ -14,7 +15,6 @@ namespace DnsClientX.PowerShell {
     ///   <para>Get only the raw selected target string for scripting</para>
     ///   <code>Get-DnsResolverSelection -Path '.\resolver-score.json' -AsString</code>
     /// </example>
-    /// </summary>
     [Cmdlet(VerbsCommon.Get, "DnsResolverSelection")]
     [OutputType(typeof(ResolverSelectionResult), typeof(string))]
     public sealed class CmdletGetDnsResolverSelection : AsyncPSCmdlet {

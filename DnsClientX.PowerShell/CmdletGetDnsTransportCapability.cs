@@ -6,6 +6,7 @@ namespace DnsClientX.PowerShell {
     /// <summary>
     /// <para type="synopsis">Returns runtime transport support information for the DnsClientX core transport surface.</para>
     /// <para type="description">Reports which core transports are available on the current runtime, including modern DoH3 and DoQ support on .NET 8+.</para>
+    /// </summary>
     /// <example>
     ///   <para>List the full core transport capability report</para>
     ///   <code>Get-DnsTransportCapability</code>
@@ -14,7 +15,6 @@ namespace DnsClientX.PowerShell {
     ///   <para>Show only the runtime-gated modern transport entries</para>
     ///   <code>Get-DnsTransportCapability -ModernOnly</code>
     /// </example>
-    /// </summary>
     [Cmdlet(VerbsCommon.Get, "DnsTransportCapability")]
     [OutputType(typeof(DnsTransportCapabilityInfo))]
     public sealed class CmdletGetDnsTransportCapability : AsyncPSCmdlet {
