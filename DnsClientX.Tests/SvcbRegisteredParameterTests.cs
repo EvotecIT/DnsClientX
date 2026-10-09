@@ -72,6 +72,8 @@ public class SvcbRegisteredParameterTests {
     [InlineData("mandatory=po\\114t port=443")]
     [InlineData("ipv4hint=192.0.2.\\049")]
     [InlineData("ipv6hint=2001:db8::\\049")]
+    [InlineData("ech=\\065QID")]
+    [InlineData("ech=\"\\065QID\"")]
     [InlineData("tls-supported-groups=\\0509,23")]
     [InlineData("tls-supported-groups=29,29")]
     [InlineData("tls-supported-groups=")]
@@ -87,6 +89,18 @@ public class SvcbRegisteredParameterTests {
         string text = "1 . " + parameter;
         var answer = new DnsAnswer { Type = DnsRecordType.HTTPS, DataRaw = text };
         Assert.Equal(text, Assert.IsType<UnknownRecord>(answer.TypedRecord).Data);
+    }
+
+    /// <summary>Named Base64 and generic escaped octets preserve the same ECH evidence.</summary>
+    [Theory]
+    [InlineData("ech=AQID")]
+    [InlineData("key5=\"\\001\\002\\003\"")]
+    public void EchNamedAndGenericValuesRetainWireBytes(string parameter) {
+        var record = Assert.IsType<SvcbRecord>(new DnsAnswer {
+            Type = DnsRecordType.HTTPS, DataRaw = "1 . " + parameter
+        }.TypedRecord);
+        Assert.Equal(new byte[] { 1, 2, 3 }, record.Parameters[5].Value);
+        Assert.Equal("1 . ech=AQID", record.ToString());
     }
 
     /// <summary>Zone-file parsing retains parameter quotes, spaces and both escape layers.</summary>

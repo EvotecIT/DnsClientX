@@ -22,7 +22,7 @@ internal static partial class DnsSvcbCodec {
                 if (!TryKey(name, out ushort key, out bool numeric)) return false;
                 string presentationValue = separator < 0 ? string.Empty : token.Raw.Substring(separator + 1);
                 // These named parameter grammars explicitly prohibit DNS escape sequences.
-                if (!numeric && (key is 0 or 3 or 4 or 6 or 9) && presentationValue.IndexOf('\\') >= 0) return false;
+                if (!numeric && (key is 0 or 3 or 4 or 5 or 6 or 9) && presentationValue.IndexOf('\\') >= 0) return false;
                 byte[] value = DecodeString(presentationValue);
                 parameters.Add(new SvcbParameter(key, numeric ? value : EncodeParameter(key, value)));
             }
