@@ -122,17 +122,7 @@ namespace DnsClientX.Tests {
                 new Oid(serverAuthentication ? "1.3.6.1.5.5.7.3.1" : "1.3.6.1.5.5.7.3.2")
             };
             request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(usages, false));
-            using X509Certificate2 temporary = request.CreateSelfSigned(
-                DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
-            byte[] pfx = temporary.Export(X509ContentType.Pfx);
-#if NET9_0_OR_GREATER
-            return X509CertificateLoader.LoadPkcs12(pfx, null,
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet,
-                Pkcs12LoaderLimits.Defaults);
-#else
-            return new X509Certificate2(pfx, (string?)null,
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
-#endif
+            return TestUtilities.CreateTlsCertificate(request);
         }
 
         private static byte[] AxfrResponse(byte idHigh, byte idLow) {
