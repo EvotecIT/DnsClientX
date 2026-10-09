@@ -6,6 +6,9 @@ namespace DnsClientX {
         /// <summary>Gets or sets the IP-literal UDP/TCP bootstrap resolver.</summary>
         public DnsResolverEndpoint? BootstrapResolver { get; init; }
 
+        /// <summary>Gets or sets the optional thread-safe DNSSEC signature verifier.</summary>
+        public IDnsSecSignatureVerifier? DnsSecSignatureVerifier { get; init; }
+
         /// <summary>Gets or sets whether to request EDNS NSID metadata.</summary>
         public bool RequestNsid { get; init; }
         /// <summary>

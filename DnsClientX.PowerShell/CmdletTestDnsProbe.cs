@@ -390,6 +390,10 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
         public SwitchParameter ValidateDnsSec { get; set; }
 
+        /// <summary><para type="description">Local optional DNSSEC provider DLL path, with its dependencies beside it.</para></summary>
+        [Parameter]
+        public string? DnsSecVerifierPath { get; set; }
+
         /// <summary>
         /// Require unanimous answer consensus among successful candidates.
         /// </summary>
@@ -582,6 +586,7 @@ namespace DnsClientX.PowerShell {
                 TimeoutMs = TimeOut,
                 RequestDnsSec = RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent,
                 ValidateDnsSec = ValidateDnsSec.IsPresent,
+                DnsSecSignatureVerifier = string.IsNullOrWhiteSpace(DnsSecVerifierPath) ? null : DnsSecSignatureVerifierLoader.Load(DnsSecVerifierPath!),
                 RequestNsid = RequestNsid.IsPresent,
                 BootstrapResolver = string.IsNullOrWhiteSpace(BootstrapResolver) ? null : EndpointParser.ParseBootstrap(BootstrapResolver!),
                 MaxRetries = 1,

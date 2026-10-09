@@ -13,52 +13,52 @@ Supports single-provider queries, explicit servers with transport selection, mul
 ## SYNTAX
 ### ServerName (Default)
 ```powershell
-Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ### DnsProvider
 ```powershell
-Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ### ResolverEndpoint
 ```powershell
-Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ### ResolverDnsProvider
 ```powershell
-Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] -ResolverDnsProvider <DnsEndpoint[]> [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] -ResolverDnsProvider <DnsEndpoint[]> [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ### ResolverSelection
 ```powershell
-Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] -ResolverSelectionPath <string> [-DnsSelectionStrategy <DnsSelectionStrategy>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] -ResolverSelectionPath <string> [-DnsSelectionStrategy <DnsSelectionStrategy>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ### PatternDnsProvider
 ```powershell
-Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ### PatternServerName
 ```powershell
-Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ### PatternResolverEndpoint
 ```powershell
-Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ### PatternResolverDnsProvider
 ```powershell
-Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] -ResolverDnsProvider <DnsEndpoint[]> [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] -ResolverDnsProvider <DnsEndpoint[]> [-DnsSelectionStrategy <DnsSelectionStrategy>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ### PatternResolverSelection
 ```powershell
-Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] -ResolverSelectionPath <string> [-DnsSelectionStrategy <DnsSelectionStrategy>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] -ResolverSelectionPath <string> [-DnsSelectionStrategy <DnsSelectionStrategy>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -70,13 +70,19 @@ Supports single-provider queries, explicit servers with transport selection, mul
 
 ### EXAMPLE 1
 ```powershell
-Resolve-Dns -ResolverSelectionPath 'C:\Path'
+Resolve-Dns -Name @('Name')
 ```
 
 
 ### EXAMPLE 2
 ```powershell
-Resolve-Dns -ResolverDnsProvider @('Value')
+Resolve-Dns -Pattern 'Value'
+```
+
+
+### EXAMPLE 3
+```powershell
+Resolve-Dns -Pattern 'Value' -ResolverDnsProvider @('Value')
 ```
 
 
@@ -90,6 +96,22 @@ When not specified, only the first server is queried for faster results.
 ```yaml
 Type: SwitchParameter
 Parameter Sets: ServerName, PatternServerName
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -BootstrapResolver
+Resolves endpoint hostnames through an IP-literal UDP/TCP endpoint, such as udp@1.1.1.1:53. Failures do not fall back to system DNS.
+
+```yaml
+Type: String
+Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
 Aliases: None
 Possible values:
 
@@ -144,6 +166,22 @@ Type: DnsEndpoint[]
 Parameter Sets: DnsProvider, PatternDnsProvider
 Aliases: None
 Possible values: System, SystemTcp, Cloudflare, CloudflareSecurity, CloudflareFamily, CloudflareWireFormat, CloudflareWireFormatPost, CloudflareJsonPost, Google, GoogleWireFormat, GoogleWireFormatPost, GoogleJsonPost, Quad9, Quad9ECS, Quad9Unsecure, OpenDNS, OpenDNSFamily, CloudflareQuic, Quad9Http3, Quad9Quic, GoogleQuic, AdGuard, AdGuardFamily, AdGuardNonFiltering, NextDNS, DnsCryptCloudflare, DnsCryptQuad9, DnsCryptRelay, RootServer, CloudflareOdoh, Custom
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DnsSecVerifierPath
+Local optional DNSSEC provider DLL path, with its dependencies beside it. Enables additional signature algorithms when ValidateDnsSec is selected.
+
+```yaml
+Type: String
+Parameter Sets: ServerName, DnsProvider, ResolverEndpoint, ResolverDnsProvider, ResolverSelection, PatternDnsProvider, PatternServerName, PatternResolverEndpoint, PatternResolverDnsProvider, PatternResolverSelection
+Aliases: None
+Possible values:
 
 Required: False
 Position: named

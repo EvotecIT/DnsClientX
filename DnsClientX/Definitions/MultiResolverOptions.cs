@@ -90,6 +90,9 @@ namespace DnsClientX {
         /// </summary>
         public bool ValidateDnsSec { get; set; }
 
+        /// <summary>Gets or sets the optional thread-safe verifier shared by all resolver endpoints.</summary>
+        public IDnsSecSignatureVerifier? DnsSecSignatureVerifier { get; set; }
+
         /// <summary>
         /// Requests typed record output for successful responses.
         /// </summary>
@@ -168,6 +171,7 @@ namespace DnsClientX {
                 EnableResponseCache = EnableResponseCache,
                 RequestDnsSec = RequestDnsSec,
                 ValidateDnsSec = ValidateDnsSec,
+                DnsSecSignatureVerifier = DnsSecSignatureVerifier,
                 TypedRecords = TypedRecords,
                 ParseTypedTxtRecords = ParseTypedTxtRecords,
                 CheckingDisabled = CheckingDisabled,

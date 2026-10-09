@@ -37,6 +37,7 @@ namespace DnsClientX {
 
             client.EnableAudit = options.EnableAudit;
             client.EndpointConfiguration.BootstrapResolver = options.BootstrapResolver;
+            client.EndpointConfiguration.DnsSecSignatureVerifier = options.DnsSecSignatureVerifier;
             if (options.RequestNsid) {
                 client.EndpointConfiguration.EdnsOptions ??= new EdnsOptions();
                 client.EndpointConfiguration.EdnsOptions.RequestNsid = true;

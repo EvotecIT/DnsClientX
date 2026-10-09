@@ -1465,6 +1465,18 @@
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>Resolves endpoint hostnames through an IP-literal UDP/TCP endpoint, such as udp@1.1.1.1:53. Failures do not fall back to system DNS.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>CheckingDisabled</maml:name>
           <maml:description>
             <maml:para>Sets the CD (checking disabled) bit on outgoing queries.</maml:para>
@@ -1480,6 +1492,18 @@
           <maml:name>ClientSubnet</maml:name>
           <maml:description>
             <maml:para>Sets the EDNS Client Subnet (ECS) in CIDR notation, for example 192.0.2.0/24.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it. Enables additional signature algorithms when ValidateDnsSec is selected.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
@@ -1912,6 +1936,18 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:syntaxItem parameterSetName="DnsProvider">
         <maml:name>Resolve-Dns</maml:name>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>Resolves endpoint hostnames through an IP-literal UDP/TCP endpoint, such as udp@1.1.1.1:53. Failures do not fall back to system DNS.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>CheckingDisabled</maml:name>
           <maml:description>
             <maml:para>Sets the CD (checking disabled) bit on outgoing queries.</maml:para>
@@ -1978,6 +2014,18 @@ specified. When false, returns simple TXT records.</maml:para>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint[]</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it. Enables additional signature algorithms when ValidateDnsSec is selected.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -2417,6 +2465,18 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:syntaxItem parameterSetName="ResolverEndpoint">
         <maml:name>Resolve-Dns</maml:name>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>Resolves endpoint hostnames through an IP-literal UDP/TCP endpoint, such as udp@1.1.1.1:53. Failures do not fall back to system DNS.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>CheckingDisabled</maml:name>
           <maml:description>
             <maml:para>Sets the CD (checking disabled) bit on outgoing queries.</maml:para>
@@ -2432,6 +2492,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <maml:name>ClientSubnet</maml:name>
           <maml:description>
             <maml:para>Sets the EDNS Client Subnet (ECS) in CIDR notation, for example 192.0.2.0/24.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it. Enables additional signature algorithms when ValidateDnsSec is selected.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
@@ -2911,6 +2983,18 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:syntaxItem parameterSetName="ResolverDnsProvider">
         <maml:name>Resolve-Dns</maml:name>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>Resolves endpoint hostnames through an IP-literal UDP/TCP endpoint, such as udp@1.1.1.1:53. Failures do not fall back to system DNS.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>CheckingDisabled</maml:name>
           <maml:description>
             <maml:para>Sets the CD (checking disabled) bit on outgoing queries.</maml:para>
@@ -2926,6 +3010,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <maml:name>ClientSubnet</maml:name>
           <maml:description>
             <maml:para>Sets the EDNS Client Subnet (ECS) in CIDR notation, for example 192.0.2.0/24.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it. Enables additional signature algorithms when ValidateDnsSec is selected.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
@@ -3415,6 +3511,18 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:syntaxItem parameterSetName="ResolverSelection">
         <maml:name>Resolve-Dns</maml:name>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>Resolves endpoint hostnames through an IP-literal UDP/TCP endpoint, such as udp@1.1.1.1:53. Failures do not fall back to system DNS.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>CheckingDisabled</maml:name>
           <maml:description>
             <maml:para>Sets the CD (checking disabled) bit on outgoing queries.</maml:para>
@@ -3430,6 +3538,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <maml:name>ClientSubnet</maml:name>
           <maml:description>
             <maml:para>Sets the EDNS Client Subnet (ECS) in CIDR notation, for example 192.0.2.0/24.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it. Enables additional signature algorithms when ValidateDnsSec is selected.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
@@ -3794,6 +3914,18 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:syntaxItem parameterSetName="PatternDnsProvider">
         <maml:name>Resolve-Dns</maml:name>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>Resolves endpoint hostnames through an IP-literal UDP/TCP endpoint, such as udp@1.1.1.1:53. Failures do not fall back to system DNS.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>CheckingDisabled</maml:name>
           <maml:description>
             <maml:para>Sets the CD (checking disabled) bit on outgoing queries.</maml:para>
@@ -3860,6 +3992,18 @@ specified. When false, returns simple TXT records.</maml:para>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint[]</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it. Enables additional signature algorithms when ValidateDnsSec is selected.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -4312,6 +4456,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>Resolves endpoint hostnames through an IP-literal UDP/TCP endpoint, such as udp@1.1.1.1:53. Failures do not fall back to system DNS.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>CheckingDisabled</maml:name>
           <maml:description>
             <maml:para>Sets the CD (checking disabled) bit on outgoing queries.</maml:para>
@@ -4327,6 +4483,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <maml:name>ClientSubnet</maml:name>
           <maml:description>
             <maml:para>Sets the EDNS Client Subnet (ECS) in CIDR notation, for example 192.0.2.0/24.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it. Enables additional signature algorithms when ValidateDnsSec is selected.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
@@ -4759,6 +4927,18 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:syntaxItem parameterSetName="PatternResolverEndpoint">
         <maml:name>Resolve-Dns</maml:name>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>Resolves endpoint hostnames through an IP-literal UDP/TCP endpoint, such as udp@1.1.1.1:53. Failures do not fall back to system DNS.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>CheckingDisabled</maml:name>
           <maml:description>
             <maml:para>Sets the CD (checking disabled) bit on outgoing queries.</maml:para>
@@ -4774,6 +4954,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <maml:name>ClientSubnet</maml:name>
           <maml:description>
             <maml:para>Sets the EDNS Client Subnet (ECS) in CIDR notation, for example 192.0.2.0/24.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it. Enables additional signature algorithms when ValidateDnsSec is selected.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
@@ -5253,6 +5445,18 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:syntaxItem parameterSetName="PatternResolverDnsProvider">
         <maml:name>Resolve-Dns</maml:name>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>Resolves endpoint hostnames through an IP-literal UDP/TCP endpoint, such as udp@1.1.1.1:53. Failures do not fall back to system DNS.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>CheckingDisabled</maml:name>
           <maml:description>
             <maml:para>Sets the CD (checking disabled) bit on outgoing queries.</maml:para>
@@ -5268,6 +5472,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <maml:name>ClientSubnet</maml:name>
           <maml:description>
             <maml:para>Sets the EDNS Client Subnet (ECS) in CIDR notation, for example 192.0.2.0/24.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it. Enables additional signature algorithms when ValidateDnsSec is selected.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
@@ -5757,6 +5973,18 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:syntaxItem parameterSetName="PatternResolverSelection">
         <maml:name>Resolve-Dns</maml:name>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>Resolves endpoint hostnames through an IP-literal UDP/TCP endpoint, such as udp@1.1.1.1:53. Failures do not fall back to system DNS.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>CheckingDisabled</maml:name>
           <maml:description>
             <maml:para>Sets the CD (checking disabled) bit on outgoing queries.</maml:para>
@@ -5772,6 +6000,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <maml:name>ClientSubnet</maml:name>
           <maml:description>
             <maml:para>Sets the EDNS Client Subnet (ECS) in CIDR notation, for example 192.0.2.0/24.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it. Enables additional signature algorithms when ValidateDnsSec is selected.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
@@ -6149,6 +6389,18 @@ specified. When false, returns simple TXT records.</maml:para>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>BootstrapResolver</maml:name>
+        <maml:description>
+          <maml:para>Resolves endpoint hostnames through an IP-literal UDP/TCP endpoint, such as udp@1.1.1.1:53. Failures do not fall back to system DNS.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
         <maml:name>CheckingDisabled</maml:name>
         <maml:description>
           <maml:para>Sets the CD (checking disabled) bit on outgoing queries.</maml:para>
@@ -6215,6 +6467,18 @@ specified. When false, returns simple TXT records.</maml:para>
         </command:parameterValueGroup>
         <dev:type>
           <maml:name>DnsEndpoint[]</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>DnsSecVerifierPath</maml:name>
+        <maml:description>
+          <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it. Enables additional signature algorithms when ValidateDnsSec is selected.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
@@ -6853,14 +7117,21 @@ specified. When false, returns simple TXT records.</maml:para>
     <command:examples>
       <command:example>
         <maml:title>EXAMPLE 1</maml:title>
-        <dev:code>Resolve-Dns -ResolverSelectionPath 'C:\Path'</dev:code>
+        <dev:code>Resolve-Dns -Name @('Name')</dev:code>
         <dev:remarks>
           <maml:para></maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
         <maml:title>EXAMPLE 2</maml:title>
-        <dev:code>Resolve-Dns -ResolverDnsProvider @('Value')</dev:code>
+        <dev:code>Resolve-Dns -Pattern 'Value'</dev:code>
+        <dev:remarks>
+          <maml:para></maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 3</maml:title>
+        <dev:code>Resolve-Dns -Pattern 'Value' -ResolverDnsProvider @('Value')</dev:code>
         <dev:remarks>
           <maml:para></maml:para>
         </dev:remarks>
@@ -6898,6 +7169,35 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">Int32</command:parameterValue>
           <dev:type>
             <maml:name>Int32</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>Resolve endpoint hostnames through an IP-literal UDP/TCP resolver, such as udp@1.1.1.1:53.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ConnectionMode</maml:name>
+          <maml:description>
+            <maml:para>Use a fresh client per attempt, or retain one per target without caching DNS answers.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">ResolverQueryConnectionMode</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">Cold</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Warm</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Mixed</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>ResolverQueryConnectionMode</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -6943,6 +7243,18 @@ specified. When false, returns simple TXT records.</maml:para>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint[]</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -7011,6 +7323,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <maml:name>RequestDnsSec</maml:name>
           <maml:description>
             <maml:para>Request DNSSEC records by setting the DO bit.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>RequestNsid</maml:name>
+          <maml:description>
+            <maml:para>Request resolver identity through EDNS on wire transports.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
           <dev:type>
@@ -7175,6 +7499,47 @@ specified. When false, returns simple TXT records.</maml:para>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>Resolve endpoint hostnames through an IP-literal UDP/TCP resolver, such as udp@1.1.1.1:53.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ConnectionMode</maml:name>
+          <maml:description>
+            <maml:para>Use a fresh client per attempt, or retain one per target without caching DNS answers.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">ResolverQueryConnectionMode</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">Cold</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Warm</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Mixed</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>ResolverQueryConnectionMode</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>IncludeSummary</maml:name>
           <maml:description>
             <maml:para>Emits a run-level summary object after the per-candidate benchmark results.</maml:para>
@@ -7238,6 +7603,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <maml:name>RequestDnsSec</maml:name>
           <maml:description>
             <maml:para>Request DNSSEC records by setting the DO bit.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>RequestNsid</maml:name>
+          <maml:description>
+            <maml:para>Request resolver identity through EDNS on wire transports.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
           <dev:type>
@@ -7438,6 +7815,47 @@ specified. When false, returns simple TXT records.</maml:para>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>Resolve endpoint hostnames through an IP-literal UDP/TCP resolver, such as udp@1.1.1.1:53.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ConnectionMode</maml:name>
+          <maml:description>
+            <maml:para>Use a fresh client per attempt, or retain one per target without caching DNS answers.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">ResolverQueryConnectionMode</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">Cold</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Warm</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Mixed</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>ResolverQueryConnectionMode</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>IncludeSummary</maml:name>
           <maml:description>
             <maml:para>Emits a run-level summary object after the per-candidate benchmark results.</maml:para>
@@ -7501,6 +7919,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <maml:name>RequestDnsSec</maml:name>
           <maml:description>
             <maml:para>Request DNSSEC records by setting the DO bit.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>RequestNsid</maml:name>
+          <maml:description>
+            <maml:para>Request resolver identity through EDNS on wire transports.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
           <dev:type>
@@ -7676,6 +8106,35 @@ specified. When false, returns simple TXT records.</maml:para>
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>BootstrapResolver</maml:name>
+        <maml:description>
+          <maml:para>Resolve endpoint hostnames through an IP-literal UDP/TCP resolver, such as udp@1.1.1.1:53.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>ConnectionMode</maml:name>
+        <maml:description>
+          <maml:para>Use a fresh client per attempt, or retain one per target without caching DNS answers.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">ResolverQueryConnectionMode</command:parameterValue>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">Cold</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Warm</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Mixed</command:parameterValue>
+        </command:parameterValueGroup>
+        <dev:type>
+          <maml:name>ResolverQueryConnectionMode</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="None">
         <maml:name>DnsProvider</maml:name>
         <maml:description>
@@ -7717,6 +8176,18 @@ specified. When false, returns simple TXT records.</maml:para>
         </command:parameterValueGroup>
         <dev:type>
           <maml:name>DnsEndpoint[]</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>DnsSecVerifierPath</maml:name>
+        <maml:description>
+          <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
@@ -7785,6 +8256,18 @@ specified. When false, returns simple TXT records.</maml:para>
         <maml:name>RequestDnsSec</maml:name>
         <maml:description>
           <maml:para>Request DNSSEC records by setting the DO bit.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+        <dev:type>
+          <maml:name>SwitchParameter</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>RequestNsid</maml:name>
+        <maml:description>
+          <maml:para>Request resolver identity through EDNS on wire transports.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
         <dev:type>
@@ -8015,7 +8498,14 @@ specified. When false, returns simple TXT records.</maml:para>
     <command:examples>
       <command:example>
         <maml:title>EXAMPLE 1</maml:title>
-        <dev:code>Test-DnsBenchmark -ResolverSelectionPath 'C:\Path'</dev:code>
+        <dev:code>Test-DnsBenchmark -Name @('Name')</dev:code>
+        <dev:remarks>
+          <maml:para></maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 2</maml:title>
+        <dev:code>Test-DnsBenchmark -Name @('Name') -ResolverSelectionPath 'C:\Path'</dev:code>
         <dev:remarks>
           <maml:para></maml:para>
         </dev:remarks>
@@ -8040,6 +8530,18 @@ specified. When false, returns simple TXT records.</maml:para>
     <command:syntax>
       <command:syntaxItem parameterSetName="DnsProvider">
         <maml:name>Test-DnsProbe</maml:name>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>Resolve endpoint hostnames through an IP-literal UDP/TCP resolver, such as udp@1.1.1.1:53.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>DnsProvider</maml:name>
           <maml:description>
@@ -8081,6 +8583,18 @@ specified. When false, returns simple TXT records.</maml:para>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -8149,6 +8663,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <maml:name>RequestDnsSec</maml:name>
           <maml:description>
             <maml:para>Request DNSSEC records by setting the DO bit.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>RequestNsid</maml:name>
+          <maml:description>
+            <maml:para>Request resolver identity through EDNS on wire transports.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
           <dev:type>
@@ -8313,6 +8839,30 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:syntaxItem parameterSetName="ResolverEndpoint">
         <maml:name>Test-DnsProbe</maml:name>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>Resolve endpoint hostnames through an IP-literal UDP/TCP resolver, such as udp@1.1.1.1:53.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>IncludeSummary</maml:name>
           <maml:description>
             <maml:para>Emits a run-level summary object after the per-candidate probe rows.</maml:para>
@@ -8376,6 +8926,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <maml:name>RequestDnsSec</maml:name>
           <maml:description>
             <maml:para>Request DNSSEC records by setting the DO bit.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>RequestNsid</maml:name>
+          <maml:description>
+            <maml:para>Request resolver identity through EDNS on wire transports.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
           <dev:type>
@@ -8576,6 +9138,30 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:syntaxItem parameterSetName="ResolverSelection">
         <maml:name>Test-DnsProbe</maml:name>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>Resolve endpoint hostnames through an IP-literal UDP/TCP resolver, such as udp@1.1.1.1:53.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>IncludeSummary</maml:name>
           <maml:description>
             <maml:para>Emits a run-level summary object after the per-candidate probe rows.</maml:para>
@@ -8639,6 +9225,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <maml:name>RequestDnsSec</maml:name>
           <maml:description>
             <maml:para>Request DNSSEC records by setting the DO bit.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>RequestNsid</maml:name>
+          <maml:description>
+            <maml:para>Request resolver identity through EDNS on wire transports.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
           <dev:type>
@@ -8815,6 +9413,18 @@ specified. When false, returns simple TXT records.</maml:para>
     </command:syntax>
     <command:parameters>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>BootstrapResolver</maml:name>
+        <maml:description>
+          <maml:para>Resolve endpoint hostnames through an IP-literal UDP/TCP resolver, such as udp@1.1.1.1:53.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
         <maml:name>DnsProvider</maml:name>
         <maml:description>
           <maml:para>Built-in resolver profile to probe.</maml:para>
@@ -8855,6 +9465,18 @@ specified. When false, returns simple TXT records.</maml:para>
         </command:parameterValueGroup>
         <dev:type>
           <maml:name>DnsEndpoint</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>DnsSecVerifierPath</maml:name>
+        <maml:description>
+          <maml:para>Local optional DNSSEC provider DLL path, with its dependencies beside it.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
@@ -8923,6 +9545,18 @@ specified. When false, returns simple TXT records.</maml:para>
         <maml:name>RequestDnsSec</maml:name>
         <maml:description>
           <maml:para>Request DNSSEC records by setting the DO bit.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+        <dev:type>
+          <maml:name>SwitchParameter</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>RequestNsid</maml:name>
+        <maml:description>
+          <maml:para>Request resolver identity through EDNS on wire transports.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
         <dev:type>
@@ -9165,7 +9799,14 @@ specified. When false, returns simple TXT records.</maml:para>
     <command:examples>
       <command:example>
         <maml:title>EXAMPLE 1</maml:title>
-        <dev:code>Test-DnsProbe -ResolverSelectionPath 'C:\Path'</dev:code>
+        <dev:code>Test-DnsProbe -Name 'Name'</dev:code>
+        <dev:remarks>
+          <maml:para></maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 2</maml:title>
+        <dev:code>Test-DnsProbe -Name 'Name' -ResolverSelectionPath 'C:\Path'</dev:code>
         <dev:remarks>
           <maml:para></maml:para>
         </dev:remarks>

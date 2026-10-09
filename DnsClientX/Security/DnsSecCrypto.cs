@@ -51,6 +51,8 @@ namespace DnsClientX {
         internal static bool Verify(DnsSecKey key, byte[] data, byte[] signature,
             IDnsSecSignatureVerifier? extension = null) {
             try {
+                if (extension?.SupportsAlgorithm((DnsKeyAlgorithm)key.Algorithm) == true)
+                    return extension.Verify((DnsKeyAlgorithm)key.Algorithm, key.PublicKey, data, signature);
                 switch (key.Algorithm) {
                     case 5:
                     case 7:
@@ -81,8 +83,7 @@ namespace DnsClientX {
                         }
 #endif
                     default:
-                        return extension?.SupportsAlgorithm((DnsKeyAlgorithm)key.Algorithm) == true
-                            && extension.Verify((DnsKeyAlgorithm)key.Algorithm, key.PublicKey, data, signature);
+                        return false;
                 }
             } catch (Exception exception) when (exception is CryptographicException || exception is ArgumentException) {
                 return false;

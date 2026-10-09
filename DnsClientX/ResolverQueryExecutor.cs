@@ -47,6 +47,7 @@ namespace DnsClientX {
             ClientX client = ResolverExecutionClientFactory.CreateClient(target, new ResolverExecutionClientOptions {
                 TimeoutMs = Math.Max(1, options.TimeoutMs),
                 BootstrapResolver = options.BootstrapResolver,
+                DnsSecSignatureVerifier = options.DnsSecSignatureVerifier,
                 RequestNsid = options.RequestNsid,
                 PortOverride = options.PortOverride,
                 ForceDohWirePost = options.ForceDohWirePost

@@ -90,6 +90,7 @@ namespace DnsClientX {
                 MaxCacheTtl = request.MaxCacheTtlSeconds > 0 ? TimeSpan.FromSeconds(request.MaxCacheTtlSeconds) : null,
                 RequestDnsSec = request.ShouldRequestDnsSec,
                 ValidateDnsSec = request.ShouldValidateDnsSec,
+                DnsSecSignatureVerifier = request.DnsSecSignatureVerifier,
                 TypedRecords = request.TypedRecords,
                 ParseTypedTxtRecords = request.ParseTypedTxtRecords,
                 CheckingDisabled = request.CheckingDisabled,
@@ -378,6 +379,7 @@ namespace DnsClientX {
 
         private static void ApplyRequestConfiguration(ClientX client, ResolveDnsRequest request, EdnsOptions? ednsOptions) {
             client.EndpointConfiguration.BootstrapResolver = request.BootstrapResolver;
+            client.EndpointConfiguration.DnsSecSignatureVerifier = request.DnsSecSignatureVerifier;
             client.EndpointConfiguration.TimeOut = request.TimeOutMilliseconds;
             client.EndpointConfiguration.CheckingDisabled = request.CheckingDisabled;
             client.EndpointConfiguration.MaxConcurrency = request.EffectiveMaxConcurrency;

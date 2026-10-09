@@ -6,6 +6,7 @@ namespace DnsClientX;
 /// </summary>
 /// <remarks>
 /// Implementations must be thread-safe. Input arrays are read-only for the duration of a call.
+/// A configured verifier takes precedence for every algorithm it supports, including built-in algorithms.
 /// Returning <see langword="false"/> rejects the signature; unsupported algorithms must return
 /// <see langword="false"/> from <see cref="SupportsAlgorithm"/> so validation reports an
 /// indeterminate algorithm rather than a bogus signature.

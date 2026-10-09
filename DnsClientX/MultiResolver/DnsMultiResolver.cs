@@ -477,6 +477,7 @@ namespace DnsClientX {
                 ? _options.MaxConnectionsPerServer : Configuration.DefaultMaxConnectionsPerServer;
             configuration.UseTcpFallback &= _options.UseTcpFallback;
             configuration.BootstrapResolver = _options.BootstrapResolver;
+            configuration.DnsSecSignatureVerifier = _options.DnsSecSignatureVerifier;
             configuration.PreferredAddressFamily = ep.Family ??
                 (_options.PreferIpv6 ? AddressFamily.InterNetworkV6 : (AddressFamily?)null);
             configuration.MaxConcurrency = _options.MaxConcurrency;

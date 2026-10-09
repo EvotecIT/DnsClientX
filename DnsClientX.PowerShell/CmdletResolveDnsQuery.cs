@@ -334,6 +334,10 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false)]
         public SwitchParameter ValidateDnsSec;
 
+        /// <summary><para type="description">Local optional DNSSEC provider DLL path, with its dependencies beside it. Enables additional signature algorithms when ValidateDnsSec is selected.</para></summary>
+        [Parameter]
+        public string? DnsSecVerifierPath { get; set; }
+
         /// <summary>
         /// <para type="description">Enables EDNS on outgoing queries.</para>
         /// </summary>
@@ -464,6 +468,7 @@ namespace DnsClientX.PowerShell {
                 RetryDelayMs = RetryDelayMs,
                 RequestDnsSec = RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent,
                 ValidateDnsSec = ValidateDnsSec.IsPresent,
+                DnsSecSignatureVerifier = string.IsNullOrWhiteSpace(DnsSecVerifierPath) ? null : DnsSecSignatureVerifierLoader.Load(DnsSecVerifierPath!),
                 TypedRecords = TypedRecords.IsPresent,
                 ParseTypedTxtRecords = ParseTypedTxtRecords.IsPresent,
                 EnableEdns = EnableEdns.IsPresent,

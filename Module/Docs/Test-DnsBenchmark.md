@@ -13,17 +13,17 @@ Returns one object per candidate with latency, success rate, answer consistency,
 ## SYNTAX
 ### DnsProvider (Default)
 ```powershell
-Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-Attempts <int>] [-MaxConcurrency <int>] [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-MinSuccessPercent <Int32>] [-MinSuccessfulCandidates <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-Attempts <int>] [-MaxConcurrency <int>] [-ConnectionMode <ResolverQueryConnectionMode>] [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-MinSuccessPercent <Int32>] [-MinSuccessfulCandidates <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ### ResolverEndpoint
 ```powershell
-Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-Attempts <int>] [-MaxConcurrency <int>] [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-MinSuccessPercent <Int32>] [-MinSuccessfulCandidates <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-Attempts <int>] [-MaxConcurrency <int>] [-ConnectionMode <ResolverQueryConnectionMode>] [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-MinSuccessPercent <Int32>] [-MinSuccessfulCandidates <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ### ResolverSelection
 ```powershell
-Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] -ResolverSelectionPath <string> [-Attempts <int>] [-MaxConcurrency <int>] [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-MinSuccessPercent <Int32>] [-MinSuccessfulCandidates <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] -ResolverSelectionPath <string> [-Attempts <int>] [-MaxConcurrency <int>] [-ConnectionMode <ResolverQueryConnectionMode>] [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-MinSuccessPercent <Int32>] [-MinSuccessfulCandidates <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -35,7 +35,13 @@ Returns one object per candidate with latency, success rate, answer consistency,
 
 ### EXAMPLE 1
 ```powershell
-Test-DnsBenchmark -ResolverSelectionPath 'C:\Path'
+Test-DnsBenchmark -Name @('Name')
+```
+
+
+### EXAMPLE 2
+```powershell
+Test-DnsBenchmark -Name @('Name') -ResolverSelectionPath 'C:\Path'
 ```
 
 
@@ -57,6 +63,38 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -BootstrapResolver
+Resolve endpoint hostnames through an IP-literal UDP/TCP resolver, such as udp@1.1.1.1:53.
+
+```yaml
+Type: String
+Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ConnectionMode
+Use a fresh client per attempt, or retain one per target without caching DNS answers.
+
+```yaml
+Type: ResolverQueryConnectionMode
+Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
+Aliases: None
+Possible values: Cold, Warm, Mixed
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -DnsProvider
 Built-in provider candidates to benchmark.
 
@@ -65,6 +103,22 @@ Type: DnsEndpoint[]
 Parameter Sets: DnsProvider
 Aliases: None
 Possible values: System, SystemTcp, Cloudflare, CloudflareSecurity, CloudflareFamily, CloudflareWireFormat, CloudflareWireFormatPost, CloudflareJsonPost, Google, GoogleWireFormat, GoogleWireFormatPost, GoogleJsonPost, Quad9, Quad9ECS, Quad9Unsecure, OpenDNS, OpenDNSFamily, CloudflareQuic, Quad9Http3, Quad9Quic, GoogleQuic, AdGuard, AdGuardFamily, AdGuardNonFiltering, NextDNS, DnsCryptCloudflare, DnsCryptQuad9, DnsCryptRelay, RootServer, CloudflareOdoh, Custom
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DnsSecVerifierPath
+Local optional DNSSEC provider DLL path, with its dependencies beside it.
+
+```yaml
+Type: String
+Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
+Aliases: None
+Possible values:
 
 Required: False
 Position: named
@@ -155,6 +209,22 @@ Accept wildcard characters: False
 
 ### -RequestDnsSec
 Request DNSSEC records by setting the DO bit.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -RequestNsid
+Request resolver identity through EDNS on wire transports.
 
 ```yaml
 Type: SwitchParameter
