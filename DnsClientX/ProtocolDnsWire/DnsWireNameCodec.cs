@@ -171,7 +171,7 @@ namespace DnsClientX {
         private static string ToPresentationLabel(byte[] label) {
             var builder = new StringBuilder(label.Length);
             foreach (byte value in label) {
-                if (value == (byte)'.' || value == (byte)'\\') {
+                if (value == (byte)'.' || value == (byte)'\\' || value == (byte)'"') {
                     builder.Append('\\').Append((char)value);
                 } else if (value < 0x21 || value > 0x7e) {
                     builder.Append('\\').Append(value.ToString("D3", CultureInfo.InvariantCulture));

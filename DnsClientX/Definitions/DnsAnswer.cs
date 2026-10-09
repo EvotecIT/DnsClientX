@@ -248,7 +248,7 @@ namespace DnsClientX {
                 string flags = DnsPresentationFormat.Unescape(tokens[2].Value);
                 string service = DnsPresentationFormat.Unescape(tokens[3].Value);
                 string regexp = tokens.Count == 6 ? DnsPresentationFormat.Unescape(tokens[4].Value) : string.Empty;
-                string replacement = tokens[tokens.Count - 1].Value;
+                string replacement = tokens[tokens.Count - 1].Raw;
                 replacement = DnsRecordDataPresentation.NormalizeName(replacement);
                 return $"{order} {preference} {DnsPresentationFormat.Quote(flags)} {DnsPresentationFormat.Quote(service)} {DnsPresentationFormat.Quote(regexp)} {replacement}";
             }

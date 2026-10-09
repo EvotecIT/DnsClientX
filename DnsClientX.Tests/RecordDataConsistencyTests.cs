@@ -95,6 +95,41 @@ public class RecordDataConsistencyTests {
         Assert.Equal(".", new DnsAnswer { Type = type, DataRaw = "." }.Data);
     }
 
+    /// <summary>Escaped spaces stay within the next-name field instead of entering the type bitmap.</summary>
+    [Fact]
+    public void NsecEscapedSpacePreservesTheNextName() {
+        const string raw = @"Next\ Name.Example. TYPE1 TYPE16";
+        var answer = new DnsAnswer { Type = DnsRecordType.NSEC, DataRaw = raw };
+        Assert.Equal(@"next\032name.example A TXT", answer.Data);
+        Assert.Equal(raw, answer.DataRaw);
+    }
+
+    /// <summary>Quotes in a name label are octets, not quoted-field delimiters.</summary>
+    [Theory]
+    [InlineData(DnsRecordType.CNAME)]
+    [InlineData(DnsRecordType.NS)]
+    [InlineData(DnsRecordType.DNAME)]
+    [InlineData(DnsRecordType.PTR)]
+    public async Task LiteralNameQuotesSurviveWireAndGenericData(DnsRecordType type) {
+        byte[] rdata = Name("A\"B\"C", "Example");
+        DnsResponse wire = await DnsWire.DeserializeDnsWireFormat(null, false, WireResponse(type, rdata));
+        const string expected = @"a\""b\""c.example";
+        Assert.Equal(expected, wire.Answers[0].Data);
+        foreach (string raw in new[] { @"A\""B\""C.Example.", "\\# 15 054122422243074578616D706C6500" })
+            Assert.Equal(expected, new DnsAnswer { Type = type, DataRaw = raw }.Data);
+    }
+
+    /// <summary>Generic HINFO must consume exactly two strings rather than discard trailing bytes.</summary>
+    [Fact]
+    public async Task HinfoGenericTrailingDataIsPreserved() {
+        const string raw = "\\# 6 0141014201FF";
+        var answer = new DnsAnswer { Type = DnsRecordType.HINFO, DataRaw = raw };
+        Assert.Equal(raw, answer.Data);
+        Assert.Equal(raw, Assert.IsType<UnknownRecord>(answer.TypedRecord).Data);
+        await Assert.ThrowsAsync<DnsClientException>(() => DnsWire.DeserializeDnsWireFormat(null, false,
+            WireResponse(DnsRecordType.HINFO, new byte[] { 1, 65, 1, 66, 1, 255 })));
+    }
+
     /// <summary>Real JSON and wire parsers expose the same data for textual and generic RDATA.</summary>
     [Theory]
     [MemberData(nameof(ProviderRecords))]
@@ -108,6 +143,8 @@ public class RecordDataConsistencyTests {
             DnsResponse response = await http.DeserializeResponse();
             Assert.Equal(expected, response.Answers[0].Data);
             Assert.Equal(raw, response.Answers[0].DataRaw);
+            if (type is DnsRecordType.TXT or DnsRecordType.SPF)
+                Assert.Equal(wire.Answers[0].DataStringsEscaped, response.Answers[0].DataStringsEscaped);
             Assert.Equal(TypedValue(wire.Answers[0]), TypedValue(response.Answers[0]));
             response.TypedAnswers = new[] { response.Answers[0].TypedRecord! };
             using var cache = new DnsResponseCache();
@@ -142,6 +179,11 @@ public class RecordDataConsistencyTests {
         yield return new object[] { DnsRecordType.CAA, new byte[] { 0, 5, 105, 115, 115, 117, 101 }.Concat(Encoding.ASCII.GetBytes("CA.Example; Path=AbCd")).ToArray(), "0\tissue \"CA.Example; Path=AbCd\"" };
         yield return new object[] { DnsRecordType.NAPTR, new byte[] { 0, 1, 0, 2, 1, 117, 3, 115, 105, 112, 0 }.Concat(name).ToArray(), "1 2 \"u\" \"sip\" \"\" Target.Example." };
         yield return new object[] { DnsRecordType.NSEC, name.Concat(new byte[] { 0, 3, 64, 0, 128 }).ToArray(), "Target.Example. TYPE1 TYPE16" };
+        byte[] quotedName = Name("A\"B\"C", "Example");
+        yield return new object[] { DnsRecordType.MX, new byte[] { 0, 10 }.Concat(quotedName).ToArray(), @"10 A\""B\""C.Example." };
+        yield return new object[] { DnsRecordType.SRV, new byte[] { 0, 1, 0, 2, 0, 80 }.Concat(quotedName).ToArray(), @"1 2 80 A\""B\""C.Example." };
+        yield return new object[] { DnsRecordType.SOA, quotedName.Concat(quotedName).Concat(new byte[] { 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5 }).ToArray(), @"A\""B\""C.Example. A\""B\""C.Example. 1 2 3 4 5" };
+        yield return new object[] { DnsRecordType.NAPTR, new byte[] { 0, 1, 0, 2, 1, 117, 3, 115, 105, 112, 0 }.Concat(quotedName).ToArray(), @"1 2 ""u"" ""sip"" """" A\""B\""C.Example." };
         yield return new object[] { DnsRecordType.LOC, new byte[] { 0, 0x12, 0x16, 0x13, 128, 0, 0, 0, 128, 0, 0, 0, 0, 152, 150, 128 }, "0 N 0 E 0m" };
         foreach (DnsRecordType type in new[] { DnsRecordType.TXT, DnsRecordType.SPF })
             yield return new object[] { type, new byte[] { 2, 65, 66, 0, 2, 67, 68 }, "\"AB\" \"\" \"CD\"" };
@@ -160,6 +202,7 @@ public class RecordDataConsistencyTests {
     private static string TypedValue(DnsAnswer answer) => answer.TypedRecord switch {
         ARecord ipv4 => ipv4.Address.ToString(),
         AAAARecord ipv6 => ipv6.Address.ToString(),
+        TxtRecord txt => txt.Text,
         object record => JsonSerializer.Serialize(record),
         _ => "null"
     };

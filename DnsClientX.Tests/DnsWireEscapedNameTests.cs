@@ -7,9 +7,10 @@ namespace DnsClientX.Tests {
     /// </summary>
     public class DnsWireEscapedNameTests {
         /// <summary>Escaped dots and spaces remain inside one wire-format label.</summary>
-        [Fact]
-        public async Task SerializesEscapedPresentationLabel() {
-            const string name = @"Living\.Room\032Printer._ipp._tcp.local.";
+        [Theory]
+        [InlineData(@"Living\.Room\032Printer._ipp._tcp.local.")]
+        [InlineData(@"A\""B\""C.Example.")]
+        public async Task SerializesEscapedPresentationLabel(string name) {
             var query = new DnsMessage(name, DnsRecordType.PTR, requestDnsSec: false);
 
             DnsResponse parsed = await DnsWire.DeserializeDnsWireFormat(null, false, query.SerializeDnsWireFormat());

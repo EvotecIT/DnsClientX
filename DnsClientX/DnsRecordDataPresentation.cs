@@ -26,6 +26,7 @@ internal static class DnsRecordDataPresentation {
     }
 
     internal static string NormalizeName(string value) {
+        if (value.IndexOf('\\') < 0 && value.IndexOf('"') >= 0) value = value.Replace("\"", "\\\"");
         if (value.IndexOf('\\') >= 0) {
             try {
                 byte[] name = DnsWireNameCodec.ToCanonicalWire(value);
@@ -39,7 +40,7 @@ internal static class DnsRecordDataPresentation {
         var tokens = DnsPresentationFormat.Tokenize(data, out bool complete);
         if (!complete || tokens.Count != fields) return data;
         string[] values = tokens.Select(token => token.Raw).ToArray();
-        foreach (int index in names) values[index] = NormalizeName(tokens[index].Value);
+        foreach (int index in names) values[index] = NormalizeName(tokens[index].Raw);
         for (int index = 0; index < fields; index++) {
             if (!names.Contains(index) && uint.TryParse(values[index], NumberStyles.None, CultureInfo.InvariantCulture, out uint number))
                 values[index] = number.ToString(CultureInfo.InvariantCulture);
@@ -88,8 +89,9 @@ internal static class DnsRecordDataPresentation {
     }
 
     internal static string Nsec(string data) {
-        string[] parts = data.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 0) return data;
+        var tokens = DnsPresentationFormat.Tokenize(data, out bool complete);
+        if (!complete || tokens.Count == 0) return data;
+        string[] parts = tokens.Select(token => token.Raw).ToArray();
         parts[0] = NormalizeName(parts[0]);
         for (int index = 1; index < parts.Length; index++) {
             if (parts[index].StartsWith("TYPE", StringComparison.OrdinalIgnoreCase)

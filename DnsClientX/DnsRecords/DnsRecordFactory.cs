@@ -117,7 +117,7 @@ public static class DnsRecordFactory {
                 if (complete && naptr.Count == 6 &&
                     ushort.TryParse(naptr[0].Value, out var order) &&
                     ushort.TryParse(naptr[1].Value, out var preference)) {
-                    string replacement = naptr[5].Value;
+                    string replacement = naptr[5].Raw;
                     return new NaptrRecord(order, preference,
                         DnsPresentationFormat.Unescape(naptr[2].Value),
                         DnsPresentationFormat.Unescape(naptr[3].Value),
