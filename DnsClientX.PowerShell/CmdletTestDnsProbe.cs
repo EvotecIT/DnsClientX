@@ -453,7 +453,13 @@ namespace DnsClientX.PowerShell {
         /// <inheritdoc />
         protected override async Task ProcessRecordAsync() {
             ValidateParameters();
-            ResolverQueryRunOptions runOptions = CreateQueryRunOptions();
+            ResolverQueryRunOptions runOptions;
+            try {
+                runOptions = CreateQueryRunOptions();
+            } catch (Exception ex) {
+                WriteError(new ErrorRecord(ex, "DnsProbeInvalidInput", ErrorCategory.InvalidArgument, this));
+                return;
+            }
 
             ResolverExecutionTargetSource targetSource = CreateTargetSource();
             ResolverExecutionTarget[] candidates = await ResolverExecutionTargetResolver.ResolveAsync(targetSource, CancelToken).ConfigureAwait(false);

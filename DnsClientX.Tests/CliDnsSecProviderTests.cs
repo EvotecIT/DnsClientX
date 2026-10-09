@@ -44,4 +44,15 @@ public class CliDnsSecProviderTests {
         Assert.False((bool)Program.GetMethod("TryParseArgs", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, parsed)!);
         Assert.Contains("--dnssec-verifier applies only", (string)parsed[2]!);
     }
+
+    /// <summary>An explicitly requested provider cannot silently become the default verifier.</summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("\t")]
+    public void BlankProviderPathIsRejected(string path) {
+        object?[] parsed = { new[] { "example.com", "--dnssec-verifier", path }, null, null, null };
+        Assert.False((bool)Program.GetMethod("TryParseArgs", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, parsed)!);
+        Assert.Contains("--dnssec-verifier", (string)parsed[2]!);
+    }
 }

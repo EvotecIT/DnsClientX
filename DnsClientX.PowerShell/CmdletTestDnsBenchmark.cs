@@ -457,7 +457,13 @@ namespace DnsClientX.PowerShell {
         /// <inheritdoc />
         protected override async Task ProcessRecordAsync() {
             ValidateParameters();
-            ResolverQueryRunOptions runOptions = CreateQueryRunOptions();
+            ResolverQueryRunOptions runOptions;
+            try {
+                runOptions = CreateQueryRunOptions();
+            } catch (Exception ex) {
+                WriteError(new ErrorRecord(ex, "DnsBenchmarkInvalidInput", ErrorCategory.InvalidArgument, this));
+                return;
+            }
 
             string[] names = Name
                 .Where(name => !string.IsNullOrWhiteSpace(name))

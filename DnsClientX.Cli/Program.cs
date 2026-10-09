@@ -219,6 +219,12 @@ namespace DnsClientX.Cli {
                             options = null;
                             return false;
                         }
+                        if (string.IsNullOrWhiteSpace(verifierPath)) {
+                            errorMessage = "--dnssec-verifier requires a nonblank local DLL path.";
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
                         options.DnsSecVerifierPath = verifierPath;
                         break;
                     case var opt when opt.Equals("--wire-post", StringComparison.OrdinalIgnoreCase):

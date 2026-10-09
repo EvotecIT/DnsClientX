@@ -520,7 +520,13 @@ namespace DnsClientX.PowerShell {
         /// <inheritdoc />
         protected override async Task ProcessRecordAsync() {
             ValidateResolverEndpointInputs();
-            var request = CreateRequest();
+            ResolveDnsRequest request;
+            try {
+                request = CreateRequest();
+            } catch (Exception ex) {
+                WriteError(new ErrorRecord(ex, "ResolveDnsInvalidInput", ErrorCategory.InvalidArgument, this));
+                return;
+            }
 
             try {
                 var result = await ClientX.QueryDns(request, CancelToken).ConfigureAwait(false);
