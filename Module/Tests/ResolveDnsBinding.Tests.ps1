@@ -100,6 +100,15 @@ Describe 'Resolve-Dns binding' {
             Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
     }
 
+    It 'requires an explicit multi-resolver source for strategy and cache options' {
+        { Resolve-Dns example.com TXT -ResponseCache -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
+        { Resolve-Dns example.com TXT -ResolverStrategy FastestWins -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
+        { Resolve-Dns -Name 'example.com' -ResolverSelectionPath 'unused.json' -ResponseCache -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
+    }
+
     It 'exports benchmark cmdlet from the manifest' {
         (Get-Command Test-DnsBenchmark -ErrorAction Stop).Name | Should -Be 'Test-DnsBenchmark'
     }
