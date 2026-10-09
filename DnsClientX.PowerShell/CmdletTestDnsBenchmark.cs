@@ -457,6 +457,7 @@ namespace DnsClientX.PowerShell {
         /// <inheritdoc />
         protected override async Task ProcessRecordAsync() {
             ValidateParameters();
+            ResolverQueryRunOptions runOptions = CreateQueryRunOptions();
 
             string[] names = Name
                 .Where(name => !string.IsNullOrWhiteSpace(name))
@@ -480,7 +481,7 @@ namespace DnsClientX.PowerShell {
 
             WriteVerbose($"Benchmarking {candidates.Length} candidate(s) across {names.Length} domain(s), {recordTypes.Length} record type(s), and {Attempts} attempt(s) per combination.");
 
-            ResolverBenchmarkReport report = await RunBenchmarkAsync(candidates, names, recordTypes, CancelToken).ConfigureAwait(false);
+            ResolverBenchmarkReport report = await RunBenchmarkAsync(candidates, names, recordTypes, runOptions, CancelToken).ConfigureAwait(false);
             if (!string.IsNullOrWhiteSpace(SavePath)) {
                 ResolverScoreStore.Save(SavePath, report.Snapshot);
                 WriteVerbose($"Saved resolver score snapshot to {SavePath}.");
@@ -555,7 +556,7 @@ namespace DnsClientX.PowerShell {
             };
         }
 
-        private async Task<ResolverBenchmarkReport> RunBenchmarkAsync(IReadOnlyList<ResolverExecutionTarget> candidates, string[] names, DnsRecordType[] recordTypes, CancellationToken cancellationToken) {
+        private async Task<ResolverBenchmarkReport> RunBenchmarkAsync(IReadOnlyList<ResolverExecutionTarget> candidates, string[] names, DnsRecordType[] recordTypes, ResolverQueryRunOptions runOptions, CancellationToken cancellationToken) {
             ResolverBenchmarkReport report = await ResolverBenchmarkWorkflow.RunAsync(
                 candidates,
                 names,
@@ -563,7 +564,7 @@ namespace DnsClientX.PowerShell {
                 Attempts,
                 MaxConcurrency,
                 TimeOut,
-                CreateQueryRunOptions(),
+                runOptions,
                 CreateBenchmarkPolicy(),
                 progress: (completed, total) => {
                     int percent = total == 0
@@ -594,7 +595,7 @@ namespace DnsClientX.PowerShell {
                 ConnectionMode = ConnectionMode,
                 RequestDnsSec = RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent,
                 ValidateDnsSec = ValidateDnsSec.IsPresent,
-                DnsSecSignatureVerifier = string.IsNullOrWhiteSpace(DnsSecVerifierPath) ? null : DnsSecSignatureVerifierLoader.Load(DnsSecVerifierPath!),
+                DnsSecSignatureVerifier = DnsSecProviderPath.Load(this, DnsSecVerifierPath),
                 RequestNsid = RequestNsid.IsPresent,
                 BootstrapResolver = string.IsNullOrWhiteSpace(BootstrapResolver) ? null : EndpointParser.ParseBootstrap(BootstrapResolver!),
                 MaxRetries = 1,

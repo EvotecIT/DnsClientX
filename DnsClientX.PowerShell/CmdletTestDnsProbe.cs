@@ -453,6 +453,7 @@ namespace DnsClientX.PowerShell {
         /// <inheritdoc />
         protected override async Task ProcessRecordAsync() {
             ValidateParameters();
+            ResolverQueryRunOptions runOptions = CreateQueryRunOptions();
 
             ResolverExecutionTargetSource targetSource = CreateTargetSource();
             ResolverExecutionTarget[] candidates = await ResolverExecutionTargetResolver.ResolveAsync(targetSource, CancelToken).ConfigureAwait(false);
@@ -463,7 +464,7 @@ namespace DnsClientX.PowerShell {
 
             WriteVerbose($"Probing {candidates.Length} candidate(s) for {Name} {Type}.");
 
-            ResolverProbeReport report = await RunProbeAsync(candidates, CancelToken).ConfigureAwait(false);
+            ResolverProbeReport report = await RunProbeAsync(candidates, runOptions, CancelToken).ConfigureAwait(false);
             DnsProbeResult[] results = report.Results.Select(ToDnsProbeResult).ToArray();
             DnsProbeSummary summary = ToDnsProbeSummary(report.Summary);
 
@@ -555,13 +556,13 @@ namespace DnsClientX.PowerShell {
             };
         }
 
-        private async Task<ResolverProbeReport> RunProbeAsync(IReadOnlyList<ResolverExecutionTarget> candidates, CancellationToken cancellationToken) {
+        private async Task<ResolverProbeReport> RunProbeAsync(IReadOnlyList<ResolverExecutionTarget> candidates, ResolverQueryRunOptions runOptions, CancellationToken cancellationToken) {
             ResolverProbeReport report = await ResolverProbeWorkflow.RunAsync(
                 candidates,
                 Name,
                 Type,
                 TimeOut,
-                CreateQueryRunOptions(),
+                runOptions,
                 CreateProbePolicy(),
                 progress: (completed, total) => {
                     int percent = total == 0
@@ -586,7 +587,7 @@ namespace DnsClientX.PowerShell {
                 TimeoutMs = TimeOut,
                 RequestDnsSec = RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent,
                 ValidateDnsSec = ValidateDnsSec.IsPresent,
-                DnsSecSignatureVerifier = string.IsNullOrWhiteSpace(DnsSecVerifierPath) ? null : DnsSecSignatureVerifierLoader.Load(DnsSecVerifierPath!),
+                DnsSecSignatureVerifier = DnsSecProviderPath.Load(this, DnsSecVerifierPath),
                 RequestNsid = RequestNsid.IsPresent,
                 BootstrapResolver = string.IsNullOrWhiteSpace(BootstrapResolver) ? null : EndpointParser.ParseBootstrap(BootstrapResolver!),
                 MaxRetries = 1,

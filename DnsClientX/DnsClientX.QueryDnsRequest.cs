@@ -170,31 +170,6 @@ namespace DnsClientX {
         }
 
         private static async Task<DnsResponse[]> ExecuteProviderAsync(ResolveDnsRequest request, string[] namesToUse, EdnsOptions? ednsOptions, DnsEndpoint provider, CancellationToken cancellationToken) {
-            if (provider == DnsEndpoint.RootServer) {
-                return await ExecuteWithRetryAsync(request, async () => {
-                    var responses = new List<DnsResponse>();
-                    foreach (var recordType in request.RecordTypes) {
-                        var result = await QueryDns(
-                            namesToUse,
-                            recordType,
-                            provider,
-                            request.DnsSelectionStrategy,
-                            request.TimeOutMilliseconds,
-                            retryOnTransient: false,
-                            maxRetries: 1,
-                            request.RetryDelayMs,
-                            request.ShouldRequestDnsSec,
-                            request.ShouldValidateDnsSec,
-                            request.TypedRecords,
-                            request.ParseTypedTxtRecords,
-                            cancellationToken).ConfigureAwait(false);
-                        responses.AddRange(result);
-                    }
-
-                    return responses.ToArray();
-                }, cancellationToken).ConfigureAwait(false);
-            }
-
             return await ExecuteWithRetryAsync(request, async () => {
                 using var client = CreateClientForProvider(request, provider, ednsOptions);
                 return await QueryWithRequestAsync(client, request, namesToUse, cancellationToken).ConfigureAwait(false);

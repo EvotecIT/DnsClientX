@@ -468,7 +468,7 @@ namespace DnsClientX.PowerShell {
                 RetryDelayMs = RetryDelayMs,
                 RequestDnsSec = RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent,
                 ValidateDnsSec = ValidateDnsSec.IsPresent,
-                DnsSecSignatureVerifier = string.IsNullOrWhiteSpace(DnsSecVerifierPath) ? null : DnsSecSignatureVerifierLoader.Load(DnsSecVerifierPath!),
+                DnsSecSignatureVerifier = DnsSecProviderPath.Load(this, DnsSecVerifierPath),
                 TypedRecords = TypedRecords.IsPresent,
                 ParseTypedTxtRecords = ParseTypedTxtRecords.IsPresent,
                 EnableEdns = EnableEdns.IsPresent,
