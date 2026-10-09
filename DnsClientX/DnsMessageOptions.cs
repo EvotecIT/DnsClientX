@@ -14,4 +14,7 @@ public readonly record struct DnsMessageOptions(
     IEnumerable<EdnsOption>? Options = null,
     bool RecursionDesired = true,
     ushort? TransactionId = null,
-    ushort QueryClass = 1);
+    ushort QueryClass = 1) {
+    /// <summary>Gets whether to advertise acceptance of RFC 9824 compact NXDOMAIN answers.</summary>
+    public bool CompactAnswersOk { get; init; }
+}

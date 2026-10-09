@@ -150,7 +150,7 @@ namespace DnsClientX.Tests {
 
             byte[] query = await udpTask;
 
-            AssertCdBit(query, "example.com", expectEdns: true, expectedOptTtl: 0x00008000u);
+            AssertCdBit(query, "example.com", expectEdns: true, expectedOptTtl: 0x0000C000u);
         }
 
         /// <summary>
@@ -171,7 +171,7 @@ namespace DnsClientX.Tests {
 
             byte[] query = await udpTask;
 
-            AssertCdBit(query, "example.com", expectEdns: true, expectedOptTtl: 0x00008000u);
+            AssertCdBit(query, "example.com", expectEdns: true, expectedOptTtl: 0x0000C000u);
             Assert.True(client.EndpointConfiguration.CheckingDisabled);
         }
 

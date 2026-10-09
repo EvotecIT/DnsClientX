@@ -4,7 +4,7 @@ using System.Linq;
 using System.Security.Cryptography;
 
 namespace DnsClientX {
-    internal static class DnsSecProof {
+    internal static partial class DnsSecProof {
         private const ushort MaxSupportedNsec3Iterations = 500;
 
         internal static bool ProvesUnsignedDelegation(DnsResponse response, string name) =>

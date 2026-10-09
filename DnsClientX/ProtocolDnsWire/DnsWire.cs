@@ -144,6 +144,7 @@ namespace DnsClientX {
             int? ednsPayloadSize = null;
             byte? ednsVersion = null;
             bool ednsDnsSecOk = false;
+            bool ednsCompactAnswersOk = false;
             byte[] nsid = Array.Empty<byte>();
             byte[] cookie = Array.Empty<byte>();
             string ednsClientSubnet = string.Empty;
@@ -159,6 +160,7 @@ namespace DnsClientX {
                 extendedRcode = (int)((record.RawTtl >> 24) & 0xFF);
                 ednsVersion = (byte)((record.RawTtl >> 16) & 0xFF);
                 ednsDnsSecOk = (record.RawTtl & 0x8000) != 0;
+                ednsCompactAnswersOk = (record.RawTtl & 0x4000) != 0;
                 ParseEdnsOptions(message, record, extendedErrors, ref nsid, ref cookie, ref ednsClientSubnet);
             }
 
@@ -185,6 +187,7 @@ namespace DnsClientX {
                 EdnsUdpPayloadSize = ednsPayloadSize,
                 EdnsVersion = ednsVersion,
                 EdnsDnsSecOk = ednsDnsSecOk,
+                EdnsCompactAnswersOk = ednsCompactAnswersOk,
                 EdnsNsid = nsid,
                 EdnsCookie = cookie,
                 WireMessage = immutableMessage,

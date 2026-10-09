@@ -18,6 +18,7 @@ namespace DnsClientX {
         private readonly DnsRecordType _type;
         private readonly bool _recursionDesired;
         private readonly bool _requestDnsSec;
+        private readonly bool _compactAnswersOk;
         private readonly bool _enableEdns;
         private readonly int _udpBufferSize;
         private readonly EdnsClientSubnetOption? _subnet;
@@ -47,13 +48,15 @@ namespace DnsClientX {
         /// Initializes a DNS query with structured options.
         /// </summary>
         public DnsMessage(string name, DnsRecordType type, DnsMessageOptions options) {
+            if (type == DnsRecordType.NXNAME) throw new ArgumentException("NXNAME is a denial bitmap signal and cannot be queried.", nameof(type));
             Name = DnsWireNameCodec.Normalize(name);
             _labels = DnsWireNameCodec.EncodeLabels(Name);
             _type = type;
             _recursionDesired = options.RecursionDesired;
             _requestDnsSec = options.RequestDnsSec;
+            _compactAnswersOk = options.CompactAnswersOk;
             _ednsOptions = options.Options?.ToArray() ?? Array.Empty<EdnsOption>();
-            _enableEdns = options.EnableEdns || options.RequestDnsSec || options.Subnet != null || _ednsOptions.Length > 0;
+            _enableEdns = options.EnableEdns || options.RequestDnsSec || options.CompactAnswersOk || options.Subnet != null || _ednsOptions.Length > 0;
             if (_enableEdns && (options.UdpBufferSize < 512 || options.UdpBufferSize > ushort.MaxValue)) {
                 throw new ArgumentOutOfRangeException(nameof(options), "EDNS UDP buffer size must be between 512 and 65535 bytes.");
             }
@@ -121,7 +124,7 @@ namespace DnsClientX {
                 stream.WriteByte(0); // OPT owner is the root name.
                 WriteUInt16(stream, (ushort)DnsRecordType.OPT);
                 WriteUInt16(stream, (ushort)_udpBufferSize);
-                uint optTtl = _requestDnsSec ? 0x00008000u : 0u; // DO is the only flag set in OPT.Z.
+                uint optTtl = (_requestDnsSec ? 0x00008000u : 0u) | (_compactAnswersOk ? 0x00004000u : 0u);
                 WriteUInt32(stream, optTtl);
                 WriteUInt16(stream, checked((ushort)optionData.Length));
                 stream.Write(optionData, 0, optionData.Length);
