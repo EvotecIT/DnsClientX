@@ -7,6 +7,50 @@ namespace DnsClientX.Tests;
 
 /// <summary>Protects shared SVCB/HTTPS decoding, opaque data, and RFC 9460 escaping.</summary>
 public class SvcbRecordTests {
+    /// <summary>Typed JSON stores canonical parameter bytes and restores every computed view.</summary>
+    [Theory]
+    [InlineData("1 .")]
+    [InlineData("1 . alpn=h2 port=443 ipv4hint=192.0.2.1 ipv6hint=2001:db8::1 ech=AQID key65534=opaque")]
+    public void TypedJsonRoundTripPreservesCanonicalData(string text) {
+        var record = Assert.IsType<SvcbRecord>(new DnsAnswer { Type = DnsRecordType.HTTPS, DataRaw = text }.TypedRecord);
+        string json = DnsClientXJsonSerializer.Serialize(record);
+        var restored = DnsClientXJsonSerializer.Deserialize<SvcbRecord>(json)!;
+        Assert.Equal(record.ToString(), restored.ToString());
+        Assert.Equal(record.Ipv4Hints, restored.Ipv4Hints);
+        Assert.Equal(record.Ipv6Hints, restored.Ipv6Hints);
+        Assert.Equal(record.Alpn, restored.Alpn);
+        Assert.Equal(record.EchConfiguration, restored.EchConfiguration);
+        Assert.Equal(record.ToString(), JsonSerializer.Deserialize<SvcbRecord>(JsonSerializer.Serialize(record))!.ToString());
+    }
+
+    /// <summary>Contradictory JSON parameter keys cannot create an ambiguous record.</summary>
+    [Fact]
+    public void TypedJsonRejectsMismatchedDictionaryKey() {
+        Assert.Throws<ArgumentException>(() => DnsClientXJsonSerializer.Deserialize<SvcbRecord>(
+            "{\"Priority\":1,\"Target\":\".\",\"Parameters\":{\"4\":{\"Key\":6,\"Value\":\"AAAAAAAAAAAAAAAAAAAAAA==\"}}}"));
+    }
+
+    /// <summary>Near-limit valid lists retain all values through wire and presentation decoding.</summary>
+    [Theory]
+    [InlineData((ushort)1)]
+    [InlineData((ushort)4)]
+    public async Task LargeParameterListsPreserveAllValues(ushort key) {
+        var value = new byte[60000];
+        if (key == 1) for (int offset = 0; offset < value.Length; offset += 2) { value[offset] = 1; value[offset + 1] = (byte)'x'; }
+        var record = new SvcbRecord(1, ".", new[] { new SvcbParameter(key, value) });
+        var rdata = new byte[value.Length + 7];
+        rdata[1] = 1;
+        rdata[4] = (byte)key;
+        rdata[5] = (byte)(value.Length >> 8);
+        rdata[6] = (byte)(value.Length & 255);
+        Buffer.BlockCopy(value, 0, rdata, 7, value.Length);
+        var wire = await DnsWire.DeserializeDnsWireFormat(null, false, Response(DnsRecordType.HTTPS, rdata));
+        Assert.Equal(record.ToString(), wire.Answers[0].Data);
+        var parsed = Assert.IsType<SvcbRecord>(new DnsAnswer { Type = DnsRecordType.HTTPS, DataRaw = record.ToString() }.TypedRecord);
+        Assert.Equal(value, parsed.Parameters[key].Value);
+        Assert.Equal(key == 1 ? 30000 : 15000, key == 1 ? parsed.Alpn.Count : parsed.Ipv4Hints.Count);
+    }
+
     /// <summary>Wire, named JSON and generic JSON presentations describe the same typed record.</summary>
     [Theory]
     [InlineData(DnsRecordType.SVCB)]

@@ -95,8 +95,11 @@ internal static partial class DnsSvcbCodec {
             case 6:
                 int width = parameter.Key == 4 ? 4 : 16;
                 var addresses = new List<string>();
-                for (int offset = 0; offset < value.Length; offset += width)
-                    addresses.Add(new IPAddress(value.Skip(offset).Take(width).ToArray()).ToString());
+                for (int offset = 0; offset < value.Length; offset += width) {
+                    var address = new byte[width];
+                    Buffer.BlockCopy(value, offset, address, 0, width);
+                    addresses.Add(new IPAddress(address).ToString());
+                }
                 return name + "=" + string.Join(",", addresses);
             case 5:
                 return name + "=" + Convert.ToBase64String(value);

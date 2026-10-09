@@ -681,6 +681,8 @@ foreach (var typedAnswer in response.TypedAnswers!) {
 
 With `typedRecords: true`, `TypedAnswers`, `TypedAuthorities`, and `TypedAdditional` use the same parsers and TXT parsing option. SVCB and HTTPS share an immutable model and a canonical presentation across wire and JSON responses. Unknown service parameters retain their numeric keys and exact byte values in `Parameters`.
 
+Serializing a `SvcbRecord` stores `Priority`, `Target`, and `Parameters`; deserializing restores its computed ALPN, port, address hints, and ECH views from those parameter bytes.
+
 ```csharp
 var bindings = await client.Resolve("cloudflare.com", DnsRecordType.HTTPS, typedRecords: true);
 foreach (var record in bindings.TypedAnswers!.OfType<SvcbRecord>()) {

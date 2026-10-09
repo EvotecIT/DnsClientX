@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Net;
+using System.Text.Json.Serialization;
 
 namespace DnsClientX;
 
@@ -15,36 +16,57 @@ public sealed class SvcbRecord {
     public string Target { get; }
 
     /// <summary>Gets whether this record is in AliasMode, where service parameters are ignored.</summary>
+    [JsonIgnore]
     public bool IsAliasMode => Priority == 0;
 
     /// <summary>Gets parameters in numeric key order, including unknown parameters.</summary>
     public IReadOnlyDictionary<ushort, SvcbParameter> Parameters { get; }
 
     /// <summary>Gets the keys explicitly required by the mandatory parameter.</summary>
+    [JsonIgnore]
     public IReadOnlyList<ushort> MandatoryKeys => Array.AsReadOnly(Parameters.TryGetValue(0, out var parameter)
         ? DnsSvcbCodec.ReadKeys(parameter.Bytes) : Array.Empty<ushort>());
 
     /// <summary>Gets ALPN identifiers as octet-preserving strings.</summary>
+    [JsonIgnore]
     public IReadOnlyList<string> Alpn => Array.AsReadOnly(Parameters.TryGetValue(1, out var parameter)
         ? DnsSvcbCodec.ReadAlpn(parameter.Bytes) : Array.Empty<string>());
 
     /// <summary>Gets whether the no-default-alpn parameter is present.</summary>
+    [JsonIgnore]
     public bool NoDefaultAlpn => Parameters.ContainsKey(2);
 
     /// <summary>Gets the advertised port, or null when no port parameter is present.</summary>
+    [JsonIgnore]
     public ushort? Port => Parameters.TryGetValue(3, out var parameter)
         ? (ushort)((parameter.Bytes[0] << 8) | parameter.Bytes[1]) : null;
 
     /// <summary>Gets independent copies of the advertised IPv4 address hints.</summary>
+    [JsonIgnore]
     public IReadOnlyList<IPAddress> Ipv4Hints => ReadAddresses(4, 4);
 
     /// <summary>Gets independent copies of the advertised IPv6 address hints.</summary>
+    [JsonIgnore]
     public IReadOnlyList<IPAddress> Ipv6Hints => ReadAddresses(6, 16);
 
     /// <summary>Gets an independent copy of the ECH configuration, or null when absent.</summary>
+    [JsonIgnore]
     public byte[]? EchConfiguration => Parameters.TryGetValue(5, out var parameter) ? parameter.Value : null;
 
     internal string OriginalTarget { get; }
+
+    // The JSON constructor matches the immutable dictionary property; the public constructor
+    // remains convenient for callers supplying parameter sequences. Computed views are not
+    // persisted twice: their exact source bytes are in Parameters.
+    [JsonConstructor]
+    private SvcbRecord(ushort priority, string target, IReadOnlyDictionary<ushort, SvcbParameter>? parameters)
+        : this(priority, target, parameters?.Values) {
+        if (parameters != null) {
+            foreach (var entry in parameters) {
+                if (entry.Key != entry.Value.Key) throw new ArgumentException("SVCB dictionary keys must match parameter keys.", nameof(parameters));
+            }
+        }
+    }
 
     /// <summary>Creates immutable service-binding data from a target and wire-format parameters.</summary>
     /// <param name="priority">Service priority, or zero for AliasMode.</param>

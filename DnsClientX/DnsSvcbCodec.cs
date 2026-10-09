@@ -97,7 +97,9 @@ internal static partial class DnsSvcbCodec {
         for (int offset = 0; offset < bytes.Length;) {
             int length = bytes[offset++];
             if (length == 0 || offset + length > bytes.Length) throw new ArgumentException("SVCB alpn value contains an empty or truncated identifier.");
-            protocols.Add(new string(bytes.Skip(offset).Take(length).Select(value => (char)value).ToArray()));
+            var identifier = new char[length];
+            for (int index = 0; index < length; index++) identifier[index] = (char)bytes[offset + index];
+            protocols.Add(new string(identifier));
             offset += length;
         }
         return protocols.ToArray();
