@@ -6,32 +6,36 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-#if NET8_0_OR_GREATER
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-#endif
+using System.Runtime.InteropServices;
 
 namespace DnsClientX.Tests {
     internal static class TestUtilities {
-#if NET8_0_OR_GREATER
         /// <summary>Creates an untrusted TLS fixture certificate with a private key usable by Windows SChannel.</summary>
         internal static X509Certificate2 CreateTlsCertificate(CertificateRequest request) {
             using X509Certificate2 temporary = request.CreateSelfSigned(
                 DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddHours(1));
             byte[] pfx = temporary.Export(X509ContentType.Pfx);
             try {
-                // Reimport to give SChannel a named key. Omit PersistKeySet so certificate disposal releases it.
+                // SChannel needs a temporary named software key; macOS requires a temporary keychain for PFX.
+                // Omit PersistKeySet so disposal releases the key file/keychain. Use memory-only imports elsewhere.
+                X509KeyStorageFlags keyStorage = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
+                    ? X509KeyStorageFlags.DefaultKeySet : X509KeyStorageFlags.EphemeralKeySet;
 #if NET9_0_OR_GREATER
-                return X509CertificateLoader.LoadPkcs12(pfx, null, X509KeyStorageFlags.DefaultKeySet,
+                return X509CertificateLoader.LoadPkcs12(pfx, null, keyStorage,
                     Pkcs12LoaderLimits.Defaults);
 #else
-                return new X509Certificate2(pfx, (string?)null, X509KeyStorageFlags.DefaultKeySet);
+                return new X509Certificate2(pfx, (string?)null, keyStorage);
 #endif
             } finally {
+#if NET8_0_OR_GREATER
                 CryptographicOperations.ZeroMemory(pfx);
+#else
+                Array.Clear(pfx, 0, pfx.Length);
+#endif
             }
         }
-#endif
 
         public static byte[] CreateResponseFromQuery(byte[] query, ushort flags = 0x8180) {
             if (query == null || query.Length < 17) throw new System.ArgumentException("A complete one-question DNS query is required.", nameof(query));
