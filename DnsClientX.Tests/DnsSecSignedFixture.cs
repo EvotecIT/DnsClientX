@@ -40,7 +40,12 @@ namespace DnsClientX.Tests {
 
         internal DnsSecValidationEngine Engine(bool currentTime = false,
             DnsResponseCode dnskeyStatus = DnsResponseCode.NoError,
-            DnsResponseCode dsStatus = DnsResponseCode.NoError) => new(async (name, type, token) => {
+            DnsResponseCode dsStatus = DnsResponseCode.NoError) => new((name, type, token) =>
+                LookupAsync(name, type, token, dnskeyStatus, dsStatus), currentTime ? null : Now, AnchorPath);
+
+        internal async Task<DnsResponse> LookupAsync(string name, DnsRecordType type,
+            System.Threading.CancellationToken token, DnsResponseCode dnskeyStatus = DnsResponseCode.NoError,
+            DnsResponseCode dsStatus = DnsResponseCode.NoError) {
             await Task.Yield();
             token.ThrowIfCancellationRequested();
             if (type == DnsRecordType.DNSKEY) {
@@ -59,7 +64,7 @@ namespace DnsClientX.Tests {
                 return response;
             }
             throw new InvalidOperationException($"Unexpected fixture lookup: {name} {type}");
-        }, currentTime ? null : Now, AnchorPath);
+        }
 
         private static void AssertDigest(DnsSecKey key, out byte[] digest) {
             if (!DnsSecCrypto.TryComputeDsDigest(key.Name, key, 2, out digest)) throw new InvalidOperationException("SHA-256 DS is unavailable.");

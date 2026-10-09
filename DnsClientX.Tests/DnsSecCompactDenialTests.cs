@@ -104,6 +104,27 @@ public class DnsSecCompactDenialTests {
         Assert.Equal(DnsResponseCode.NXDomain, alias.EffectiveStatus);
     }
 
+    /// <summary>Compact name errors cannot coexist with a signed positive RRset at the final owner.</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CompactDenialRejectsPositiveFinalOwner(bool nsec3) {
+        using var fixture = new DnsSecSignedFixture();
+        var answer = fixture.Signed("alias.example.com", DnsRecordType.CNAME, DnsWireNameCodec.ToCanonicalWire(Name));
+        var positive = fixture.Signed(Name, DnsRecordType.A, new byte[] { 192, 0, 2, 3 });
+        int offset = answer.WireMessage.Length;
+        answer.WireMessage = answer.WireMessage.Concat(positive.WireMessage).ToArray();
+        answer.WireAnswers = answer.WireAnswers.Concat(positive.WireAnswers.Select(record => new DnsWireResourceRecord(
+            record.Name, record.Type, record.Class, record.Ttl, record.RawTtl, record.RdataOffset + offset, record.RdataLength, record.Data))).ToArray();
+        answer.Answers = answer.Answers.Concat(positive.Answers).ToArray();
+        DnsSecSignedFixture.WithProofs(answer, Compact(fixture, nsec3));
+        Assert.Equal(DnsSecValidationStatus.Bogus,
+            (await fixture.Engine().ValidateAsync(answer, "alias.example.com", DnsRecordType.AAAA, default)).Status);
+        Assert.Equal(DnsSecValidationStatus.Bogus,
+            (await fixture.Engine().ValidateAliasAsync(answer, "alias.example.com", DnsRecordType.AAAA, default)).Status);
+        Assert.False(answer.DnsSecCompactDenial);
+    }
+
     /// <summary>Compact proofs retain strict parent-side DS and non-wildcard denial boundaries.</summary>
     [Theory]
     [InlineData(false, false)]

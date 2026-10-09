@@ -66,4 +66,40 @@ public class EdnsCompactAnswersTests {
 
     private static string Key(Configuration configuration) => DnsCacheKeyBuilder.Build(configuration,
         "example.com", DnsRecordType.A, true, true, false, false, false, TimeSpan.FromMinutes(5), false);
+
+    /// <summary>GET and the JSON validation fallback use the same CO negotiation and CD rules.</summary>
+    [Theory]
+    [InlineData(true, true, false, 0xc000u)]
+    [InlineData(true, true, true, 0xc000u)]
+    [InlineData(true, false, false, 0x8000u)]
+    [InlineData(true, false, true, 0x8000u)]
+    [InlineData(false, true, false, 0u)]
+    public async Task HttpGetNegotiatesCompactAnswers(bool dnssec, bool compact, bool fallback, uint expected) {
+        using var handler = new RecordingHandler();
+        using var http = new System.Net.Http.HttpClient(handler);
+        var configuration = new Configuration(new Uri("https://example.com/resolve"), DnsRequestFormat.DnsOverHttps) {
+            EdnsOptions = new EdnsOptions { CompactAnswersOk = compact }
+        };
+        await http.ResolveWireFormatGet("example.com", DnsRecordType.A, dnssec, fallback, false,
+            configuration, default, useStandardDnsQueryPath: fallback);
+        Assert.Equal(expected, handler.Flags);
+        Assert.Equal(fallback, handler.CheckingDisabled);
+        Assert.Equal(fallback ? "/dns-query" : "/resolve", handler.Path);
+    }
+
+    private sealed class RecordingHandler : System.Net.Http.HttpMessageHandler {
+        internal uint Flags { get; private set; }
+        internal bool CheckingDisabled { get; private set; }
+        internal string Path { get; private set; } = string.Empty;
+        protected override async Task<System.Net.Http.HttpResponseMessage> SendAsync(
+            System.Net.Http.HttpRequestMessage request, CancellationToken cancellationToken) {
+            byte[] bytes = await TestUtilities.ReadDnsQueryAsync(request);
+            Flags = (uint)((bytes[bytes.Length - 4] << 8) | bytes[bytes.Length - 3]);
+            CheckingDisabled = (bytes[3] & 0x10) != 0;
+            Path = request.RequestUri!.AbsolutePath;
+            return new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK) {
+                Content = new System.Net.Http.ByteArrayContent(TestUtilities.CreateResponseFromQuery(bytes))
+            };
+        }
+    }
 }

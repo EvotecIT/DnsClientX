@@ -94,6 +94,7 @@ namespace DnsClientX {
                     requestDnsSec,
                     validateDnsSec,
                     queryConfiguration.EnableQNameMinimization,
+                    queryConfiguration.EdnsOptions?.CompactAnswersOk ?? true,
                     queryConfiguration.Rfc5011TrustAnchorStorePath,
                     queryConfiguration.DnsSecSignatureVerifier,
                     cancellationToken).ConfigureAwait(false);
@@ -114,6 +115,7 @@ namespace DnsClientX {
             bool requestDnsSec,
             bool validateDnsSec,
             bool enableQNameMinimization,
+            bool compactAnswersOk,
             string? trustAnchorStorePath,
             IDnsSecSignatureVerifier? signatureVerifier,
             CancellationToken cancellationToken) {
@@ -136,7 +138,8 @@ namespace DnsClientX {
                 maxHops,
                 port,
                 requestDnsSec || validateDnsSec,
-                enableQNameMinimization);
+                enableQNameMinimization,
+                compactAnswersOk);
             string normalizedName = NormalizeIterativeName(name);
             DnsResponse response = await ResolveIteratively(
                 normalizedName,
@@ -153,7 +156,8 @@ namespace DnsClientX {
                         maxHops,
                         port,
                         requestDnsSec: true,
-                        enableQNameMinimization);
+                        enableQNameMinimization,
+                        compactAnswersOk);
                     return await ResolveIteratively(
                         NormalizeIterativeName(materialName),
                         materialType,
@@ -183,8 +187,9 @@ namespace DnsClientX {
                 if (validation.Status != DnsSecValidationStatus.Bogus
                     && validation.Status != DnsSecValidationStatus.Indeterminate
                     && response.Status != DnsResponseCode.NXDomain
+                    && !response.DnsSecCompactDenial
                     && segments.Any(segment => segment.AliasOnly
-                        && segment.Response.Status == DnsResponseCode.NXDomain)) {
+                        && (segment.Response.Status == DnsResponseCode.NXDomain || segment.Response.DnsSecCompactDenial))) {
                     validation = DnsSecValidationResult.Bogus(
                         "An iterative alias response claimed NXDOMAIN but its final target did not.");
                 }
@@ -195,6 +200,7 @@ namespace DnsClientX {
                         "At least one authenticated iterative answer segment crosses an unsigned delegation.");
                 }
                 response.DnsSecValidationStatus = validation.Status;
+                response.DnsSecCompactDenial &= validation.Status == DnsSecValidationStatus.Secure;
                 response.DnsSecValidationMessage = validation.Message;
                 response.DnsSecValidationExpiresUtc = validator.CacheExpiresAtUtc;
                 validator.ApplyAuthenticatedLifetimes(response);
@@ -242,6 +248,7 @@ namespace DnsClientX {
                             question.Name,
                             question.Type,
                             state.RequestDnsSec,
+                            state.CompactAnswersOk,
                             cancellationToken).ConfigureAwait(false);
                         if (!question.IsFinal) state.MinimizedQueryCount++;
                         lastResponse = response;
@@ -272,6 +279,7 @@ namespace DnsClientX {
                                 name,
                                 type,
                                 state.RequestDnsSec,
+                                state.CompactAnswersOk,
                                 cancellationToken).ConfigureAwait(false);
                             lastResponse = response;
                         }
@@ -443,12 +451,14 @@ namespace DnsClientX {
             string name,
             DnsRecordType type,
             bool requestDnsSec,
+            bool compactAnswersOk,
             CancellationToken cancellationToken) {
             var configuration = new Configuration(server, DnsRequestFormat.DnsOverUDP) {
                 Port = port,
                 UseTcpFallback = true,
                 RecursionDesired = false,
                 EnableEdns = requestDnsSec,
+                EdnsOptions = new EdnsOptions { EnableEdns = requestDnsSec, CompactAnswersOk = compactAnswersOk },
                 TimeOut = EndpointConfiguration.TimeOut,
                 LocalEndPoint = EndpointConfiguration.LocalEndPoint == null
                     ? null
@@ -620,6 +630,7 @@ namespace DnsClientX {
                 int port,
                 bool requestDnsSec,
                 bool enableQNameMinimization,
+                bool compactAnswersOk,
                 Dictionary<string, string[]>? nameServerAddressCache = null,
                 HashSet<string>? activeNameServerLookups = null) {
                 RootServers = rootServers;
@@ -627,6 +638,7 @@ namespace DnsClientX {
                 Port = port;
                 RequestDnsSec = requestDnsSec;
                 EnableQNameMinimization = enableQNameMinimization;
+                CompactAnswersOk = compactAnswersOk;
                 NameServerAddressCache = nameServerAddressCache
                     ?? new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
                 ActiveNameServerLookups = activeNameServerLookups
@@ -638,6 +650,7 @@ namespace DnsClientX {
             internal int Port { get; }
             internal bool RequestDnsSec { get; }
             internal bool EnableQNameMinimization { get; }
+            internal bool CompactAnswersOk { get; }
             internal int Hops { get; set; }
             internal int MinimizedQueryCount { get; set; }
             internal int MinimizationFallbackCount { get; set; }
@@ -654,6 +667,7 @@ namespace DnsClientX {
                     Port,
                     RequestDnsSec,
                     EnableQNameMinimization,
+                    CompactAnswersOk,
                     NameServerAddressCache,
                     ActiveNameServerLookups);
             }

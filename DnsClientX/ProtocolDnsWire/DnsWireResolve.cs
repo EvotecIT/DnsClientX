@@ -28,26 +28,8 @@ namespace DnsClientX {
         internal static async Task<DnsResponse> ResolveWireFormatGet(this HttpClient client, string name,
             DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug,
             Configuration endpointConfiguration, CancellationToken cancellationToken, bool useStandardDnsQueryPath = false) {
-            // For OpenDNS, we need to create a DNS message and base64url encode it
-            var edns = endpointConfiguration.EdnsOptions;
-            bool enableEdns = endpointConfiguration.EnableEdns;
-            int udpSize = endpointConfiguration.UdpBufferSize;
-            string? subnet = endpointConfiguration.Subnet;
-            System.Collections.Generic.IEnumerable<EdnsOption>? options = null;
-            if (edns != null) {
-                enableEdns = edns.EnableEdns;
-                udpSize = edns.UdpBufferSize;
-                subnet = edns.Subnet?.Subnet;
-                options = edns.GetEffectiveOptions();
-            }
-            var dnsMessage = new DnsMessage(name, type, new DnsMessageOptions(
-                RequestDnsSec: requestDnsSec,
-                EnableEdns: enableEdns,
-                UdpBufferSize: udpSize,
-                Subnet: string.IsNullOrEmpty(subnet) ? null : new EdnsClientSubnetOption(subnet!),
-                CheckingDisabled: endpointConfiguration.CheckingDisabled || validateDnsSec,
-                Options: options,
-                RecursionDesired: endpointConfiguration.RecursionDesired));
+            var dnsMessage = DnsWireQueryBuilder.BuildQuery(name, type, requestDnsSec, endpointConfiguration,
+                checkingDisabled: endpointConfiguration.CheckingDisabled || validateDnsSec);
             var base64UrlDnsMessage = dnsMessage.ToBase64Url();
             Uri requestUri = DnsHttpRequestUri.Build(endpointConfiguration, "dns=" + base64UrlDnsMessage,
                 useStandardDnsQueryPath ? "/dns-query" : null);

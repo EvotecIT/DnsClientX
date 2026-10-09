@@ -97,7 +97,8 @@ namespace DnsClientX {
             if (!TryFollowAnswerChain(answerRecords, name, type, out string finalName, out bool terminal, out string? chainError)) {
                 return DnsSecValidationResult.Indeterminate(chainError ?? "The answer did not contain a usable canonical-name chain.");
             }
-            if (response.Status == DnsResponseCode.NXDomain) {
+            DnsSecProof.ProvesCompactNameError(response, finalName, out bool hasNxName);
+            if (response.Status == DnsResponseCode.NXDomain || hasNxName) {
                 if (terminal) {
                     return DnsSecValidationResult.Bogus("An NXDOMAIN response cannot contain a terminal answer for the requested type.");
                 }
@@ -108,7 +109,7 @@ namespace DnsClientX {
                     return DnsSecValidationResult.Bogus("An NXDOMAIN response with answer RRsets must redirect to a denied final target.");
                 }
             }
-            if (!terminal && !requireTerminal) {
+            if (!terminal && !requireTerminal && !hasNxName) {
                 if (string.Equals(DnsWireNameCodec.Canonical(name), finalName, StringComparison.Ordinal)) {
                     return DnsSecValidationResult.Indeterminate("The answer did not redirect the iterative query to another name.");
                 }

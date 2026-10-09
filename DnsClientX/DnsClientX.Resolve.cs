@@ -188,6 +188,7 @@ namespace DnsClientX {
                         requestDnsSec,
                         validateDnsSec,
                         queryConfiguration.EnableQNameMinimization,
+                        queryConfiguration.EdnsOptions?.CompactAnswersOk ?? true,
                         queryConfiguration.Rfc5011TrustAnchorStorePath,
                         queryConfiguration.DnsSecSignatureVerifier,
                         cancellationToken).ConfigureAwait(false);
