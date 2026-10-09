@@ -55,6 +55,8 @@ Resolves DNS records (A, AAAA, MX, TXT, …) over UDP, TCP, DoT, DoH, QUIC, or m
 
 Supports single-provider queries, explicit servers with transport selection, multiple providers with FirstSuccess/FastestWins/SequentialFallback/RoundRobin, direct resolver endpoints, DNSSEC, EDNS/ECS, concurrency control, and TTL-based response caching.
 
+Specify either Name or Pattern. When no resolver source is specified, the library's default resolver is used. Timeout, retry, response, typed-record, and DNSSEC options apply to every resolver source.
+
 ### [Test-DnsBenchmark](Test-DnsBenchmark.md)
 Benchmarks one or more DNS providers or explicit resolver endpoints across repeated queries.
 
