@@ -280,6 +280,7 @@ namespace DnsClientX.PowerShell {
     /// <summary>
     /// <para type="synopsis">Probes one built-in resolver profile or a custom resolver set and reports health, consensus, and recommendation data.</para>
     /// <para type="description">Runs a single DNS query against each candidate, highlights answer mismatches, applies optional success and consensus policy gates, and can persist the scored result set for later resolver selection and reuse.</para>
+    /// </summary>
     /// <example>
     ///   <para>Probe the default system resolver profile for an A record</para>
     ///   <code>Test-DnsProbe -Name example.com</code>
@@ -308,7 +309,6 @@ namespace DnsClientX.PowerShell {
     ///   <para>Probe resolvers and persist the scored snapshot for later selection</para>
     ///   <code>Test-DnsProbe -Name example.com -ResolverEndpointUrl 'https://example.test/resolvers.txt' -SavePath '.\resolver-probe.json' -IncludeSummary</code>
     /// </example>
-    /// </summary>
     [Cmdlet(VerbsDiagnostic.Test, "DnsProbe", DefaultParameterSetName = "DnsProvider")]
     [OutputType(typeof(DnsProbeResult), typeof(DnsProbeSummary))]
     public sealed class CmdletTestDnsProbe : AsyncPSCmdlet {

@@ -11,6 +11,7 @@ namespace DnsClientX.PowerShell {
     /// <para type="synopsis">Resolves DNS records (A, AAAA, MX, TXT, …) over UDP, TCP, DoT, DoH, QUIC, or multicast with optional multi-resolver strategies.</para>
     /// <para type="description">Supports single-provider queries, explicit servers with transport selection, multiple providers with FirstSuccess/FastestWins/SequentialFallback/RoundRobin, direct resolver endpoints, DNSSEC, EDNS/ECS, concurrency control, and TTL-based response caching.</para>
     /// <para type="description">Specify either Name or Pattern. When no resolver source is specified, the library's default resolver is used. Timeout, retry, response, typed-record, and DNSSEC options apply to every resolver source.</para>
+    /// </summary>
     /// <example>
     ///  <para>Simple (system default)</para>
     ///  <code>Resolve-Dns -Name "example.com" -Type A</code>
@@ -55,7 +56,6 @@ namespace DnsClientX.PowerShell {
     ///  <para>Reuse the recommended resolver from a saved selection snapshot</para>
     ///  <code>Resolve-Dns -Name 'example.com' -Type A -ResolverSelectionPath '.\resolver-score.json'</code>
     /// </example>
-    /// </summary>
     /// <seealso cref="DnsClientX.PowerShell.AsyncPSCmdlet" />
     [Alias("Resolve-DnsQuery")]
     [Cmdlet(VerbsDiagnostic.Resolve, "Dns", DefaultParameterSetName = "Name")]

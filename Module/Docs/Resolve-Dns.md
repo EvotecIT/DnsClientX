@@ -34,15 +34,80 @@ Specify either Name or Pattern. When no resolver source is specified, the librar
 
 ### EXAMPLE 1
 ```powershell
-Resolve-Dns -Name @('Name')
+Resolve-Dns -Name "example.com" -Type A
 ```
 
+Simple (system default)
 
 ### EXAMPLE 2
 ```powershell
-Resolve-Dns -Pattern 'Value'
+Resolve-Dns -Name "example.com" -Type A -DnsProvider Cloudflare
 ```
 
+Single provider (classic)
+
+### EXAMPLE 3
+```powershell
+Resolve-Dns -Name "example.com" -Type A -DnsProvider Cloudflare,Google -ResolverStrategy FirstSuccess
+```
+
+FirstSuccess across providers
+
+### EXAMPLE 4
+```powershell
+Resolve-Dns -Name "example.com" -Type A -DnsProvider Cloudflare,Google -ResolverStrategy FastestWins -FastestCacheMinutes 10 -ResponseCache
+```
+
+FastestWins with cache
+
+### EXAMPLE 5
+```powershell
+Resolve-Dns -Name @('a.com','b.com') -Type A -DnsProvider System,Cloudflare,Quad9 -ResolverStrategy RoundRobin -MaxParallelism 16 -PerEndpointMaxInFlight 4
+```
+
+RoundRobin with per-endpoint cap
+
+### EXAMPLE 6
+```powershell
+Resolve-Dns -Name 'example.com' -Type TXT -ResolverEndpoint '1.1.1.1:53','https://dns.google/dns-query' -ResolverStrategy FirstSuccess
+```
+
+Mixed endpoints (UDP + DoH)
+
+### EXAMPLE 7
+```powershell
+Resolve-Dns -Name 'example.com' -Type A -ResolverEndpoint 'doq@dns.quad9.net:853','doh3@https://dns.quad9.net/dns-query' -ResolverStrategy FirstSuccess
+```
+
+Modern endpoints (DoQ + DoH3) through the shared endpoint parser
+
+### EXAMPLE 8
+```powershell
+Resolve-Dns -Name 'example.com' -Type MX -DnsProvider Cloudflare,Google -ResponseCache -MaxCacheTtlSeconds 3600
+```
+
+Enable TTL-based response cache with bounds
+
+### EXAMPLE 9
+```powershell
+Resolve-Dns -Name 'example.com' -Type A -Server 'dns.google' -RequestFormat DnsOverHttps -Port 443 -UserAgent 'DnsClientX/PowerShell' -HttpVersion 2.0
+```
+
+Query a specific server over DoH with explicit transport settings
+
+### EXAMPLE 10
+```powershell
+Resolve-Dns -Name 'example.com' -Type A -DnsProvider Quad9ECS -EnableEdns -ClientSubnet '192.0.2.0/24' -RequestNsid -FullResponse
+```
+
+Send EDNS client subnet and request NSID metadata
+
+### EXAMPLE 11
+```powershell
+Resolve-Dns -Name 'example.com' -Type A -ResolverSelectionPath '.\resolver-score.json'
+```
+
+Reuse the recommended resolver from a saved selection snapshot
 
 ## PARAMETERS
 

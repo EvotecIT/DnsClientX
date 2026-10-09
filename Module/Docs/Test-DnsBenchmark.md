@@ -35,15 +35,66 @@ Returns one object per candidate with latency, success rate, answer consistency,
 
 ### EXAMPLE 1
 ```powershell
-Test-DnsBenchmark -Name @('Name')
+Test-DnsBenchmark -Name example.com -DnsProvider Cloudflare,Quad9,Google -Attempts 5
 ```
 
+Benchmark three built-in providers with repeated A lookups
 
 ### EXAMPLE 2
 ```powershell
-Test-DnsBenchmark -Name @('Name') -ResolverSelectionPath 'C:\Path'
+Test-DnsBenchmark -Name example.com,microsoft.com -Type A,AAAA -ResolverEndpoint 'udp@1.1.1.1:53','tcp@9.9.9.9:53' -Attempts 3 -MaxConcurrency 8
 ```
 
+Benchmark a custom resolver matrix across domains and record types
+
+### EXAMPLE 3
+```powershell
+Test-DnsBenchmark -Name example.com -ResolverEndpoint 'doq@dns.quad9.net:853','doh3@https://dns.quad9.net/dns-query' -Attempts 2 -SummaryOnly
+```
+
+Benchmark modern transports without changing the core package graph
+
+### EXAMPLE 4
+```powershell
+Test-DnsBenchmark -Name example.com -DnsProvider Cloudflare,Quad9 -MinSuccessPercent 90 -MinSuccessfulCandidates 2
+```
+
+Require strong benchmark health before recommending a winner
+
+### EXAMPLE 5
+```powershell
+Test-DnsBenchmark -Name example.com -DnsProvider Cloudflare,Google -Attempts 3 -IncludeSummary
+```
+
+Include per-candidate rows plus one run-level summary object
+
+### EXAMPLE 6
+```powershell
+Test-DnsBenchmark -Name example.com -DnsProvider Cloudflare,Google -Attempts 3 -SummaryOnly
+```
+
+Return only the run-level summary object for automation
+
+### EXAMPLE 7
+```powershell
+Test-DnsBenchmark -Name example.com,microsoft.com -Type A,AAAA -ResolverEndpoint 'udp@1.1.1.1:53','tcp@9.9.9.9:53' -Attempts 2 -SummaryOnly
+```
+
+Benchmark explicit endpoints and keep only the recommended summary for automation
+
+### EXAMPLE 8
+```powershell
+Test-DnsBenchmark -Name example.com -ResolverSelectionPath '.\resolver-score.json' -Attempts 3 -SummaryOnly
+```
+
+Reuse the recommended resolver from a saved score snapshot as the single benchmark candidate
+
+### EXAMPLE 9
+```powershell
+Test-DnsBenchmark -Name example.com -DnsProvider Cloudflare,Google -Attempts 3 -SavePath '.\resolver-score.json' -IncludeSummary
+```
+
+Benchmark resolvers and persist the scored recommendation snapshot for later reuse
 
 ## PARAMETERS
 
@@ -86,7 +137,7 @@ Use a fresh client per attempt, or retain one per target without caching DNS ans
 Type: ResolverQueryConnectionMode
 Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
 Aliases: None
-Possible values: Cold, Warm, Mixed
+Possible values: Cold, Warm
 
 Required: False
 Position: named

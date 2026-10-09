@@ -17,7 +17,7 @@ Describe 'DNSSEC provider input errors' {
 
     It 'classifies <Fixture> provider input for <Command> before querying' -TestCases $cases {
         param($Command, $Fixture, $ExpectedId)
-        $path = Join-Path 'TestDrive:' ($Fixture + '-' + [guid]::NewGuid().ToString('N') + '.dll')
+        $path = Join-Path $TestDrive ($Fixture + '-' + [guid]::NewGuid().ToString('N') + '.dll')
         if ($Fixture -eq 'blank') { $path = ' ' }
         if ($Fixture -eq 'malformed') { Set-Content -LiteralPath $path -Value 'Synthetic invalid DLL fixture.' }
         $parameters = @{ Name = 'example.com'; DnsProvider = 'Cloudflare'; DnsSecVerifierPath = $path; ErrorAction = 'Stop' }

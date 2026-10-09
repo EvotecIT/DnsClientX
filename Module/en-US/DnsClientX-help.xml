@@ -1426,9 +1426,23 @@
     <command:examples>
       <command:example>
         <maml:title>EXAMPLE 1</maml:title>
-        <dev:code>Invoke-DnsUpdate -Zone 'Value' -Server 'Value' -Name 'Name' -Type 'Value'</dev:code>
+        <dev:code>Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Data 1.2.3.4 -Ttl 300</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Add an A record</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 2</maml:title>
+        <dev:code>Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Delete</dev:code>
+        <dev:remarks>
+          <maml:para>Delete an existing record</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 3</maml:title>
+        <dev:code>Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Data 192.0.2.10 -DeleteValue</dev:code>
+        <dev:remarks>
+          <maml:para>Delete one value while preserving the rest of the RRset</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -3627,16 +3641,79 @@ specified. When false, returns simple TXT records.</maml:para>
     <command:examples>
       <command:example>
         <maml:title>EXAMPLE 1</maml:title>
-        <dev:code>Resolve-Dns -Name @('Name')</dev:code>
+        <dev:code>Resolve-Dns -Name "example.com" -Type A</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Simple (system default)</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
         <maml:title>EXAMPLE 2</maml:title>
-        <dev:code>Resolve-Dns -Pattern 'Value'</dev:code>
+        <dev:code>Resolve-Dns -Name "example.com" -Type A -DnsProvider Cloudflare</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Single provider (classic)</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 3</maml:title>
+        <dev:code>Resolve-Dns -Name "example.com" -Type A -DnsProvider Cloudflare,Google -ResolverStrategy FirstSuccess</dev:code>
+        <dev:remarks>
+          <maml:para>FirstSuccess across providers</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 4</maml:title>
+        <dev:code>Resolve-Dns -Name "example.com" -Type A -DnsProvider Cloudflare,Google -ResolverStrategy FastestWins -FastestCacheMinutes 10 -ResponseCache</dev:code>
+        <dev:remarks>
+          <maml:para>FastestWins with cache</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 5</maml:title>
+        <dev:code>Resolve-Dns -Name @('a.com','b.com') -Type A -DnsProvider System,Cloudflare,Quad9 -ResolverStrategy RoundRobin -MaxParallelism 16 -PerEndpointMaxInFlight 4</dev:code>
+        <dev:remarks>
+          <maml:para>RoundRobin with per-endpoint cap</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 6</maml:title>
+        <dev:code>Resolve-Dns -Name 'example.com' -Type TXT -ResolverEndpoint '1.1.1.1:53','https://dns.google/dns-query' -ResolverStrategy FirstSuccess</dev:code>
+        <dev:remarks>
+          <maml:para>Mixed endpoints (UDP + DoH)</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 7</maml:title>
+        <dev:code>Resolve-Dns -Name 'example.com' -Type A -ResolverEndpoint 'doq@dns.quad9.net:853','doh3@https://dns.quad9.net/dns-query' -ResolverStrategy FirstSuccess</dev:code>
+        <dev:remarks>
+          <maml:para>Modern endpoints (DoQ + DoH3) through the shared endpoint parser</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 8</maml:title>
+        <dev:code>Resolve-Dns -Name 'example.com' -Type MX -DnsProvider Cloudflare,Google -ResponseCache -MaxCacheTtlSeconds 3600</dev:code>
+        <dev:remarks>
+          <maml:para>Enable TTL-based response cache with bounds</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 9</maml:title>
+        <dev:code>Resolve-Dns -Name 'example.com' -Type A -Server 'dns.google' -RequestFormat DnsOverHttps -Port 443 -UserAgent 'DnsClientX/PowerShell' -HttpVersion 2.0</dev:code>
+        <dev:remarks>
+          <maml:para>Query a specific server over DoH with explicit transport settings</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 10</maml:title>
+        <dev:code>Resolve-Dns -Name 'example.com' -Type A -DnsProvider Quad9ECS -EnableEdns -ClientSubnet '192.0.2.0/24' -RequestNsid -FullResponse</dev:code>
+        <dev:remarks>
+          <maml:para>Send EDNS client subnet and request NSID metadata</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 11</maml:title>
+        <dev:code>Resolve-Dns -Name 'example.com' -Type A -ResolverSelectionPath '.\resolver-score.json'</dev:code>
+        <dev:remarks>
+          <maml:para>Reuse the recommended resolver from a saved selection snapshot</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -3697,7 +3774,6 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValueGroup>
             <command:parameterValue required="false" variableLength="false">Cold</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Warm</command:parameterValue>
-            <command:parameterValue required="false" variableLength="false">Mixed</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>ResolverQueryConnectionMode</maml:name>
@@ -4022,7 +4098,6 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValueGroup>
             <command:parameterValue required="false" variableLength="false">Cold</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Warm</command:parameterValue>
-            <command:parameterValue required="false" variableLength="false">Mixed</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>ResolverQueryConnectionMode</maml:name>
@@ -4338,7 +4413,6 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValueGroup>
             <command:parameterValue required="false" variableLength="false">Cold</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Warm</command:parameterValue>
-            <command:parameterValue required="false" variableLength="false">Mixed</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>ResolverQueryConnectionMode</maml:name>
@@ -4630,7 +4704,6 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameterValueGroup>
           <command:parameterValue required="false" variableLength="false">Cold</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">Warm</command:parameterValue>
-          <command:parameterValue required="false" variableLength="false">Mixed</command:parameterValue>
         </command:parameterValueGroup>
         <dev:type>
           <maml:name>ResolverQueryConnectionMode</maml:name>
@@ -5001,16 +5074,65 @@ specified. When false, returns simple TXT records.</maml:para>
     <command:examples>
       <command:example>
         <maml:title>EXAMPLE 1</maml:title>
-        <dev:code>Test-DnsBenchmark -Name @('Name')</dev:code>
+        <dev:code>Test-DnsBenchmark -Name example.com -DnsProvider Cloudflare,Quad9,Google -Attempts 5</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Benchmark three built-in providers with repeated A lookups</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
         <maml:title>EXAMPLE 2</maml:title>
-        <dev:code>Test-DnsBenchmark -Name @('Name') -ResolverSelectionPath 'C:\Path'</dev:code>
+        <dev:code>Test-DnsBenchmark -Name example.com,microsoft.com -Type A,AAAA -ResolverEndpoint 'udp@1.1.1.1:53','tcp@9.9.9.9:53' -Attempts 3 -MaxConcurrency 8</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Benchmark a custom resolver matrix across domains and record types</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 3</maml:title>
+        <dev:code>Test-DnsBenchmark -Name example.com -ResolverEndpoint 'doq@dns.quad9.net:853','doh3@https://dns.quad9.net/dns-query' -Attempts 2 -SummaryOnly</dev:code>
+        <dev:remarks>
+          <maml:para>Benchmark modern transports without changing the core package graph</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 4</maml:title>
+        <dev:code>Test-DnsBenchmark -Name example.com -DnsProvider Cloudflare,Quad9 -MinSuccessPercent 90 -MinSuccessfulCandidates 2</dev:code>
+        <dev:remarks>
+          <maml:para>Require strong benchmark health before recommending a winner</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 5</maml:title>
+        <dev:code>Test-DnsBenchmark -Name example.com -DnsProvider Cloudflare,Google -Attempts 3 -IncludeSummary</dev:code>
+        <dev:remarks>
+          <maml:para>Include per-candidate rows plus one run-level summary object</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 6</maml:title>
+        <dev:code>Test-DnsBenchmark -Name example.com -DnsProvider Cloudflare,Google -Attempts 3 -SummaryOnly</dev:code>
+        <dev:remarks>
+          <maml:para>Return only the run-level summary object for automation</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 7</maml:title>
+        <dev:code>Test-DnsBenchmark -Name example.com,microsoft.com -Type A,AAAA -ResolverEndpoint 'udp@1.1.1.1:53','tcp@9.9.9.9:53' -Attempts 2 -SummaryOnly</dev:code>
+        <dev:remarks>
+          <maml:para>Benchmark explicit endpoints and keep only the recommended summary for automation</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 8</maml:title>
+        <dev:code>Test-DnsBenchmark -Name example.com -ResolverSelectionPath '.\resolver-score.json' -Attempts 3 -SummaryOnly</dev:code>
+        <dev:remarks>
+          <maml:para>Reuse the recommended resolver from a saved score snapshot as the single benchmark candidate</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 9</maml:title>
+        <dev:code>Test-DnsBenchmark -Name example.com -DnsProvider Cloudflare,Google -Attempts 3 -SavePath '.\resolver-score.json' -IncludeSummary</dev:code>
+        <dev:remarks>
+          <maml:para>Benchmark resolvers and persist the scored recommendation snapshot for later reuse</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -6302,16 +6424,51 @@ specified. When false, returns simple TXT records.</maml:para>
     <command:examples>
       <command:example>
         <maml:title>EXAMPLE 1</maml:title>
-        <dev:code>Test-DnsProbe -Name 'Name'</dev:code>
+        <dev:code>Test-DnsProbe -Name example.com</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Probe the default system resolver profile for an A record</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
         <maml:title>EXAMPLE 2</maml:title>
-        <dev:code>Test-DnsProbe -Name 'Name' -ResolverSelectionPath 'C:\Path'</dev:code>
+        <dev:code>Test-DnsProbe -Name example.com -DnsProvider Cloudflare -SummaryOnly</dev:code>
         <dev:remarks>
-          <maml:para></maml:para>
+          <maml:para>Probe the Cloudflare resolver family and return only the run-level summary</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 3</maml:title>
+        <dev:code>Test-DnsProbe -Name example.com -ResolverEndpointFile '.\resolvers.txt' -RequireConsensus -IncludeSummary</dev:code>
+        <dev:remarks>
+          <maml:para>Probe custom endpoints loaded from a file and require answer consensus</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 4</maml:title>
+        <dev:code>Test-DnsProbe -Name example.com -ResolverEndpoint 'udp@1.1.1.1:53','tcp@9.9.9.9:53' -MinSuccessCount 2 -MinConsensusPercent 60</dev:code>
+        <dev:remarks>
+          <maml:para>Probe custom endpoints from inline values and enforce success thresholds</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 5</maml:title>
+        <dev:code>Test-DnsProbe -Name example.com -ResolverEndpoint 'doq@dns.quad9.net:853','doh3@https://dns.quad9.net/dns-query' -IncludeSummary</dev:code>
+        <dev:remarks>
+          <maml:para>Probe modern transports with explicit endpoint strings</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 6</maml:title>
+        <dev:code>Test-DnsProbe -Name example.com -ResolverSelectionPath '.\resolver-score.json' -SummaryOnly</dev:code>
+        <dev:remarks>
+          <maml:para>Reuse the recommended resolver from a saved snapshot as the single probe candidate</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 7</maml:title>
+        <dev:code>Test-DnsProbe -Name example.com -ResolverEndpointUrl 'https://example.test/resolvers.txt' -SavePath '.\resolver-probe.json' -IncludeSummary</dev:code>
+        <dev:remarks>
+          <maml:para>Probe resolvers and persist the scored snapshot for later selection</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>

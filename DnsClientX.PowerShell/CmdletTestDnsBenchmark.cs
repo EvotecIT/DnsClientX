@@ -272,6 +272,7 @@ namespace DnsClientX.PowerShell {
     /// <summary>
     /// <para type="synopsis">Benchmarks one or more DNS providers or explicit resolver endpoints across repeated queries.</para>
     /// <para type="description">Returns one object per candidate with latency, success rate, answer consistency, rank, and recommendation metadata. PowerShell consumers can sort, filter, format, or export the results themselves.</para>
+    /// </summary>
     /// <example>
     ///   <para>Benchmark three built-in providers with repeated A lookups</para>
     ///   <code>Test-DnsBenchmark -Name example.com -DnsProvider Cloudflare,Quad9,Google -Attempts 5</code>
@@ -308,7 +309,6 @@ namespace DnsClientX.PowerShell {
     ///   <para>Benchmark resolvers and persist the scored recommendation snapshot for later reuse</para>
     ///   <code>Test-DnsBenchmark -Name example.com -DnsProvider Cloudflare,Google -Attempts 3 -SavePath '.\resolver-score.json' -IncludeSummary</code>
     /// </example>
-    /// </summary>
     [Cmdlet(VerbsDiagnostic.Test, "DnsBenchmark", DefaultParameterSetName = "DnsProvider")]
     [OutputType(typeof(DnsBenchmarkResult), typeof(DnsBenchmarkSummary))]
     public sealed class CmdletTestDnsBenchmark : AsyncPSCmdlet {
@@ -376,6 +376,7 @@ namespace DnsClientX.PowerShell {
 
         /// <summary>Use a fresh client per attempt, or retain one per target without caching DNS answers.</summary>
         [Parameter(Mandatory = false)]
+        [ValidateSet("Cold", "Warm")]
         public ResolverQueryConnectionMode ConnectionMode { get; set; } = ResolverQueryConnectionMode.Cold;
 
         /// <summary>

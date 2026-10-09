@@ -7,6 +7,7 @@ namespace DnsClientX.PowerShell;
 /// <summary>
 /// <para type="synopsis">Sends DNS UPDATE messages to a server.</para>
 /// <para type="description">Adds or removes records in a zone using RFC 2136 over TCP.</para>
+/// </summary>
 /// <example>
 ///   <para>Add an A record</para>
 ///   <code>Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Data 1.2.3.4 -Ttl 300</code>
@@ -19,7 +20,6 @@ namespace DnsClientX.PowerShell;
 ///   <para>Delete one value while preserving the rest of the RRset</para>
 ///   <code>Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Data 192.0.2.10 -DeleteValue</code>
 /// </example>
-/// </summary>
 [Cmdlet(VerbsLifecycle.Invoke, "DnsUpdate")]
 public sealed class CmdletDnsUpdate : AsyncPSCmdlet {
     /// <summary>Zone to update.</summary>

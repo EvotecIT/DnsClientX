@@ -35,15 +35,52 @@ Runs a single DNS query against each candidate, highlights answer mismatches, ap
 
 ### EXAMPLE 1
 ```powershell
-Test-DnsProbe -Name 'Name'
+Test-DnsProbe -Name example.com
 ```
 
+Probe the default system resolver profile for an A record
 
 ### EXAMPLE 2
 ```powershell
-Test-DnsProbe -Name 'Name' -ResolverSelectionPath 'C:\Path'
+Test-DnsProbe -Name example.com -DnsProvider Cloudflare -SummaryOnly
 ```
 
+Probe the Cloudflare resolver family and return only the run-level summary
+
+### EXAMPLE 3
+```powershell
+Test-DnsProbe -Name example.com -ResolverEndpointFile '.\resolvers.txt' -RequireConsensus -IncludeSummary
+```
+
+Probe custom endpoints loaded from a file and require answer consensus
+
+### EXAMPLE 4
+```powershell
+Test-DnsProbe -Name example.com -ResolverEndpoint 'udp@1.1.1.1:53','tcp@9.9.9.9:53' -MinSuccessCount 2 -MinConsensusPercent 60
+```
+
+Probe custom endpoints from inline values and enforce success thresholds
+
+### EXAMPLE 5
+```powershell
+Test-DnsProbe -Name example.com -ResolverEndpoint 'doq@dns.quad9.net:853','doh3@https://dns.quad9.net/dns-query' -IncludeSummary
+```
+
+Probe modern transports with explicit endpoint strings
+
+### EXAMPLE 6
+```powershell
+Test-DnsProbe -Name example.com -ResolverSelectionPath '.\resolver-score.json' -SummaryOnly
+```
+
+Reuse the recommended resolver from a saved snapshot as the single probe candidate
+
+### EXAMPLE 7
+```powershell
+Test-DnsProbe -Name example.com -ResolverEndpointUrl 'https://example.test/resolvers.txt' -SavePath '.\resolver-probe.json' -IncludeSummary
+```
+
+Probe resolvers and persist the scored snapshot for later selection
 
 ## PARAMETERS
 
