@@ -29,7 +29,9 @@ namespace DnsClientX {
                 CheckingDisabled: checkingDisabled ?? cfg.CheckingDisabled,
                 Options: options,
                 RecursionDesired: cfg.RecursionDesired,
-                TransactionId: transactionId));
+                TransactionId: transactionId) {
+                CompactAnswersOk = requestDnsSec && (edns?.CompactAnswersOk ?? true)
+            });
         }
     }
 }

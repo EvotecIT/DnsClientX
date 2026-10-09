@@ -257,6 +257,8 @@ public enum DnsRecordType : ushort {
     /// Identifier-Locator Network Protocol locator pointer.
     /// </summary>
     LP = 107,
+    /// <summary>RFC 9824 synthetic name-error signal in NSEC/NSEC3 bitmaps; cannot be queried.</summary>
+    NXNAME = 128,
     /// <summary>
     /// Transaction key.
     /// </summary>

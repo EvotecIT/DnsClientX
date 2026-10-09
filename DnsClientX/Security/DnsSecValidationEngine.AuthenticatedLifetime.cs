@@ -10,8 +10,10 @@ namespace DnsClientX {
         private readonly List<DnsSecSignature> _authenticatedSignatures = new();
 
         private DnsSecValidationResult CompleteValidation(DnsResponse response, DnsSecValidationResult result) {
+            if (result.Status != DnsSecValidationStatus.Secure) response.DnsSecCompactDenial = false;
             if ((result.Status == DnsSecValidationStatus.Secure || result.Status == DnsSecValidationStatus.Insecure)
                 && _authenticatedSignatures.Any(signature => !DnsSecWire.SignatureTimeIsValid(signature, ValidationTime))) {
+                response.DnsSecCompactDenial = false;
                 return DnsSecValidationResult.Indeterminate("An authenticated dependency's signature expired before validation completed.");
             }
             if (result.Status == DnsSecValidationStatus.Secure || result.Status == DnsSecValidationStatus.Insecure) {

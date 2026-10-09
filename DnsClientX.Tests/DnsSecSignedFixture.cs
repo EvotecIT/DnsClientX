@@ -106,6 +106,14 @@ namespace DnsClientX.Tests {
             return Nsec3ForZone(name, next, Root, false, types);
         }
 
+        internal DnsResponse CompactNsec3(string name, params DnsRecordType[] types) {
+            byte[] hash = Hash(name);
+            byte[] nextHash = (byte[])hash.Clone();
+            for (int index = nextHash.Length - 1; index >= 0 && ++nextHash[index] == 0; index--) { }
+            byte[] data = new byte[] { 1, 0, 0, 0, 0, 20 }.Concat(nextHash).Concat(Bitmap(types)).ToArray();
+            return Signed(Base32(hash) + "." + Zone.Name, DnsRecordType.NSEC3, data, authority: true);
+        }
+
         private DnsResponse Nsec3ForZone(string name, string next, DnsSecKey key, bool optOut, DnsRecordType[] types) {
             byte[] hash = Hash(name);
             byte[] nextHash = Hash(next);

@@ -81,6 +81,7 @@ namespace DnsClientX {
             CancellationToken cancellationToken,
             Configuration? queryConfiguration = null) {
             ThrowIfDisposed();
+            if (type == DnsRecordType.NXNAME) throw new ArgumentException("NXNAME is a denial bitmap signal and cannot be queried.", nameof(type));
             queryConfiguration ??= EndpointConfiguration.CreateQuerySnapshot(name);
             using DnsClientTelemetry.DnsQueryTelemetryScope? telemetry = DnsClientTelemetry.StartQuery(name, type, EndpointConfiguration);
             try {

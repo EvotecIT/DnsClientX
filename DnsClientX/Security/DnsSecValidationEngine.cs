@@ -30,6 +30,7 @@ namespace DnsClientX {
         internal async Task<DnsSecValidationResult> ValidateAsync(DnsResponse response, string name,
             DnsRecordType type, CancellationToken cancellationToken) {
             cancellationToken.ThrowIfCancellationRequested();
+            response.DnsSecCompactDenial = false;
             if (response.WireMessage == null || response.WireMessage.Length == 0) {
                 return DnsSecValidationResult.Indeterminate("Local DNSSEC validation requires a DNS wire-format response.");
             }
@@ -54,6 +55,7 @@ namespace DnsClientX {
         internal async Task<DnsSecValidationResult> ValidateAliasAsync(DnsResponse response, string name,
             DnsRecordType type, CancellationToken cancellationToken) {
             cancellationToken.ThrowIfCancellationRequested();
+            response.DnsSecCompactDenial = false;
             if (response.WireMessage == null || response.WireMessage.Length == 0) {
                 return DnsSecValidationResult.Indeterminate("Local DNSSEC validation requires a DNS wire-format response.");
             }
@@ -170,12 +172,21 @@ namespace DnsClientX {
             if (proofRecords.Length == 0) return await FindUnsignedDelegationAsync(name, cancellationToken).ConfigureAwait(false);
 
             bool optOut = false;
+            bool compactDenial = false;
             DnsSecValidationResult result = await ValidateDenialBySignerAsync(response, proofRecords, name, cancellationToken,
-                candidate => response.Status == DnsResponseCode.NXDomain
-                    ? DnsSecProof.ProvesNameError(candidate, name)
-                    : DnsSecProof.ProvesNoData(candidate, name, type, out optOut),
+                candidate => {
+                    if (DnsSecProof.ProvesCompactNameError(candidate, name, out bool hasNxName)) {
+                        compactDenial = true;
+                        return true;
+                    }
+                    if (hasNxName) return false;
+                    return response.Status == DnsResponseCode.NXDomain
+                        ? DnsSecProof.ProvesNameError(candidate, name)
+                        : DnsSecProof.ProvesNoData(candidate, name, type, out optOut);
+                },
                 "The authenticated denial records prove the requested name or type does not exist.",
                 requireParent: type == DnsRecordType.DS && DnsWireNameCodec.Canonical(name) != ".").ConfigureAwait(false);
+            response.DnsSecCompactDenial = result.Status == DnsSecValidationStatus.Secure && compactDenial;
             return result.Status == DnsSecValidationStatus.Secure && optOut
                 ? DnsSecValidationResult.Insecure("The authenticated DS-absence proof covers the delegation with NSEC3 Opt-Out.")
                 : result;

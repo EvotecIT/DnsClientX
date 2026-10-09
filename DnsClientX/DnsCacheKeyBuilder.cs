@@ -39,6 +39,7 @@ namespace DnsClientX {
             Append(builder, parseTypedTxtRecords ? "typed-txt" : "raw-txt");
 
             EdnsOptions? edns = configuration.EdnsOptions;
+            Append(builder, requestDnsSec && (edns?.CompactAnswersOk ?? true) ? "co" : "no-co");
             Append(builder, (edns?.EnableEdns ?? configuration.EnableEdns) ? "edns" : "no-edns");
             Append(builder, (edns?.UdpBufferSize ?? configuration.UdpBufferSize).ToString(System.Globalization.CultureInfo.InvariantCulture));
             Append(builder, edns?.Subnet?.Subnet ?? configuration.Subnet ?? string.Empty);

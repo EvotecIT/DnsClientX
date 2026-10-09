@@ -10,7 +10,7 @@ namespace DnsClientX.Tests {
     /// Tests verifying that the DO bit is set appropriately across protocols.
     /// </summary>
     public class DoBitProtocolTests {
-        private static void AssertDoBit(byte[] query, string name) {
+        private static void AssertDoBit(byte[] query, string name, uint expectedFlags = 0x00008000u) {
             int additionalCount = (query[10] << 8) | query[11];
             Assert.Equal(1, additionalCount);
 
@@ -24,7 +24,7 @@ namespace DnsClientX.Tests {
             ushort type = (ushort)((query[offset + 1] << 8) | query[offset + 2]);
             Assert.Equal((ushort)DnsRecordType.OPT, type);
             uint ttl = (uint)((query[offset + 5] << 24) | (query[offset + 6] << 16) | (query[offset + 7] << 8) | query[offset + 8]);
-            Assert.Equal(0x00008000u, ttl);
+            Assert.Equal(expectedFlags, ttl);
         }
 
         /// <summary>
@@ -72,7 +72,7 @@ namespace DnsClientX.Tests {
             await DnsWireResolveHttp2.ResolveWireFormatHttp2(client, "example.com", DnsRecordType.A, true, false, false, config, CancellationToken.None);
             string query = handler.Request!.RequestUri!.Query.Replace("?dns=", string.Empty);
             byte[] bytes = DecodeBase64Url(query);
-            AssertDoBit(bytes, "example.com");
+            AssertDoBit(bytes, "example.com", 0x0000C000u);
         }
 
 #if NET5_0_OR_GREATER
@@ -98,7 +98,7 @@ namespace DnsClientX.Tests {
             await DnsWireResolveHttp3.ResolveWireFormatHttp3(client, "example.com", DnsRecordType.A, true, false, false, config, CancellationToken.None);
             string query = handler.Request!.RequestUri!.Query.Replace("?dns=", string.Empty);
             byte[] bytes = DecodeBase64Url(query);
-            AssertDoBit(bytes, "example.com");
+            AssertDoBit(bytes, "example.com", 0x0000C000u);
         }
 #endif
 

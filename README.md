@@ -848,6 +848,10 @@ DnsResponse response = await client.Resolve("signed.example", DnsRecordType.A,
 
 The extension verifier participates in the same chain validation, cache isolation, and `Secure`/`Bogus`/`Indeterminate` semantics as the built-in algorithms. Merely referencing the package does not enable it; configuration is explicit per client.
 
+DNSSEC wire queries advertise RFC 9824 compact-answer support through the EDNS CO flag. Configure `client.EndpointConfiguration.EdnsOptions = new EdnsOptions { CompactAnswersOk = false }` to disable that negotiation. `DnsMessageOptions.CompactAnswersOk` is an explicit opt-in for low-level message construction.
+
+For authenticated compact denial, `response.DnsSecCompactDenial` is `true` and `response.EffectiveStatus` is `NXDomain`, even if the server returned `NoError` in its header. `response.Status` retains that observed header code. This normalization requires a locally verified NSEC or NSEC3 NXNAME proof and a secure trust chain; a resolver's AD or CO flag alone cannot establish it. Signed empty non-terminals remain NODATA, and the cache bounds the verdict by its authenticated dependencies without synthesizing name errors for descendants or other record types. NXNAME is a denial metatype and cannot be queried directly.
+
 The root-server profile enables RFC 9156 QNAME minimization by default. It asks for one delegation label at a time with type `NS`, continues through authoritative NODATA responses without revealing the final name, and sends the complete name and requested type only after reaching the authoritative zone. `DnsResponse.QNameMinimizedQueryCount` and `QNameMinimizationFallbackCount` make both the privacy protection and any compatibility downgrade visible. Set `Configuration.EnableQNameMinimization = false` only for controlled compatibility diagnostics.
 
 RFC 5011 trust-anchor maintenance is opt-in because durable state belongs to the application. Configure a private, durable file and schedule explicit refreshes:
