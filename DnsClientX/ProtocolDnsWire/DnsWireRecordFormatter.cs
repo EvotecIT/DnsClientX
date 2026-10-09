@@ -37,7 +37,7 @@ namespace DnsClientX {
                     case DnsRecordType.SPF:
                         return FormatCharacterStrings(reader);
                     case DnsRecordType.HINFO:
-                        return $"{ReadCharacterString(reader)} {ReadCharacterString(reader)}";
+                        return FormatHinfo(reader);
                     case DnsRecordType.MINFO:
                     case DnsRecordType.RP:
                         return $"{reader.ReadName()} {ReadNameOnly(reader, type)}";
@@ -134,6 +134,13 @@ namespace DnsClientX {
         private static string ReadCharacterString(DnsWireReader reader) {
             int length = reader.ReadByte();
             return Quote(reader.ReadBytes(length));
+        }
+
+        private static string FormatHinfo(DnsWireReader reader) {
+            string cpu = ReadCharacterString(reader);
+            string os = ReadCharacterString(reader);
+            EnsureEnd(reader, DnsRecordType.HINFO);
+            return $"{cpu} {os}";
         }
 
         private static string FormatNaptr(DnsWireReader reader) {

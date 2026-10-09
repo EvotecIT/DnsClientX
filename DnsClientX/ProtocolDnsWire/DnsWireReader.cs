@@ -103,7 +103,7 @@ namespace DnsClientX {
         private static void AppendPresentationLabel(StringBuilder builder, byte[] message, int offset, int length) {
             for (int i = 0; i < length; i++) {
                 byte value = message[offset + i];
-                if (value == (byte)'.' || value == (byte)'\\') {
+                if (value == (byte)'.' || value == (byte)'\\' || value == (byte)'"') {
                     builder.Append('\\').Append((char)value);
                 } else if (value < 0x21 || value > 0x7E) {
                     builder.Append('\\').Append(value.ToString("D3", System.Globalization.CultureInfo.InvariantCulture));

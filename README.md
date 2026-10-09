@@ -117,7 +117,9 @@ If you want to learn about DNS:
 
 For TXT and SPF records, `DataRaw` retains the server's presentation, `DataStrings` retains its quoted character-strings, and `DataStringsEscaped` exposes the decoded strings. Typed `TxtRecord` objects provide the same views through `RawText`, `RawStrings`, and `Strings`; their fragment collections are read-only. `Data` and `TxtRecord.Text` concatenate the decoded strings within the same resource record, without adding separators. Spaces, empty chunks, escaped quotes, and payload line breaks are preserved. Use `TxtConcatenatedData` when you deliberately want TXT display output with line breaks removed. Opaque and application record payloads retain their case.
 
-CAA, NAPTR, and TLSA also accept generic hexadecimal RDATA (`\# <length> <hex>`). The declared octet length must match the payload. CAA flags and escaped value bytes are preserved; normalized TLSA association data uses uppercase hexadecimal. Malformed generic encodings retain their raw presentation and project as `UnknownRecord`.
+Supported wire record types also accept generic hexadecimal RDATA (`\# <length> <hex>`) through the same decoder as binary DNS responses. The declared octet length must match the payload. Unknown types and malformed generic encodings retain their raw presentation and project as `UnknownRecord`.
+
+For name, mail, routing, and authority records such as NS, CNAME, MX, SOA, and SRV, `Data` normalizes DNS name fields to lowercase without a trailing root dot, retaining `.` for the root itself. Normalized records use one space between parsed fields and preserve spaces inside quoted payloads. DNSKEY public keys retain their case and all encoded fragments; DS, TLSA, SMIMEA, and SSHFP hexadecimal payloads use uppercase without presentation whitespace. LOC text accepts omitted minutes, seconds, and precision fields with their standard defaults. `DataRaw` always retains the provider's original representation, including NSEC type spellings. Record types without a semantic normalizer retain their presentation text; callers can use `DataRaw` for the original evidence on every record type.
 
 ## Supported .NET Versions and Dependencies
 
