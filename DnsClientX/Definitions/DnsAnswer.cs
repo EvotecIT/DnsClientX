@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 
 namespace DnsClientX {
     /// <summary>
@@ -70,7 +69,9 @@ namespace DnsClientX {
 
         /// <summary>
         /// Gets decoded record data. TXT character-strings are concatenated within one resource
-        /// record without trimming whitespace or changing payload line endings.
+        /// record without trimming whitespace or changing payload line endings. Recognized DNS name
+        /// fields are lowercase without a trailing root dot; the root itself remains a single dot.
+        /// Structured field separators and encoded payload whitespace are normalized without changing DataRaw.
         /// </summary>
         [JsonIgnore]
         public string Data => ConvertData();
@@ -109,7 +110,7 @@ namespace DnsClientX {
         /// </summary>
         [JsonIgnore]
         public string[] DataStringsEscaped => Type is DnsRecordType.TXT or DnsRecordType.SPF
-            ? DnsPresentationFormat.TxtStrings(DataRaw, decoded: true)
+            ? DnsRecordDataPresentation.TxtStrings(DataRaw, Type, decoded: true)
             : DataStrings;
 
         /// <summary>
@@ -119,7 +120,7 @@ namespace DnsClientX {
         /// </summary>
         /// <returns>Array of strings representing record data.</returns>
         private string[] ConvertToMultiString() => Type is DnsRecordType.TXT or DnsRecordType.SPF
-            ? DnsPresentationFormat.TxtStrings(DataRaw, decoded: false)
+            ? DnsRecordDataPresentation.TxtStrings(DataRaw, Type, decoded: false)
             : DataRaw == null ? Array.Empty<string>() : new[] { DataRaw };
 
         /// <summary>
@@ -131,134 +132,72 @@ namespace DnsClientX {
                 return string.Empty;
             }
 
+            string data = DnsRecordDataPresentation.ExpandGeneric(DataRaw, Type);
+            if (data.TrimStart().StartsWith("\\#", StringComparison.Ordinal)) return data;
             return Type switch {
-                DnsRecordType.TXT or DnsRecordType.SPF => DnsPresentationFormat.ConcatenateTxt(DataRaw),
-                DnsRecordType.CAA => ConvertCaaRecord(),
-                DnsRecordType.DNSKEY => ConvertDnsKeyRecord(),
-                DnsRecordType.DS => ConvertDsRecord(),
-                DnsRecordType.LOC => ConvertLocRecord(),
-                DnsRecordType.NSEC => ConvertNsecRecord(),
-                DnsRecordType.TLSA => ConvertTlsaRecord(),
-                DnsRecordType.PTR => ConvertPtrRecord(),
-                DnsRecordType.NAPTR => ConvertNaptrRecord(),
-                DnsRecordType.AAAA => IPAddress.TryParse(DataRaw, out var address) ? address.ToString() : DataRaw,
-                DnsRecordType.SVCB or DnsRecordType.HTTPS => DataRaw,
+                DnsRecordType.TXT or DnsRecordType.SPF => DnsPresentationFormat.ConcatenateTxt(data),
+                DnsRecordType.CAA => DnsRecordDataPresentation.Caa(data),
+                DnsRecordType.DNSKEY or DnsRecordType.CDNSKEY or DnsRecordType.DS or DnsRecordType.CDS or
+                    DnsRecordType.DLV or DnsRecordType.TA => DnsRecordDataPresentation.Encoded(data, Type),
+                DnsRecordType.LOC => ConvertLocRecord(data),
+                DnsRecordType.NSEC => DnsRecordDataPresentation.Nsec(data),
+                DnsRecordType.TLSA or DnsRecordType.SMIMEA => ConvertTlsaRecord(data),
+                DnsRecordType.SSHFP => DnsRecordDataPresentation.Sshfp(data),
+                DnsRecordType.PTR => ConvertPtrRecord(data),
+                DnsRecordType.NAPTR => ConvertNaptrRecord(data),
+                DnsRecordType.A or DnsRecordType.AAAA => IPAddress.TryParse(data, out var address) ? address.ToString() : data,
                 DnsRecordType.NS or DnsRecordType.CNAME or DnsRecordType.DNAME or
-                DnsRecordType.MB or DnsRecordType.MD or DnsRecordType.MF or DnsRecordType.MG or DnsRecordType.MR or
-                DnsRecordType.MX or DnsRecordType.AFSDB or DnsRecordType.RT or DnsRecordType.KX or
-                DnsRecordType.SOA or DnsRecordType.SRV or DnsRecordType.MINFO or DnsRecordType.RP => DataRaw.ToLowerInvariant(),
-                _ => DataRaw
+                    DnsRecordType.MB or DnsRecordType.MD or DnsRecordType.MF or DnsRecordType.MG or DnsRecordType.MR
+                    => DnsRecordDataPresentation.Names(data, 1, 0),
+                DnsRecordType.MX or DnsRecordType.AFSDB or DnsRecordType.RT or DnsRecordType.KX
+                    => DnsRecordDataPresentation.Names(data, 2, 1),
+                DnsRecordType.SOA => DnsRecordDataPresentation.Names(data, 7, 0, 1),
+                DnsRecordType.SRV => DnsRecordDataPresentation.Names(data, 4, 3),
+                DnsRecordType.MINFO or DnsRecordType.RP => DnsRecordDataPresentation.Names(data, 2, 0, 1),
+                _ => data
             };
         }
 
-        private string ConvertCaaRecord() {
-            if (DataRaw.StartsWith("\\#", StringComparison.Ordinal)) {
-                if (!DnsPresentationFormat.TryDecodeRfc3597(DataRaw, out byte[] rdata)) return DataRaw;
-                try {
-                    return DnsWireRecordFormatter.Format(rdata, DnsRecordType.CAA, 0, (ushort)rdata.Length);
-                } catch (DnsClientException) { return DataRaw; }
-            }
-
-            return DataRaw;
-        }
-
-        private string ConvertDnsKeyRecord() {
-            // For DNSKEY records, decode the flags, protocol, algorithm, and public key from the record data
-            // Depending on the provider, the data may be in HEX or in text
-            // can be: 256 3 ECDSAP256SHA256 oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeqCYKD5ar0IRd8KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==
-            // can be: 257 3 13 mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==
-            var parts = DataRaw.Split(' ');
-            if (parts.Length >= 4 && Enum.TryParse<DnsKeyAlgorithm>(parts[2], out var algorithm)) {
-                return $"{parts[0]} {parts[1]} {algorithm} {parts[3]}";
-            }
-
-            return DataRaw;
-        }
-
-        private string ConvertDsRecord() {
-            // For DS records, decode the key tag, algorithm, digest type and digest
-            var parts = DataRaw.Split(' ');
-            if (parts.Length >= 4 &&
-                ushort.TryParse(parts[0], out var keyTag) &&
-                byte.TryParse(parts[1], out var algVal) &&
-                byte.TryParse(parts[2], out var digestType)) {
-                string algorithmName = Enum.IsDefined(typeof(DnsKeyAlgorithm), (int)algVal)
-                    ? ((DnsKeyAlgorithm)algVal).ToString()
-                    : parts[1];
-                return $"{keyTag} {algorithmName} {digestType} {parts[3]}";
-            }
-
-            return DataRaw;
-        }
-
-        private string ConvertLocRecord() {
+        private static string ConvertLocRecord(string data) {
+            if (DnsLocPresentation.TryParse(data, out var loc)) return DnsLocPresentation.Format(loc!);
             try {
-                byte[] rdata = Convert.FromBase64String(DataRaw);
+                byte[] rdata = Convert.FromBase64String(data);
+                if (rdata.Length != 16) return data;
                 return DnsWireRecordFormatter.Format(rdata, DnsRecordType.LOC, 0, (ushort)rdata.Length);
-            } catch (FormatException) {
-                return DataRaw;
-            }
+            } catch (FormatException) { return data; }
+            catch (DnsClientException) { return data; }
         }
 
-        private string ConvertNsecRecord() {
-            // This is a NSEC record. Some providers may return non-standard (google) types.
-            // Check if the type is a non-standard type
-            var parts = DataRaw.Split(' ');
-            string updated = DataRaw;
-
-            foreach (var part in parts) {
-                if (part.StartsWith("TYPE", StringComparison.Ordinal)) {
-                    // This is a non-standard type. Try to convert it to a standard type.
-                    if (Enum.TryParse<DnsRecordType>(part.Substring(4), out var standardType)) {
-                        // The conversion was successful. Replace the non-standard type with the standard type.
-                        if (!string.IsNullOrEmpty(updated)) {
-                            updated = updated.Replace(part, standardType.ToString());
-                        }
-                    }
-                }
+        private string ConvertTlsaRecord(string data) {
+            string[] fields = data.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            if (fields.Length >= 4 && byte.TryParse(fields[0], out _) && byte.TryParse(fields[1], out _) && byte.TryParse(fields[2], out _)) {
+                return DnsRecordDataPresentation.Encoded(data, Type);
             }
-
-            if (!ReferenceEquals(updated, DataRaw)) {
-                DataRaw = updated;
-            }
-
-            return updated;
-        }
-
-        private string ConvertTlsaRecord() {
-            byte[] parts;
-            if (DataRaw.StartsWith("\\#", StringComparison.Ordinal)) {
-                if (!DnsPresentationFormat.TryDecodeRfc3597(DataRaw, out parts)) return DataRaw;
-            } else if (Regex.IsMatch(DataRaw, @"^\d+ \d+ \d+ [\da-fA-F]+$", RegexOptions.CultureInvariant)) {
-                return DataRaw.ToUpperInvariant();
-            } else {
-                if (string.IsNullOrEmpty(DataRaw)) return DataRaw;
-                try { parts = Convert.FromBase64String(DataRaw); }
-                catch (FormatException) { return DataRaw; }
-            }
-            if (parts.Length > ushort.MaxValue) return DataRaw;
             try {
-                return DnsWireRecordFormatter.Format(parts, DnsRecordType.TLSA, 0, (ushort)parts.Length);
-            } catch (DnsClientException) { return DataRaw; }
+                byte[] rdata = Convert.FromBase64String(data);
+                if (rdata.Length > ushort.MaxValue) return data;
+                return DnsWireRecordFormatter.Format(rdata, Type, 0, (ushort)rdata.Length);
+            } catch (FormatException) { return data; }
+            catch (DnsClientException) { return data; }
         }
 
-        private string ConvertPtrRecord() {
+        private string ConvertPtrRecord(string data) {
             // A provider's Base64 form is accepted only when it decodes to a complete DNS name.
             // Ordinary presentation names such as "mail" may also be valid Base64 text.
             try {
-                if (!string.IsNullOrEmpty(DataRaw)) {
-                    byte[] bytes = Convert.FromBase64String(DataRaw);
+                if (!string.IsNullOrEmpty(data)) {
+                    byte[] bytes = Convert.FromBase64String(data);
                     if (IsCompleteWireName(bytes)) {
                         return FormatPtrWireName(bytes);
                     }
                 }
             } catch (FormatException) { }
             // Retain the legacy length-prefixed string form only when it is a complete wire name.
-            if (DataRaw.IndexOf('\0') >= 0) {
-                byte[] bytes = Encoding.UTF8.GetBytes(DataRaw);
+            if (data.IndexOf('\0') >= 0) {
+                byte[] bytes = Encoding.UTF8.GetBytes(data);
                 if (IsCompleteWireName(bytes)) return FormatPtrWireName(bytes);
             }
-            return DnsWireNameCodec.TrimTrailingRootDot(DataRaw).ToLowerInvariant();
+            return DnsRecordDataPresentation.NormalizeName(data);
         }
 
         private static string FormatPtrWireName(byte[] bytes) => DnsWireNameCodec.TrimTrailingRootDot(
@@ -276,33 +215,33 @@ namespace DnsClientX {
             return false;
         }
 
-        private string ConvertNaptrRecord() {
+        private string ConvertNaptrRecord(string data) {
             // NAPTR record (RFC 3403)
-            // Handles Base64, Hex, or Plain Text DataRaw
+            // Handles Base64, Hex, or Plain Text data
             try {
-                if (DataRaw.StartsWith("\\#", StringComparison.Ordinal)) {
-                    if (!DnsPresentationFormat.TryDecodeRfc3597(DataRaw, out byte[] rdataHex)) return DataRaw;
+                if (data.StartsWith("\\#", StringComparison.Ordinal)) {
+                    if (!DnsPresentationFormat.TryDecodeRfc3597(data, out byte[] rdataHex)) return data;
                     return ParseNaptrRDataAndFormat(rdataHex);
                 }
             } catch (Exception ex) {
-                Settings.Logger.WriteDebug($"Error parsing NAPTR record from Hex: {ex.Message} for DataRaw: {DataRaw}");
-                // Fall through to try other formats or return DataRaw at the end
+                Settings.Logger.WriteDebug($"Error parsing NAPTR record from Hex: {ex.Message} for data: {data}");
+                // Fall through to try other formats or return data at the end
             }
 
             try {
                 // Attempt Base64 Decoding
-                if (!string.IsNullOrEmpty(DataRaw)) {
-                    byte[] rdataBase64 = Convert.FromBase64String(DataRaw);
+                if (!string.IsNullOrEmpty(data)) {
+                    byte[] rdataBase64 = Convert.FromBase64String(data);
                     return ParseNaptrRDataAndFormat(rdataBase64);
                 }
             } catch (FormatException) {
                 // Not Base64, try parsing as plain text
             } catch (Exception ex) {
-                Settings.Logger.WriteDebug($"Error parsing NAPTR record from Base64: {ex.Message} for DataRaw: {DataRaw}");
-                // Fall through or return DataRaw at the end
+                Settings.Logger.WriteDebug($"Error parsing NAPTR record from Base64: {ex.Message} for data: {data}");
+                // Fall through or return data at the end
             }
 
-            var tokens = DnsPresentationFormat.Tokenize(DataRaw, out bool complete);
+            var tokens = DnsPresentationFormat.Tokenize(data, out bool complete);
             if (complete && (tokens.Count == 5 || tokens.Count == 6)
                 && ushort.TryParse(tokens[0].Value, out ushort order)
                 && ushort.TryParse(tokens[1].Value, out ushort preference)) {
@@ -310,13 +249,13 @@ namespace DnsClientX {
                 string service = DnsPresentationFormat.Unescape(tokens[3].Value);
                 string regexp = tokens.Count == 6 ? DnsPresentationFormat.Unescape(tokens[4].Value) : string.Empty;
                 string replacement = tokens[tokens.Count - 1].Value;
-                replacement = DnsWireNameCodec.TrimTrailingRootDot(replacement).ToLowerInvariant();
+                replacement = DnsRecordDataPresentation.NormalizeName(replacement);
                 return $"{order} {preference} {DnsPresentationFormat.Quote(flags)} {DnsPresentationFormat.Quote(service)} {DnsPresentationFormat.Quote(regexp)} {replacement}";
             }
 
             // If all parsing attempts fail or if it's an unrecognized format for NAPTR that didn't cleanly parse
-            Settings.Logger.WriteDebug($"NAPTR DataRaw '{DataRaw}' did not match known Hex, Base64, or plain text patterns, or failed parsing.");
-            return DataRaw; // Fallback
+            Settings.Logger.WriteDebug($"NAPTR data '{data}' did not match known Hex, Base64, or plain text patterns, or failed parsing.");
+            return data; // Fallback
         }
 
         /// <summary>
@@ -339,7 +278,7 @@ namespace DnsClientX {
             string formatted = DnsWireRecordFormatter.Format(rdata, DnsRecordType.NAPTR, 0, checked((ushort)rdata.Length));
             int replacementStart = formatted.LastIndexOf(' ') + 1;
             return formatted.Substring(0, replacementStart)
-                + DnsWireNameCodec.TrimTrailingRootDot(formatted.Substring(replacementStart)).ToLowerInvariant();
+                + DnsRecordDataPresentation.NormalizeName(formatted.Substring(replacementStart));
         }
 
     }

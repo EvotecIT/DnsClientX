@@ -168,7 +168,7 @@ namespace DnsClientX.Tests {
         public void Factory_MalformedLoc_ReturnsUnknownRecord() {
             var answer = new DnsAnswer {
                 Type = DnsRecordType.LOC,
-                DataRaw = "52 0 0 N 21 0 0 E 100m 1m 1m"
+                DataRaw = "52 0 0 Q 21 0 0 E 100m 1m 1m"
             };
 
             Assert.IsType<UnknownRecord>(DnsRecordFactory.Create(answer));
