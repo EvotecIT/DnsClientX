@@ -18,9 +18,9 @@ namespace DnsClientX.Tests {
                 DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddHours(1));
             byte[] pfx = temporary.Export(X509ContentType.Pfx);
             try {
-                // SChannel needs a temporary named software key. Other platforms can keep the import in memory.
-                // Omit PersistKeySet so certificate disposal releases the Windows key file.
-                X509KeyStorageFlags keyStorage = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                // SChannel needs a temporary named software key; macOS requires a temporary keychain for PFX.
+                // Omit PersistKeySet so disposal releases the key file/keychain. Use memory-only imports elsewhere.
+                X509KeyStorageFlags keyStorage = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
                     ? X509KeyStorageFlags.DefaultKeySet : X509KeyStorageFlags.EphemeralKeySet;
 #if NET9_0_OR_GREATER
                 return X509CertificateLoader.LoadPkcs12(pfx, null, keyStorage,
