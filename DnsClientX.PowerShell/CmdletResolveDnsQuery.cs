@@ -10,6 +10,7 @@ namespace DnsClientX.PowerShell {
     /// <summary>
     /// <para type="synopsis">Resolves DNS records (A, AAAA, MX, TXT, …) over UDP, TCP, DoT, DoH, QUIC, or multicast with optional multi-resolver strategies.</para>
     /// <para type="description">Supports single-provider queries, explicit servers with transport selection, multiple providers with FirstSuccess/FastestWins/SequentialFallback/RoundRobin, direct resolver endpoints, DNSSEC, EDNS/ECS, concurrency control, and TTL-based response caching.</para>
+    /// <para type="description">Specify either Name or Pattern. When no resolver source is specified, the library's default resolver is used. Timeout, retry, response, typed-record, and DNSSEC options apply to every resolver source.</para>
     /// <example>
     ///  <para>Simple (system default)</para>
     ///  <code>Resolve-Dns -Name "example.com" -Type A</code>
@@ -57,11 +58,12 @@ namespace DnsClientX.PowerShell {
     /// </summary>
     /// <seealso cref="DnsClientX.PowerShell.AsyncPSCmdlet" />
     [Alias("Resolve-DnsQuery")]
-    [Cmdlet(VerbsDiagnostic.Resolve, "Dns", DefaultParameterSetName = "ServerName")]
+    [Cmdlet(VerbsDiagnostic.Resolve, "Dns", DefaultParameterSetName = "DefaultResolver")]
     public sealed class CmdletResolveDnsQuery : AsyncPSCmdlet {
         /// <summary>
         /// <para type="description">The name of the DNS record to query for</para>
         /// </summary>
+        [Parameter(Mandatory = false, Position = 0, ParameterSetName = "DefaultResolver")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ServerName")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ResolverEndpoint")]
@@ -72,6 +74,7 @@ namespace DnsClientX.PowerShell {
         /// <summary>
         /// <para type="description">Pattern to expand into multiple DNS queries.</para>
         /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = "DefaultResolver")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternDnsProvider")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternServerName")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternResolverEndpoint")]
@@ -81,16 +84,7 @@ namespace DnsClientX.PowerShell {
         /// <summary>
         /// <para type="description">The type of the record to query for. If not specified, A record is queried.</para>
         /// </summary>
-        [Parameter(Mandatory = false, Position = 1, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, Position = 1, ParameterSetName = "ServerName")]
-        [Parameter(Mandatory = false, Position = 1, ParameterSetName = "PatternDnsProvider")]
-        [Parameter(Mandatory = false, Position = 1, ParameterSetName = "PatternServerName")]
-        [Parameter(Mandatory = false, Position = 1, ParameterSetName = "ResolverEndpoint")]
-        [Parameter(Mandatory = false, Position = 1, ParameterSetName = "PatternResolverEndpoint")]
-        [Parameter(Mandatory = false, Position = 1, ParameterSetName = "ResolverDnsProvider")]
-        [Parameter(Mandatory = false, Position = 1, ParameterSetName = "PatternResolverDnsProvider")]
-        [Parameter(Mandatory = false, Position = 1, ParameterSetName = "ResolverSelection")]
-        [Parameter(Mandatory = false, Position = 1, ParameterSetName = "PatternResolverSelection")]
+        [Parameter(Mandatory = false, Position = 1)]
         public DnsRecordType[] Type = [DnsRecordType.A];
         /// <summary>
         /// <para type="description">Predefined provider(s) (DnsEndpoint) for the query.</para>
@@ -257,20 +251,12 @@ namespace DnsClientX.PowerShell {
         /// <para type="description">Provides the full response of the query. If not specified, only the minimal response is provided (just the answer).</para>
         /// <para type="description">If specified, the full response is provided (answer, authority, and additional sections).</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
         [Parameter(Mandatory = false)]
         public SwitchParameter FullResponse;
 
         /// <summary>
         /// <para type="description">When set, attempts to parse answers into typed record objects.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
         [Parameter(Mandatory = false)]
         public SwitchParameter TypedRecords;
 
@@ -279,58 +265,36 @@ namespace DnsClientX.PowerShell {
         /// parsed into specialized types (DMARC, SPF, etc.) when <see cref="TypedRecords"/> is
         /// specified. When false, returns simple TXT records.
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
         [Parameter(Mandatory = false)]
         public SwitchParameter ParseTypedTxtRecords;
 
         /// <summary>
         /// <para type="description">Specifies the timeout for the DNS query, in milliseconds. If the DNS server does not respond within this time, the query will fail. Default is 2000 ms (2 seconds) as defined by <see cref="Configuration.DefaultTimeout"/>. Increase this value for slow networks or unreliable servers.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
         [Parameter(Mandatory = false)]
         public int TimeOut = Configuration.DefaultTimeout;
 
         /// <summary>
         /// <para type="description">Number of retry attempts on transient errors.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
         [Parameter(Mandatory = false)]
         public int RetryCount = 3;
 
         /// <summary>
         /// <para type="description">Delay between retry attempts in milliseconds.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
         [Parameter(Mandatory = false)]
         public int RetryDelayMs = 200;
 
         /// <summary>
         /// <para type="description">Request DNSSEC data (sets the DO bit).</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
         [Parameter(Mandatory = false)]
         public SwitchParameter RequestDnsSec;
 
         /// <summary>
         /// <para type="description">Validate DNSSEC signatures. Implies requesting DNSSEC data.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
         [Parameter(Mandatory = false)]
         public SwitchParameter ValidateDnsSec;
 
