@@ -6,7 +6,13 @@ namespace DnsClientX.Examples {
             using var client = new ClientX(DnsEndpoint.Cloudflare);
             var response = await client.Resolve("_dmarc.google.com", DnsRecordType.TXT, typedRecords: true);
             foreach (var typed in response.TypedAnswers!) {
-                Settings.Logger.WriteInformation(typed.GetType().Name);
+                if (typed is TxtRecord txt) {
+                    Settings.Logger.WriteInformation($"Combined TXT: {txt.Text}");
+                    foreach (string fragment in txt.Strings) {
+                        Settings.Logger.WriteInformation($"Decoded fragment: {fragment}");
+                    }
+                    Settings.Logger.WriteInformation($"Original presentation: {txt.RawText}");
+                }
             }
         }
     }

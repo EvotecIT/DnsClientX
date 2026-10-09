@@ -115,7 +115,7 @@ If you want to learn about DNS:
 > [!NOTE]
 > DnsClientX normalizes presentation details such as trailing dots and TXT character-string concatenation, but preserves DNS resource-record boundaries. Resolver answers can legitimately differ because of cache state, anycast location, ECS, filtering policy, or propagation; comparison code should not assume every resolver returns an identical RRset at the same instant.
 
-For TXT and SPF records, `DataRaw` retains the server's presentation, `DataStrings` retains its quoted character-strings, and `DataStringsEscaped` exposes the decoded strings. `Data` and `TxtRecord.Text` concatenate those decoded strings within the same resource record. Spaces, empty chunks, escaped quotes, and payload line breaks are preserved. Use `TxtConcatenatedData` when you deliberately want display output with line breaks removed. Opaque and application record payloads retain their case.
+For TXT and SPF records, `DataRaw` retains the server's presentation, `DataStrings` retains its quoted character-strings, and `DataStringsEscaped` exposes the decoded strings. Typed `TxtRecord` objects provide the same views through `RawText`, `RawStrings`, and `Strings`; their fragment collections are read-only. `Data` and `TxtRecord.Text` concatenate the decoded strings within the same resource record, without adding separators. Spaces, empty chunks, escaped quotes, and payload line breaks are preserved. Use `TxtConcatenatedData` when you deliberately want TXT display output with line breaks removed. Opaque and application record payloads retain their case.
 
 CAA, NAPTR, and TLSA also accept generic hexadecimal RDATA (`\# <length> <hex>`). The declared octet length must match the payload. CAA flags and escaped value bytes are preserved; normalized TLSA association data uses uppercase hexadecimal. Malformed generic encodings retain their raw presentation and project as `UnknownRecord`.
 
@@ -682,7 +682,7 @@ foreach (var typedAnswer in response.TypedAnswers!) {
 using var client = new ClientX(DnsEndpoint.Cloudflare);
 
 // SPF Records
-var spfResponse = await client.Resolve("google.com", DnsRecordType.TXT, typedRecords: true);
+var spfResponse = await client.Resolve("google.com", DnsRecordType.TXT, typedRecords: true, parseTypedTxtRecords: true);
 foreach (var answer in spfResponse.TypedAnswers!) {
     if (answer is SpfRecord spf) {
         Console.WriteLine($"SPF Mechanisms: {string.Join(", ", spf.Mechanisms)}");
@@ -690,7 +690,7 @@ foreach (var answer in spfResponse.TypedAnswers!) {
 }
 
 // DMARC Records
-var dmarcResponse = await client.Resolve("_dmarc.google.com", DnsRecordType.TXT, typedRecords: true);
+var dmarcResponse = await client.Resolve("_dmarc.google.com", DnsRecordType.TXT, typedRecords: true, parseTypedTxtRecords: true);
 foreach (var answer in dmarcResponse.TypedAnswers!) {
     if (answer is DmarcRecord dmarc) {
         Console.WriteLine($"DMARC Policy: {dmarc.Tags["p"]}");
@@ -699,8 +699,8 @@ foreach (var answer in dmarcResponse.TypedAnswers!) {
 }
 
 // DKIM Records
-var dkimResponse = await client.Resolve("default._domainkey.google.com", DnsRecordType.TXT, typedRecords: true);
-foreach (var answer in dmarcResponse.TypedAnswers!) {
+var dkimResponse = await client.Resolve("default._domainkey.google.com", DnsRecordType.TXT, typedRecords: true, parseTypedTxtRecords: true);
+foreach (var answer in dkimResponse.TypedAnswers!) {
     if (answer is DkimRecord dkim) {
         Console.WriteLine($"DKIM Key Type: {dkim.Tags.GetValueOrDefault("k", "rsa")}");
         Console.WriteLine($"DKIM Public Key: {dkim.Tags["p"]}");
@@ -773,11 +773,15 @@ using var client = new ClientX(DnsEndpoint.Cloudflare);
 // instead of parsing into specialized types like SpfRecord, DmarcRecord, etc.
 var response = await client.Resolve("google.com", DnsRecordType.TXT,
     typedRecords: true,
-    typedTxtAsTxt: true);
+    parseTypedTxtRecords: false);
 
 foreach (var answer in response.TypedAnswers!) {
     if (answer is TxtRecord txt) {
-        Console.WriteLine($"TXT Data: {string.Join(" ", txt.Strings)}");
+        Console.WriteLine($"Combined TXT: {txt.Text}");
+        foreach (string fragment in txt.Strings) {
+            Console.WriteLine($"Decoded fragment: {fragment}");
+        }
+        Console.WriteLine($"Original presentation: {txt.RawText}");
     }
 }
 ```
@@ -787,27 +791,30 @@ foreach (var answer in response.TypedAnswers!) {
 ```csharp
 using var client = new ClientX(DnsEndpoint.Cloudflare);
 
-var response = await client.Resolve("google.com",
+var responses = await client.Resolve("google.com",
     new[] { DnsRecordType.A, DnsRecordType.MX, DnsRecordType.TXT },
-    typedRecords: true);
+    typedRecords: true,
+    parseTypedTxtRecords: true);
 
-foreach (var answer in response.TypedAnswers!) {
-    switch (answer) {
-        case ARecord a:
-            Console.WriteLine($"A Record: {a.Address}");
-            break;
-        case MxRecord mx:
-            Console.WriteLine($"MX Record: {mx.Exchange} (Priority: {mx.Preference})");
-            break;
-        case SpfRecord spf:
-            Console.WriteLine($"SPF Record: {string.Join(" ", spf.Mechanisms)}");
-            break;
-        case TxtRecord txt:
-            Console.WriteLine($"TXT Record: {string.Join(" ", txt.Strings)}");
-            break;
-        case UnknownRecord unknown:
-            Console.WriteLine($"Unknown Record: {unknown.Data}");
-            break;
+foreach (var response in responses) {
+    foreach (var answer in response.TypedAnswers!) {
+        switch (answer) {
+            case ARecord a:
+                Console.WriteLine($"A Record: {a.Address}");
+                break;
+            case MxRecord mx:
+                Console.WriteLine($"MX Record: {mx.Exchange} (Priority: {mx.Preference})");
+                break;
+            case SpfRecord spf:
+                Console.WriteLine($"SPF Record: {string.Join(" ", spf.Mechanisms)}");
+                break;
+            case TxtRecord txt:
+                Console.WriteLine($"TXT Record: {txt.Text}");
+                break;
+            case UnknownRecord unknown:
+                Console.WriteLine($"Unknown Record: {unknown.Data}");
+                break;
+        }
     }
 }
 ```

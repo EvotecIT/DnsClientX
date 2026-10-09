@@ -41,7 +41,7 @@ public static class DnsRecordFactory {
             case DnsRecordType.TXT:
             case DnsRecordType.SPF:
                 if (!parseTypedTxtRecords) {
-                    return new TxtRecord(data);
+                    return new TxtRecord(answer, data);
                 }
                 if (DmarcRecord.TryParse(data, out var dmarc)) {
                     return dmarc;
@@ -58,7 +58,7 @@ public static class DnsRecordFactory {
                 if (KeyValueTxtRecord.TryParse(data, out var kv)) {
                     return kv;
                 }
-                return new TxtRecord(data);
+                return new TxtRecord(answer, data);
             case DnsRecordType.SOA:
                 var soa = data.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (soa.Length == 7 &&
