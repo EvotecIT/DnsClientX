@@ -58,28 +58,18 @@ namespace DnsClientX.PowerShell {
     /// </summary>
     /// <seealso cref="DnsClientX.PowerShell.AsyncPSCmdlet" />
     [Alias("Resolve-DnsQuery")]
-    [Cmdlet(VerbsDiagnostic.Resolve, "Dns", DefaultParameterSetName = "DefaultResolver")]
+    [Cmdlet(VerbsDiagnostic.Resolve, "Dns", DefaultParameterSetName = "Name")]
     public sealed class CmdletResolveDnsQuery : AsyncPSCmdlet {
         /// <summary>
         /// <para type="description">The name of the DNS record to query for</para>
         /// </summary>
-        [Parameter(Mandatory = false, Position = 0, ParameterSetName = "DefaultResolver")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ServerName")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ResolverEndpoint")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ResolverDnsProvider")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ResolverSelection")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "Name")]
         public string[] Name { get; set; } = Array.Empty<string>();
 
         /// <summary>
         /// <para type="description">Pattern to expand into multiple DNS queries.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "DefaultResolver")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternDnsProvider")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternServerName")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternResolverEndpoint")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternResolverDnsProvider")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternResolverSelection")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "Pattern")]
         public string? Pattern { get; set; }
         /// <summary>
         /// <para type="description">The type of the record to query for. If not specified, A record is queried.</para>
@@ -91,8 +81,7 @@ namespace DnsClientX.PowerShell {
         /// <para type="description">When a single provider is specified, the classic single-resolver path is used. When multiple providers are specified, the multi-resolver path is used.</para>
         /// <para type="description">If not specified, the default provider System (UDP) is used.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
+        [Parameter(Mandatory = false)]
         public DnsEndpoint[] DnsProvider { get; set; } = Array.Empty<DnsEndpoint>();
 
         /// <summary>
@@ -106,30 +95,26 @@ namespace DnsClientX.PowerShell {
         /// <para type="description">Once a server is specified, the query will be sent to that server.</para>
         /// </summary>
         [Alias("ServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        [Parameter(Mandatory = false)]
         [ValidateNotNull]
         public List<string> Server { get; set; } = new List<string>();
 
         /// <summary>
         /// <para type="description">One or more resolver endpoints in string format. Accepted: "1.1.1.1:53", "[2606:4700:4700::1111]:53", "dns.google:53", DoH URLs like "https://dns.google/dns-query", and transport-prefixed values such as "doq@dns.quad9.net:853" or "doh3@https://dns.quad9.net/dns-query".</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverEndpoint")]
+        [Parameter(Mandatory = false)]
         public string[] ResolverEndpoint { get; set; } = Array.Empty<string>();
 
         /// <summary>
         /// <para type="description">One or more files containing resolver endpoints for the multi-resolver. Blank lines and full-line comments are ignored.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverEndpoint")]
+        [Parameter(Mandatory = false)]
         public string[] ResolverEndpointFile { get; set; } = Array.Empty<string>();
 
         /// <summary>
         /// <para type="description">One or more HTTP or HTTPS URLs exposing resolver endpoints for the multi-resolver.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverEndpoint")]
+        [Parameter(Mandatory = false)]
         public string[] ResolverEndpointUrl { get; set; } = Array.Empty<string>();
 
         /// <summary>
@@ -137,115 +122,77 @@ namespace DnsClientX.PowerShell {
         /// <para type="description">This enables strategy control (FirstSuccess/FastestWins/SequentialFallback) and other multi-resolver options.</para>
         /// </summary>
         [Alias("DnsProviders")]
-        [Parameter(Mandatory = true, ParameterSetName = "ResolverDnsProvider")]
-        [Parameter(Mandatory = true, ParameterSetName = "PatternResolverDnsProvider")]
+        [Parameter(Mandatory = false)]
+        [ValidateNotNullOrEmpty]
         public DnsEndpoint[] ResolverDnsProvider { get; set; } = Array.Empty<DnsEndpoint>();
 
         /// <summary>
         /// <para type="description">Path to a saved resolver score snapshot whose recommended resolver should be reused for the query.</para>
         /// </summary>
-        [Parameter(Mandatory = true, ParameterSetName = "ResolverSelection")]
-        [Parameter(Mandatory = true, ParameterSetName = "PatternResolverSelection")]
+        [Parameter(Mandatory = false)]
+        [ValidateNotNullOrEmpty]
         public string ResolverSelectionPath { get; set; } = string.Empty;
 
         /// <summary>
         /// <para type="description">Multi-resolver strategy to use when multiple endpoints are provided.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
+        [Parameter(Mandatory = false)]
         public MultiResolverStrategy ResolverStrategy { get; set; } = MultiResolverStrategy.FirstSuccess;
 
         /// <summary>
         /// <para type="description">Limits concurrent queries across endpoints. Defaults to 4.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
+        [Parameter(Mandatory = false)]
         public int MaxParallelism { get; set; } = 4;
 
         /// <summary>
         /// <para type="description">Respect endpoint-level timeouts if present. When not set, the cmdlet's -TimeOut value is used.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
+        [Parameter(Mandatory = false)]
         public SwitchParameter RespectEndpointTimeout { get; set; }
 
         /// <summary>
         /// <para type="description">Cache duration in minutes for FastestWins strategy.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
+        [Parameter(Mandatory = false)]
         public int FastestCacheMinutes { get; set; } = 5;
 
         /// <summary>
         /// <para type="description">Limits concurrent queries per endpoint when using the multi-resolver. Set to a positive value to cap in-flight queries per endpoint; 0 disables the cap.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
+        [Parameter(Mandatory = false)]
         public int PerEndpointMaxInFlight { get; set; } = 0;
 
         /// <summary>
         /// <para type="description">Enables response caching based on TTLs for repeated queries of the same (name,type). Disabled by default.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
+        [Parameter(Mandatory = false)]
         public SwitchParameter ResponseCache { get; set; }
 
         /// <summary>
         /// <para type="description">Maximal TTL allowed for cached entries (seconds). 0 leaves library default.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverEndpoint")]
-        [Parameter(Mandatory = false, ParameterSetName = "ResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternResolverDnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "DnsProvider")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternDnsProvider")]
+        [Parameter(Mandatory = false)]
         public int MaxCacheTtlSeconds { get; set; } = 0;
 
         /// <summary>
         /// <para type="description">If specified, all servers listed in <see cref="Server"/> are queried sequentially and the responses are aggregated in server order.</para>
         /// <para type="description">When not specified, only the first server is queried for faster results.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        [Parameter(Mandatory = false)]
         public SwitchParameter AllServers;
 
         /// <summary>
         /// <para type="description">If specified, the cmdlet sequentially queries each server until a successful response is received.</para>
         /// <para type="description">This option stops on the first server that returns <c>DnsResponseCode.NoError</c>.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        [Parameter(Mandatory = false)]
         public SwitchParameter Fallback;
 
         /// <summary>
         /// <para type="description">If specified, the order of servers defined in <see cref="Server"/> is randomized before querying.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        [Parameter(Mandatory = false)]
         public SwitchParameter RandomServer;
         /// <summary>
         /// <para type="description">Provides the full response of the query. If not specified, only the minimal response is provided (just the answer).</para>
@@ -337,15 +284,13 @@ namespace DnsClientX.PowerShell {
         /// <summary>
         /// <para type="description">Explicit request format for the -Server path, such as DnsOverUDP, DnsOverTCP, DnsOverTLS, or DnsOverHttps.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        [Parameter(Mandatory = false)]
         public DnsRequestFormat RequestFormat { get; set; } = DnsRequestFormat.DnsOverUDP;
 
         /// <summary>
         /// <para type="description">Optional port override for the -Server path. If omitted, the selected request format decides the default port.</para>
         /// </summary>
-        [Parameter(Mandatory = false, ParameterSetName = "ServerName")]
-        [Parameter(Mandatory = false, ParameterSetName = "PatternServerName")]
+        [Parameter(Mandatory = false)]
         public int Port { get; set; }
 
         /// <summary>
@@ -448,19 +393,33 @@ namespace DnsClientX.PowerShell {
             };
         }
 
-        private void ValidateResolverEndpointInputs() {
-            if (ParameterSetName != "ResolverEndpoint" && ParameterSetName != "PatternResolverEndpoint") {
-                return;
-            }
-
+        private void ValidateResolverInputs() {
+            var bound = MyInvocation.BoundParameters;
+            bool hasEndpointParameters = bound.ContainsKey(nameof(ResolverEndpoint)) ||
+                bound.ContainsKey(nameof(ResolverEndpointFile)) || bound.ContainsKey(nameof(ResolverEndpointUrl));
             bool hasInlineEndpoints = ResolverEndpoint is { Length: > 0 };
             bool hasFiles = ResolverEndpointFile is { Length: > 0 };
             bool hasUrls = ResolverEndpointUrl is { Length: > 0 };
 
-            if (!hasInlineEndpoints && !hasFiles && !hasUrls) {
+            if (hasEndpointParameters && !hasInlineEndpoints && !hasFiles && !hasUrls) {
                 throw new PSArgumentException(
                     "At least one resolver endpoint, resolver endpoint file, or resolver endpoint URL must be specified.",
                     nameof(ResolverEndpoint));
+            }
+
+            bool hasProviderOrEndpoint = bound.ContainsKey(nameof(DnsProvider)) || hasEndpointParameters ||
+                bound.ContainsKey(nameof(ResolverDnsProvider)) || bound.ContainsKey(nameof(ResolverSelectionPath));
+            if (hasProviderOrEndpoint && new[] {
+                    nameof(AllServers), nameof(Fallback), nameof(RandomServer), nameof(RequestFormat), nameof(Port)
+                }.Any(bound.ContainsKey)) {
+                throw new PSArgumentException("Server transport and server selection options cannot be combined with another resolver source.");
+            }
+
+            if ((bound.ContainsKey(nameof(Server)) || bound.ContainsKey(nameof(ResolverSelectionPath))) && new[] {
+                    nameof(ResolverStrategy), nameof(MaxParallelism), nameof(RespectEndpointTimeout), nameof(FastestCacheMinutes),
+                    nameof(PerEndpointMaxInFlight), nameof(ResponseCache), nameof(MaxCacheTtlSeconds)
+                }.Any(bound.ContainsKey)) {
+                throw new PSArgumentException("Multi-resolver options require DnsProvider, ResolverEndpoint, or ResolverDnsProvider.");
             }
         }
 
@@ -478,7 +437,7 @@ namespace DnsClientX.PowerShell {
 
         /// <inheritdoc />
         protected override async Task ProcessRecordAsync() {
-            ValidateResolverEndpointInputs();
+            ValidateResolverInputs();
             var request = CreateRequest();
 
             try {

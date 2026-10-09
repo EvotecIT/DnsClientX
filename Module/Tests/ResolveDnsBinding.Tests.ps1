@@ -79,16 +79,25 @@ Describe 'Resolve-Dns binding' {
 
     It 'requires either a name or a pattern when using the default resolver' {
         { Resolve-Dns -Name 'example.com' -Pattern 'host[1-2].example.com' -ErrorAction Stop } |
-            Should -Throw -ExceptionType ([System.InvalidOperationException]) -ExpectedMessage '*Specify either Names or Pattern*'
-        { Resolve-Dns -ErrorAction Stop } |
-            Should -Throw -ExceptionType ([System.InvalidOperationException]) -ExpectedMessage '*Specify either Names or Pattern*'
+            Should -Throw -ExceptionType ([System.Management.Automation.ParameterBindingException])
+    }
+
+    It 'preserves positional record types for name and pattern queries' {
+        { Resolve-Dns example.com TXT -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.ArgumentOutOfRangeException]) -ExpectedMessage '*TimeOutMilliseconds*'
+        { Resolve-Dns -Pattern 'host[1-2].example.com' TXT -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.ArgumentOutOfRangeException]) -ExpectedMessage '*TimeOutMilliseconds*'
+        { Resolve-Dns example.com TXT -DnsProvider Cloudflare -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.ArgumentOutOfRangeException]) -ExpectedMessage '*TimeOutMilliseconds*'
     }
 
     It 'keeps resolver sources and server-only transport settings separate' {
         { Resolve-Dns -Name 'example.com' -DnsProvider Cloudflare -Server '127.0.0.1' -ErrorAction Stop } |
-            Should -Throw -ExceptionType ([System.Management.Automation.ParameterBindingException])
+            Should -Throw -ExceptionType ([System.InvalidOperationException]) -ExpectedMessage '*Specify only one resolver source*'
         { Resolve-Dns -Name 'example.com' -DnsProvider Cloudflare -RequestFormat DnsOverTCP -ErrorAction Stop } |
-            Should -Throw -ExceptionType ([System.Management.Automation.ParameterBindingException])
+            Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Server transport*'
+        { Resolve-Dns -Name 'example.com' -Server '127.0.0.1' -ResolverStrategy FastestWins -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
     }
 
     It 'exports benchmark cmdlet from the manifest' {
