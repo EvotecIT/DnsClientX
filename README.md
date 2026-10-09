@@ -852,19 +852,24 @@ Console.WriteLine(response.DnsSecValidationMessage);
 
 The resolver-provided `AuthenticData` flag and local validation are deliberately separate. `Secure` means DnsClientX built and verified a chain to a configured root trust anchor; `Insecure` means a secure parent authenticated an unsigned delegation; `Bogus` is a cryptographic or proof failure; and `Indeterminate` means the response, trust state, or supported algorithms were insufficient. The dependency-free validator supports RSA/SHA-1 (algorithms 5 and 7, for compatibility), RSA/SHA-256, and RSA/SHA-512 on every target. The .NET 8 and .NET 10 assets also support ECDSA P-256/SHA-256 and ECDSA P-384/SHA-384. Ed25519 and Ed448 are supplied by the optional package below rather than claimed by the core.
 
-Install `DnsClientX.DnsSec.EdDsa` when RFC 8080 algorithms 15 and 16 are required. It is separately versioned and is the only DnsClientX package that depends on `BouncyCastle.Cryptography`:
+Install `DnsClientX.DnsSec.EdDsa` for ECDSA P-256/P-384 on .NET Framework and .NET Standard, or for Ed25519/Ed448 on any supported target. The optional package uses `BouncyCastle.Cryptography`; the core package does not depend on it:
 
 ```csharp
 using DnsClientX.DnsSec.EdDsa;
 
 using var client = new ClientX(DnsEndpoint.RootServer);
 client.EndpointConfiguration.UseEdDsaDnsSec();
+Console.WriteLine(string.Join(", ", client.EndpointConfiguration.SupportedDnsSecAlgorithms));
 
 DnsResponse response = await client.Resolve("signed.example", DnsRecordType.A,
     requestDnsSec: true, validateDnsSec: true);
 ```
 
 The extension verifier participates in the same chain validation, cache isolation, and `Secure`/`Bogus`/`Indeterminate` semantics as the built-in algorithms. Merely referencing the package does not enable it; configuration is explicit per client.
+
+`Configuration.SupportedDnsSecAlgorithms` reports the algorithms available on the running target, including the configured verifier. Query options, resolver execution options, and multi-resolver options accept the same `IDnsSecSignatureVerifier` instance. A configured verifier takes precedence for the algorithms it supports; other algorithms use the built-in verifier.
+
+CLI queries, probes and benchmarks accept `--dnssec-verifier /path/to/DnsClientX.DnsSec.EdDsa.dll`. PowerShell `Resolve-Dns`, `Test-DnsProbe` and `Test-DnsBenchmark` accept `-DnsSecVerifierPath` with the same local assembly path. Keep the matching target's provider assembly and `BouncyCastle.Cryptography.dll` together. Loading is explicit and executes trusted local code; see the [optional provider documentation](DnsClientX.DnsSec.EdDsa/README.md) for examples.
 
 DNSSEC wire queries advertise RFC 9824 compact-answer support through the EDNS CO flag. Configure `client.EndpointConfiguration.EdnsOptions = new EdnsOptions { CompactAnswersOk = false }` to disable that negotiation. `DnsMessageOptions.CompactAnswersOk` is an explicit opt-in for low-level message construction.
 

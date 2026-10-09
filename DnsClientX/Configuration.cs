@@ -198,6 +198,14 @@ namespace DnsClientX {
         public IDnsSecSignatureVerifier? DnsSecSignatureVerifier { get; set; }
 
         /// <summary>
+        /// Gets the DNSSEC signature algorithms supported by this target and the configured
+        /// optional verifier. Unsupported algorithms remain indeterminate during validation.
+        /// </summary>
+        public IReadOnlyList<DnsKeyAlgorithm> SupportedDnsSecAlgorithms => Array.AsReadOnly(
+            Enumerable.Range(0, 256).Where(value => DnsSecCrypto.IsSupportedAlgorithm((byte)value,
+                DnsSecSignatureVerifier)).Select(value => (DnsKeyAlgorithm)value).ToArray());
+
+        /// <summary>
         /// Sets the CD (Checking Disabled) flag on queries.
         /// </summary>
         public bool CheckingDisabled { get; set; }

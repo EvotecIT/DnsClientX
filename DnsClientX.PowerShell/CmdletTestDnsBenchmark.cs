@@ -272,6 +272,7 @@ namespace DnsClientX.PowerShell {
     /// <summary>
     /// <para type="synopsis">Benchmarks one or more DNS providers or explicit resolver endpoints across repeated queries.</para>
     /// <para type="description">Returns one object per candidate with latency, success rate, answer consistency, rank, and recommendation metadata. PowerShell consumers can sort, filter, format, or export the results themselves.</para>
+    /// </summary>
     /// <example>
     ///   <para>Benchmark three built-in providers with repeated A lookups</para>
     ///   <code>Test-DnsBenchmark -Name example.com -DnsProvider Cloudflare,Quad9,Google -Attempts 5</code>
@@ -308,7 +309,6 @@ namespace DnsClientX.PowerShell {
     ///   <para>Benchmark resolvers and persist the scored recommendation snapshot for later reuse</para>
     ///   <code>Test-DnsBenchmark -Name example.com -DnsProvider Cloudflare,Google -Attempts 3 -SavePath '.\resolver-score.json' -IncludeSummary</code>
     /// </example>
-    /// </summary>
     [Cmdlet(VerbsDiagnostic.Test, "DnsBenchmark", DefaultParameterSetName = "DnsProvider")]
     [OutputType(typeof(DnsBenchmarkResult), typeof(DnsBenchmarkSummary))]
     public sealed class CmdletTestDnsBenchmark : AsyncPSCmdlet {
@@ -376,6 +376,7 @@ namespace DnsClientX.PowerShell {
 
         /// <summary>Use a fresh client per attempt, or retain one per target without caching DNS answers.</summary>
         [Parameter(Mandatory = false)]
+        [ValidateSet("Cold", "Warm")]
         public ResolverQueryConnectionMode ConnectionMode { get; set; } = ResolverQueryConnectionMode.Cold;
 
         /// <summary>
@@ -409,6 +410,10 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "ResolverEndpoint")]
         [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
         public SwitchParameter ValidateDnsSec { get; set; }
+
+        /// <summary><para type="description">Local optional DNSSEC provider DLL path, with its dependencies beside it.</para></summary>
+        [Parameter]
+        public string? DnsSecVerifierPath { get; set; }
 
         /// <summary>
         /// Require a minimum overall successful query percentage for the run to pass policy.
@@ -453,6 +458,13 @@ namespace DnsClientX.PowerShell {
         /// <inheritdoc />
         protected override async Task ProcessRecordAsync() {
             ValidateParameters();
+            ResolverQueryRunOptions runOptions;
+            try {
+                runOptions = CreateQueryRunOptions();
+            } catch (Exception ex) {
+                WriteError(new ErrorRecord(ex, "DnsBenchmarkInvalidInput", ErrorCategory.InvalidArgument, this));
+                return;
+            }
 
             string[] names = Name
                 .Where(name => !string.IsNullOrWhiteSpace(name))
@@ -476,7 +488,7 @@ namespace DnsClientX.PowerShell {
 
             WriteVerbose($"Benchmarking {candidates.Length} candidate(s) across {names.Length} domain(s), {recordTypes.Length} record type(s), and {Attempts} attempt(s) per combination.");
 
-            ResolverBenchmarkReport report = await RunBenchmarkAsync(candidates, names, recordTypes, CancelToken).ConfigureAwait(false);
+            ResolverBenchmarkReport report = await RunBenchmarkAsync(candidates, names, recordTypes, runOptions, CancelToken).ConfigureAwait(false);
             if (!string.IsNullOrWhiteSpace(SavePath)) {
                 ResolverScoreStore.Save(SavePath, report.Snapshot);
                 WriteVerbose($"Saved resolver score snapshot to {SavePath}.");
@@ -551,7 +563,7 @@ namespace DnsClientX.PowerShell {
             };
         }
 
-        private async Task<ResolverBenchmarkReport> RunBenchmarkAsync(IReadOnlyList<ResolverExecutionTarget> candidates, string[] names, DnsRecordType[] recordTypes, CancellationToken cancellationToken) {
+        private async Task<ResolverBenchmarkReport> RunBenchmarkAsync(IReadOnlyList<ResolverExecutionTarget> candidates, string[] names, DnsRecordType[] recordTypes, ResolverQueryRunOptions runOptions, CancellationToken cancellationToken) {
             ResolverBenchmarkReport report = await ResolverBenchmarkWorkflow.RunAsync(
                 candidates,
                 names,
@@ -559,7 +571,7 @@ namespace DnsClientX.PowerShell {
                 Attempts,
                 MaxConcurrency,
                 TimeOut,
-                CreateQueryRunOptions(),
+                runOptions,
                 CreateBenchmarkPolicy(),
                 progress: (completed, total) => {
                     int percent = total == 0
@@ -590,6 +602,7 @@ namespace DnsClientX.PowerShell {
                 ConnectionMode = ConnectionMode,
                 RequestDnsSec = RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent,
                 ValidateDnsSec = ValidateDnsSec.IsPresent,
+                DnsSecSignatureVerifier = DnsSecProviderPath.Load(this, DnsSecVerifierPath),
                 RequestNsid = RequestNsid.IsPresent,
                 BootstrapResolver = string.IsNullOrWhiteSpace(BootstrapResolver) ? null : EndpointParser.ParseBootstrap(BootstrapResolver!),
                 MaxRetries = 1,

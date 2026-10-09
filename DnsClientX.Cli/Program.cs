@@ -49,6 +49,8 @@ namespace DnsClientX.Cli {
             public List<string> ProbeEndpointUrls { get; } = new List<string>();
             public bool RequestDnsSec { get; set; }
             public bool ValidateDnsSec { get; set; }
+            public string? DnsSecVerifierPath { get; set; }
+            public IDnsSecSignatureVerifier? DnsSecSignatureVerifier { get; set; }
             public bool WirePost { get; set; }
             public DnsResolverEndpoint? BootstrapResolver { get; set; }
             public bool RequestNsid { get; set; }
@@ -210,6 +212,20 @@ namespace DnsClientX.Cli {
                         break;
                     case var opt when opt.Equals("--validate-dnssec", StringComparison.OrdinalIgnoreCase):
                         options.ValidateDnsSec = true;
+                        break;
+                    case var opt when opt.Equals("--dnssec-verifier", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, "--dnssec-verifier", out string? verifierPath, out errorMessage)) {
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        if (string.IsNullOrWhiteSpace(verifierPath)) {
+                            errorMessage = "--dnssec-verifier requires a nonblank local DLL path.";
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
+                        options.DnsSecVerifierPath = verifierPath;
                         break;
                     case var opt when opt.Equals("--wire-post", StringComparison.OrdinalIgnoreCase):
                         options.WirePost = true;
@@ -579,6 +595,15 @@ namespace DnsClientX.Cli {
                  !string.IsNullOrWhiteSpace(options.ResolverSelectPath) || !string.IsNullOrWhiteSpace(options.ResolverUsePath) ||
                  !string.IsNullOrWhiteSpace(options.StampInfo) || options.ResolverValidate)) {
                 errorMessage = "--capabilities cannot be combined with query, probe, benchmark, update, axfr, resolver selection, or stamp modes.";
+                invalidSwitches = null;
+                options = null;
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(options.DnsSecVerifierPath) &&
+                (options.ShowCapabilities || !string.IsNullOrWhiteSpace(options.StampInfo) || options.ResolverValidate ||
+                 !string.IsNullOrWhiteSpace(options.ResolverSelectPath) || options.ZoneTransfer || options.DoUpdate)) {
+                errorMessage = "--dnssec-verifier applies only to query, probe, and benchmark modes.";
                 invalidSwitches = null;
                 options = null;
                 return false;
@@ -961,6 +986,8 @@ namespace DnsClientX.Cli {
         }
 
         private static ResolverExecutionClientOptions CreateExecutionClientOptions(CliOptions options, bool useBenchmarkTimeout = false) {
+            if (!string.IsNullOrWhiteSpace(options.DnsSecVerifierPath))
+                options.DnsSecSignatureVerifier ??= DnsSecSignatureVerifierLoader.Load(options.DnsSecVerifierPath!);
             string? envPort = Environment.GetEnvironmentVariable("DNSCLIENTX_CLI_PORT");
             int? customPort = int.TryParse(envPort, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedPort) && parsedPort > 0
                 ? parsedPort
@@ -972,6 +999,7 @@ namespace DnsClientX.Cli {
                 PortOverride = customPort,
                 ForceDohWirePost = options.WirePost,
                 BootstrapResolver = options.BootstrapResolver,
+                DnsSecSignatureVerifier = options.DnsSecSignatureVerifier,
                 RequestNsid = options.RequestNsid
             };
         }
@@ -1326,6 +1354,7 @@ namespace DnsClientX.Cli {
                 PortOverride = clientOptions.PortOverride,
                 ForceDohWirePost = clientOptions.ForceDohWirePost,
                 BootstrapResolver = clientOptions.BootstrapResolver,
+                DnsSecSignatureVerifier = clientOptions.DnsSecSignatureVerifier,
                 RequestNsid = clientOptions.RequestNsid
             };
         }
@@ -1709,6 +1738,7 @@ namespace DnsClientX.Cli {
             Console.WriteLine("      --domain <name>      Domain name (comma-separated with --benchmark)");
             Console.WriteLine("      --dnssec             Request DNSSEC records");
             Console.WriteLine("      --validate-dnssec    Validate DNSSEC records");
+            Console.WriteLine("      --dnssec-verifier    Optional DNSSEC provider DLL path (dependencies beside it)");
             Console.WriteLine("      --wire-post          Use DNS over HTTPS wire POST (when supported)");
             Console.WriteLine("      --bootstrap <endpoint>  Resolve endpoint hostnames through an IP-literal UDP/TCP resolver, e.g. udp@1.1.1.1:53");
             Console.WriteLine("      --nsid               Request resolver identity through EDNS (wire transports)");

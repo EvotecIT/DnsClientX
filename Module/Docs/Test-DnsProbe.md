@@ -13,17 +13,17 @@ Runs a single DNS query against each candidate, highlights answer mismatches, ap
 ## SYNTAX
 ### DnsProvider (Default)
 ```powershell
-Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] [-DnsProvider <DnsEndpoint>] [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-RequireConsensus] [-MinConsensusPercent <Int32>] [-MinSuccessCount <Int32>] [-MinSuccessPercent <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] [-DnsProvider <DnsEndpoint>] [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-RequireConsensus] [-MinConsensusPercent <Int32>] [-MinSuccessCount <Int32>] [-MinSuccessPercent <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ### ResolverEndpoint
 ```powershell
-Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-RequireConsensus] [-MinConsensusPercent <Int32>] [-MinSuccessCount <Int32>] [-MinSuccessPercent <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-RequireConsensus] [-MinConsensusPercent <Int32>] [-MinSuccessCount <Int32>] [-MinSuccessPercent <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ### ResolverSelection
 ```powershell
-Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] -ResolverSelectionPath <string> [-TimeOut <int>] [-RequestDnsSec] [-ValidateDnsSec] [-RequireConsensus] [-MinConsensusPercent <Int32>] [-MinSuccessCount <Int32>] [-MinSuccessPercent <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] -ResolverSelectionPath <string> [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-RequireConsensus] [-MinConsensusPercent <Int32>] [-MinSuccessCount <Int32>] [-MinSuccessPercent <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -35,11 +35,70 @@ Runs a single DNS query against each candidate, highlights answer mismatches, ap
 
 ### EXAMPLE 1
 ```powershell
-Test-DnsProbe -ResolverSelectionPath 'C:\Path'
+Test-DnsProbe -Name example.com
 ```
 
+Probe the default system resolver profile for an A record
+
+### EXAMPLE 2
+```powershell
+Test-DnsProbe -Name example.com -DnsProvider Cloudflare -SummaryOnly
+```
+
+Probe the Cloudflare resolver family and return only the run-level summary
+
+### EXAMPLE 3
+```powershell
+Test-DnsProbe -Name example.com -ResolverEndpointFile '.\resolvers.txt' -RequireConsensus -IncludeSummary
+```
+
+Probe custom endpoints loaded from a file and require answer consensus
+
+### EXAMPLE 4
+```powershell
+Test-DnsProbe -Name example.com -ResolverEndpoint 'udp@1.1.1.1:53','tcp@9.9.9.9:53' -MinSuccessCount 2 -MinConsensusPercent 60
+```
+
+Probe custom endpoints from inline values and enforce success thresholds
+
+### EXAMPLE 5
+```powershell
+Test-DnsProbe -Name example.com -ResolverEndpoint 'doq@dns.quad9.net:853','doh3@https://dns.quad9.net/dns-query' -IncludeSummary
+```
+
+Probe modern transports with explicit endpoint strings
+
+### EXAMPLE 6
+```powershell
+Test-DnsProbe -Name example.com -ResolverSelectionPath '.\resolver-score.json' -SummaryOnly
+```
+
+Reuse the recommended resolver from a saved snapshot as the single probe candidate
+
+### EXAMPLE 7
+```powershell
+Test-DnsProbe -Name example.com -ResolverEndpointUrl 'https://example.test/resolvers.txt' -SavePath '.\resolver-probe.json' -IncludeSummary
+```
+
+Probe resolvers and persist the scored snapshot for later selection
 
 ## PARAMETERS
+
+### -BootstrapResolver
+Resolve endpoint hostnames through an IP-literal UDP/TCP resolver, such as udp@1.1.1.1:53.
+
+```yaml
+Type: String
+Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
 
 ### -DnsProvider
 Built-in resolver profile to probe.
@@ -49,6 +108,22 @@ Type: DnsEndpoint
 Parameter Sets: DnsProvider
 Aliases: None
 Possible values: System, SystemTcp, Cloudflare, CloudflareSecurity, CloudflareFamily, CloudflareWireFormat, CloudflareWireFormatPost, CloudflareJsonPost, Google, GoogleWireFormat, GoogleWireFormatPost, GoogleJsonPost, Quad9, Quad9ECS, Quad9Unsecure, OpenDNS, OpenDNSFamily, CloudflareQuic, Quad9Http3, Quad9Quic, GoogleQuic, AdGuard, AdGuardFamily, AdGuardNonFiltering, NextDNS, DnsCryptCloudflare, DnsCryptQuad9, DnsCryptRelay, RootServer, CloudflareOdoh, Custom
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DnsSecVerifierPath
+Local optional DNSSEC provider DLL path, with its dependencies beside it.
+
+```yaml
+Type: String
+Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
+Aliases: None
+Possible values:
 
 Required: False
 Position: named
@@ -139,6 +214,22 @@ Accept wildcard characters: False
 
 ### -RequestDnsSec
 Request DNSSEC records by setting the DO bit.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -RequestNsid
+Request resolver identity through EDNS on wire transports.
 
 ```yaml
 Type: SwitchParameter

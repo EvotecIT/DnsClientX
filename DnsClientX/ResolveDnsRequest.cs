@@ -138,6 +138,9 @@ namespace DnsClientX {
         /// </summary>
         public bool ValidateDnsSec { get; set; }
 
+        /// <summary>Gets or sets the optional thread-safe verifier for single and multiple resolvers.</summary>
+        public IDnsSecSignatureVerifier? DnsSecSignatureVerifier { get; set; }
+
         /// <summary>
         /// Gets or sets whether typed records should be projected for successful answers.
         /// </summary>

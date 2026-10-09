@@ -30,13 +30,13 @@ Retrieves all records for the specified zone using TCP based zone transfer.
 
 ### EXAMPLE 1
 ```powershell
-Get-DnsZone -DnsProvider 'Value'
+Get-DnsZone -Zone 'Value' -Server 'Value'
 ```
 
 
 ### EXAMPLE 2
 ```powershell
-Get-DnsZone -Recursive
+Get-DnsZone -Zone 'Value' -Recursive
 ```
 
 
@@ -115,7 +115,7 @@ Parameter Sets: ExplicitServer, Recursive
 Aliases: ServerName
 Possible values:
 
-Required: True
+Required: False
 Position: 1
 Default value: None
 Accept pipeline input: False

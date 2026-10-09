@@ -90,6 +90,7 @@ namespace DnsClientX {
                 MaxCacheTtl = request.MaxCacheTtlSeconds > 0 ? TimeSpan.FromSeconds(request.MaxCacheTtlSeconds) : null,
                 RequestDnsSec = request.ShouldRequestDnsSec,
                 ValidateDnsSec = request.ShouldValidateDnsSec,
+                DnsSecSignatureVerifier = request.DnsSecSignatureVerifier,
                 TypedRecords = request.TypedRecords,
                 ParseTypedTxtRecords = request.ParseTypedTxtRecords,
                 CheckingDisabled = request.CheckingDisabled,
@@ -169,31 +170,6 @@ namespace DnsClientX {
         }
 
         private static async Task<DnsResponse[]> ExecuteProviderAsync(ResolveDnsRequest request, string[] namesToUse, EdnsOptions? ednsOptions, DnsEndpoint provider, CancellationToken cancellationToken) {
-            if (provider == DnsEndpoint.RootServer) {
-                return await ExecuteWithRetryAsync(request, async () => {
-                    var responses = new List<DnsResponse>();
-                    foreach (var recordType in request.RecordTypes) {
-                        var result = await QueryDns(
-                            namesToUse,
-                            recordType,
-                            provider,
-                            request.DnsSelectionStrategy,
-                            request.TimeOutMilliseconds,
-                            retryOnTransient: false,
-                            maxRetries: 1,
-                            request.RetryDelayMs,
-                            request.ShouldRequestDnsSec,
-                            request.ShouldValidateDnsSec,
-                            request.TypedRecords,
-                            request.ParseTypedTxtRecords,
-                            cancellationToken).ConfigureAwait(false);
-                        responses.AddRange(result);
-                    }
-
-                    return responses.ToArray();
-                }, cancellationToken).ConfigureAwait(false);
-            }
-
             return await ExecuteWithRetryAsync(request, async () => {
                 using var client = CreateClientForProvider(request, provider, ednsOptions);
                 return await QueryWithRequestAsync(client, request, namesToUse, cancellationToken).ConfigureAwait(false);
@@ -378,6 +354,7 @@ namespace DnsClientX {
 
         private static void ApplyRequestConfiguration(ClientX client, ResolveDnsRequest request, EdnsOptions? ednsOptions) {
             client.EndpointConfiguration.BootstrapResolver = request.BootstrapResolver;
+            client.EndpointConfiguration.DnsSecSignatureVerifier = request.DnsSecSignatureVerifier;
             client.EndpointConfiguration.TimeOut = request.TimeOutMilliseconds;
             client.EndpointConfiguration.CheckingDisabled = request.CheckingDisabled;
             client.EndpointConfiguration.MaxConcurrency = request.EffectiveMaxConcurrency;

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Title>DnsClientX DNSSEC EdDSA</Title>
-    <Description>Optional RFC 8080 Ed25519 and Ed448 DNSSEC signature verification for DnsClientX.</Description>
+    <Title>DnsClientX DNSSEC ECDSA and EdDSA</Title>
+    <Description>Optional portable RFC 6605 ECDSA and RFC 8080 Ed25519/Ed448 DNSSEC signature verification for DnsClientX.</Description>
     <AssemblyName>DnsClientX.DnsSec.EdDsa</AssemblyName>
     <RootNamespace>DnsClientX.DnsSec.EdDsa</RootNamespace>
     <VersionPrefix>2.1.1</VersionPrefix>
@@ -15,7 +15,7 @@
     <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
     <IsPublishable>True</IsPublishable>
     <PackageId>DnsClientX.DnsSec.EdDsa</PackageId>
-    <PackageTags>dns;dnssec;eddsa;ed25519;ed448;rfc8080</PackageTags>
+    <PackageTags>dns;dnssec;ecdsa;eddsa;ed25519;ed448;rfc6605;rfc8080</PackageTags>
     <PackageProjectUrl>https://github.com/EvotecIT/DnsClientX</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

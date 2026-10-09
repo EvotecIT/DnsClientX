@@ -25,9 +25,24 @@ Adds or removes records in a zone using RFC 2136 over TCP.
 
 ### EXAMPLE 1
 ```powershell
-Invoke-DnsUpdate -Name 'Name'
+Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Data 1.2.3.4 -Ttl 300
 ```
 
+Add an A record
+
+### EXAMPLE 2
+```powershell
+Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Delete
+```
+
+Delete an existing record
+
+### EXAMPLE 3
+```powershell
+Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Data 192.0.2.10 -DeleteValue
+```
+
+Delete one value while preserving the rest of the RRset
 
 ## PARAMETERS
 

@@ -29,20 +29,19 @@ namespace DnsClientX {
             options ??= new DnsQueryOptions();
             options.Validate();
 
-            return QueryDns(
-                name,
-                recordType,
-                options.DnsEndpoint,
-                options.DnsSelectionStrategy,
-                options.TimeOutMilliseconds,
-                options.RetryOnTransient,
-                options.MaxRetries,
-                options.RetryDelayMs,
-                options.RequestDnsSec,
-                options.ValidateDnsSec,
-                options.TypedRecords,
-                options.ParseTypedTxtRecords,
-                cancellationToken);
+            return QueryDnsWithOptions(name, recordType, options, cancellationToken);
+        }
+
+        private static async Task<DnsResponse> QueryDnsWithOptions(string name, DnsRecordType recordType,
+            DnsQueryOptions options, CancellationToken cancellationToken) {
+            using var client = new ClientX(options.DnsEndpoint, options.DnsSelectionStrategy,
+                timeOutMilliseconds: options.TimeOutMilliseconds);
+            client.EndpointConfiguration.DnsSecSignatureVerifier = options.DnsSecSignatureVerifier;
+            return await client.Resolve(name, recordType,
+                requestDnsSec: options.RequestDnsSec, validateDnsSec: options.ValidateDnsSec,
+                typedRecords: options.TypedRecords, parseTypedTxtRecords: options.ParseTypedTxtRecords,
+                retryOnTransient: options.RetryOnTransient, maxRetries: options.MaxRetries,
+                retryDelayMs: options.RetryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

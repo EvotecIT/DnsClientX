@@ -45,6 +45,9 @@ namespace DnsClientX {
         /// </summary>
         public bool ValidateDnsSec { get; set; }
 
+        /// <summary>Gets or sets the optional thread-safe DNSSEC signature verifier.</summary>
+        public IDnsSecSignatureVerifier? DnsSecSignatureVerifier { get; set; }
+
         /// <summary>
         /// Gets or sets a value indicating whether typed records should be returned.
         /// </summary>
