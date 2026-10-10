@@ -1207,6 +1207,7 @@
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -1410,6 +1411,7 @@
           <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -2145,6 +2147,7 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -2861,6 +2864,7 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -3589,6 +3593,7 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -4063,6 +4068,7 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -4378,6 +4384,7 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -4669,6 +4676,7 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -5041,6 +5049,7 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -5461,6 +5470,7 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -5760,6 +5770,7 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -6035,6 +6046,7 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -6391,6 +6403,7 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
