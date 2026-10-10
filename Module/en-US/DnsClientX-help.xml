@@ -1140,7 +1140,7 @@
         <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="3" aliases="None">
           <maml:name>Type</maml:name>
           <maml:description>
-            <maml:para>Type of record.</maml:para>
+            <maml:para>Type of record to update. NXNAME is a denial bitmap signal and cannot be updated.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">DnsRecordType</command:parameterValue>
           <command:parameterValueGroup>
@@ -1207,6 +1207,7 @@
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -1343,7 +1344,7 @@
       <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="3" aliases="None">
         <maml:name>Type</maml:name>
         <maml:description>
-          <maml:para>Type of record.</maml:para>
+          <maml:para>Type of record to update. NXNAME is a denial bitmap signal and cannot be updated.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="false">DnsRecordType</command:parameterValue>
         <command:parameterValueGroup>
@@ -1410,6 +1411,7 @@
           <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -2078,7 +2080,7 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="1" aliases="None">
           <maml:name>Type</maml:name>
           <maml:description>
-            <maml:para>The type of the record to query for. If not specified, A record is queried.</maml:para>
+            <maml:para>The type of the record to query for. NXNAME is a denial bitmap signal and cannot be queried directly. If not specified, A record is queried.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">DnsRecordType[]</command:parameterValue>
           <command:parameterValueGroup>
@@ -2145,6 +2147,7 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -2794,7 +2797,7 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="1" aliases="None">
           <maml:name>Type</maml:name>
           <maml:description>
-            <maml:para>The type of the record to query for. If not specified, A record is queried.</maml:para>
+            <maml:para>The type of the record to query for. NXNAME is a denial bitmap signal and cannot be queried directly. If not specified, A record is queried.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">DnsRecordType[]</command:parameterValue>
           <command:parameterValueGroup>
@@ -2861,6 +2864,7 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -3522,7 +3526,7 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="1" aliases="None">
         <maml:name>Type</maml:name>
         <maml:description>
-          <maml:para>The type of the record to query for. If not specified, A record is queried.</maml:para>
+          <maml:para>The type of the record to query for. NXNAME is a denial bitmap signal and cannot be queried directly. If not specified, A record is queried.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">DnsRecordType[]</command:parameterValue>
         <command:parameterValueGroup>
@@ -3589,6 +3593,7 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -3996,7 +4001,7 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="1" aliases="None">
           <maml:name>Type</maml:name>
           <maml:description>
-            <maml:para>Record types to benchmark.</maml:para>
+            <maml:para>Record types to benchmark. NXNAME is a denial bitmap signal and cannot be queried directly.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">DnsRecordType[]</command:parameterValue>
           <command:parameterValueGroup>
@@ -4063,6 +4068,7 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -4311,7 +4317,7 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="1" aliases="None">
           <maml:name>Type</maml:name>
           <maml:description>
-            <maml:para>Record types to benchmark.</maml:para>
+            <maml:para>Record types to benchmark. NXNAME is a denial bitmap signal and cannot be queried directly.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">DnsRecordType[]</command:parameterValue>
           <command:parameterValueGroup>
@@ -4378,6 +4384,7 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -4602,7 +4609,7 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="1" aliases="None">
           <maml:name>Type</maml:name>
           <maml:description>
-            <maml:para>Record types to benchmark.</maml:para>
+            <maml:para>Record types to benchmark. NXNAME is a denial bitmap signal and cannot be queried directly.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">DnsRecordType[]</command:parameterValue>
           <command:parameterValueGroup>
@@ -4669,6 +4676,7 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -4974,7 +4982,7 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="1" aliases="None">
         <maml:name>Type</maml:name>
         <maml:description>
-          <maml:para>Record types to benchmark.</maml:para>
+          <maml:para>Record types to benchmark. NXNAME is a denial bitmap signal and cannot be queried directly.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">DnsRecordType[]</command:parameterValue>
         <command:parameterValueGroup>
@@ -5041,6 +5049,7 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -5394,7 +5403,7 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="1" aliases="None">
           <maml:name>Type</maml:name>
           <maml:description>
-            <maml:para>Record type to probe.</maml:para>
+            <maml:para>Record type to probe. NXNAME is a denial bitmap signal and cannot be queried directly.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">DnsRecordType</command:parameterValue>
           <command:parameterValueGroup>
@@ -5461,6 +5470,7 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -5693,7 +5703,7 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="1" aliases="None">
           <maml:name>Type</maml:name>
           <maml:description>
-            <maml:para>Record type to probe.</maml:para>
+            <maml:para>Record type to probe. NXNAME is a denial bitmap signal and cannot be queried directly.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">DnsRecordType</command:parameterValue>
           <command:parameterValueGroup>
@@ -5760,6 +5770,7 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -5968,7 +5979,7 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="1" aliases="None">
           <maml:name>Type</maml:name>
           <maml:description>
-            <maml:para>Record type to probe.</maml:para>
+            <maml:para>Record type to probe. NXNAME is a denial bitmap signal and cannot be queried directly.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">DnsRecordType</command:parameterValue>
           <command:parameterValueGroup>
@@ -6035,6 +6046,7 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
@@ -6324,7 +6336,7 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="1" aliases="None">
         <maml:name>Type</maml:name>
         <maml:description>
-          <maml:para>Record type to probe.</maml:para>
+          <maml:para>Record type to probe. NXNAME is a denial bitmap signal and cannot be queried directly.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">DnsRecordType</command:parameterValue>
         <command:parameterValueGroup>
@@ -6391,6 +6403,7 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>

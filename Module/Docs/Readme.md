@@ -2,7 +2,7 @@
 Module Name: DnsClientX
 Module Guid: 77fa806c-70b7-48d9-8b88-942ed73f24ed
 Download Help Link: https://github.com/EvotecIT/DnsClientX/blob/master/README.md
-Help Version: 2.1.0
+Help Version: 2.1.1
 Locale: en-US
 ---
 # DnsClientX Module

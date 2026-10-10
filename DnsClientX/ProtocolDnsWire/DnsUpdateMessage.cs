@@ -43,6 +43,7 @@ namespace DnsClientX {
 
         private static DnsUpdateRequestMessage Create(string zone, string name, DnsRecordType type,
             ushort recordClass, uint ttl, byte[] rdata, TsigKey? key) {
+            ValidateRecordType(type);
             zone = DnsWireNameCodec.Normalize(zone);
             name = DnsWireNameCodec.Normalize(name);
             if (zone != "." && !string.Equals(name, zone, StringComparison.OrdinalIgnoreCase) &&
@@ -73,6 +74,7 @@ namespace DnsClientX {
         }
 
         private static byte[] BuildRdata(DnsRecordType type, string data) {
+            ValidateRecordType(type);
             if (data == null) throw new ArgumentNullException(nameof(data));
             switch (type) {
                 case DnsRecordType.A:
@@ -95,6 +97,13 @@ namespace DnsClientX {
                     return BuildCaa(data);
                 default:
                     throw new NotSupportedException($"RFC 2136 RDATA serialization for {type} is not implemented. Use a supported typed record instead of sending ambiguous ASCII bytes.");
+            }
+        }
+
+        /// <summary>Rejects the denial bitmap signal before an update is serialized or forwarded.</summary>
+        internal static void ValidateRecordType(DnsRecordType type) {
+            if (type == DnsRecordType.NXNAME) {
+                throw new ArgumentException("NXNAME is a denial bitmap signal and cannot be updated.", nameof(type));
             }
         }
 

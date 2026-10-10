@@ -321,7 +321,7 @@ namespace DnsClientX.PowerShell {
         public string[] Name { get; set; } = Array.Empty<string>();
 
         /// <summary>
-        /// Record types to benchmark.
+        /// Record types to benchmark. NXNAME is a denial bitmap signal and cannot be queried directly.
         /// </summary>
         [Parameter(Mandatory = false, Position = 1, ParameterSetName = "DnsProvider")]
         [Parameter(Mandatory = false, Position = 1, ParameterSetName = "ResolverEndpoint")]
