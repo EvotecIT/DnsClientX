@@ -8,6 +8,36 @@ namespace DnsClientX.Tests {
     /// <summary>Prevents wire UPDATE operations from targeting implicit resolver profiles.</summary>
     [Collection("NoParallel")]
     public class DnsUpdateTargetTests {
+        /// <summary>NXNAME must never become an UPDATE record, including an empty-RDATA deletion.</summary>
+        [Fact]
+        public void NxNameUpdateBuildersRejectTheDenialSignal() {
+            ArgumentException deletion = Assert.Throws<ArgumentException>(() =>
+                DnsUpdateMessage.CreateDeleteRrsetMessage("example.com", "www.example.com", DnsRecordType.NXNAME));
+            Assert.Equal("type", deletion.ParamName);
+            Assert.Throws<ArgumentException>(() => DnsUpdateMessage.CreateAddMessage(
+                "example.com", "www.example.com", DnsRecordType.NXNAME, "", 300));
+            Assert.Throws<ArgumentException>(() => DnsUpdateMessage.CreateDeleteValueMessage(
+                "example.com", "www.example.com", DnsRecordType.NXNAME, ""));
+        }
+
+        /// <summary>Both update transports reject NXNAME before network or cancellation processing.</summary>
+        [Theory]
+        [InlineData(DnsRequestFormat.DnsOverTCP)]
+        [InlineData(DnsRequestFormat.DnsOverHttpsJSONPOST)]
+        public async Task NxNamePublicUpdatesRejectBeforeTransport(DnsRequestFormat format) {
+            using var client = format == DnsRequestFormat.DnsOverTCP
+                ? new ClientX("127.0.0.1", format)
+                : new ClientX(new Configuration(new Uri("https://resolver.example/update"), format));
+            var cancellationToken = new CancellationToken(canceled: true);
+            ArgumentException deletion = await Assert.ThrowsAsync<ArgumentException>(() =>
+                client.DeleteRecordAsync("example.com", "www.example.com", DnsRecordType.NXNAME, cancellationToken));
+            Assert.Equal("type", deletion.ParamName);
+            await Assert.ThrowsAsync<ArgumentException>(() => client.UpdateRecordAsync(
+                "example.com", "www.example.com", DnsRecordType.NXNAME, "", cancellationToken: cancellationToken));
+            await Assert.ThrowsAsync<ArgumentException>(() => client.DeleteRecordValueAsync(
+                "example.com", "www.example.com", DnsRecordType.NXNAME, "", cancellationToken));
+        }
+
         /// <summary>Built-in profiles cannot authorize a wire update, even before cancellation is observed.</summary>
         [Theory]
         [InlineData(DnsEndpoint.System, 0)]

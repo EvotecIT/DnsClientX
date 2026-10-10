@@ -403,7 +403,7 @@ Accept wildcard characters: False
 ```
 
 ### -Type
-Record types to benchmark.
+Record types to benchmark. NXNAME is a denial bitmap signal and cannot be queried directly.
 
 ```yaml
 Type: DnsRecordType[]

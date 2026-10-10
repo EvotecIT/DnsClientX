@@ -72,7 +72,7 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "Pattern")]
         public string? Pattern { get; set; }
         /// <summary>
-        /// <para type="description">The type of the record to query for. If not specified, A record is queried.</para>
+        /// <para type="description">The type of the record to query for. NXNAME is a denial bitmap signal and cannot be queried directly. If not specified, A record is queried.</para>
         /// </summary>
         [Parameter(Mandatory = false, Position = 1)]
         public DnsRecordType[] Type = [DnsRecordType.A];

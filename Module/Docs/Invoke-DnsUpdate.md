@@ -175,7 +175,7 @@ Accept wildcard characters: False
 ```
 
 ### -Type
-Type of record.
+Type of record to update. NXNAME is a denial bitmap signal and cannot be updated.
 
 ```yaml
 Type: DnsRecordType

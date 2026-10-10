@@ -18,7 +18,7 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="zone">Zone to update.</param>
         /// <param name="name">Record name.</param>
-        /// <param name="type">Type of record.</param>
+        /// <param name="type">Type of record. NXNAME is a denial bitmap signal and cannot be updated.</param>
         /// <param name="data">Record data.</param>
         /// <param name="ttl">Time to live for the record.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
@@ -27,6 +27,7 @@ namespace DnsClientX {
         /// <exception cref="NotSupportedException">Thrown when wire UPDATE is attempted without an explicit UDP/TCP endpoint.</exception>
         public async Task<DnsResponse> UpdateRecordAsync(string zone, string name, DnsRecordType type, string data, int ttl = 300, CancellationToken cancellationToken = default) {
             ThrowIfDisposed();
+            DnsUpdateMessage.ValidateRecordType(type);
             bool certificatePolicy = IgnoreCertificateErrors;
             if (string.IsNullOrEmpty(zone)) throw new ArgumentNullException(nameof(zone));
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
@@ -56,13 +57,14 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="zone">Zone containing the record.</param>
         /// <param name="name">Record name.</param>
-        /// <param name="type">Type of record.</param>
+        /// <param name="type">Type of record. NXNAME is a denial bitmap signal and cannot be updated.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>DNS response returned by the server.</returns>
         /// <exception cref="DnsClientException">Thrown when the server returns an error.</exception>
         /// <exception cref="NotSupportedException">Thrown when wire UPDATE is attempted without an explicit UDP/TCP endpoint.</exception>
         public async Task<DnsResponse> DeleteRecordAsync(string zone, string name, DnsRecordType type, CancellationToken cancellationToken = default) {
             ThrowIfDisposed();
+            DnsUpdateMessage.ValidateRecordType(type);
             bool certificatePolicy = IgnoreCertificateErrors;
             if (string.IsNullOrEmpty(zone)) throw new ArgumentNullException(nameof(zone));
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
@@ -91,7 +93,7 @@ namespace DnsClientX {
         /// </summary>
         /// <param name="zone">Zone containing the record.</param>
         /// <param name="name">Record name.</param>
-        /// <param name="type">Type of record.</param>
+        /// <param name="type">Type of record. NXNAME is a denial bitmap signal and cannot be updated.</param>
         /// <param name="data">Exact record data to delete.</param>
         /// <param name="cancellationToken">Token used to cancel the operation.</param>
         /// <returns>DNS response returned by the server.</returns>
@@ -100,6 +102,7 @@ namespace DnsClientX {
         public async Task<DnsResponse> DeleteRecordValueAsync(string zone, string name, DnsRecordType type,
             string data, CancellationToken cancellationToken = default) {
             ThrowIfDisposed();
+            DnsUpdateMessage.ValidateRecordType(type);
             if (string.IsNullOrEmpty(zone)) throw new ArgumentNullException(nameof(zone));
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
             if (data == null) throw new ArgumentNullException(nameof(data));

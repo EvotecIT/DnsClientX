@@ -39,7 +39,7 @@ public sealed class CmdletDnsUpdate : AsyncPSCmdlet {
     [Parameter(Mandatory = true, Position = 2)]
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>Type of record.</summary>
+    /// <summary>Type of record to update. NXNAME is a denial bitmap signal and cannot be updated.</summary>
     [Parameter(Mandatory = true, Position = 3)]
     public DnsRecordType Type { get; set; }
 

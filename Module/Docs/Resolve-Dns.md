@@ -768,7 +768,7 @@ Accept wildcard characters: False
 ```
 
 ### -Type
-The type of the record to query for. If not specified, A record is queried.
+The type of the record to query for. NXNAME is a denial bitmap signal and cannot be queried directly. If not specified, A record is queried.
 
 ```yaml
 Type: DnsRecordType[]

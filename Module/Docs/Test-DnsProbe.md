@@ -373,7 +373,7 @@ Accept wildcard characters: False
 ```
 
 ### -Type
-Record type to probe.
+Record type to probe. NXNAME is a denial bitmap signal and cannot be queried directly.
 
 ```yaml
 Type: DnsRecordType
