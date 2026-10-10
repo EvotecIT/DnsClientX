@@ -6,6 +6,7 @@ namespace DnsClientX.PowerShell;
 /// <summary>
 /// <para type="synopsis">Performs a DNS zone transfer (AXFR) for a given zone.</para>
 /// <para type="description">Retrieves all records for the specified zone using TCP based zone transfer.</para>
+/// </summary>
 /// <example>
 ///   <para>Transfer a zone (default port 53)</para>
 ///   <code>Get-DnsZone -Zone example.com -Server 127.0.0.1</code>
@@ -18,7 +19,6 @@ namespace DnsClientX.PowerShell;
 ///   <para>Discover authoritative servers and transfer from the first one that allows AXFR</para>
 ///   <code>Get-DnsZone -Zone example.com -Recursive</code>
 /// </example>
-/// </summary>
 [Alias("Get-DnsZoneTransfer")]
 [Cmdlet(VerbsCommon.Get, "DnsZone", DefaultParameterSetName = "ExplicitServer")]
 public sealed class CmdletDnsZoneTransfer : AsyncPSCmdlet {

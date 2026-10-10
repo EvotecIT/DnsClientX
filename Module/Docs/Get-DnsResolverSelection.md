@@ -25,9 +25,17 @@ Reads a persisted resolver score snapshot, applies the shared recommendation log
 
 ### EXAMPLE 1
 ```powershell
-Get-DnsResolverSelection -Path 'C:\Path'
+Get-DnsResolverSelection -Path '.\resolver-score.json'
 ```
 
+Get the recommended resolver selection as an object
+
+### EXAMPLE 2
+```powershell
+Get-DnsResolverSelection -Path '.\resolver-score.json' -AsString
+```
+
+Get only the raw selected target string for scripting
 
 ## PARAMETERS
 

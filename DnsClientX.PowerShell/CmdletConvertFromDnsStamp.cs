@@ -6,11 +6,11 @@ namespace DnsClientX.PowerShell {
     /// <summary>
     /// <para type="synopsis">Parses a DNS stamp into a resolver endpoint description.</para>
     /// <para type="description">Converts a supported sdns:// DNS stamp into the same endpoint model used by DnsClientX resolver workflows. This command does not perform a DNS query.</para>
+    /// </summary>
     /// <example>
     ///   <para>Parse a DNS-over-HTTPS stamp</para>
     ///   <code>ConvertFrom-DnsStamp -Stamp 'sdns://AgUAAAAAAAAABzEuMS4xLjEAGm1vemlsbGEuY2xvdWRmbGFyZS1kbnMuY29tCi9kbnMtcXVlcnk'</code>
     /// </example>
-    /// </summary>
     [Cmdlet(VerbsData.ConvertFrom, "DnsStamp")]
     [OutputType(typeof(DnsStampInfo))]
     public sealed class CmdletConvertFromDnsStamp : AsyncPSCmdlet {

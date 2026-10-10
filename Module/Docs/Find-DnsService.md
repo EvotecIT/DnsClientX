@@ -25,9 +25,17 @@ Wraps DiscoverServices to return services under a domain.
 
 ### EXAMPLE 1
 ```powershell
-Find-DnsService -Domain 'Value'
+Find-DnsService -Domain example.com
 ```
 
+Find services under a domain
+
+### EXAMPLE 2
+```powershell
+Find-DnsService -Domain example.com | Where-Object {$_.ServiceType -like '_http._tcp.*'}
+```
+
+Filter for a specific service type
 
 ## PARAMETERS
 

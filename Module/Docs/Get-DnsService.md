@@ -25,9 +25,17 @@ Queries the _services._dns-sd._udp tree for the specified domain and returns SRV
 
 ### EXAMPLE 1
 ```powershell
-Get-DnsService -Domain 'Value'
+Get-DnsService -Domain example.com
 ```
 
+Discover services under a domain
+
+### EXAMPLE 2
+```powershell
+Get-DnsService -Domain example.com | Select-Object ServiceName,Target,Port
+```
+
+Pipe results to select useful fields
 
 ## PARAMETERS
 

@@ -25,9 +25,17 @@ Reports which core transports are available on the current runtime, including mo
 
 ### EXAMPLE 1
 ```powershell
+Get-DnsTransportCapability
+```
+
+List the full core transport capability report
+
+### EXAMPLE 2
+```powershell
 Get-DnsTransportCapability -ModernOnly
 ```
 
+Show only the runtime-gated modern transport entries
 
 ## PARAMETERS
 

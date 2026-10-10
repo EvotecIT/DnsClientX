@@ -5,6 +5,7 @@ namespace DnsClientX.PowerShell {
     /// <summary>
     /// <para type="synopsis">Retrieves services advertised via DNS Service Discovery.</para>
     /// <para type="description">Queries the <c>_services._dns-sd._udp</c> tree for the specified domain and returns SRV/TXT data describing each advertised service.</para>
+    /// </summary>
     /// <example>
     ///   <para>Discover services under a domain</para>
     ///   <code>Get-DnsService -Domain example.com</code>
@@ -13,7 +14,6 @@ namespace DnsClientX.PowerShell {
     ///   <para>Pipe results to select useful fields</para>
     ///   <code>Get-DnsService -Domain example.com | Select-Object ServiceName,Target,Port</code>
     /// </example>
-    /// </summary>
     [Cmdlet(VerbsCommon.Get, "DnsService")]
     public sealed class CmdletDiscoverDnsService : AsyncPSCmdlet {
         /// <summary>

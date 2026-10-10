@@ -25,9 +25,10 @@ Converts a supported sdns:// DNS stamp into the same endpoint model used by DnsC
 
 ### EXAMPLE 1
 ```powershell
-ConvertFrom-DnsStamp -Stamp 'Value'
+ConvertFrom-DnsStamp -Stamp 'sdns://AgUAAAAAAAAABzEuMS4xLjEAGm1vemlsbGEuY2xvdWRmbGFyZS1kbnMuY29tCi9kbnMtcXVlcnk'
 ```
 
+Parse a DNS-over-HTTPS stamp
 
 ## PARAMETERS
 
