@@ -8,6 +8,93 @@ namespace DnsClientX.Tests;
 
 /// <summary>Protects portable profile application and correlated execution through the existing engines.</summary>
 public sealed class ResolverHealthWorkflowTests {
+    /// <summary>Equivalent endpoint inputs cannot inflate candidate gates or dispatch through profile consumers.</summary>
+    [Theory]
+    [InlineData("udp@127.0.0.1:53", "udp@127.0.0.1:53")]
+    [InlineData("127.0.0.1", "udp@127.0.0.1:53")]
+    [InlineData("dot@resolver.example", "tls@RESOLVER.EXAMPLE:853")]
+    [InlineData("https://resolver.example/dns-query", "doh@https://resolver.example:443/dns-query")]
+    public async Task Profile_RejectsEquivalentExecutionTargetsBeforeStorageOrDispatch(string first, string second) {
+        var profile = new ResolverHealthProfile {
+            ResolverEndpoints = new[] { first, second }, Names = new[] { "example.com" },
+            ProbePolicy = new ResolverProbePolicy { MinSuccessCount = 2 },
+            BenchmarkPolicy = new ResolverBenchmarkPolicy { MinSuccessfulCandidates = 2 }
+        };
+        DnsResolverEndpoint[] parsed = EndpointParser.TryParseMany(profile.ResolverEndpoints, out var errors);
+        Assert.Empty(errors);
+        Assert.Equal(2, parsed.Length);
+        Assert.Single(ResolverExecutionPlanBuilder.BuildExplicitTargets(parsed));
+        ArgumentException error = Assert.Throws<ArgumentException>(() => profile.Validate());
+        Assert.Contains("distinct", error.Message, StringComparison.OrdinalIgnoreCase);
+        string path = Path.GetTempFileName();
+        try {
+            Assert.Throws<ArgumentException>(() => ResolverHealthProfileStore.Save(path, profile));
+            File.WriteAllText(path, DnsClientXJsonSerializer.Serialize(profile));
+            Assert.Throws<ArgumentException>(() => ResolverHealthProfileStore.Load(path));
+        } finally { File.Delete(path); }
+        int dispatched = 0;
+        await Assert.ThrowsAsync<ArgumentException>(() => ResolverHealthWorkflow.RunAsync(profile, includeBenchmark: true,
+            explicitOverride: (endpoint, name, type, token) => {
+                Interlocked.Increment(ref dispatched);
+                return Task.FromResult(new ResolverQueryAttemptResult { Response = new DnsResponse { Status = DnsResponseCode.NoError } });
+            }));
+        Assert.Equal(0, dispatched);
+    }
+
+    /// <summary>Distinct DNSSEC settings remain separate executions even when endpoint display labels match.</summary>
+    [Fact]
+    public async Task Profile_AllowsSameLabelWithDistinctExecutionSettings() {
+        string[] inputs = new[] { false, true }.Select(dnsSec => DnsStamp.Create(new DnsResolverEndpoint {
+            Host = "127.0.0.1", Port = 53, Transport = Transport.Udp, DnsSecOk = dnsSec
+        })).ToArray();
+        var profile = new ResolverHealthProfile {
+            ResolverEndpoints = inputs, Names = new[] { "example.com" },
+            ProbePolicy = new ResolverProbePolicy { MinSuccessCount = 2 },
+            BenchmarkPolicy = new ResolverBenchmarkPolicy { MinSuccessfulCandidates = 2 }
+        };
+        profile.Validate();
+        DnsResolverEndpoint[] parsed = EndpointParser.TryParseMany(inputs, out var errors);
+        Assert.Empty(errors);
+        ResolverExecutionTarget[] targets = ResolverExecutionPlanBuilder.BuildExplicitTargets(parsed);
+        Assert.Equal(2, targets.Length);
+        Assert.Equal(targets[0].DisplayName, targets[1].DisplayName);
+        int dispatched = 0;
+        ResolverHealthReport report = await ResolverHealthWorkflow.RunAsync(profile,
+            explicitOverride: (endpoint, name, type, token) => {
+                Interlocked.Increment(ref dispatched);
+                return Task.FromResult(new ResolverQueryAttemptResult {
+                    Target = ResolverExecutionPlanBuilder.DescribeEndpoint(endpoint),
+                    Response = new DnsResponse { Status = DnsResponseCode.NoError }
+                });
+            });
+        Assert.True(report.PolicyPassed);
+        Assert.Equal(2, Assert.Single(report.Queries).Results.Length);
+        Assert.Equal(2, dispatched);
+        Assert.Equal(inputs, profile.ResolverEndpoints);
+    }
+
+    /// <summary>Benchmark aggregation cannot safely present distinct executions under one candidate label.</summary>
+    [Fact]
+    public async Task Profile_BenchmarkRejectsSameLabelSettingsBeforeAnyDispatch() {
+        var profile = new ResolverHealthProfile {
+            ResolverEndpoints = new[] { false, true }.Select(dnsSec => DnsStamp.Create(new DnsResolverEndpoint {
+                Host = "127.0.0.1", Port = 53, Transport = Transport.Udp, DnsSecOk = dnsSec
+            })).ToArray(),
+            Names = new[] { "example.com" }, ProbePolicy = new ResolverProbePolicy { MinSuccessCount = 2 }
+        };
+        int dispatched = 0;
+        ArgumentException exception = await Assert.ThrowsAsync<ArgumentException>(() => ResolverHealthWorkflow.RunAsync(profile,
+            includeBenchmark: true, explicitOverride: (endpoint, name, type, token) => {
+                Interlocked.Increment(ref dispatched);
+                return Task.FromResult(new ResolverQueryAttemptResult {
+                    Target = ResolverExecutionPlanBuilder.DescribeEndpoint(endpoint),
+                    Response = new DnsResponse { Status = DnsResponseCode.NoError }
+                });
+            }));
+        Assert.Contains("separate benchmark profiles", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, dispatched);
+    }
+
     /// <summary>Exercises an actual TCP target with a multi-query profile and bounded benchmark.</summary>
     [Fact]
     public async Task Profile_UsesActualEndpointAndCorrelatesBenchmarkCatalog() {

@@ -31,15 +31,24 @@ namespace DnsClientX.Cli {
             IDnsSecSignatureVerifier? verifier = string.IsNullOrWhiteSpace(options.DnsSecVerifierPath) ? null : DnsSecSignatureVerifierLoader.Load(options.DnsSecVerifierPath!);
             ResolverHealthReport report = await ResolverHealthWorkflow.RunAsync(profile, options.Benchmark, verifier, CreateBuiltInOverride(), CreateExplicitOverride(), token).ConfigureAwait(false);
             string json = DnsClientXJsonSerializer.Serialize(report);
-            if (options.ProfileSavePath != null) File.WriteAllText(Path.GetFullPath(options.ProfileSavePath), json);
-            if (options.OutputFormat == QueryOutputFormat.Json) Console.WriteLine(json);
-            else {
+            if (options.ProfileSavePath != null) {
+                File.WriteAllText(Path.GetFullPath(options.ProfileSavePath), json);
+            }
+            if (options.OutputFormat == QueryOutputFormat.Json) {
+                Console.WriteLine(json);
+            } else {
                 WriteHumanLine($"Health profile: {report.ProfileName}");
                 foreach (ResolverProbeReport query in report.Queries) {
                     WriteHumanLine($"  {query.Summary.Name} {query.Summary.RecordType}: {query.Summary.SuccessfulCandidates}/{query.Summary.CandidateCount} successes; policy {(query.Summary.PolicyPassed ? "pass" : "fail")}");
-                    foreach (ResolverProbeReportResult result in query.Results) WriteProbeResult(result);
+                    foreach (ResolverProbeReportResult result in query.Results) {
+                        WriteProbeResult(result);
+                    }
                 }
-                if (report.Benchmark != null) foreach (ResolverBenchmarkReportResult result in report.Benchmark.Results) WriteBenchmarkResult(result);
+                if (report.Benchmark != null) {
+                    foreach (ResolverBenchmarkReportResult result in report.Benchmark.Results) {
+                        WriteBenchmarkResult(result);
+                    }
+                }
                 WriteHumanLine($"Policy result: {(report.PolicyPassed ? "pass" : "fail")}");
                 WriteHumanLine(report.AnswerVariationNote);
             }
@@ -52,12 +61,19 @@ namespace DnsClientX.Cli {
             ResolverAnswerReference[]? references = options.ReferenceResponsePath == null ? null :
                 DnsClientXJsonSerializer.Deserialize<ResolverAnswerReference[]>(File.ReadAllText(Path.GetFullPath(options.ReferenceResponsePath)));
             ResolverScoreComparison comparison = ResolverScoreComparer.Compare(baseline, current, references);
-            if (options.OutputFormat == QueryOutputFormat.Json) Console.WriteLine(DnsClientXJsonSerializer.Serialize(comparison));
-            else {
+            if (options.OutputFormat == QueryOutputFormat.Json) {
+                Console.WriteLine(DnsClientXJsonSerializer.Serialize(comparison));
+            } else {
                 WriteHumanLine($"Comparable scope: {comparison.ScopeComparable}; health regression: {comparison.HealthRegression}");
-                foreach (string reason in comparison.IncomparableReasons) WriteHumanLine($"  {reason}");
-                foreach (ResolverScoreChange change in comparison.Candidates) WriteHumanLine($"  {change.Target}: {change.Change}; success delta {change.SuccessPercentDelta?.ToString() ?? "unavailable"} percentage points; latency delta {change.AverageMsDelta?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "unavailable"} ms");
-                foreach (ResolverAnswerChange answer in comparison.Answers) WriteHumanLine($"  {answer.Target} {answer.Name} {answer.RecordType}: answers {(!answer.Changed.HasValue ? "unavailable" : answer.Changed.Value ? "changed" : "unchanged")}; reference {answer.ReferenceComparison}");
+                foreach (string reason in comparison.IncomparableReasons) {
+                    WriteHumanLine($"  {reason}");
+                }
+                foreach (ResolverScoreChange change in comparison.Candidates) {
+                    WriteHumanLine($"  {change.Target}: {change.Change}; success delta {change.SuccessPercentDelta?.ToString() ?? "unavailable"} percentage points; latency delta {change.AverageMsDelta?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "unavailable"} ms");
+                }
+                foreach (ResolverAnswerChange answer in comparison.Answers) {
+                    WriteHumanLine($"  {answer.Target} {answer.Name} {answer.RecordType}: answers {(!answer.Changed.HasValue ? "unavailable" : answer.Changed.Value ? "changed" : "unchanged")}; reference {answer.ReferenceComparison}");
+                }
                 WriteHumanLine(comparison.AnswerVariationNote);
             }
             return comparison.HealthRegression ? 3 : 0;

@@ -48,6 +48,7 @@ The optional DNSSEC provider must be published alongside the core through the co
 
 - [ ] Record a complete ordered iterative delegation/trust graph before claiming that explanations show a full resolution or DNSSEC chain.
 - [ ] Add resolver-selection explanations that bind the chosen endpoint to persisted score, policy and capability evidence.
+- [ ] Distinguish endpoint execution identities throughout benchmark reports before allowing same-label variants in one benchmark profile. Probe-only profiles already preserve distinct settings; combined benchmark profiles reject ambiguous labels before execution.
 - [ ] Design profile overrides for CLI users only when their precedence can remain explicit and portable. Typed C#/PowerShell profiles can already be modified before execution.
 
 ### DNS-only policy

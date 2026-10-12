@@ -11,8 +11,12 @@ namespace DnsClientX.Cli {
     internal static partial class Program {
         private static bool ValidateParsedOptions(CliOptions options, out string? errorMessage) {
             errorMessage = null;
-            if (!ValidateOperationalMode(options, out errorMessage)) return false;
-            if (options.ProfilePath != null || options.CompareBaselinePath != null) return true;
+            if (!ValidateOperationalMode(options, out errorMessage)) {
+                return false;
+            }
+            if (options.ProfilePath != null || options.CompareBaselinePath != null) {
+                return true;
+            }
             if (options.HasCustomEndpointInputs && options.EndpointInputs.Count > 0) {
                 errorMessage = "Use either --endpoint or explicit resolver inputs.";
                 return false;

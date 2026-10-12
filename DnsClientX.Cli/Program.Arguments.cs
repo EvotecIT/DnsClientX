@@ -428,6 +428,12 @@ namespace DnsClientX.Cli {
                             options = null;
                             return false;
                         }
+                        if (ttl < 0) {
+                            errorMessage = $"--ttl must be zero or greater: {ttl}";
+                            invalidSwitches = null;
+                            options = null;
+                            return false;
+                        }
                         options.Ttl = ttl;
                         break;
                     default:

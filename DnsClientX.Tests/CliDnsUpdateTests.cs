@@ -53,6 +53,29 @@ namespace DnsClientX.Tests {
             Assert.Contains("--probe-endpoint", error);
         }
 
+        /// <summary>Update TTL validation rejects negative input while allowing immediate expiry and positive TTLs.</summary>
+        [Theory]
+        [InlineData(-1, false)]
+        [InlineData(0, true)]
+        [InlineData(300, true)]
+        public void Update_TtlIsValidatedBeforeExecution(int ttl, bool expectedSuccess) {
+            Type program = Assembly.Load("DnsClientX.Cli").GetType("DnsClientX.Cli.Program")!;
+            MethodInfo parse = program.GetMethod("TryParseArgs", BindingFlags.NonPublic | BindingFlags.Static)!;
+            object?[] parameters = {
+                new[] { "--resolver", "tcp@127.0.0.1:53", "--update", "example.com", "www.example.com", "A", "192.0.2.10", "--ttl", ttl.ToString(System.Globalization.CultureInfo.InvariantCulture) },
+                null, null, null
+            };
+
+            Assert.Equal(expectedSuccess, (bool)parse.Invoke(null, parameters)!);
+            if (expectedSuccess) {
+                Assert.Equal(ttl, parameters[1]!.GetType().GetProperty("Ttl")!.GetValue(parameters[1]));
+                Assert.Null(parameters[2]);
+            } else {
+                Assert.Null(parameters[1]);
+                Assert.Contains("--ttl", parameters[2]?.ToString());
+            }
+        }
+
         private static async Task<byte[]> ReadAndReplyAsync(TcpListener listener, CancellationToken cancellationToken) {
             using TcpClient client = await listener.AcceptTcpClientAsync();
             using NetworkStream stream = client.GetStream();

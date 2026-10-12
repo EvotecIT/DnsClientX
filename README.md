@@ -298,6 +298,8 @@ Compare-DnsResolverSnapshot ./before.json ./after.json
 
 Profiles are bounded local JSON documents. Settings come from the profile; C# and PowerShell can modify the typed profile before running it. Comparisons use probe/benchmark score snapshots, report candidate and answer changes, and require matching host, runtime, query catalog and policy scope for health or latency conclusions. Older snapshots remain readable but may lack the comparison context. Resolver agreement is evidence of consistency. For authoritative comparison, supply explicit caller-owned authoritative responses; a majority answer does not establish correctness.
 
+Profiles reject endpoints that identify the same execution. Probe-only profiles can compare different settings on the same server. If those endpoints share a display label, run them in separate benchmark profiles; combined benchmark mode rejects the ambiguous inputs before sending queries.
+
 DNS stamp inspection without querying DNS:
 
 ```powershell

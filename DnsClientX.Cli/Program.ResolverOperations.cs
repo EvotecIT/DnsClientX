@@ -41,7 +41,9 @@ namespace DnsClientX.Cli {
             CancellationToken cancellationToken) {
             if (options.OutputFormat == QueryOutputFormat.Json) {
                 ResolverBenchmarkReport jsonReport = await ExecuteBenchmarkReportAsync(targets, domains, recordTypes, options, cancellationToken).ConfigureAwait(false);
-                if (options.BenchmarkSavePath != null) SaveResolverScoreSnapshot(options.BenchmarkSavePath, jsonReport.Snapshot);
+                if (options.BenchmarkSavePath != null) {
+                    SaveResolverScoreSnapshot(options.BenchmarkSavePath, jsonReport.Snapshot);
+                }
                 Console.WriteLine(DnsClientXJsonSerializer.Serialize(jsonReport));
                 return GetBenchmarkExitCode(jsonReport.Evaluation, options);
             }
@@ -155,7 +157,9 @@ namespace DnsClientX.Cli {
             CancellationToken cancellationToken) {
             if (options.OutputFormat == QueryOutputFormat.Json) {
                 ResolverProbeReport jsonReport = await ExecuteProbeReportAsync(targets, domain, options, cancellationToken).ConfigureAwait(false);
-                if (options.ProbeSavePath != null) SaveResolverScoreSnapshot(options.ProbeSavePath, jsonReport.Snapshot);
+                if (options.ProbeSavePath != null) {
+                    SaveResolverScoreSnapshot(options.ProbeSavePath, jsonReport.Snapshot);
+                }
                 Console.WriteLine(DnsClientXJsonSerializer.Serialize(jsonReport));
                 return GetProbeExitCode(jsonReport.Evaluation, options);
             }

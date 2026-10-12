@@ -32,8 +32,18 @@ public sealed class DnsWorkflowServer : IDisposable {
             try {
                 IPEndPoint sender = null;
                 byte[] query = socket.Receive(ref sender);
+                // Closing a blocked socket can return an empty packet on some runtimes.
+                if (stopped) {
+                    return;
+                }
+                if (query.Length < 17) {
+                    continue;
+                }
                 int offset = 12;
-                string name = ReadName(query, ref offset);
+                string name;
+                if (!TryReadName(query, ref offset, out name) || query.Length - offset < 4) {
+                    continue;
+                }
                 int type = query[offset] * 256 + query[offset + 1];
                 int questionEnd = offset + 4;
                 queries.Enqueue(name);
@@ -101,14 +111,21 @@ public sealed class DnsWorkflowServer : IDisposable {
         }
     }
 
-    private static string ReadName(byte[] packet, ref int offset) {
+    private static bool TryReadName(byte[] packet, ref int offset, out string name) {
+        name = string.Empty;
         var parts = new List<string>();
-        while (packet[offset] != 0) {
+        while (offset < packet.Length) {
             int length = packet[offset++];
+            if (length == 0) {
+                name = string.Join(".", parts);
+                return true;
+            }
+            if (length > 63 || length > packet.Length - offset) {
+                return false;
+            }
             parts.Add(Encoding.ASCII.GetString(packet, offset, length)); offset += length;
         }
-        offset++;
-        return string.Join(".", parts);
+        return false;
     }
 
     private static byte[] Name(string name) {

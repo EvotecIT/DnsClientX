@@ -10,8 +10,9 @@ using System.Threading.Tasks;
 namespace DnsClientX.Cli {
     internal static partial class Program {
         private static ResolverExecutionClientOptions CreateExecutionClientOptions(CliOptions options, bool useBenchmarkTimeout = false) {
-            if (!string.IsNullOrWhiteSpace(options.DnsSecVerifierPath))
+            if (!string.IsNullOrWhiteSpace(options.DnsSecVerifierPath)) {
                 options.DnsSecSignatureVerifier ??= DnsSecSignatureVerifierLoader.Load(options.DnsSecVerifierPath!);
+            }
             string? envPort = Environment.GetEnvironmentVariable("DNSCLIENTX_CLI_PORT");
             int? customPort = int.TryParse(envPort, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedPort) && parsedPort > 0
                 ? parsedPort

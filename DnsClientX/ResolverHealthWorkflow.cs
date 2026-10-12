@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace DnsClientX {
     /// <summary>Applies a validated health profile to the existing probe and benchmark engines.</summary>
     public static class ResolverHealthWorkflow {
-        /// <summary>Runs all profile queries and optionally benchmarks the same catalog. Programmatic verifier providers remain supplied by the caller.</summary>
+        /// <summary>Runs all profile queries and optionally benchmarks the same catalog. Benchmark candidates must have distinct display labels. Programmatic verifier providers remain supplied by the caller.</summary>
         public static async Task<ResolverHealthReport> RunAsync(
             ResolverHealthProfile profile,
             bool includeBenchmark = false,
@@ -20,6 +20,9 @@ namespace DnsClientX {
             cancellationToken.ThrowIfCancellationRequested();
             var source = new ResolverExecutionTargetSource { BuiltInEndpoints = profile.BuiltInEndpoints, ResolverEndpoints = profile.ResolverEndpoints };
             ResolverExecutionTarget[] targets = await ResolverExecutionTargetResolver.ResolveAsync(source, cancellationToken).ConfigureAwait(false);
+            if (includeBenchmark && targets.GroupBy(target => target.DisplayName, StringComparer.OrdinalIgnoreCase).Any(group => group.Count() > 1)) {
+                throw new ArgumentException("Benchmark endpoints share a candidate display label. Use separate benchmark profiles until reports can distinguish their execution settings.", nameof(profile));
+            }
             var options = new ResolverQueryRunOptions {
                 TimeoutMs = profile.TimeoutMs, ConnectionMode = profile.ConnectionMode,
                 RequestDnsSec = profile.RequestDnsSec, ValidateDnsSec = profile.ValidateDnsSec,
