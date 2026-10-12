@@ -25,6 +25,14 @@ jobs:
         timeout-minutes: 30
         steps:
             - uses: actions/checkout@v7
+            - name: Select the macOS SDK installation root
+              if: runner.os == 'macOS'
+              shell: bash
+              run: |
+                  # PowerForge qualifies SDKs from the standard platform installation roots.
+                  sudo mkdir -p /usr/local/share/dotnet
+                  sudo chown "$(id -un)" /usr/local/share/dotnet
+                  echo 'DOTNET_INSTALL_DIR=/usr/local/share/dotnet' >> "$GITHUB_ENV"
             - uses: actions/setup-dotnet@v6
               with:
                   dotnet-version: |

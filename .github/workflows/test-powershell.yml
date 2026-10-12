@@ -60,12 +60,20 @@ jobs:
                   name: unsigned-packages
                   path: candidate
             - name: Install Pester
-              shell: ${{ matrix.shell }}
+              shell: pwsh
               run: |
-                  [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-                  Install-Module Pester -MinimumVersion 5.7.1 -Force -Scope CurrentUser -SkipPublisherCheck -AllowClobber
+                  $install = {
+                      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                      Install-Module Pester -MinimumVersion 5.7.1 -Force -Scope CurrentUser -SkipPublisherCheck -AllowClobber -ErrorAction Stop
+                  }
+                  if ('${{ matrix.shell }}' -eq 'powershell') {
+                      & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command $install
+                      if ($LASTEXITCODE) { throw 'Windows PowerShell Pester installation failed.' }
+                  } else {
+                      & $install
+                  }
             - name: Import packaged module and run contracts
-              shell: ${{ matrix.shell }}
+              shell: pwsh
               run: |
                   $archive = @(Get-ChildItem candidate/Packed -Filter 'DnsClientX-PowerShellModule.*.zip')
                   if ($archive.Count -ne 1) { throw 'Expected one module archive.' }
@@ -73,7 +81,12 @@ jobs:
                   Expand-Archive -LiteralPath $archive[0].FullName -DestinationPath $root
                   $manifest = @(Get-ChildItem $root -Filter DnsClientX.psd1 -Recurse)
                   if ($manifest.Count -ne 1) { throw 'Expected one packaged module manifest.' }
-                  ./Build/Test-PackagedModule.ps1 -ModulePath $manifest[0].FullName -ResultsPath "$env:RUNNER_TEMP/pester.xml"
+                  if ('${{ matrix.shell }}' -eq 'powershell') {
+                      & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./Build/Test-PackagedModule.ps1 -ModulePath $manifest[0].FullName -ResultsPath "$env:RUNNER_TEMP/pester.xml"
+                      if ($LASTEXITCODE) { throw 'Windows PowerShell package validation failed.' }
+                  } else {
+                      ./Build/Test-PackagedModule.ps1 -ModulePath $manifest[0].FullName -ResultsPath "$env:RUNNER_TEMP/pester.xml"
+                  }
             - uses: actions/upload-artifact@v7
               if: always()
               with:
