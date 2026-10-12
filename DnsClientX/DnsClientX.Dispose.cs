@@ -52,6 +52,7 @@ namespace DnsClientX {
             }
             try {
                 if (disposing) {
+                    if (_dnsSecMaterialCache.IsValueCreated) _dnsSecMaterialCache.Value.Dispose();
                     _udpClientPool.Dispose();
                     _streamConnectionPool.Dispose();
 #if NET8_0_OR_GREATER
@@ -108,6 +109,7 @@ namespace DnsClientX {
                 return;
             }
             try {
+                if (_dnsSecMaterialCache.IsValueCreated) _dnsSecMaterialCache.Value.Dispose();
                 _udpClientPool.Dispose();
                 await _streamConnectionPool.DisposeAsync().ConfigureAwait(false);
 #if NET8_0_OR_GREATER

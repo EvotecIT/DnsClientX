@@ -7,6 +7,7 @@ namespace DnsClientX.PowerShell;
 /// <summary>
 /// <para type="synopsis">Sends DNS UPDATE messages to a server.</para>
 /// <para type="description">Adds or removes records in a zone using RFC 2136 over TCP.</para>
+/// <para type="description">Use WhatIf to preview an update without contacting the server, or Confirm to approve each change.</para>
 /// </summary>
 /// <example>
 ///   <para>Add an A record</para>
@@ -20,7 +21,7 @@ namespace DnsClientX.PowerShell;
 ///   <para>Delete one value while preserving the rest of the RRset</para>
 ///   <code>Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Data 192.0.2.10 -DeleteValue</code>
 /// </example>
-[Cmdlet(VerbsLifecycle.Invoke, "DnsUpdate")]
+[Cmdlet(VerbsLifecycle.Invoke, "DnsUpdate", SupportsShouldProcess = true, ConfirmImpact = ConfirmImpact.Medium)]
 public sealed class CmdletDnsUpdate : AsyncPSCmdlet {
     /// <summary>Zone to update.</summary>
     [Parameter(Mandatory = true, Position = 0)]
@@ -71,6 +72,13 @@ public sealed class CmdletDnsUpdate : AsyncPSCmdlet {
         }
         if (DeleteValue.IsPresent && string.IsNullOrWhiteSpace(Data)) {
             throw new PSArgumentException("-DeleteValue requires -Data with the exact record value to remove.");
+        }
+
+        string action = Delete.IsPresent ? "Delete DNS record set"
+            : DeleteValue.IsPresent ? $"Delete DNS record value {Data}"
+            : $"Add DNS record {Data} with TTL {Ttl}";
+        if (!ShouldProcess($"{Name} {Type} in zone {Zone} on {Server}:{Port}", action)) {
+            return;
         }
 
         var target = new ResolverExecutionTarget {

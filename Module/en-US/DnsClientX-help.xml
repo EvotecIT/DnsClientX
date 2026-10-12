@@ -2,6 +2,284 @@
 <helpItems schema="maml" xmlns="http://msh">
   <command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10">
     <command:details>
+      <command:name>Clear-DnsCache</command:name>
+      <command:verb>Clear</command:verb>
+      <command:noun>DnsCache</command:noun>
+      <maml:description>
+        <maml:para>Clears process-wide cached DNS responses.</maml:para>
+        <maml:para>Clears all response entries, or entries for one queried name and optional type across all resolver policies. Returns the number removed. This affects every cache-enabled DnsClientX client in this process; active queries may repopulate the cache. FastestWins endpoint choices are managed by Clear-DnsMultiResolverCache.</maml:para>
+      </maml:description>
+    </command:details>
+    <maml:description>
+      <maml:para>Clears process-wide cached DNS responses.</maml:para>
+      <maml:para>Clears all response entries, or entries for one queried name and optional type across all resolver policies. Returns the number removed. This affects every cache-enabled DnsClientX client in this process; active queries may repopulate the cache. FastestWins endpoint choices are managed by Clear-DnsMultiResolverCache.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem parameterSetName="All">
+        <maml:name>Clear-DnsCache</maml:name>
+      </command:syntaxItem>
+      <command:syntaxItem parameterSetName="Name">
+        <maml:name>Clear-DnsCache</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="True (ByValue, ByPropertyName)" position="0" aliases="Domain,DnsName">
+          <maml:name>Name</maml:name>
+          <maml:description>
+            <maml:para>Original queried name to invalidate, including the expanded system-search name when applicable. Names normalize case, Unicode and the trailing root dot. Alias targets do not invalidate a different original query.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="1" aliases="None">
+          <maml:name>Type</maml:name>
+          <maml:description>
+            <maml:para>Only remove this query type. Omit to remove every cached type for Name.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">DnsRecordType</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">Reserved</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">A</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">MD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">MF</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CNAME</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">SOA</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">MB</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">MG</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">MR</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NULL</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">WKS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">PTR</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">HINFO</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">MINFO</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">MX</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">TXT</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">RP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AFSDB</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">X25</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ISDN</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">RT</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NSAP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NSAP_PTR</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">SIG</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">PX</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AAAA</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">LOC</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXT</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">SRV</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ATMA</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NAPTR</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">KX</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CERT</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">A6</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DNAME</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">SINK</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">OPT</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">APL</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">SSHFP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">IPSECKEY</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">RRSIG</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NSEC</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DNSKEY</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DHCID</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NSEC3</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NSEC3PARAM</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">TLSA</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">SMIMEA</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">HIP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NINFO</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">RKEY</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">TALINK</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CDS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CDNSKEY</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">OPENPGPKEY</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CSYNC</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ZONEMD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">SVCB</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AXFR</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">MAILB</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">MAILA</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ANY</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">URI</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CAA</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AVC</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DOA</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AMTRELAY</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">RESINFO</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">TA</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DLV</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>DnsRecordType</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="True (ByValue, ByPropertyName)" position="0" aliases="Domain,DnsName">
+        <maml:name>Name</maml:name>
+        <maml:description>
+          <maml:para>Original queried name to invalidate, including the expanded system-search name when applicable. Names normalize case, Unicode and the trailing root dot. Alias targets do not invalidate a different original query.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="1" aliases="None">
+        <maml:name>Type</maml:name>
+        <maml:description>
+          <maml:para>Only remove this query type. Omit to remove every cached type for Name.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">DnsRecordType</command:parameterValue>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">Reserved</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">A</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NS</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">MD</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">MF</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CNAME</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">SOA</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">MB</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">MG</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">MR</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NULL</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">WKS</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">PTR</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">HINFO</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">MINFO</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">MX</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">TXT</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">RP</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">AFSDB</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">X25</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ISDN</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">RT</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NSAP</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NSAP_PTR</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">SIG</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">PX</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">AAAA</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">LOC</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NXT</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">SRV</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ATMA</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NAPTR</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">KX</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CERT</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">A6</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DNAME</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">SINK</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">OPT</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">APL</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DS</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">SSHFP</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">IPSECKEY</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">RRSIG</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NSEC</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DNSKEY</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DHCID</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NSEC3</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NSEC3PARAM</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">TLSA</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">SMIMEA</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">HIP</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NINFO</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">RKEY</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">TALINK</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CDS</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CDNSKEY</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">OPENPGPKEY</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CSYNC</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ZONEMD</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">SVCB</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">HTTPS</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">SPF</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">LP</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NXNAME</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">TKEY</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">TSIG</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">IXFR</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">AXFR</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">MAILB</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">MAILA</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ANY</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">URI</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CAA</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">AVC</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DOA</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">AMTRELAY</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">RESINFO</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">TA</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DLV</command:parameterValue>
+        </command:parameterValueGroup>
+        <dev:type>
+          <maml:name>DnsRecordType</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>System.Int32</maml:name>
+        </dev:type>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para></maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>Clear-DnsCache</dev:code>
+        <dev:remarks>
+          <maml:para>Clear all cached responses</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 2</maml:title>
+        <dev:code>Clear-DnsCache -Name example.com -Type A</dev:code>
+        <dev:remarks>
+          <maml:para>Remove cached A responses for one name</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 3</maml:title>
+        <dev:code>Clear-DnsCache -Name example.com -WhatIf</dev:code>
+        <dev:remarks>
+          <maml:para>Preview selective invalidation</maml:para>
+        </dev:remarks>
+      </command:example>
+    </command:examples>
+    <command:relatedLinks />
+  </command:command>
+  <command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10">
+    <command:details>
       <command:name>Clear-DnsMultiResolverCache</command:name>
       <command:verb>Clear</command:verb>
       <command:noun>DnsMultiResolverCache</command:noun>
@@ -298,6 +576,192 @@
   </command:command>
   <command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10">
     <command:details>
+      <command:name>Compare-DnsResolverSnapshot</command:name>
+      <command:verb>Compare</command:verb>
+      <command:noun>DnsResolverSnapshot</command:noun>
+      <maml:description>
+        <maml:para>Compares resolver health and answers between saved DNS snapshots.</maml:para>
+        <maml:para>Reports candidate and answer changes, health regressions, and incompatible query scopes. Optional authoritative responses provide comparison context; a majority answer is not proof of authoritative correctness.</maml:para>
+      </maml:description>
+    </command:details>
+    <maml:description>
+      <maml:para>Compares resolver health and answers between saved DNS snapshots.</maml:para>
+      <maml:para>Reports candidate and answer changes, health regressions, and incompatible query scopes. Optional authoritative responses provide comparison context; a majority answer is not proof of authoritative correctness.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem parameterSetName="Path">
+        <maml:name>Compare-DnsResolverSnapshot</maml:name>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>AuthoritativeReference</maml:name>
+          <maml:description>
+            <maml:para>Caller-supplied authoritative responses for name/type comparison context. These must assert the AA flag; response origin remains the caller's responsibility.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">ResolverAnswerReference[]</command:parameterValue>
+          <dev:type>
+            <maml:name>ResolverAnswerReference[]</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="0" aliases="None">
+          <maml:name>BaselinePath</maml:name>
+          <maml:description>
+            <maml:para>Baseline resolver score snapshot JSON path.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="1" aliases="None">
+          <maml:name>CurrentPath</maml:name>
+          <maml:description>
+            <maml:para>Current resolver score snapshot JSON path.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem parameterSetName="Snapshot">
+        <maml:name>Compare-DnsResolverSnapshot</maml:name>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>AuthoritativeReference</maml:name>
+          <maml:description>
+            <maml:para>Caller-supplied authoritative responses for name/type comparison context. These must assert the AA flag; response origin remains the caller's responsibility.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">ResolverAnswerReference[]</command:parameterValue>
+          <dev:type>
+            <maml:name>ResolverAnswerReference[]</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="0" aliases="None">
+          <maml:name>Baseline</maml:name>
+          <maml:description>
+            <maml:para>Baseline typed resolver score snapshot.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">ResolverScoreSnapshot</command:parameterValue>
+          <dev:type>
+            <maml:name>ResolverScoreSnapshot</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="True (ByValue)" position="1" aliases="None">
+          <maml:name>Current</maml:name>
+          <maml:description>
+            <maml:para>Current typed resolver score snapshot, supplied directly or through the pipeline.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">ResolverScoreSnapshot</command:parameterValue>
+          <dev:type>
+            <maml:name>ResolverScoreSnapshot</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>AuthoritativeReference</maml:name>
+        <maml:description>
+          <maml:para>Caller-supplied authoritative responses for name/type comparison context. These must assert the AA flag; response origin remains the caller's responsibility.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">ResolverAnswerReference[]</command:parameterValue>
+        <dev:type>
+          <maml:name>ResolverAnswerReference[]</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="0" aliases="None">
+        <maml:name>Baseline</maml:name>
+        <maml:description>
+          <maml:para>Baseline typed resolver score snapshot.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">ResolverScoreSnapshot</command:parameterValue>
+        <dev:type>
+          <maml:name>ResolverScoreSnapshot</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="0" aliases="None">
+        <maml:name>BaselinePath</maml:name>
+        <maml:description>
+          <maml:para>Baseline resolver score snapshot JSON path.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="True (ByValue)" position="1" aliases="None">
+        <maml:name>Current</maml:name>
+        <maml:description>
+          <maml:para>Current typed resolver score snapshot, supplied directly or through the pipeline.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">ResolverScoreSnapshot</command:parameterValue>
+        <dev:type>
+          <maml:name>ResolverScoreSnapshot</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="1" aliases="None">
+        <maml:name>CurrentPath</maml:name>
+        <maml:description>
+          <maml:para>Current resolver score snapshot JSON path.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>DnsClientX.ResolverScoreSnapshot</maml:name>
+        </dev:type>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>DnsClientX.ResolverScoreComparison</maml:name>
+        </dev:type>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para></maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>Compare-DnsResolverSnapshot -BaselinePath './before.json' -CurrentPath './after.json'</dev:code>
+        <dev:remarks>
+          <maml:para>Compare two saved probe or benchmark snapshots</maml:para>
+        </dev:remarks>
+      </command:example>
+    </command:examples>
+    <command:relatedLinks />
+  </command:command>
+  <command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10">
+    <command:details>
       <command:name>ConvertFrom-DnsStamp</command:name>
       <command:verb>ConvertFrom</command:verb>
       <command:noun>DnsStamp</command:noun>
@@ -378,17 +842,74 @@
       <command:noun>DnsService</command:noun>
       <maml:description>
         <maml:para>Discovers services advertised via DNS Service Discovery.</maml:para>
-        <maml:para>Wraps DiscoverServices to return services under a domain.</maml:para>
+        <maml:para>Streams individual service instances under a domain, browses one service type, or lists advertised service types. An empty discovery produces no pipeline objects; use an array expression to collect zero or more results.</maml:para>
       </maml:description>
     </command:details>
     <maml:description>
       <maml:para>Discovers services advertised via DNS Service Discovery.</maml:para>
-      <maml:para>Wraps DiscoverServices to return services under a domain.</maml:para>
+      <maml:para>Streams individual service instances under a domain, browses one service type, or lists advertised service types. An empty discovery produces no pipeline objects; use an array expression to collect zero or more results.</maml:para>
     </maml:description>
     <command:syntax>
-      <command:syntaxItem parameterSetName="__AllParameterSets">
+      <command:syntaxItem parameterSetName="Discover">
         <maml:name>Find-DnsService</maml:name>
-        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="0" aliases="None">
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>IP-literal UDP/TCP resolver used to bootstrap endpoint hostnames.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsProvider</maml:name>
+          <maml:description>
+            <maml:para>Built-in resolver used for discovery. Defaults to the system resolver.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">DnsEndpoint</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">System</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">SystemTcp</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Cloudflare</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareWireFormat</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareWireFormatPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareJsonPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Google</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleWireFormat</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleWireFormatPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleJsonPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9ECS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Unsecure</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">OpenDNS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">OpenDNSFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareQuic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Http3</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Quic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleQuic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuard</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuardFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuardNonFiltering</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NextDNS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptCloudflare</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptQuad9</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptRelay</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>DnsEndpoint</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="True (ByValue, ByPropertyName)" position="0" aliases="Name,DnsName">
           <maml:name>Domain</maml:name>
           <maml:description>
             <maml:para>Domain name to search for advertised services.</maml:para>
@@ -400,10 +921,361 @@
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ResolverEndpoint</maml:name>
+          <maml:description>
+            <maml:para>One explicit resolver, such as udp@192.0.2.53:53, tcp@192.0.2.53:53, mdns@224.0.0.251:5353, or a DoH URL.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ResolverSelectionPath</maml:name>
+          <maml:description>
+            <maml:para>Saved resolver score snapshot whose recommended resolver is reused for discovery.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>TimeOut</maml:name>
+          <maml:description>
+            <maml:para>Per-query timeout in milliseconds.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">Int32</command:parameterValue>
+          <dev:type>
+            <maml:name>Int32</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem parameterSetName="Types">
+        <maml:name>Find-DnsService</maml:name>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>IP-literal UDP/TCP resolver used to bootstrap endpoint hostnames.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsProvider</maml:name>
+          <maml:description>
+            <maml:para>Built-in resolver used for discovery. Defaults to the system resolver.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">DnsEndpoint</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">System</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">SystemTcp</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Cloudflare</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareWireFormat</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareWireFormatPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareJsonPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Google</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleWireFormat</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleWireFormatPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleJsonPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9ECS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Unsecure</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">OpenDNS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">OpenDNSFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareQuic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Http3</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Quic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleQuic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuard</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuardFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuardNonFiltering</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NextDNS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptCloudflare</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptQuad9</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptRelay</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>DnsEndpoint</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="True (ByValue, ByPropertyName)" position="0" aliases="Name,DnsName">
+          <maml:name>Domain</maml:name>
+          <maml:description>
+            <maml:para>Domain name to search for advertised services.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ResolverEndpoint</maml:name>
+          <maml:description>
+            <maml:para>One explicit resolver, such as udp@192.0.2.53:53, tcp@192.0.2.53:53, mdns@224.0.0.251:5353, or a DoH URL.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ResolverSelectionPath</maml:name>
+          <maml:description>
+            <maml:para>Saved resolver score snapshot whose recommended resolver is reused for discovery.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="ListServiceTypes">
+          <maml:name>ServiceTypes</maml:name>
+          <maml:description>
+            <maml:para>List fully qualified service types from the DNS-SD meta-query.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>TimeOut</maml:name>
+          <maml:description>
+            <maml:para>Per-query timeout in milliseconds.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">Int32</command:parameterValue>
+          <dev:type>
+            <maml:name>Int32</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem parameterSetName="Browse">
+        <maml:name>Find-DnsService</maml:name>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>IP-literal UDP/TCP resolver used to bootstrap endpoint hostnames.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsProvider</maml:name>
+          <maml:description>
+            <maml:para>Built-in resolver used for discovery. Defaults to the system resolver.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">DnsEndpoint</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">System</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">SystemTcp</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Cloudflare</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareWireFormat</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareWireFormatPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareJsonPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Google</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleWireFormat</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleWireFormatPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleJsonPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9ECS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Unsecure</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">OpenDNS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">OpenDNSFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareQuic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Http3</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Quic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleQuic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuard</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuardFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuardNonFiltering</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NextDNS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptCloudflare</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptQuad9</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptRelay</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>DnsEndpoint</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="True (ByValue, ByPropertyName)" position="0" aliases="Name,DnsName">
+          <maml:name>Domain</maml:name>
+          <maml:description>
+            <maml:para>Domain name to search for advertised services.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>Protocol</maml:name>
+          <maml:description>
+            <maml:para>Service transport label, such as tcp or udp.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">tcp</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">udp</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">_tcp</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">_udp</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ResolverEndpoint</maml:name>
+          <maml:description>
+            <maml:para>One explicit resolver, such as udp@192.0.2.53:53, tcp@192.0.2.53:53, mdns@224.0.0.251:5353, or a DoH URL.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ResolverSelectionPath</maml:name>
+          <maml:description>
+            <maml:para>Saved resolver score snapshot whose recommended resolver is reused for discovery.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>Service</maml:name>
+          <maml:description>
+            <maml:para>Service label to browse, such as http or _http.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>TimeOut</maml:name>
+          <maml:description>
+            <maml:para>Per-query timeout in milliseconds.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">Int32</command:parameterValue>
+          <dev:type>
+            <maml:name>Int32</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
       </command:syntaxItem>
     </command:syntax>
     <command:parameters>
-      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="0" aliases="None">
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>BootstrapResolver</maml:name>
+        <maml:description>
+          <maml:para>IP-literal UDP/TCP resolver used to bootstrap endpoint hostnames.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>DnsProvider</maml:name>
+        <maml:description>
+          <maml:para>Built-in resolver used for discovery. Defaults to the system resolver.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">DnsEndpoint</command:parameterValue>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">System</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">SystemTcp</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Cloudflare</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CloudflareSecurity</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CloudflareFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CloudflareWireFormat</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CloudflareWireFormatPost</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CloudflareJsonPost</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Google</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">GoogleWireFormat</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">GoogleWireFormatPost</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">GoogleJsonPost</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Quad9</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Quad9ECS</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Quad9Unsecure</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">OpenDNS</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">OpenDNSFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CloudflareQuic</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Quad9Http3</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Quad9Quic</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">GoogleQuic</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">AdGuard</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">AdGuardFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">AdGuardNonFiltering</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NextDNS</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsCryptCloudflare</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsCryptQuad9</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsCryptRelay</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+        </command:parameterValueGroup>
+        <dev:type>
+          <maml:name>DnsEndpoint</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="True (ByValue, ByPropertyName)" position="0" aliases="Name,DnsName">
         <maml:name>Domain</maml:name>
         <maml:description>
           <maml:para>Domain name to search for advertised services.</maml:para>
@@ -415,15 +1287,104 @@
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>Protocol</maml:name>
+        <maml:description>
+          <maml:para>Service transport label, such as tcp or udp.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">tcp</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">udp</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">_tcp</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">_udp</command:parameterValue>
+        </command:parameterValueGroup>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>ResolverEndpoint</maml:name>
+        <maml:description>
+          <maml:para>One explicit resolver, such as udp@192.0.2.53:53, tcp@192.0.2.53:53, mdns@224.0.0.251:5353, or a DoH URL.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>ResolverSelectionPath</maml:name>
+        <maml:description>
+          <maml:para>Saved resolver score snapshot whose recommended resolver is reused for discovery.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>Service</maml:name>
+        <maml:description>
+          <maml:para>Service label to browse, such as http or _http.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="ListServiceTypes">
+        <maml:name>ServiceTypes</maml:name>
+        <maml:description>
+          <maml:para>List fully qualified service types from the DNS-SD meta-query.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">SwitchParameter</command:parameterValue>
+        <dev:type>
+          <maml:name>SwitchParameter</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>TimeOut</maml:name>
+        <maml:description>
+          <maml:para>Per-query timeout in milliseconds.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">Int32</command:parameterValue>
+        <dev:type>
+          <maml:name>Int32</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
     </command:parameters>
     <command:inputTypes>
       <command:inputType>
         <dev:type>
-          <maml:name>None</maml:name>
+          <maml:name>System.String</maml:name>
         </dev:type>
       </command:inputType>
     </command:inputTypes>
-    <command:returnValues />
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>DnsClientX.DnsService</maml:name>
+        </dev:type>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:returnValue>
+    </command:returnValues>
     <maml:alertSet>
       <maml:alert>
         <maml:para></maml:para>
@@ -442,6 +1403,169 @@
         <dev:code>Find-DnsService -Domain example.com | Where-Object {$_.ServiceType -like '_http._tcp.*'}</dev:code>
         <dev:remarks>
           <maml:para>Filter for a specific service type</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 3</maml:title>
+        <dev:code>Find-DnsService -Domain example.com -ServiceTypes -ResolverEndpoint 'tcp@192.0.2.53:53'</dev:code>
+        <dev:remarks>
+          <maml:para>List advertised service types through a specific resolver</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 4</maml:title>
+        <dev:code>Find-DnsService -Domain example.com -Service http -Protocol tcp</dev:code>
+        <dev:remarks>
+          <maml:para>Browse only HTTP instances</maml:para>
+        </dev:remarks>
+      </command:example>
+    </command:examples>
+    <command:relatedLinks />
+  </command:command>
+  <command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10">
+    <command:details>
+      <command:name>Get-DnsCache</command:name>
+      <command:verb>Get</command:verb>
+      <command:noun>DnsCache</command:noun>
+      <maml:description>
+        <maml:para>Gets process-wide DNS response cache statistics.</maml:para>
+        <maml:para>Returns capacity, current entries and lifetime lookup counters shared by all cache-enabled DnsClientX clients in this PowerShell process. Clearing entries does not reset these counters.</maml:para>
+      </maml:description>
+    </command:details>
+    <maml:description>
+      <maml:para>Gets process-wide DNS response cache statistics.</maml:para>
+      <maml:para>Returns capacity, current entries and lifetime lookup counters shared by all cache-enabled DnsClientX clients in this PowerShell process. Clearing entries does not reset these counters.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem parameterSetName="__AllParameterSets">
+        <maml:name>Get-DnsCache</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters />
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>DnsClientX.DnsResponseCacheStatistics</maml:name>
+        </dev:type>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para></maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>Get-DnsCache</dev:code>
+        <dev:remarks>
+          <maml:para>Inspect the response cache used by Resolve-Dns</maml:para>
+        </dev:remarks>
+      </command:example>
+    </command:examples>
+    <command:relatedLinks />
+  </command:command>
+  <command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10">
+    <command:details>
+      <command:name>Get-DnsQueryExplanation</command:name>
+      <command:verb>Get</command:verb>
+      <command:noun>DnsQueryExplanation</command:noun>
+      <maml:description>
+        <maml:para>Explains captured evidence from a completed DNS response.</maml:para>
+        <maml:para>Projects resolver, transport, cache, alias, authority and local DNSSEC evidence without additional DNS queries. UnavailableEvidence lists facts that the response cannot establish, including a complete delegation or DNSSEC trust-chain traversal.</maml:para>
+      </maml:description>
+    </command:details>
+    <maml:description>
+      <maml:para>Explains captured evidence from a completed DNS response.</maml:para>
+      <maml:para>Projects resolver, transport, cache, alias, authority and local DNSSEC evidence without additional DNS queries. UnavailableEvidence lists facts that the response cannot establish, including a complete delegation or DNSSEC trust-chain traversal.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem parameterSetName="__AllParameterSets">
+        <maml:name>Get-DnsQueryExplanation</maml:name>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>AuditTrail</maml:name>
+          <maml:description>
+            <maml:para>Optional captured audit entries for the supplied response. Omit this parameter when individual attempt evidence was not captured.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">AuditEntry[]</command:parameterValue>
+          <dev:type>
+            <maml:name>AuditEntry[]</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="True (ByValue)" position="0" aliases="Response">
+          <maml:name>InputObject</maml:name>
+          <maml:description>
+            <maml:para>Completed DNS response, supplied directly or through the pipeline.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">DnsResponse</command:parameterValue>
+          <dev:type>
+            <maml:name>DnsResponse</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>AuditTrail</maml:name>
+        <maml:description>
+          <maml:para>Optional captured audit entries for the supplied response. Omit this parameter when individual attempt evidence was not captured.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">AuditEntry[]</command:parameterValue>
+        <dev:type>
+          <maml:name>AuditEntry[]</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="True (ByValue)" position="0" aliases="Response">
+        <maml:name>InputObject</maml:name>
+        <maml:description>
+          <maml:para>Completed DNS response, supplied directly or through the pipeline.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">DnsResponse</command:parameterValue>
+        <dev:type>
+          <maml:name>DnsResponse</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>DnsClientX.DnsResponse</maml:name>
+        </dev:type>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>DnsClientX.DnsQueryExplanation</maml:name>
+        </dev:type>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para></maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>Resolve-Dns example.com -FullResponse | Get-DnsQueryExplanation</dev:code>
+        <dev:remarks>
+          <maml:para>Explain a response returned by Resolve-Dns</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -565,17 +1689,74 @@
       <command:noun>DnsService</command:noun>
       <maml:description>
         <maml:para>Retrieves services advertised via DNS Service Discovery.</maml:para>
-        <maml:para>Queries the _services._dns-sd._udp tree for the specified domain and returns SRV/TXT data describing each advertised service.</maml:para>
+        <maml:para>Streams individual DNS-SD instances under a domain, browses one service type, or resolves SRV targets in connection-attempt order. Empty discovery produces no pipeline objects; use an array expression to collect zero or more results.</maml:para>
       </maml:description>
     </command:details>
     <maml:description>
       <maml:para>Retrieves services advertised via DNS Service Discovery.</maml:para>
-      <maml:para>Queries the _services._dns-sd._udp tree for the specified domain and returns SRV/TXT data describing each advertised service.</maml:para>
+      <maml:para>Streams individual DNS-SD instances under a domain, browses one service type, or resolves SRV targets in connection-attempt order. Empty discovery produces no pipeline objects; use an array expression to collect zero or more results.</maml:para>
     </maml:description>
     <command:syntax>
-      <command:syntaxItem parameterSetName="__AllParameterSets">
+      <command:syntaxItem parameterSetName="Discover">
         <maml:name>Get-DnsService</maml:name>
-        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="0" aliases="None">
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>IP-literal UDP/TCP resolver used to bootstrap endpoint hostnames.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsProvider</maml:name>
+          <maml:description>
+            <maml:para>Built-in resolver used for discovery. Defaults to the system resolver.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">DnsEndpoint</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">System</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">SystemTcp</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Cloudflare</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareWireFormat</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareWireFormatPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareJsonPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Google</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleWireFormat</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleWireFormatPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleJsonPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9ECS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Unsecure</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">OpenDNS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">OpenDNSFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareQuic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Http3</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Quic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleQuic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuard</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuardFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuardNonFiltering</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NextDNS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptCloudflare</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptQuad9</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptRelay</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>DnsEndpoint</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="True (ByValue, ByPropertyName)" position="0" aliases="Name,DnsName">
           <maml:name>Domain</maml:name>
           <maml:description>
             <maml:para>Domain name to search for advertised services.</maml:para>
@@ -587,10 +1768,403 @@
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ResolverEndpoint</maml:name>
+          <maml:description>
+            <maml:para>One explicit resolver, such as udp@192.0.2.53:53, tcp@192.0.2.53:53, mdns@224.0.0.251:5353, or a DoH URL.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ResolverSelectionPath</maml:name>
+          <maml:description>
+            <maml:para>Saved resolver score snapshot whose recommended resolver is reused for discovery.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>TimeOut</maml:name>
+          <maml:description>
+            <maml:para>Per-query timeout in milliseconds.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">Int32</command:parameterValue>
+          <dev:type>
+            <maml:name>Int32</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem parameterSetName="Browse">
+        <maml:name>Get-DnsService</maml:name>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>IP-literal UDP/TCP resolver used to bootstrap endpoint hostnames.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsProvider</maml:name>
+          <maml:description>
+            <maml:para>Built-in resolver used for discovery. Defaults to the system resolver.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">DnsEndpoint</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">System</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">SystemTcp</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Cloudflare</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareWireFormat</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareWireFormatPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareJsonPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Google</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleWireFormat</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleWireFormatPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleJsonPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9ECS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Unsecure</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">OpenDNS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">OpenDNSFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareQuic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Http3</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Quic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleQuic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuard</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuardFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuardNonFiltering</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NextDNS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptCloudflare</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptQuad9</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptRelay</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>DnsEndpoint</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="True (ByValue, ByPropertyName)" position="0" aliases="Name,DnsName">
+          <maml:name>Domain</maml:name>
+          <maml:description>
+            <maml:para>Domain name to search for advertised services.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>Protocol</maml:name>
+          <maml:description>
+            <maml:para>Service transport label, such as tcp or udp.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">tcp</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">udp</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">_tcp</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">_udp</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ResolverEndpoint</maml:name>
+          <maml:description>
+            <maml:para>One explicit resolver, such as udp@192.0.2.53:53, tcp@192.0.2.53:53, mdns@224.0.0.251:5353, or a DoH URL.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ResolverSelectionPath</maml:name>
+          <maml:description>
+            <maml:para>Saved resolver score snapshot whose recommended resolver is reused for discovery.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>Service</maml:name>
+          <maml:description>
+            <maml:para>Service label to browse or resolve, such as http or _http.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>TimeOut</maml:name>
+          <maml:description>
+            <maml:para>Per-query timeout in milliseconds.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">Int32</command:parameterValue>
+          <dev:type>
+            <maml:name>Int32</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem parameterSetName="Resolve">
+        <maml:name>Get-DnsService</maml:name>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>BootstrapResolver</maml:name>
+          <maml:description>
+            <maml:para>IP-literal UDP/TCP resolver used to bootstrap endpoint hostnames.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsProvider</maml:name>
+          <maml:description>
+            <maml:para>Built-in resolver used for discovery. Defaults to the system resolver.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">DnsEndpoint</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">System</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">SystemTcp</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Cloudflare</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareWireFormat</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareWireFormatPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareJsonPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Google</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleWireFormat</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleWireFormatPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleJsonPost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9ECS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Unsecure</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">OpenDNS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">OpenDNSFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareQuic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Http3</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Quad9Quic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">GoogleQuic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuard</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuardFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">AdGuardNonFiltering</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">NextDNS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptCloudflare</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptQuad9</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptRelay</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>DnsEndpoint</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="True (ByValue, ByPropertyName)" position="0" aliases="Name,DnsName">
+          <maml:name>Domain</maml:name>
+          <maml:description>
+            <maml:para>Domain name to search for advertised services.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>Protocol</maml:name>
+          <maml:description>
+            <maml:para>Service transport label, such as tcp or udp.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">tcp</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">udp</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">_tcp</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">_udp</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>Resolve</maml:name>
+          <maml:description>
+            <maml:para>Resolve SRV targets in RFC 2782 connection-attempt order instead of browsing DNS-SD instances.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ResolveHosts</maml:name>
+          <maml:description>
+            <maml:para>With Resolve, include A and AAAA addresses for each target host.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ResolverEndpoint</maml:name>
+          <maml:description>
+            <maml:para>One explicit resolver, such as udp@192.0.2.53:53, tcp@192.0.2.53:53, mdns@224.0.0.251:5353, or a DoH URL.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ResolverSelectionPath</maml:name>
+          <maml:description>
+            <maml:para>Saved resolver score snapshot whose recommended resolver is reused for discovery.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>Service</maml:name>
+          <maml:description>
+            <maml:para>Service label to browse or resolve, such as http or _http.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>TimeOut</maml:name>
+          <maml:description>
+            <maml:para>Per-query timeout in milliseconds.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">Int32</command:parameterValue>
+          <dev:type>
+            <maml:name>Int32</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
       </command:syntaxItem>
     </command:syntax>
     <command:parameters>
-      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="0" aliases="None">
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>BootstrapResolver</maml:name>
+        <maml:description>
+          <maml:para>IP-literal UDP/TCP resolver used to bootstrap endpoint hostnames.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>DnsProvider</maml:name>
+        <maml:description>
+          <maml:para>Built-in resolver used for discovery. Defaults to the system resolver.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">DnsEndpoint</command:parameterValue>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">System</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">SystemTcp</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Cloudflare</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CloudflareSecurity</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CloudflareFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CloudflareWireFormat</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CloudflareWireFormatPost</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CloudflareJsonPost</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Google</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">GoogleWireFormat</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">GoogleWireFormatPost</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">GoogleJsonPost</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Quad9</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Quad9ECS</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Quad9Unsecure</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">OpenDNS</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">OpenDNSFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CloudflareQuic</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Quad9Http3</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Quad9Quic</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">GoogleQuic</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">AdGuard</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">AdGuardFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">AdGuardNonFiltering</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">NextDNS</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsCryptCloudflare</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsCryptQuad9</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsCryptRelay</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+        </command:parameterValueGroup>
+        <dev:type>
+          <maml:name>DnsEndpoint</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="True (ByValue, ByPropertyName)" position="0" aliases="Name,DnsName">
         <maml:name>Domain</maml:name>
         <maml:description>
           <maml:para>Domain name to search for advertised services.</maml:para>
@@ -602,15 +2176,116 @@
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>Protocol</maml:name>
+        <maml:description>
+          <maml:para>Service transport label, such as tcp or udp.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">tcp</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">udp</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">_tcp</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">_udp</command:parameterValue>
+        </command:parameterValueGroup>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>Resolve</maml:name>
+        <maml:description>
+          <maml:para>Resolve SRV targets in RFC 2782 connection-attempt order instead of browsing DNS-SD instances.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">SwitchParameter</command:parameterValue>
+        <dev:type>
+          <maml:name>SwitchParameter</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>ResolveHosts</maml:name>
+        <maml:description>
+          <maml:para>With Resolve, include A and AAAA addresses for each target host.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+        <dev:type>
+          <maml:name>SwitchParameter</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>ResolverEndpoint</maml:name>
+        <maml:description>
+          <maml:para>One explicit resolver, such as udp@192.0.2.53:53, tcp@192.0.2.53:53, mdns@224.0.0.251:5353, or a DoH URL.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>ResolverSelectionPath</maml:name>
+        <maml:description>
+          <maml:para>Saved resolver score snapshot whose recommended resolver is reused for discovery.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>Service</maml:name>
+        <maml:description>
+          <maml:para>Service label to browse or resolve, such as http or _http.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>TimeOut</maml:name>
+        <maml:description>
+          <maml:para>Per-query timeout in milliseconds.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">Int32</command:parameterValue>
+        <dev:type>
+          <maml:name>Int32</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
     </command:parameters>
     <command:inputTypes>
       <command:inputType>
         <dev:type>
-          <maml:name>None</maml:name>
+          <maml:name>System.String</maml:name>
         </dev:type>
       </command:inputType>
     </command:inputTypes>
-    <command:returnValues />
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>DnsClientX.DnsService</maml:name>
+        </dev:type>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>DnsClientX.DnsSrvRecord</maml:name>
+        </dev:type>
+      </command:returnValue>
+    </command:returnValues>
     <maml:alertSet>
       <maml:alert>
         <maml:para></maml:para>
@@ -629,6 +2304,20 @@
         <dev:code>Get-DnsService -Domain example.com | Select-Object ServiceName,Target,Port</dev:code>
         <dev:remarks>
           <maml:para>Pipe results to select useful fields</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 3</maml:title>
+        <dev:code>Get-DnsService -Domain example.com -Service http -ResolverEndpoint 'https://dns.google/dns-query'</dev:code>
+        <dev:remarks>
+          <maml:para>Browse HTTP service instances through an explicit resolver</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 4</maml:title>
+        <dev:code>Get-DnsService -Domain example.com -Service ldap -Resolve -ResolveHosts</dev:code>
+        <dev:remarks>
+          <maml:para>Resolve LDAP targets and addresses in connection-attempt order</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -1032,11 +2721,13 @@
       <maml:description>
         <maml:para>Sends DNS UPDATE messages to a server.</maml:para>
         <maml:para>Adds or removes records in a zone using RFC 2136 over TCP.</maml:para>
+        <maml:para>Use WhatIf to preview an update without contacting the server, or Confirm to approve each change.</maml:para>
       </maml:description>
     </command:details>
     <maml:description>
       <maml:para>Sends DNS UPDATE messages to a server.</maml:para>
       <maml:para>Adds or removes records in a zone using RFC 2136 over TCP.</maml:para>
+      <maml:para>Use WhatIf to preview an update without contacting the server, or Confirm to approve each change.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem parameterSetName="__AllParameterSets">
@@ -1494,12 +3185,14 @@
         <maml:para>Resolves DNS records (A, AAAA, MX, TXT, …) over UDP, TCP, DoT, DoH, QUIC, or multicast with optional multi-resolver strategies.</maml:para>
         <maml:para>Supports single-provider queries, explicit servers with transport selection, multiple providers with FirstSuccess/FastestWins/SequentialFallback/RoundRobin, direct resolver endpoints, DNSSEC, EDNS/ECS, concurrency control, and TTL-based response caching.</maml:para>
         <maml:para>Specify either Name or Pattern. When no resolver source is specified, the library's default resolver is used. Timeout, retry, response, typed-record, and DNSSEC options apply to every resolver source.</maml:para>
+        <maml:para>Name accepts pipeline strings or objects with Name, Domain, or DnsName properties. By default each answer is an individual pipeline row. Use FullResponse for complete response objects, TypedRecords for typed values, or TypedRecordMetadata to keep typed values and record metadata together.</maml:para>
       </maml:description>
     </command:details>
     <maml:description>
       <maml:para>Resolves DNS records (A, AAAA, MX, TXT, …) over UDP, TCP, DoT, DoH, QUIC, or multicast with optional multi-resolver strategies.</maml:para>
       <maml:para>Supports single-provider queries, explicit servers with transport selection, multiple providers with FirstSuccess/FastestWins/SequentialFallback/RoundRobin, direct resolver endpoints, DNSSEC, EDNS/ECS, concurrency control, and TTL-based response caching.</maml:para>
       <maml:para>Specify either Name or Pattern. When no resolver source is specified, the library's default resolver is used. Timeout, retry, response, typed-record, and DNSSEC options apply to every resolver source.</maml:para>
+      <maml:para>Name accepts pipeline strings or objects with Name, Domain, or DnsName properties. By default each answer is an individual pipeline row. Use FullResponse for complete response objects, TypedRecords for typed values, or TypedRecordMetadata to keep typed values and record metadata together.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem parameterSetName="Name">
@@ -1549,6 +3242,18 @@
           <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
             <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>CompletionOrder</maml:name>
+          <maml:description>
+            <maml:para>With Stream, emit responses in completion order. Omit this switch to preserve record type order, then name order.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -1681,7 +3386,7 @@
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>FullResponse</maml:name>
           <maml:description>
-            <maml:para>Provides the full response of the query. If not specified, only the minimal response is provided (just the answer).</maml:para>
+            <maml:para>Provides full response objects. If not specified, answers are enumerated as individual pipeline rows.</maml:para>
             <maml:para>If specified, the full response is provided (answer, authority, and additional sections).</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
@@ -1763,10 +3468,10 @@
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="None">
+        <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue, ByPropertyName)" position="0" aliases="Domain,DnsName">
           <maml:name>Name</maml:name>
           <maml:description>
-            <maml:para>The name of the DNS record to query for</maml:para>
+            <maml:para>DNS names to query. Accepts pipeline strings and Name, Domain, or DnsName properties.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">String[]</command:parameterValue>
           <dev:type>
@@ -1778,8 +3483,8 @@
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>ParseTypedTxtRecords</maml:name>
           <maml:description>
-            <maml:para>Gets or sets a value indicating whether TXT records should be&#xD;
-parsed into specialized types (DMARC, SPF, etc.) when TypedRecords is&#xD;
+            <maml:para>Gets or sets a value indicating whether TXT records should be
+parsed into specialized types (DMARC, SPF, etc.) when TypedRecords is
 specified. When false, returns simple TXT records.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
@@ -2019,7 +3724,7 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>ResponseCache</maml:name>
           <maml:description>
-            <maml:para>Enables response caching based on TTLs for repeated queries of the same (name,type). Disabled by default.</maml:para>
+            <maml:para>Enables TTL-based response caching for any resolver source. Disabled by default.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
           <dev:type>
@@ -2061,6 +3766,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">List`1</command:parameterValue>
           <dev:type>
             <maml:name>List`1</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>Stream</maml:name>
+          <maml:description>
+            <maml:para>Emit each response when its turn is available in record type order, then name order. MaxConcurrency bounds active queries without collecting the entire batch.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -2171,6 +3888,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>TypedRecordMetadata</maml:name>
+          <maml:description>
+            <maml:para>Return typed answer values together with their owner, TTL, class and original record. This implies TypedRecords; FullResponse takes precedence.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>TypedRecords</maml:name>
           <maml:description>
             <maml:para>When set, attempts to parse answers into typed record objects.</maml:para>
@@ -2266,6 +3995,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
             <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>CompletionOrder</maml:name>
+          <maml:description>
+            <maml:para>With Stream, emit responses in completion order. Omit this switch to preserve record type order, then name order.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -2398,7 +4139,7 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>FullResponse</maml:name>
           <maml:description>
-            <maml:para>Provides the full response of the query. If not specified, only the minimal response is provided (just the answer).</maml:para>
+            <maml:para>Provides full response objects. If not specified, answers are enumerated as individual pipeline rows.</maml:para>
             <maml:para>If specified, the full response is provided (answer, authority, and additional sections).</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
@@ -2483,8 +4224,8 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>ParseTypedTxtRecords</maml:name>
           <maml:description>
-            <maml:para>Gets or sets a value indicating whether TXT records should be&#xD;
-parsed into specialized types (DMARC, SPF, etc.) when TypedRecords is&#xD;
+            <maml:para>Gets or sets a value indicating whether TXT records should be
+parsed into specialized types (DMARC, SPF, etc.) when TypedRecords is
 specified. When false, returns simple TXT records.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
@@ -2736,7 +4477,7 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>ResponseCache</maml:name>
           <maml:description>
-            <maml:para>Enables response caching based on TTLs for repeated queries of the same (name,type). Disabled by default.</maml:para>
+            <maml:para>Enables TTL-based response caching for any resolver source. Disabled by default.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
           <dev:type>
@@ -2778,6 +4519,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">List`1</command:parameterValue>
           <dev:type>
             <maml:name>List`1</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>Stream</maml:name>
+          <maml:description>
+            <maml:para>Emit each response when its turn is available in record type order, then name order. MaxConcurrency bounds active queries without collecting the entire batch.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -2888,6 +4641,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>TypedRecordMetadata</maml:name>
+          <maml:description>
+            <maml:para>Return typed answer values together with their owner, TTL, class and original record. This implies TypedRecords; FullResponse takes precedence.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>TypedRecords</maml:name>
           <maml:description>
             <maml:para>When set, attempts to parse answers into typed record objects.</maml:para>
@@ -2983,6 +4748,18 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
         <dev:type>
           <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>CompletionOrder</maml:name>
+        <maml:description>
+          <maml:para>With Stream, emit responses in completion order. Omit this switch to preserve record type order, then name order.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+        <dev:type>
+          <maml:name>SwitchParameter</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
@@ -3115,7 +4892,7 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
         <maml:name>FullResponse</maml:name>
         <maml:description>
-          <maml:para>Provides the full response of the query. If not specified, only the minimal response is provided (just the answer).</maml:para>
+          <maml:para>Provides full response objects. If not specified, answers are enumerated as individual pipeline rows.</maml:para>
           <maml:para>If specified, the full response is provided (answer, authority, and additional sections).</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
@@ -3197,10 +4974,10 @@ specified. When false, returns simple TXT records.</maml:para>
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
-      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="False" position="0" aliases="None">
+      <command:parameter required="true" variableLength="true" globbing="false" pipelineInput="True (ByValue, ByPropertyName)" position="0" aliases="Domain,DnsName">
         <maml:name>Name</maml:name>
         <maml:description>
-          <maml:para>The name of the DNS record to query for</maml:para>
+          <maml:para>DNS names to query. Accepts pipeline strings and Name, Domain, or DnsName properties.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="false">String[]</command:parameterValue>
         <dev:type>
@@ -3212,8 +4989,8 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
         <maml:name>ParseTypedTxtRecords</maml:name>
         <maml:description>
-          <maml:para>Gets or sets a value indicating whether TXT records should be&#xD;
-parsed into specialized types (DMARC, SPF, etc.) when TypedRecords is&#xD;
+          <maml:para>Gets or sets a value indicating whether TXT records should be
+parsed into specialized types (DMARC, SPF, etc.) when TypedRecords is
 specified. When false, returns simple TXT records.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
@@ -3465,7 +5242,7 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
         <maml:name>ResponseCache</maml:name>
         <maml:description>
-          <maml:para>Enables response caching based on TTLs for repeated queries of the same (name,type). Disabled by default.</maml:para>
+          <maml:para>Enables TTL-based response caching for any resolver source. Disabled by default.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
         <dev:type>
@@ -3507,6 +5284,18 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameterValue required="false" variableLength="false">List`1</command:parameterValue>
         <dev:type>
           <maml:name>List`1</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>Stream</maml:name>
+        <maml:description>
+          <maml:para>Emit each response when its turn is available in record type order, then name order. MaxConcurrency bounds active queries without collecting the entire batch.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+        <dev:type>
+          <maml:name>SwitchParameter</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
@@ -3617,6 +5406,18 @@ specified. When false, returns simple TXT records.</maml:para>
         <dev:defaultValue>None</dev:defaultValue>
       </command:parameter>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>TypedRecordMetadata</maml:name>
+        <maml:description>
+          <maml:para>Return typed answer values together with their owner, TTL, class and original record. This implies TypedRecords; FullResponse takes precedence.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+        <dev:type>
+          <maml:name>SwitchParameter</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
         <maml:name>TypedRecords</maml:name>
         <maml:description>
           <maml:para>When set, attempts to parse answers into typed record objects.</maml:para>
@@ -3668,11 +5469,27 @@ specified. When false, returns simple TXT records.</maml:para>
     <command:inputTypes>
       <command:inputType>
         <dev:type>
-          <maml:name>None</maml:name>
+          <maml:name>System.String[]</maml:name>
         </dev:type>
       </command:inputType>
     </command:inputTypes>
-    <command:returnValues />
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>DnsClientX.DnsAnswerMinimal</maml:name>
+        </dev:type>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>DnsClientX.DnsResponse</maml:name>
+        </dev:type>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>DnsClientX.DnsTypedRecord[System.Object]</maml:name>
+        </dev:type>
+      </command:returnValue>
+    </command:returnValues>
     <maml:alertSet>
       <maml:alert>
         <maml:para></maml:para>
@@ -3754,6 +5571,27 @@ specified. When false, returns simple TXT records.</maml:para>
         <dev:code>Resolve-Dns -Name 'example.com' -Type A -ResolverSelectionPath '.\resolver-score.json'</dev:code>
         <dev:remarks>
           <maml:para>Reuse the recommended resolver from a saved selection snapshot</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 12</maml:title>
+        <dev:code>'example.com','example.net' | Resolve-Dns -Type A | Where-Object Type -EQ A</dev:code>
+        <dev:remarks>
+          <maml:para>Resolve names from a pipeline and filter individual answers</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 13</maml:title>
+        <dev:code>Resolve-Dns -Name 'example.com','example.net' -Type A,AAAA -Stream -CompletionOrder -MaxConcurrency 4</dev:code>
+        <dev:remarks>
+          <maml:para>Stream a bounded batch in completion order</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 14</maml:title>
+        <dev:code>Resolve-Dns -Name 'example.com' -Type MX -TypedRecordMetadata | Select-Object Name,TTL,Value</dev:code>
+        <dev:remarks>
+          <maml:para>Keep typed payloads together with their owner and TTL</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>
@@ -3874,6 +5712,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
             <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>FailOnPolicyViolation</maml:name>
+          <maml:description>
+            <maml:para>Write a PolicyViolation error when the selected benchmark thresholds fail. Use ErrorAction Stop to fail an automation run; the default behavior only warns.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -4154,6 +6004,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
             <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>FailOnPolicyViolation</maml:name>
+          <maml:description>
+            <maml:para>Write a PolicyViolation error when the selected benchmark thresholds fail. Use ErrorAction Stop to fail an automation run; the default behavior only warns.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -4470,6 +6332,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
             <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>FailOnPolicyViolation</maml:name>
+          <maml:description>
+            <maml:para>Write a PolicyViolation error when the selected benchmark thresholds fail. Use ErrorAction Stop to fail an automation run; the default behavior only warns.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -4807,6 +6681,18 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
         <dev:type>
           <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>FailOnPolicyViolation</maml:name>
+        <maml:description>
+          <maml:para>Write a PolicyViolation error when the selected benchmark thresholds fail. Use ErrorAction Stop to fail an automation run; the default behavior only warns.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+        <dev:type>
+          <maml:name>SwitchParameter</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>
@@ -5184,6 +7070,223 @@ specified. When false, returns simple TXT records.</maml:para>
   </command:command>
   <command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10">
     <command:details>
+      <command:name>Test-DnsHealth</command:name>
+      <command:verb>Test</command:verb>
+      <command:noun>DnsHealth</command:noun>
+      <maml:description>
+        <maml:para>Runs a repeatable DNS resolver health profile.</maml:para>
+        <maml:para>Runs the profile's DNS query catalog and policy against its configured resolvers. IncludeBenchmark measures the same catalog. Returns the complete report; resolver agreement alone does not establish authoritative correctness.</maml:para>
+      </maml:description>
+    </command:details>
+    <maml:description>
+      <maml:para>Runs a repeatable DNS resolver health profile.</maml:para>
+      <maml:para>Runs the profile's DNS query catalog and policy against its configured resolvers. IncludeBenchmark measures the same catalog. Returns the complete report; resolver agreement alone does not establish authoritative correctness.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem parameterSetName="Path">
+        <maml:name>Test-DnsHealth</maml:name>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC verifier DLL with dependencies beside it.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>FailOnPolicyViolation</maml:name>
+          <maml:description>
+            <maml:para>Write a PolicyViolation error on failed health gates. Use ErrorAction Stop for enforcement; the default only warns.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>IncludeBenchmark</maml:name>
+          <maml:description>
+            <maml:para>Benchmark the same DNS names, types and resolver targets after the health queries.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="0" aliases="None">
+          <maml:name>Path</maml:name>
+          <maml:description>
+            <maml:para>Local JSON health profile path.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem parameterSetName="Profile">
+        <maml:name>Test-DnsHealth</maml:name>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>DnsSecVerifierPath</maml:name>
+          <maml:description>
+            <maml:para>Local optional DNSSEC verifier DLL with dependencies beside it.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>FailOnPolicyViolation</maml:name>
+          <maml:description>
+            <maml:para>Write a PolicyViolation error on failed health gates. Use ErrorAction Stop for enforcement; the default only warns.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>IncludeBenchmark</maml:name>
+          <maml:description>
+            <maml:para>Benchmark the same DNS names, types and resolver targets after the health queries.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="True (ByValue)" position="0" aliases="None">
+          <maml:name>Profile</maml:name>
+          <maml:description>
+            <maml:para>Typed health profile supplied directly or through the pipeline.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">ResolverHealthProfile</command:parameterValue>
+          <dev:type>
+            <maml:name>ResolverHealthProfile</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>DnsSecVerifierPath</maml:name>
+        <maml:description>
+          <maml:para>Local optional DNSSEC verifier DLL with dependencies beside it.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>FailOnPolicyViolation</maml:name>
+        <maml:description>
+          <maml:para>Write a PolicyViolation error on failed health gates. Use ErrorAction Stop for enforcement; the default only warns.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+        <dev:type>
+          <maml:name>SwitchParameter</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>IncludeBenchmark</maml:name>
+        <maml:description>
+          <maml:para>Benchmark the same DNS names, types and resolver targets after the health queries.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+        <dev:type>
+          <maml:name>SwitchParameter</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="0" aliases="None">
+        <maml:name>Path</maml:name>
+        <maml:description>
+          <maml:para>Local JSON health profile path.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="True (ByValue)" position="0" aliases="None">
+        <maml:name>Profile</maml:name>
+        <maml:description>
+          <maml:para>Typed health profile supplied directly or through the pipeline.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">ResolverHealthProfile</command:parameterValue>
+        <dev:type>
+          <maml:name>ResolverHealthProfile</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>DnsClientX.ResolverHealthProfile</maml:name>
+        </dev:type>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>DnsClientX.ResolverHealthReport</maml:name>
+        </dev:type>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para></maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>Test-DnsHealth -Path './dns-health.json' -FailOnPolicyViolation -ErrorAction Stop</dev:code>
+        <dev:remarks>
+          <maml:para>Run a saved profile and fail an automation run when its policy fails</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 2</maml:title>
+        <dev:code>Test-DnsHealth -Path './dns-health.json' -IncludeBenchmark</dev:code>
+        <dev:remarks>
+          <maml:para>Include performance measurements for the same profile</maml:para>
+        </dev:remarks>
+      </command:example>
+    </command:examples>
+    <command:relatedLinks />
+  </command:command>
+  <command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10">
+    <command:details>
       <command:name>Test-DnsProbe</command:name>
       <command:verb>Test</command:verb>
       <command:noun>DnsProbe</command:noun>
@@ -5264,6 +7367,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
             <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>FailOnPolicyViolation</maml:name>
+          <maml:description>
+            <maml:para>Write a PolicyViolation error when the selected probe thresholds fail. Use ErrorAction Stop to fail an automation run; the default behavior only warns.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -5528,6 +7643,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
             <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>FailOnPolicyViolation</maml:name>
+          <maml:description>
+            <maml:para>Write a PolicyViolation error when the selected probe thresholds fail. Use ErrorAction Stop to fail an automation run; the default behavior only warns.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -5828,6 +7955,18 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
             <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>FailOnPolicyViolation</maml:name>
+          <maml:description>
+            <maml:para>Write a PolicyViolation error when the selected probe thresholds fail. Use ErrorAction Stop to fail an automation run; the default behavior only warns.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -6149,6 +8288,18 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
         <dev:type>
           <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>FailOnPolicyViolation</maml:name>
+        <maml:description>
+          <maml:para>Write a PolicyViolation error when the selected probe thresholds fail. Use ErrorAction Stop to fail an automation run; the default behavior only warns.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+        <dev:type>
+          <maml:name>SwitchParameter</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>

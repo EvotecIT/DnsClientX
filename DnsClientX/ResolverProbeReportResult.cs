@@ -3,6 +3,12 @@ namespace DnsClientX {
     /// Describes one ranked probe candidate in a shared probe report.
     /// </summary>
     public sealed class ResolverProbeReportResult {
+        /// <summary>Gets or sets the TTL-independent answer signature used for factual comparison.</summary>
+        public string AnswerSignature { get; set; } = string.Empty;
+
+        /// <summary>Gets or sets captured query diagnostics with explicit unavailable evidence boundaries.</summary>
+        public DnsQueryExplanation? Explanation { get; set; }
+
         /// <summary>Gets or sets endpoint hostname resolution provenance for this candidate.</summary>
         public DnsServerResolutionInfo? ServerResolution { get; set; }
 

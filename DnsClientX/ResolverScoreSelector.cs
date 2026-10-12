@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace DnsClientX {
     /// <summary>
@@ -29,7 +30,7 @@ namespace DnsClientX {
             }
 
             if (!summary.RecommendationAvailable) {
-                error = $"No recommendation is available in the {summary.Mode} snapshot.";
+                error = $"No recommendation is available in the {summary.Mode} snapshot: {summary.RecommendationReason}.";
                 return false;
             }
 
@@ -38,8 +39,41 @@ namespace DnsClientX {
                 error = $"The {summary.Mode} snapshot does not contain a recommended target.";
                 return false;
             }
+            if (snapshot.Results?.Count(row => row != null && string.Equals(row.Target, target, StringComparison.OrdinalIgnoreCase)) > 1) {
+                error = $"Recommended target '{target}' has ambiguous saved candidate rows.";
+                return false;
+            }
 
-            if (Enum.TryParse(target, ignoreCase: true, out DnsEndpoint builtInEndpoint) &&
+            // Older snapshots only contain labels. New snapshots must reuse their saved definitions,
+            // since labels intentionally omit TLS, family, timeout, EDNS, and request-format settings.
+            DnsResolverEndpoint? savedEndpoint = null;
+            if (snapshot.Context?.TargetExecutionKeys != null || snapshot.Context?.ExplicitEndpoints != null) {
+                if (!snapshot.Context.TryGetExecutionKey(target, out string? executionKey)) {
+                    error = $"Recommended target '{target}' has an ambiguous or unavailable saved execution identity.";
+                    return false;
+                }
+                if (snapshot.Context.TryGetExplicitEndpoint(target, out savedEndpoint)) {
+                    try {
+                        if (ResolverEndpointClientFactory.GetExecutionKey(savedEndpoint!) != executionKey) {
+                            error = $"Recommended target '{target}' has inconsistent saved endpoint metadata.";
+                            return false;
+                        }
+                    } catch (ArgumentException exception) {
+                        error = $"Recommended target '{target}' has invalid saved endpoint metadata: {exception.Message}";
+                        return false;
+                    } catch (InvalidOperationException exception) {
+                        error = $"Recommended target '{target}' has invalid saved endpoint metadata: {exception.Message}";
+                        return false;
+                    }
+                } else if (snapshot.Context.ExplicitEndpoints?.Keys.Any(key => string.Equals(key, target, StringComparison.OrdinalIgnoreCase)) == true ||
+                    !Enum.TryParse(target, ignoreCase: true, out DnsEndpoint identifiedEndpoint) ||
+                    !Enum.IsDefined(typeof(DnsEndpoint), identifiedEndpoint) || executionKey != "builtin:" + identifiedEndpoint) {
+                    error = $"Recommended target '{target}' lacks an unambiguous saved endpoint definition.";
+                    return false;
+                }
+            }
+
+            if (savedEndpoint == null && Enum.TryParse(target, ignoreCase: true, out DnsEndpoint builtInEndpoint) &&
                 Enum.IsDefined(typeof(DnsEndpoint), builtInEndpoint) &&
                 builtInEndpoint != DnsEndpoint.Custom) {
                 selection = new ResolverSelectionResult {
@@ -62,7 +96,9 @@ namespace DnsClientX {
                 return false;
             }
 
-            DnsResolverEndpoint[] endpoints = EndpointParser.TryParseMany(new[] { target }, out IReadOnlyList<string> errors);
+            IReadOnlyList<string> errors = Array.Empty<string>();
+            DnsResolverEndpoint[] endpoints = savedEndpoint != null ? new[] { savedEndpoint }
+                : EndpointParser.TryParseMany(new[] { target }, out errors);
             if (endpoints.Length == 1 && errors.Count == 0) {
                 selection = new ResolverSelectionResult {
                     Mode = summary.Mode,

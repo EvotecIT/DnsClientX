@@ -79,7 +79,23 @@ namespace DnsClientX {
                 throw new InvalidOperationException("No endpoints were produced from the specified resolver inputs.");
             }
 
-            var options = new MultiResolverOptions {
+            MultiResolverOptions options = CreateMultiResolverOptions(request, ednsOptions);
+
+            using var resolver = new DnsMultiResolver(endpoints, options);
+            var responses = new List<DnsResponse>();
+            foreach (var recordType in request.RecordTypes) {
+                var result = await ExecuteWithRetryAsync(
+                    request,
+                    () => resolver.QueryBatchAsync(namesToUse, recordType, cancellationToken),
+                    cancellationToken).ConfigureAwait(false);
+                responses.AddRange(result);
+            }
+
+            return responses.ToArray();
+        }
+
+        private static MultiResolverOptions CreateMultiResolverOptions(ResolveDnsRequest request, EdnsOptions? ednsOptions) =>
+            new MultiResolverOptions {
                 Strategy = request.ResolverStrategy,
                 MaxParallelism = Math.Max(1, request.MaxParallelism),
                 RespectEndpointTimeout = request.RespectEndpointTimeout,
@@ -104,19 +120,6 @@ namespace DnsClientX {
                 MaxConnectionsPerServer = request.EffectiveMaxConnectionsPerServer,
                 MaxConcurrency = request.EffectiveMaxConcurrency
             };
-
-            using var resolver = new DnsMultiResolver(endpoints, options);
-            var responses = new List<DnsResponse>();
-            foreach (var recordType in request.RecordTypes) {
-                var result = await ExecuteWithRetryAsync(
-                    request,
-                    () => resolver.QueryBatchAsync(namesToUse, recordType, cancellationToken),
-                    cancellationToken).ConfigureAwait(false);
-                responses.AddRange(result);
-            }
-
-            return responses.ToArray();
-        }
 
         private static async Task<DnsResponse[]> ExecuteServerAsync(ResolveDnsRequest request, string[] namesToUse, EdnsOptions? ednsOptions, CancellationToken cancellationToken) {
             List<string> serverOrder = GetValidatedServers(request);
@@ -257,7 +260,7 @@ namespace DnsClientX {
                     userAgent: request.UserAgent,
                     httpVersion: request.HttpVersion,
                     ignoreCertificateErrors: request.IgnoreCertificateErrors,
-                    enableCache: false,
+                    enableCache: request.ResponseCache,
                     useTcpFallback: request.UseTcpFallback,
                     webProxy: request.CreateWebProxy(),
                     maxConnectionsPerServer: request.EffectiveMaxConnectionsPerServer);
@@ -269,7 +272,7 @@ namespace DnsClientX {
                     userAgent: request.UserAgent,
                     httpVersion: request.HttpVersion,
                     ignoreCertificateErrors: request.IgnoreCertificateErrors,
-                    enableCache: false,
+                    enableCache: request.ResponseCache,
                     useTcpFallback: request.UseTcpFallback,
                     webProxy: request.CreateWebProxy(),
                     maxConnectionsPerServer: request.EffectiveMaxConnectionsPerServer);
@@ -291,7 +294,7 @@ namespace DnsClientX {
                 request.UserAgent,
                 request.HttpVersion,
                 request.IgnoreCertificateErrors,
-                enableCache: false,
+                enableCache: request.ResponseCache,
                 useTcpFallback: request.UseTcpFallback,
                 webProxy: request.CreateWebProxy(),
                 maxConnectionsPerServer: request.EffectiveMaxConnectionsPerServer);
@@ -309,7 +312,7 @@ namespace DnsClientX {
             }
 
             if (endpoint.Timeout.HasValue) {
-                client.EndpointConfiguration.TimeOut = (int)Math.Max(1, endpoint.Timeout.Value.TotalMilliseconds);
+                client.EndpointConfiguration.TimeOut = ResolverEndpointClientFactory.ToTimeoutMilliseconds(endpoint.Timeout.Value);
             }
 
             if (endpoint.Transport != Transport.Doh) {
@@ -320,39 +323,17 @@ namespace DnsClientX {
         }
 
         private static ClientX CreateConfiguredEndpointClient(ResolveDnsRequest request, DnsResolverEndpoint endpoint) {
-            DnsRequestFormat requestFormat = endpoint.RequestFormat ?? DnsRequestFormatMapper.FromTransport(endpoint.Transport);
-            if (ResolverEndpointClientFactory.IsUriBasedRequestFormat(requestFormat) || endpoint.Transport == Transport.Doh || endpoint.DohUrl != null) {
-                return new ClientX(
-                    EndpointParser.BuildDohUri(endpoint),
-                    requestFormat,
-                    timeOutMilliseconds: request.TimeOutMilliseconds,
-                    userAgent: request.UserAgent,
-                    httpVersion: request.HttpVersion,
-                    ignoreCertificateErrors: request.IgnoreCertificateErrors,
-                    enableCache: false,
-                    useTcpFallback: request.UseTcpFallback && endpoint.AllowTcpFallback,
-                    webProxy: request.CreateWebProxy(),
-                    maxConnectionsPerServer: request.EffectiveMaxConnectionsPerServer);
-            }
-
-            if (string.IsNullOrWhiteSpace(endpoint.Host)) {
-                throw new ArgumentException("Resolver endpoint requires Host.", nameof(endpoint));
-            }
-
-            return new ClientX(
-                endpoint.Host!,
-                requestFormat,
-                timeOutMilliseconds: request.TimeOutMilliseconds,
-                userAgent: request.UserAgent,
-                httpVersion: request.HttpVersion,
-                ignoreCertificateErrors: request.IgnoreCertificateErrors,
-                enableCache: false,
-                useTcpFallback: request.UseTcpFallback && endpoint.AllowTcpFallback,
-                webProxy: request.CreateWebProxy(),
-                maxConnectionsPerServer: request.EffectiveMaxConnectionsPerServer);
+            Configuration configuration = ResolverEndpointClientFactory.CreateConfiguration(endpoint);
+            configuration.TimeOut = request.TimeOutMilliseconds;
+            if (request.UserAgent != null) configuration.UserAgent = request.UserAgent;
+            if (request.HttpVersion != null) configuration.HttpVersion = request.HttpVersion;
+            configuration.MaxConnectionsPerServer = request.EffectiveMaxConnectionsPerServer;
+            configuration.BootstrapResolver = request.BootstrapResolver;
+            return new ClientX(configuration, request.IgnoreCertificateErrors, request.ResponseCache, request.CreateWebProxy());
         }
 
         private static void ApplyRequestConfiguration(ClientX client, ResolveDnsRequest request, EdnsOptions? ednsOptions) {
+            if (request.MaxCacheTtlSeconds > 0) client.MaxCacheTtl = TimeSpan.FromSeconds(request.MaxCacheTtlSeconds);
             client.EndpointConfiguration.BootstrapResolver = request.BootstrapResolver;
             client.EndpointConfiguration.DnsSecSignatureVerifier = request.DnsSecSignatureVerifier;
             client.EndpointConfiguration.TimeOut = request.TimeOutMilliseconds;

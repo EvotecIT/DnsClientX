@@ -5,6 +5,11 @@ namespace DnsClientX {
     /// Represents one executed resolver query attempt.
     /// </summary>
     public sealed class ResolverQueryAttemptResult {
+        /// <summary>Gets or sets the executed query name, empty when not recorded by an external producer.</summary>
+        public string Name { get; init; } = string.Empty;
+
+        /// <summary>Gets or sets the executed query type, absent when not recorded by an external producer.</summary>
+        public DnsRecordType? RecordType { get; init; }
         /// <summary>
         /// Gets or sets the human-readable target name for the attempt.
         /// </summary>
@@ -43,7 +48,14 @@ namespace DnsClientX {
 
         internal ResolverQueryAttemptResult WithConnectionMode(ResolverQueryConnectionMode mode) => new() {
             Target = Target, RequestFormat = RequestFormat, Resolver = Resolver, Response = Response,
-            Elapsed = Elapsed, TransportElapsed = TransportElapsed, Error = Error, ConnectionMode = mode
+            Elapsed = Elapsed, TransportElapsed = TransportElapsed, Error = Error, ConnectionMode = mode,
+            Name = Name, RecordType = RecordType
+        };
+
+        internal ResolverQueryAttemptResult WithQuery(string name, DnsRecordType type) => new() {
+            Target = Target, RequestFormat = RequestFormat, Resolver = Resolver, Response = Response,
+            Elapsed = Elapsed, TransportElapsed = TransportElapsed, Error = Error, ConnectionMode = ConnectionMode,
+            Name = name, RecordType = type
         };
 
         /// <summary>

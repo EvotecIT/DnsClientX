@@ -14,7 +14,7 @@ namespace DnsClientX {
         /// <param name="targetSource">The shared target source to resolve.</param>
         /// <param name="name">The DNS name to query.</param>
         /// <param name="recordType">The DNS record type to query.</param>
-        /// <param name="requestDnsSec">Whether DNSSEC data should be requested.</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data in addition to the selected endpoint's DNSSEC OK setting.</param>
         /// <param name="validateDnsSec">Whether DNSSEC data should be validated.</param>
         /// <param name="clientOptions">Optional shared client creation options.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
@@ -37,7 +37,7 @@ namespace DnsClientX {
         /// <param name="target">The normalized execution target.</param>
         /// <param name="name">The DNS name to query.</param>
         /// <param name="recordType">The DNS record type to query.</param>
-        /// <param name="requestDnsSec">Whether DNSSEC data should be requested.</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data in addition to the target endpoint's DNSSEC OK setting.</param>
         /// <param name="validateDnsSec">Whether DNSSEC data should be validated.</param>
         /// <param name="clientOptions">Optional shared client creation options.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
@@ -56,7 +56,7 @@ namespace DnsClientX {
             }
 
             var stopwatch = Stopwatch.StartNew();
-            DnsResponse response = await client.Resolve(name, recordType, requestDnsSec, validateDnsSec, cancellationToken: cancellationToken).ConfigureAwait(false);
+            DnsResponse response = await client.Resolve(name, recordType, requestDnsSec || target.ExplicitEndpoint?.DnsSecOk == true, validateDnsSec, cancellationToken: cancellationToken).ConfigureAwait(false);
             stopwatch.Stop();
             return CreateResult(client, response, stopwatch.Elapsed);
         }

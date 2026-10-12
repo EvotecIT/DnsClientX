@@ -13,17 +13,17 @@ Runs a single DNS query against each candidate, highlights answer mismatches, ap
 ## SYNTAX
 ### DnsProvider (Default)
 ```powershell
-Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] [-DnsProvider <DnsEndpoint>] [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-RequireConsensus] [-MinConsensusPercent <Int32>] [-MinSuccessCount <Int32>] [-MinSuccessPercent <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] [-DnsProvider <DnsEndpoint>] [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-RequireConsensus] [-MinConsensusPercent <Int32>] [-MinSuccessCount <Int32>] [-MinSuccessPercent <Int32>] [-FailOnPolicyViolation] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ### ResolverEndpoint
 ```powershell
-Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-RequireConsensus] [-MinConsensusPercent <Int32>] [-MinSuccessCount <Int32>] [-MinSuccessPercent <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-RequireConsensus] [-MinConsensusPercent <Int32>] [-MinSuccessCount <Int32>] [-MinSuccessPercent <Int32>] [-FailOnPolicyViolation] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ### ResolverSelection
 ```powershell
-Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] -ResolverSelectionPath <string> [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-RequireConsensus] [-MinConsensusPercent <Int32>] [-MinSuccessCount <Int32>] [-MinSuccessPercent <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsProbe [-Name] <string> [[-Type] <DnsRecordType>] -ResolverSelectionPath <string> [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-RequireConsensus] [-MinConsensusPercent <Int32>] [-MinSuccessCount <Int32>] [-MinSuccessPercent <Int32>] [-FailOnPolicyViolation] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -121,6 +121,22 @@ Local optional DNSSEC provider DLL path, with its dependencies beside it.
 
 ```yaml
 Type: String
+Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -FailOnPolicyViolation
+Write a PolicyViolation error when the selected probe thresholds fail. Use ErrorAction Stop to fail an automation run; the default behavior only warns.
+
+```yaml
+Type: SwitchParameter
 Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
 Aliases: None
 Possible values:

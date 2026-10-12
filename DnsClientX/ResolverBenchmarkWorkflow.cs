@@ -102,6 +102,7 @@ namespace DnsClientX {
                 maxConcurrency,
                 timeoutMs,
                 policy);
+            ResolverScoreRecommendationBinding.Apply(report, runOptions, targets);
             return report;
         }
     }

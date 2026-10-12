@@ -1,0 +1,130 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net.Sockets;
+using System.Threading.Tasks;
+
+namespace DnsClientX.Tests;
+
+/// <summary>Protects persisted resolver settings and the ambiguity boundary of readable candidate labels.</summary>
+public sealed class ResolverSavedEndpointContractTests {
+    private static DnsResolverEndpoint ConfiguredEndpoint(bool doh) => new DnsResolverEndpoint {
+        Host = "resolver.example", Port = doh ? 8443 : 8853, Transport = doh ? Transport.Doh : Transport.Dot,
+        DohUrl = doh ? new Uri("https://resolver.example:8443/dns-query") : null,
+        RequestFormat = doh ? DnsRequestFormat.DnsOverHttpsWirePost : DnsRequestFormatMapper.FromTransport(Transport.Dot),
+        TlsServerName = "tls.resolver.example", Family = AddressFamily.InterNetworkV6,
+        Timeout = TimeSpan.FromMilliseconds(1234), EdnsBufferSize = 1280, DnsSecOk = true,
+        AllowTcpFallback = false
+    };
+
+    private static Task<ResolverProbeReport> ProbeAsync(DnsResolverEndpoint[] endpoints) => ResolverProbeWorkflow.RunAsync(
+        ResolverExecutionPlanBuilder.BuildExplicitTargets(endpoints), "example.com", DnsRecordType.A, 2000,
+        new ResolverQueryRunOptions(), new ResolverProbePolicy(),
+        explicitOverride: (endpoint, name, type, token) => Task.FromResult(new ResolverQueryAttemptResult {
+            Target = ResolverExecutionPlanBuilder.DescribeEndpoint(endpoint), Resolver = endpoint.Host!,
+            RequestFormat = endpoint.RequestFormat ?? DnsRequestFormatMapper.FromTransport(endpoint.Transport),
+            Response = new DnsResponse { Status = DnsResponseCode.NoError, Answers = new[] {
+                new DnsAnswer { Name = name, Type = type, DataRaw = endpoint.Timeout!.Value.TotalMilliseconds == 1234 ? "192.0.2.1" : "192.0.2.2" }
+            } }, Elapsed = endpoint.Timeout.Value
+        }));
+
+    /// <summary>Saving a recommendation preserves settings omitted from a readable endpoint label.</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SaveLoadSelection_PreservesExplicitExecutionSettings(bool doh) {
+        DnsResolverEndpoint endpoint = ConfiguredEndpoint(doh);
+        string originalKey = ResolverEndpointClientFactory.GetExecutionKey(endpoint);
+        ResolverProbeReport report = await ProbeAsync(new[] { endpoint });
+        string path = Path.GetTempFileName();
+        try {
+            ResolverScoreStore.Save(path, report.Snapshot);
+            ResolverScoreSnapshot loaded = ResolverScoreStore.Load(path);
+            Assert.True(ResolverScoreSelector.TrySelectRecommended(loaded, out ResolverSelectionResult? selection, out string? error), error);
+            Assert.Equal(originalKey, ResolverEndpointClientFactory.GetExecutionKey(selection!.ExplicitEndpoint!));
+            Assert.Equal(originalKey, ResolverEndpointClientFactory.GetExecutionKey(endpoint));
+        } finally { File.Delete(path); }
+    }
+
+    /// <summary>Two distinct configurations with the same label cannot be reused or compared as one candidate.</summary>
+    [Fact]
+    public async Task ActualTcpWorkflows_SameLabelRetainEvidenceWithoutAmbiguousSelection() {
+        var server = new ResolverBenchmarkTcpFixture();
+        try {
+            var first = new DnsResolverEndpoint { Host = "127.0.0.1", Port = server.Port, Transport = Transport.Tcp, Timeout = TimeSpan.FromSeconds(1) };
+            var second = new DnsResolverEndpoint { Host = "127.0.0.1", Port = server.Port, Transport = Transport.Tcp, Timeout = TimeSpan.FromSeconds(2) };
+            ResolverExecutionTarget[] targets = ResolverExecutionPlanBuilder.BuildExplicitTargets(new[] { first, second });
+            Assert.Equal(2, targets.Length);
+            Assert.Equal(targets[0].DisplayName, targets[1].DisplayName);
+            ResolverProbeReport probe = await ResolverProbeWorkflow.RunAsync(targets, "example.com", DnsRecordType.A, 2000, new ResolverQueryRunOptions(), new ResolverProbePolicy());
+            ResolverBenchmarkReport benchmark = await ResolverBenchmarkWorkflow.RunAsync(targets, new[] { "example.com" }, new[] { DnsRecordType.A }, 1, 1, 2000, new ResolverQueryRunOptions(), new ResolverBenchmarkPolicy());
+            Assert.Equal(4, server.Queries);
+            Assert.Equal(2, probe.Results.Length);
+            Assert.Equal(2, benchmark.Attempts.Length);
+            foreach (ResolverScoreSnapshot snapshot in new[] { probe.Snapshot, benchmark.Snapshot }) {
+                Assert.False(snapshot.Summary.RecommendationAvailable);
+                Assert.False(ResolverScoreSelector.TrySelectRecommended(snapshot, out _, out string? error));
+                Assert.Contains("ambiguous", error!, StringComparison.OrdinalIgnoreCase);
+                Assert.False(ResolverScoreComparer.Compare(snapshot, snapshot).ScopeComparable);
+                Assert.DoesNotContain(snapshot.Results, row => row.IsRecommended);
+            }
+            ResolverScoreChange candidate = Assert.Single(ResolverScoreComparer.Compare(probe.Snapshot, probe.Snapshot).Candidates);
+            Assert.Equal("Ambiguous", candidate.Change);
+            Assert.Null(candidate.Baseline);
+            Assert.Null(candidate.Current);
+            Assert.Null(candidate.SuccessPercentDelta);
+            Assert.Null(candidate.AverageMsDelta);
+        } finally { await server.DisposeAsync(); }
+    }
+
+    /// <summary>Ranked probe rows retain the payload of their source attempt when readable labels collide.</summary>
+    [Fact]
+    public async Task Probe_SameLabelRanksPreserveSourceAttemptEvidence() {
+        DnsResolverEndpoint first = ConfiguredEndpoint(false);
+        var second = new DnsResolverEndpoint { Host = first.Host, Port = first.Port, Transport = first.Transport, Timeout = TimeSpan.FromMilliseconds(1500) };
+        ResolverProbeReport report = await ProbeAsync(new[] { second, first });
+        Assert.Equal(2, report.Results.Length);
+        Assert.Equal(1234, report.Results[0].ElapsedMs);
+        Assert.Contains("192.0.2.1", report.Results[0].AnswerSignature);
+        Assert.Equal(1500, report.Results[1].ElapsedMs);
+        Assert.Contains("192.0.2.2", report.Results[1].AnswerSignature);
+        Assert.Single(report.Results, row => row.IsFastestSuccess);
+    }
+
+    /// <summary>New snapshots cannot fall back to lossy labels when their saved metadata is missing or contradictory.</summary>
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("inconsistent")]
+    [InlineData("ambiguous")]
+    [InlineData("identity-missing")]
+    public async Task Selection_RejectsIncompleteOrInconsistentNewEndpointMetadata(string defect) {
+        ResolverProbeReport report = await ProbeAsync(new[] { ConfiguredEndpoint(true) });
+        ResolverScoreRunContext context = report.Snapshot.Context!;
+        string target = report.Snapshot.Summary.RecommendedTarget;
+        switch (defect) {
+            case "missing": context.ExplicitEndpoints = null; break;
+            case "inconsistent": context.ExplicitEndpoints![target] = ConfiguredEndpoint(false); break;
+            case "ambiguous":
+                context.ExplicitEndpoints = new Dictionary<string, DnsResolverEndpoint> {
+                    [target] = ConfiguredEndpoint(true), [target.ToUpperInvariant()] = ConfiguredEndpoint(true)
+                };
+                break;
+            case "identity-missing": context.TargetExecutionKeys = null; break;
+        }
+        Assert.False(ResolverScoreSelector.TrySelectRecommended(report.Snapshot, out ResolverSelectionResult? selection, out string? error));
+        Assert.Null(selection);
+        Assert.Contains("saved", error!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Genuinely older snapshots retain the established label-parser selection behavior.</summary>
+    [Fact]
+    public void Selection_LegacySnapshotRetainsLabelFallback() {
+        var snapshot = new ResolverScoreSnapshot { Summary = new ResolverScoreSummary {
+            RecommendationAvailable = true, RecommendedTarget = "tls@resolver.example:8853"
+        } };
+        Assert.True(ResolverScoreSelector.TrySelectRecommended(snapshot, out ResolverSelectionResult? selection, out string? error), error);
+        Assert.Equal("resolver.example", selection!.ExplicitEndpoint!.Host);
+        Assert.Equal(8853, selection.ExplicitEndpoint.Port);
+        Assert.Equal(Transport.Dot, selection.ExplicitEndpoint.Transport);
+    }
+}

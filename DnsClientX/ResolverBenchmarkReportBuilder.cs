@@ -50,6 +50,18 @@ namespace DnsClientX {
             report.Summary.RuntimeCapabilityWarnings = DnsTransportCapabilities.GetUnsupportedWarnings(attempts);
             report.Snapshot.Summary.RuntimeUnsupportedCandidateCount = report.Summary.RuntimeUnsupportedCandidateCount;
             report.Snapshot.Summary.RuntimeCapabilityWarnings = report.Summary.RuntimeCapabilityWarnings;
+            if (attempts.Count > 0) {
+                report.Attempts = attempts.Select(attempt => {
+                    return new ResolverBenchmarkAttemptReport { Target = attempt.Target, Name = attempt.Name, RecordType = attempt.RecordType,
+                        Status = attempt.Status, Error = attempt.EffectiveError, ElapsedMs = attempt.Elapsed.TotalMilliseconds,
+                        TransportElapsedMs = attempt.TransportElapsed?.TotalMilliseconds,
+                        Explanation = attempt.Response == null ? null : DnsQueryExplanation.Create(attempt.Response) };
+                }).ToArray();
+                report.Snapshot.Answers = attempts.Where(attempt => !string.IsNullOrWhiteSpace(attempt.Name) && attempt.RecordType.HasValue).Select(attempt => new ResolverAnswerObservation {
+                    Target = attempt.Target, Name = attempt.Name, RecordType = attempt.RecordType!.Value,
+                    Status = attempt.Status, AnswerSignature = attempt.AnswerSignature
+                }).ToArray();
+            }
             return report;
         }
 

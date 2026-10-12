@@ -5,6 +5,8 @@ namespace DnsClientX {
     /// Represents one resolver candidate observation from a probe workflow.
     /// </summary>
     public sealed class ResolverProbeObservation {
+        // Correlates ranked observations with source attempts without making the display label an ID.
+        internal int SourceIndex { get; set; }
         /// <summary>
         /// Gets or sets the human-readable candidate label.
         /// </summary>

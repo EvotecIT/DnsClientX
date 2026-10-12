@@ -10,16 +10,20 @@ Sends DNS UPDATE messages to a server.
 
 Adds or removes records in a zone using RFC 2136 over TCP.
 
+Use WhatIf to preview an update without contacting the server, or Confirm to approve each change.
+
 ## SYNTAX
 ### __AllParameterSets
 ```powershell
-Invoke-DnsUpdate [-Zone] <string> [-Server] <string> [-Name] <string> [-Type] <DnsRecordType> [[-Data] <string>] [-Port <int>] [-Ttl <int>] [-TsigKey <TsigKey>] [-Delete] [-DeleteValue] [<CommonParameters>]
+Invoke-DnsUpdate [-Zone] <string> [-Server] <string> [-Name] <string> [-Type] <DnsRecordType> [[-Data] <string>] [-Port <int>] [-Ttl <int>] [-TsigKey <TsigKey>] [-Delete] [-DeleteValue] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 Sends DNS UPDATE messages to a server.
 
 Adds or removes records in a zone using RFC 2136 over TCP.
+
+Use WhatIf to preview an update without contacting the server, or Confirm to approve each change.
 
 ## EXAMPLES
 

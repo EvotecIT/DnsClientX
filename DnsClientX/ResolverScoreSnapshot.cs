@@ -35,6 +35,12 @@ namespace DnsClientX {
         /// </summary>
         public ResolverScoreEntry[] Results { get; set; } = Array.Empty<ResolverScoreEntry>();
 
+        /// <summary>Gets or sets captured run context; absent in older snapshots.</summary>
+        public ResolverScoreRunContext? Context { get; set; }
+
+        /// <summary>Gets or sets correlated answer observations; empty in older snapshots.</summary>
+        public ResolverAnswerObservation[] Answers { get; set; } = Array.Empty<ResolverAnswerObservation>();
+
         /// <summary>
         /// Validates whether a resolver score snapshot can be read by this library.
         /// </summary>

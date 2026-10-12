@@ -255,9 +255,10 @@ namespace DnsClientX {
 
         /// <summary>
         /// Optional cap for client-side query parallelism when resolving multiple names.
-        /// When null, the library uses its current behavior (no explicit cap).
+        /// When null or nonpositive, materialized array helpers have no explicit cap;
+        /// completion-order streaming helpers use a bounded default of 32.
         /// When set to a positive value, array-based resolve helpers will limit
-        /// the number of in-flight requests to this value.
+        /// the number of in-flight requests to this value, including streaming helpers.
         /// </summary>
         public int? MaxConcurrency { get; set; }
 

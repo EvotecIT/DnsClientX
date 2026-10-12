@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <DnsClientXPackageVersion Condition="'$(DnsClientXPackageVersion)' == ''">2.1.2</DnsClientXPackageVersion>
+    <DnsClientXEdDsaPackageVersion Condition="'$(DnsClientXEdDsaPackageVersion)' == ''">2.1.1</DnsClientXEdDsaPackageVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="DnsClientX" Version="$(DnsClientXPackageVersion)" />
+    <PackageReference Include="DnsClientX.DnsSec.EdDsa" Version="$(DnsClientXEdDsaPackageVersion)" />
+  </ItemGroup>
+</Project>

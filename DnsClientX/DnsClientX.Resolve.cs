@@ -272,29 +272,14 @@ namespace DnsClientX {
                 }
                 if (validateDnsSec && !dnsSecMaterialQuery
                     && queryConfiguration.BuiltInEndpoint != DnsEndpoint.RootServer) {
-                    var validator = new DnsSecValidationEngine((materialName, materialType, token) =>
-                        ResolveInternal(materialName, materialType, requestDnsSec: true, validateDnsSec: false,
-                            returnAllTypes: true, maxRetries: 1, retryDelayMs: retryDelayMs,
-                            typedRecords: false, parseTypedTxtRecords: false, cancellationToken: token,
-                            dnsSecMaterialQuery: true,
-                            queryConfigurationOverride: queryConfiguration.CreateQuerySnapshot(materialName),
-                            certificatePolicy: ignoreCertificateErrors),
-                        trustAnchorStorePath: queryConfiguration.Rfc5011TrustAnchorStorePath,
-                        signatureVerifier: queryConfiguration.DnsSecSignatureVerifier);
-                    DnsSecValidationResult validation = await validator.ValidateAsync(response, name, type, cancellationToken).ConfigureAwait(false);
-                    response.DnsSecValidationStatus = validation.Status;
-                    response.DnsSecValidationMessage = validation.Message;
-                    response.DnsSecValidationExpiresUtc = validator.CacheExpiresAtUtc;
-                    if (validation.Status == DnsSecValidationStatus.Bogus || validation.Status == DnsSecValidationStatus.Indeterminate) {
-                        string validationError = $"DNSSEC {validation.Status.ToString().ToLowerInvariant()}: {validation.Message}";
-                        response.Error = string.IsNullOrEmpty(response.Error) ? validationError : $"{response.Error} {validationError}";
-                    }
+                    await ValidateDnsSecResponseAsync(response, name, type, queryConfiguration,
+                        retryDelayMs, ignoreCertificateErrors, cancellationToken).ConfigureAwait(false);
                 }
 
                 // Cache lifetime is determined by the complete answer. In particular, an address
                 // reached through a CNAME must not outlive the alias RRset merely because callers
                 // requested an answer projection that hides the CNAME.
-                TimeSpan cacheTtl = GetCacheTtl(response);
+                TimeSpan cacheTtl = GetCacheTtl(response, name, type);
 
                 // Validate the complete wire answer first, then apply the caller's projection.
                 ApplyAnswerProjection(response, name, type, returnAllTypes);
@@ -309,7 +294,7 @@ namespace DnsClientX {
                     if (ttl > MaxCacheTtl) ttl = MaxCacheTtl;
 
                     if (ttl > TimeSpan.Zero) {
-                        _cache.Set(cacheKey!, response, ttl);
+                        _cache.Set(cacheKey!, response, ttl, name, type);
                     }
                 }
 
@@ -368,16 +353,20 @@ namespace DnsClientX {
             response.Answers = matchingAnswers;
         }
 
-        private static TimeSpan GetCacheTtl(DnsResponse response) {
-            if (response.Answers is { Length: > 0 }) {
-                int minimum = response.Answers.Min(answer => Math.Max(0, answer.TTL));
-                return minimum == 0 ? TimeSpan.Zero : TimeSpan.FromSeconds(minimum);
-            }
-
+        /// <summary>Bounds complete positive or SOA-backed negative answers before projection.</summary>
+        internal static TimeSpan GetCacheTtl(DnsResponse response, string name, DnsRecordType type) {
             if (response.Status != DnsResponseCode.NoError && response.Status != DnsResponseCode.NXDomain) {
                 return TimeSpan.Zero;
             }
 
+            if (response.Status == DnsResponseCode.NoError && HasRequestedAnswer(response, name, type)) {
+                int minimum = response.Answers.Min(answer => Math.Max(0, answer.TTL));
+                return minimum == 0 ? TimeSpan.Zero : TimeSpan.FromSeconds(minimum);
+            }
+
+            // NXDOMAIN and CNAME-to-NODATA responses can contain aliases in Answer.
+            // Their negative result still needs an SOA, bounded by both SOA TTL and
+            // MINIMUM (RFC 2308), and cannot outlive an alias or retained denial proof.
             DnsAnswer soa = (response.Authorities ?? Array.Empty<DnsAnswer>())
                 .FirstOrDefault(answer => answer.Type == DnsRecordType.SOA);
             if (soa.Type != DnsRecordType.SOA) return TimeSpan.Zero;
@@ -385,6 +374,13 @@ namespace DnsClientX {
             if (parts.Length < 7 || !uint.TryParse(parts[parts.Length - 1], out uint minimumTtl)) return TimeSpan.Zero;
             uint soaTtl = (uint)Math.Max(0, soa.TTL);
             uint seconds = Math.Min(soaTtl, minimumTtl);
+            foreach (DnsAnswer record in (response.Answers ?? Array.Empty<DnsAnswer>())
+                .Concat(response.Authorities ?? Array.Empty<DnsAnswer>())) {
+                if (record.Type is DnsRecordType.CNAME or DnsRecordType.DNAME
+                    or DnsRecordType.NSEC or DnsRecordType.NSEC3 or DnsRecordType.RRSIG) {
+                    seconds = Math.Min(seconds, (uint)Math.Max(0, record.TTL));
+                }
+            }
             return seconds == 0 ? TimeSpan.Zero : TimeSpan.FromSeconds(seconds);
         }
 

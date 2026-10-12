@@ -100,20 +100,31 @@ Describe 'Resolve-Dns binding' {
             Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
     }
 
-    It 'requires an explicit multi-resolver source for strategy and cache options' {
-        { Resolve-Dns example.com TXT -ResponseCache -TimeOut 0 -ErrorAction Stop } |
+    It 'requires an explicit multi-resolver source for endpoint strategy options' {
+        { Resolve-Dns example.com TXT -PerEndpointMaxInFlight 2 -TimeOut 0 -ErrorAction Stop } |
             Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
         { Resolve-Dns example.com TXT -ResolverStrategy FastestWins -TimeOut 0 -ErrorAction Stop } |
             Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
-        { Resolve-Dns -Name 'example.com' -ResolverSelectionPath 'unused.json' -ResponseCache -TimeOut 0 -ErrorAction Stop } |
+        { Resolve-Dns -Name 'example.com' -ResolverSelectionPath 'unused.json' -MaxParallelism 2 -TimeOut 0 -ErrorAction Stop } |
             Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
     }
 
     It 'rejects multi-resolver options for a single built-in provider' {
-        { Resolve-Dns example.com TXT -DnsProvider Cloudflare -ResponseCache -TimeOut 0 -ErrorAction Stop } |
+        { Resolve-Dns example.com TXT -DnsProvider Cloudflare -PerEndpointMaxInFlight 2 -TimeOut 0 -ErrorAction Stop } |
             Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
         { Resolve-Dns example.com TXT -DnsProvider Cloudflare -ResolverStrategy FastestWins -TimeOut 0 -ErrorAction Stop } |
             Should -Throw -ExceptionType ([System.Management.Automation.PSArgumentException]) -ExpectedMessage '*Multi-resolver options*'
+    }
+
+    It 'accepts response caching for <Case>' -TestCases @(
+        @{ Case = 'DefaultResolver'; Source = @{} }
+        @{ Case = 'SingleProvider'; Source = @{ DnsProvider = 'Cloudflare' } }
+        @{ Case = 'ExplicitServer'; Source = @{ Server = '127.0.0.1' } }
+        @{ Case = 'SavedSelection'; Source = @{ ResolverSelectionPath = 'unused.json' } }
+    ) {
+        param($Source)
+        { Resolve-Dns example.com TXT @Source -ResponseCache -MaxCacheTtlSeconds 60 -TimeOut 0 -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.ArgumentOutOfRangeException]) -ExpectedMessage '*TimeOutMilliseconds*'
     }
 
     It 'accepts multi-resolver options when the source uses multi-resolver execution: <Case>' -TestCases @(

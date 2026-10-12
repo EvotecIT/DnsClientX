@@ -3,6 +3,7 @@ namespace DnsClientX {
     /// Represents one ranked resolver candidate in a probe evaluation.
     /// </summary>
     public sealed class ResolverProbeEvaluationEntry {
+        internal int SourceIndex { get; set; }
         /// <summary>
         /// Gets or sets the human-readable candidate label.
         /// </summary>

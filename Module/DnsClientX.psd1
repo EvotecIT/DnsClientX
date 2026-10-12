@@ -1,7 +1,7 @@
-@{
+﻿@{
     AliasesToExport      = @('Get-DnsZoneTransfer', 'Resolve-DnsQuery')
     Author               = 'Przemyslaw Klys'
-    CmdletsToExport      = @('Clear-DnsMultiResolverCache', 'ConvertFrom-DnsStamp', 'Find-DnsService', 'Get-DnsResolverSelection', 'Get-DnsService', 'Get-DnsTransportCapability', 'Get-DnsZone', 'Invoke-DnsUpdate', 'Resolve-Dns', 'Test-DnsBenchmark', 'Test-DnsProbe', 'Test-DnsResolverCatalog')
+    CmdletsToExport      = @('Clear-DnsCache', 'Clear-DnsMultiResolverCache', 'Compare-DnsResolverSnapshot', 'ConvertFrom-DnsStamp', 'Find-DnsService', 'Get-DnsCache', 'Get-DnsQueryExplanation', 'Get-DnsResolverSelection', 'Get-DnsService', 'Get-DnsTransportCapability', 'Get-DnsZone', 'Invoke-DnsUpdate', 'Resolve-Dns', 'Test-DnsBenchmark', 'Test-DnsHealth', 'Test-DnsProbe', 'Test-DnsResolverCatalog')
     CompanyName          = 'Evotec'
     CompatiblePSEditions = @('Desktop', 'Core')
     Copyright            = '(c) 2011 - 2026 Przemyslaw Klys @ Evotec. All rights reserved.'
@@ -22,5 +22,6 @@
     }
     RootModule           = 'DnsClientX.psm1'
     RequiredModules      = @()
-    ScriptsToProcess     = @()
+    TypesToProcess       = @('DnsClientX.Types.ps1xml')
+    FormatsToProcess     = @('DnsClientX.Format.ps1xml')
 }

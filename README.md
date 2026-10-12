@@ -128,23 +128,23 @@ For name, mail, routing, and authority records such as NS, CNAME, MX, SOA, and S
   - No external dependencies
   - DoH3 and DoQ stay in the core package with no added NuGet transport dependencies
 - **.NET Standard 2.0** (Cross-platform compatibility)
-  - System.Text.Json (10.0.11)
-  - Microsoft.Bcl.AsyncInterfaces (10.0.11)
+  - System.Text.Json (10.0.12)
+  - Microsoft.Bcl.AsyncInterfaces (10.0.12)
 - **.NET Framework 4.7.2** (Windows only)
   - System.Net.Http (built-in)
-  - System.Text.Json (10.0.11)
-  - Microsoft.Bcl.AsyncInterfaces (10.0.11)
+  - System.Text.Json (10.0.12)
+  - Microsoft.Bcl.AsyncInterfaces (10.0.12)
   - Modern transports such as DoH3 and DoQ are exposed by the shared API surface but return unsupported at runtime
 
 ### Command Line Interface (DnsClientX.exe)
 - **.NET 8.0 / .NET 10.0** (Windows, Linux, macOS)
 - **.NET Framework 4.7.2** (Windows only)
-- Single-file deployment supported
+- Framework-dependent single-file deployment for x64 and ARM64 on Windows, Linux, and macOS; install the matching .NET 8 runtime
+- Build distributable archives through `Invoke-DotNetPublish -ConfigPath ./Build/cli.publish.json` in PSPublishModule
 
 ### PowerShell Module
-- **.NET 8.0** (Cross-platform)
-- **.NET Standard 2.0** (Windows PowerShell 5.1+ compatibility)
-- **.NET Framework 4.7.2** (Windows PowerShell 5.1)
+- **PowerShell 7.4 or later** on Windows, Linux, and macOS uses the .NET 8 build
+- **Windows PowerShell 5.1** uses the .NET Framework 4.7.2 build
 - PowerShellStandard.Library (5.1.1)
 
 ### Examples Project
@@ -206,6 +206,7 @@ DnsClientX.Cli --capabilities --format json
 
 Saved probe and benchmark snapshots also persist runtime capability hints, so recommendation files can distinguish unsupported modern transports from ordinary resolver failures.
 Snapshots include a schema version, and resolver selection rejects snapshots from newer unsupported schemas before attempting reuse.
+Saved recommendations preserve explicit endpoint settings, including TLS name, address family, timeout, EDNS and request format. When a display label represents several different configurations, the snapshot retains the observations and reports that automatic reuse and scope comparison are unavailable.
 
 ## Explicit Endpoint Syntax
 
@@ -262,6 +263,40 @@ DnsClientX.Cli --benchmark --resolver-url https://example.com/resolvers.txt --be
 DnsClientX.Cli --resolver-select .\probe.json
 DnsClientX.Cli --resolver-use .\probe.json --short example.com
 ```
+
+Direct resolver queries and structured JSON diagnostics:
+
+```powershell
+DnsClientX.Cli --resolver tcp@1.1.1.1:53 --format json --explain example.com
+DnsClientX.Cli --probe --probe-endpoint udp@1.1.1.1:53 --format json example.com
+DnsClientX.Cli --benchmark --probe-endpoint tcp@1.1.1.1:53 --format json example.com
+```
+
+JSON stdout contains one complete document, including structured explanation or trace when requested. Endpoint inputs require an explicit `--probe` or `--benchmark` for those modes; ordinary queries can use `--resolver`. Explanations show observed resolver, cache, bootstrap, aliases, attempts and local DNSSEC dependencies. They identify unavailable evidence and do not infer a complete trust chain or delegation traversal.
+
+Repeatable health profiles define local, versioned query catalogs and policies:
+
+```json
+{
+  "SchemaVersion": 1,
+  "Name": "public-dns-health",
+  "ResolverEndpoints": ["udp@1.1.1.1:53", "tcp@8.8.8.8:53"],
+  "Names": ["example.com", "example.net"],
+  "RecordTypes": ["A", "AAAA"],
+  "TimeoutMs": 2000,
+  "MaxConcurrency": 4,
+  "ProbePolicy": { "MinSuccessCount": 1, "MinSuccessPercent": 50 }
+}
+```
+
+```powershell
+DnsClientX.Cli --profile ./dns-health.json --benchmark --profile-save ./health.json --format json
+Test-DnsHealth ./dns-health.json -IncludeBenchmark -FailOnPolicyViolation -ErrorAction Stop
+DnsClientX.Cli --resolver-compare ./before.json ./after.json --format json
+Compare-DnsResolverSnapshot ./before.json ./after.json
+```
+
+Profiles are bounded local JSON documents. Settings come from the profile; C# and PowerShell can modify the typed profile before running it. Comparisons use probe/benchmark score snapshots, report candidate and answer changes, and require matching host, runtime, query catalog and policy scope for health or latency conclusions. Older snapshots remain readable but may lack the comparison context. Resolver agreement is evidence of consistency. For authoritative comparison, supply explicit caller-owned authoritative responses; a majority answer does not establish correctness.
 
 DNS stamp inspection without querying DNS:
 
@@ -442,7 +477,7 @@ This direct DNS client does not delegate name resolution to the operating-system
 > If you would like to help, please do so by opening an issue or a pull request.
 > The public API may change while protocol coverage and RFC conformance continue to mature.
 
-- [ ] Complete the concrete stabilization, transport, cache, system-policy, zone, and DNSSEC work tracked in [PLAN.md](PLAN.md)
+- [ ] Extend independent protocol interoperability and platform qualification as tracked in [PLAN.md](PLAN.md)
 - [ ] Build specialized cryptography and privacy protocols as separately reviewed optional packages; keep the core dependency-light
 
 ## Usage in .NET
@@ -478,6 +513,39 @@ var recordTypes = new[] { DnsRecordType.A, DnsRecordType.AAAA, DnsRecordType.MX 
 var responses = await client.Resolve("google.com", recordTypes);
 responses.DisplayTable();
 ```
+
+### Reusable options and streaming
+
+Keep resolver configuration on the client and query behavior in `DnsResolveOptions`:
+
+```csharp
+using var client = new ClientX(DnsEndpoint.Cloudflare);
+client.EndpointConfiguration.MaxConcurrency = 8;
+var options = new DnsResolveOptions { TypedRecords = true, ValidateDnsSec = true };
+await foreach (var response in client.ResolveStreaming(
+    new[] { "example.com", "example.net" }, new[] { DnsRecordType.A, DnsRecordType.AAAA }, options)) {
+    foreach (var record in response.GetTypedAnswers<ARecord>())
+        Console.WriteLine($"{record.Name}: {record.Value.Address} TTL={record.TTL}");
+}
+```
+
+`Resolve(name, type, options)` and `Resolve(names, types, options)` share this behavior. `ResolveStreaming` defaults to input order; set `preserveOrder: false` for completion order. `ResolveAsyncEnumerable` also yields in completion order. These streams admit at most `MaxConcurrency` queries, or 32 when unset, and cancel and drain admitted work when the consumer stops. `ResolveStream` retains its sequential behavior. Static `ClientX.QueryDnsStreaming(request)` accepts the same `ResolveDnsRequest` as `QueryDns`, reuses clients, and streams in record type then name order by default.
+
+Locally accepted DNSSEC material is reused by the same client and revalidated for each response. Reuse expires at the earliest material TTL or authenticated proof deadline. Bogus and indeterminate validations cannot populate that cache. Set `DnsSecMaterialCacheEnabled = false` to disable it, or call `ClearDnsSecMaterialCache()`. Iterative root traversal keeps its separate validation session.
+
+### PowerShell pipeline and service workflows
+
+```powershell
+Import-Module DnsClientX
+'example.com', 'example.net' | Resolve-Dns -Type A -Stream
+[pscustomobject]@{ Domain = 'example.com' } | Resolve-Dns -Type MX -TypedRecords -TypedRecordMetadata
+Resolve-Dns example.com -FullResponse | Get-DnsQueryExplanation
+Find-DnsService example.com -Service http -Protocol tcp
+Get-DnsService example.com -Service http -Resolve -ResolveHosts
+Invoke-DnsUpdate -Server 192.0.2.53 -Zone example.com -Name host.example.com -Type A -Data 192.0.2.10 -WhatIf
+```
+
+`Resolve-Dns` emits one answer row per record. `-TypedRecords` emits parsed payloads; `-TypedRecordMetadata` adds owner and TTL metadata. `-FullResponse` emits response envelopes, including status and diagnostics when no answers exist. Names bind by value or through `Name`, `Domain`, and `DnsName` properties. `-Stream` preserves input order; `-CompletionOrder` opts into completion order. DNS service discovery emits individual rows, supports explicit resolvers, and observes pipeline cancellation. Probe, benchmark and health commands warn on failed policy by default; add `-FailOnPolicyViolation -ErrorAction Stop` to enforce a gate in automation.
 
 ### Client Configuration
 
@@ -590,7 +658,9 @@ var opts = new MultiResolverOptions {
 };
 ```
 
-Positive answers use the lowest authoritative answer TTL. Negative `NoError`/`NXDomain` answers use the RFC 2308 minimum of the SOA TTL and SOA MINIMUM field. Responses without an authoritative cache lifetime are not cached; `MaxCacheTtl` can shorten, but never extend, that lifetime.
+Positive answers use the lowest answer TTL, including aliases. Negative `NoError`/`NXDomain` answers require an SOA and use the RFC 2308 minimum of the SOA TTL and SOA MINIMUM field, bounded further by aliases and denial proofs. Cached answer, authority, and additional TTLs decrease with elapsed time; original wire bytes remain receipt-time evidence. `MaxCacheTtl` can shorten a lifetime. Responses without a usable lifetime are not cached.
+
+The response cache is shared by cache-enabled clients in the process. `ClientX.GetResponseCacheStatistics()`, `ClientX.ResponseCacheCapacity`, `ClientX.ClearResponseCache()`, and `ClientX.InvalidateResponseCache(name, type)` expose its management. Entries remain separated by resolver, transport and DNSSEC policy. Statistics count internal lookups, including single-flight checks; they are not query counts. PowerShell exposes `Get-DnsCache` and `Clear-DnsCache [-Name example.com] [-Type A]`. The reusable `ResolveDnsRequest` and `Resolve-Dns` cache options work with single and multiple resolvers.
 
 - PowerShell:
 
@@ -657,6 +727,16 @@ foreach (var typedAnswer in response.TypedAnswers!) {
     }
 }
 ```
+
+Use metadata-preserving projections when the owner, TTL, class or raw RDATA matters. They parse the current records, so a cache hit carries its remaining TTL:
+
+```csharp
+foreach (var record in response.GetTypedAnswers<MxRecord>()) {
+    Console.WriteLine($"{record.Name} TTL={record.TTL}: {record.Value.Exchange}");
+}
+```
+
+`GetTypedAuthorities<TRecord>()` and `GetTypedAdditional<TRecord>()` provide the same envelope for other sections. `GetTypedAnswers<object>()` includes every parsed payload, including `UnknownRecord` for malformed or unsupported data. Existing `TypedAnswers` payload arrays remain available.
 
 **Available Typed Record Classes:**
 
@@ -1632,15 +1712,15 @@ DnsClientX includes a command-line interface for quick DNS queries and scripting
 
 ### Installation
 
-The CLI is distributed as `DnsClientX.exe` and can be built from source or downloaded from releases.
+The CLI executable is `DnsClientX.Cli.exe` on Windows and `DnsClientX.Cli` on Linux and macOS. Build it from source with the commands below. Platform archives produced from `Build/cli.publish.json` contain the same executable and require a matching .NET 8 runtime. The Bash examples use `DnsClientX.Cli`; Windows users use `DnsClientX.Cli.exe`. From an extracted folder, prefix the name with `./` on Linux/macOS or `.\` on Windows.
 
 ```bash
 # Build from source
 dotnet build DnsClientX.Cli/DnsClientX.Cli.csproj -c Release
 
 # The executable will be available at:
-# DnsClientX.Cli/bin/Release/net8.0/DnsClientX.exe (Windows)
-# DnsClientX.Cli/bin/Release/net8.0/DnsClientX (Linux/macOS)
+# DnsClientX.Cli/bin/Release/net8.0/DnsClientX.Cli.exe (Windows)
+# DnsClientX.Cli/bin/Release/net8.0/DnsClientX.Cli (Linux/macOS)
 
 # Or build the entire solution
 dotnet build DnsClientX.sln -c Release
@@ -1650,40 +1730,40 @@ dotnet build DnsClientX.sln -c Release
 
 ```bash
 # Simple A record query using the default System endpoint
-DnsClientX.exe google.com
+DnsClientX.Cli google.com
 
 # Query with a specific built-in endpoint
-DnsClientX.exe --endpoint Cloudflare google.com
+DnsClientX.Cli --endpoint Cloudflare google.com
 
 # Query a specific record type
-DnsClientX.exe --type MX google.com
+DnsClientX.Cli --type MX google.com
 
 # Explain which resolver/transport path was used
-DnsClientX.exe --endpoint Cloudflare --type A --explain google.com
+DnsClientX.Cli --endpoint Cloudflare --type A --explain google.com
 
 # Include per-attempt diagnostics
-DnsClientX.exe --endpoint Cloudflare --type A --trace google.com
+DnsClientX.Cli --endpoint Cloudflare --type A --trace google.com
 ```
 
 ### Probe and Benchmark
 
 ```bash
 # Probe a built-in endpoint family
-DnsClientX.exe --probe --endpoint Cloudflare example.com
+DnsClientX.Cli --probe --endpoint Cloudflare example.com
 
 # Probe custom endpoints
-DnsClientX.exe --probe --probe-endpoint udp@1.1.1.1:53,tcp@9.9.9.9:53 example.com
+DnsClientX.Cli --probe --probe-endpoint udp@1.1.1.1:53,tcp@9.9.9.9:53 example.com
 
 # Fail when responders disagree
-DnsClientX.exe --probe --probe-endpoint udp@1.1.1.1:53,tcp@9.9.9.9:53 \
+DnsClientX.Cli --probe --probe-endpoint udp@1.1.1.1:53,tcp@9.9.9.9:53 \
   --probe-require-consensus example.com
 
 # Benchmark built-in endpoints across repeated queries
-DnsClientX.exe --benchmark --endpoint Cloudflare,Google,Quad9 \
+DnsClientX.Cli --benchmark --endpoint Cloudflare,Google,Quad9 \
   --domain example.com --type A --benchmark-attempts 5
 
 # Benchmark a custom endpoint matrix across domains and record types
-DnsClientX.exe --benchmark \
+DnsClientX.Cli --benchmark \
   --probe-endpoint udp@1.1.1.1:53,tcp@9.9.9.9:53 \
   --domain example.com,microsoft.com \
   --type A,AAAA \
@@ -1691,7 +1771,7 @@ DnsClientX.exe --benchmark \
   --benchmark-concurrency 4
 
 # Add benchmark policy gates for automation
-DnsClientX.exe --benchmark --endpoint Cloudflare,Google,Quad9 \
+DnsClientX.Cli --benchmark --endpoint Cloudflare,Google,Quad9 \
   --domain example.com \
   --type A \
   --benchmark-attempts 3 \
@@ -1700,7 +1780,7 @@ DnsClientX.exe --benchmark --endpoint Cloudflare,Google,Quad9 \
   --benchmark-summary-line
 
 # Keep CI logs compact while still emitting a machine-readable summary line
-DnsClientX.exe --benchmark --endpoint Cloudflare,Google,Quad9 \
+DnsClientX.Cli --benchmark --endpoint Cloudflare,Google,Quad9 \
   --domain example.com \
   --type A \
   --benchmark-attempts 3 \
@@ -1712,13 +1792,13 @@ DnsClientX.exe --benchmark --endpoint Cloudflare,Google,Quad9 \
 
 ```bash
 # Request and validate DNSSEC data
-DnsClientX.exe --endpoint Cloudflare --dnssec --validate-dnssec google.com
+DnsClientX.Cli --endpoint Cloudflare --dnssec --validate-dnssec google.com
 
 # Use DoH wire POST when supported
-DnsClientX.exe --endpoint CloudflareWireFormatPost --wire-post google.com
+DnsClientX.Cli --endpoint CloudflareWireFormatPost --wire-post google.com
 
 # Send a dynamic DNS update to an explicit authoritative server
-DnsClientX.exe --probe-endpoint tcp@192.0.2.53:53 \
+DnsClientX.Cli --probe-endpoint tcp@192.0.2.53:53 \
   --update example.com www A 192.0.2.10 --ttl 300
 ```
 
@@ -1728,7 +1808,7 @@ DnsClientX.exe --probe-endpoint tcp@192.0.2.53:53 \
 ```bash
 #!/bin/bash
 # Benchmark several providers and capture the one-line machine-readable summary
-DnsClientX.exe --benchmark --endpoint Cloudflare,Google,Quad9 \
+DnsClientX.Cli --benchmark --endpoint Cloudflare,Google,Quad9 \
   --domain example.com \
   --type A \
   --benchmark-attempts 3 \
@@ -1737,7 +1817,7 @@ DnsClientX.exe --benchmark --endpoint Cloudflare,Google,Quad9 \
 
 ```powershell
 # PowerShell script for quick probe comparison
-& DnsClientX.exe --probe `
+& DnsClientX.Cli.exe --probe `
     --probe-endpoint 'udp@1.1.1.1:53,tcp@9.9.9.9:53' `
     --probe-summary-line `
     example.com

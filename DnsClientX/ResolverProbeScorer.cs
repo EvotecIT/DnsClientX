@@ -54,6 +54,7 @@ namespace DnsClientX {
             return new ResolverProbeEvaluation {
                 Results = ranked
                     .Select((result, index) => new ResolverProbeEvaluationEntry {
+                        SourceIndex = result.SourceIndex,
                         Target = result.Target,
                         Resolver = result.Resolver,
                         Transport = result.Transport,
@@ -95,6 +96,7 @@ namespace DnsClientX {
 
         private static ResolverProbeObservation NormalizeObservation(ResolverProbeObservation? observation) {
             return new ResolverProbeObservation {
+                SourceIndex = observation?.SourceIndex ?? 0,
                 Target = observation?.Target?.Trim() ?? string.Empty,
                 Resolver = string.IsNullOrWhiteSpace(observation?.Resolver) ? "none" : observation!.Resolver,
                 Transport = string.IsNullOrWhiteSpace(observation?.Transport) ? "none" : observation!.Transport,
@@ -243,7 +245,7 @@ namespace DnsClientX {
         }
 
         private static bool IsSameTarget(ResolverProbeObservation result, ResolverProbeObservation? other) {
-            return other != null && string.Equals(result.Target, other.Target, StringComparison.OrdinalIgnoreCase);
+            return ReferenceEquals(result, other);
         }
     }
 }
