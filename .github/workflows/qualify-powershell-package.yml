@@ -75,6 +75,9 @@ jobs:
     needs: build
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
     strategy:
       fail-fast: false
       matrix:
@@ -98,10 +101,8 @@ jobs:
           name: powershell-module-package
           path: ${{ runner.temp }}/packed-module
       - name: Install existing test dependency
-        shell: ${{ matrix.shell }}
         run: Install-Module Pester -MinimumVersion 5.0.0 -Repository PSGallery -Force -Scope CurrentUser -SkipPublisherCheck -AllowClobber
       - name: Test the extracted package
-        shell: ${{ matrix.shell }}
         run: |
           ./scripts/qualification/Test-PackagedModule.ps1 -ZipPath '${{ runner.temp }}/packed-module/DnsClientX-PowerShellModule.v${{ needs.build.outputs.version }}.zip' -TestsPath './Module/Tests' -OutputDirectory '${{ runner.temp }}/packaged-module-consumer'
       - name: Upload native Pester results
