@@ -29,7 +29,7 @@ The modern core remains free of new production packages. The approved optional d
 - [x] Stable broad .NET 8/.NET 10 regression suites and local legacy compilation.
 - [ ] Complete required native/platform CI.
 - [x] Isolated packed NuGet consumer and actual unsigned PowerShell package proof on the local host.
-- [ ] Repeat affected packaged proof if candidate remediation changes the covered contracts.
+- [x] Repeat affected packaged proof after remediation: the final unsigned module passes all 61 PowerShell cases and fresh isolated NuGet consumers run on .NET 8 and .NET 10.
 - [ ] Verify DNSCrypt native assets and real provider execution on Windows and Linux in addition to the locally tested macOS ARM64 host.
 - [ ] Verify packaged PowerShell workflows on Windows PowerShell 5.1 and the supported PowerShell 7 hosts.
 - [x] Complete one independent read-only risk review and remediate trust, timeout, and transport-capability findings with regression proof.
