@@ -151,6 +151,7 @@ namespace DnsClientX.Tests {
         }
 
         private static string ReadCmdletVerb(string source) {
+            if (source.Contains("VerbsCommunications.Receive", StringComparison.Ordinal)) return "Receive";
             if (source.Contains("VerbsCommon.Get", StringComparison.Ordinal)) return "Get";
             if (source.Contains("VerbsCommon.Clear", StringComparison.Ordinal)) return "Clear";
             if (source.Contains("VerbsCommon.Find", StringComparison.Ordinal)) return "Find";

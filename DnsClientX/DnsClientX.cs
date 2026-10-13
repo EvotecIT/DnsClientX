@@ -297,6 +297,10 @@ namespace DnsClientX {
                 handler = new HttpClientHandler();
                 if (ignoreCertificateErrors) {
                     handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+                } else if (configuration.TlsTrustAnchors?.Count > 0) {
+                    handler.ServerCertificateCustomValidationCallback = (_, certificate, chain, errors) =>
+                        DnsTlsCertificateTrust.Validate(certificate, chain, errors, configuration.BaseUri!.IdnHost,
+                            configuration.TlsTrustAnchors, configuration.TlsRevocationMode);
                 }
 
                 handler.SslProtocols = (SslProtocols)SecurityProtocol;
@@ -356,9 +360,11 @@ namespace DnsClientX {
         /// Configures the client to required parameters (legacy method for backward compatibility)
         /// </summary>
         private void ConfigureClient() {
-            if (!IsHttpBasedTransport(EndpointConfiguration.RequestFormat)
+            if (EndpointConfiguration.WireTransport != null
+                || !IsHttpBasedTransport(EndpointConfiguration.RequestFormat)
                 || EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverGrpc
-                || EndpointConfiguration.BootstrapResolver != null) return;
+                || EndpointConfiguration.BootstrapResolver != null
+                || EndpointConfiguration.ConnectionAddress != null) return;
             lock (_lock) {
                 if (Client != null && TryAddDisposedClient(Client)) {
                     _managedClients.Remove(Client);

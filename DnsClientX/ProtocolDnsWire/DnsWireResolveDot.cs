@@ -86,7 +86,7 @@ namespace DnsClientX {
                     queryBytes,
                     endpointConfiguration.TimeOut,
                     endpointConfiguration.MaxTcpQueriesPerConnection,
-                    cancellationToken, endpointConfiguration.WaitForCanceledStreamQueryDrain).ConfigureAwait(false);
+                    cancellationToken, endpointConfiguration.WaitForCanceledStreamQueryDrain, endpointConfiguration).ConfigureAwait(false);
                 failurePhase = DotFailurePhase.Exchange;
 
                 // Deserialize the response from DNS wire format

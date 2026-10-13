@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -22,6 +23,14 @@ namespace DnsClientX {
         /// Gets or sets the record types to query.
         /// </summary>
         public DnsRecordType[] RecordTypes { get; set; } = [DnsRecordType.A];
+
+        /// <summary>Gets or sets a complete resolver configuration as an exclusive resolver source.
+        /// The request snapshots its endpoint, transport, certificate policy and optional provider; the caller retains provider ownership.</summary>
+        public Configuration? Configuration { get; set; }
+
+        /// <summary>Gets or sets a timeout override for <see cref="Configuration"/> execution.
+        /// Null preserves the supplied configuration's timeout; other resolver sources use <see cref="TimeOutMilliseconds"/>.</summary>
+        public int? ConfigurationTimeoutMilliseconds { get; set; }
 
         /// <summary>
         /// Gets or sets the predefined provider inputs for single-provider or multi-provider execution.
@@ -116,7 +125,7 @@ namespace DnsClientX {
         /// <summary>
         /// Gets or sets the timeout in milliseconds.
         /// </summary>
-        public int TimeOutMilliseconds { get; set; } = Configuration.DefaultTimeout;
+        public int TimeOutMilliseconds { get; set; } = DnsClientX.Configuration.DefaultTimeout;
 
         /// <summary>
         /// Gets or sets the number of retry attempts on transient failures.
@@ -140,6 +149,15 @@ namespace DnsClientX {
 
         /// <summary>Gets or sets the optional thread-safe verifier for single and multiple resolvers.</summary>
         public IDnsSecSignatureVerifier? DnsSecSignatureVerifier { get; set; }
+
+        /// <summary>Gets or sets explicitly trusted DNSSEC zones for every resolver in this request.</summary>
+        public IReadOnlyList<DnsSecZoneTrustAnchor>? DnsSecTrustAnchors { get; set; }
+
+        internal ResolveDnsRequest CreateTrustPolicySnapshot() {
+            var snapshot = (ResolveDnsRequest)MemberwiseClone();
+            snapshot.DnsSecTrustAnchors = DnsSecZoneTrustAnchor.Snapshot(DnsSecTrustAnchors);
+            return snapshot;
+        }
 
         /// <summary>
         /// Gets or sets whether typed records should be projected for successful answers.
@@ -261,7 +279,7 @@ namespace DnsClientX {
         public bool ShouldValidateDnsSec => ValidateDnsSec;
 
         internal int EffectiveMaxConnectionsPerServer =>
-            MaxConnectionsPerServer > 0 ? MaxConnectionsPerServer : Configuration.DefaultMaxConnectionsPerServer;
+            MaxConnectionsPerServer > 0 ? MaxConnectionsPerServer : DnsClientX.Configuration.DefaultMaxConnectionsPerServer;
 
         internal int? EffectiveMaxConcurrency =>
             MaxConcurrency > 0 ? MaxConcurrency : null;
@@ -286,7 +304,7 @@ namespace DnsClientX {
                 throw new ArgumentException("At least one record type must be specified.", nameof(RecordTypes));
             }
 
-            int configuredSources = 0;
+            int configuredSources = Configuration == null ? 0 : 1;
             if (Servers.Length > 0) {
                 configuredSources++;
             }
@@ -304,9 +322,15 @@ namespace DnsClientX {
             }
 
             if (configuredSources > 1) {
-                throw new InvalidOperationException("Specify only one resolver source: DnsProviders, Servers, ResolverEndpoints/ResolverEndpointFiles/ResolverEndpointUrls, ResolverDnsProviders, or ResolverSelectionPath.");
+                throw new InvalidOperationException("Specify only one resolver source: Configuration, DnsProviders, Servers, ResolverEndpoints/ResolverEndpointFiles/ResolverEndpointUrls, ResolverDnsProviders, or ResolverSelectionPath.");
             }
 
+            if (ConfigurationTimeoutMilliseconds.HasValue && ConfigurationTimeoutMilliseconds.Value <= 0) {
+                throw new ArgumentOutOfRangeException(nameof(ConfigurationTimeoutMilliseconds), "ConfigurationTimeoutMilliseconds must be greater than zero.");
+            }
+            if (Configuration == null && ConfigurationTimeoutMilliseconds.HasValue) {
+                throw new InvalidOperationException("ConfigurationTimeoutMilliseconds requires Configuration.");
+            }
             if (TimeOutMilliseconds <= 0) {
                 throw new ArgumentOutOfRangeException(nameof(TimeOutMilliseconds), "TimeOutMilliseconds must be greater than zero.");
             }

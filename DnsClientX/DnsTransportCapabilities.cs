@@ -181,11 +181,31 @@ namespace DnsClientX {
                 DnsRequestFormat.DnsOverQuic =>
                     "DNS over QUIC is supported in the core package on net8+ when the runtime provides QUIC support and is unavailable on this runtime.",
                 DnsRequestFormat.ObliviousDnsOverHttps =>
-                    "ODoH requires HPKE plus relay and target handling and is not implemented by the core package.",
+                    "ODoH requires an OdohClient from the optional DnsClientX.Odoh package in Configuration.WireTransport.",
                 DnsRequestFormat.DnsCrypt or DnsRequestFormat.DnsCryptRelay =>
-                    "DNSCrypt v2 is reserved for an optional protocol package and is not implemented by the core package.",
+                    "DNSCrypt v2 requires a DnsCryptClient from the optional DnsClientX.DnsCrypt package and its native libsodium runtime.",
                 _ => $"{requestFormat} is not supported on this runtime."
             };
+        }
+
+        /// <summary>Reports the configured transport, including an explicitly supplied optional provider.</summary>
+        /// <remarks>Provider registration does not establish remote endpoint reachability.</remarks>
+        public static DnsTransportCapabilityInfo GetConfiguredCapability(Configuration configuration) {
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            DnsTransportCapabilityInfo result = CreateCapabilityInfo(configuration.RequestFormat);
+            if (configuration.RequestFormat is DnsRequestFormat.ObliviousDnsOverHttps
+                or DnsRequestFormat.DnsCrypt or DnsRequestFormat.DnsCryptRelay) {
+                result.Package = configuration.RequestFormat == DnsRequestFormat.ObliviousDnsOverHttps
+                    ? "DnsClientX.Odoh" : "DnsClientX.DnsCrypt";
+                result.Supported = configuration.WireTransport != null
+                    && configuration.WireTransport.RequestFormat == configuration.RequestFormat;
+                result.TargetFrameworkScope = "netstandard2.0, .NET Framework 4.7.2, .NET 8+";
+                result.RuntimeRequirement = configuration.RequestFormat == DnsRequestFormat.ObliviousDnsOverHttps
+                    ? "Bouncy Castle and an HTTPS relay/target pair" : "Native libsodium for the host architecture";
+                result.Notes = result.Supported ? "An optional provider is explicitly configured; its caller owns its lifetime."
+                    : GetUnsupportedMessage(configuration.RequestFormat);
+            }
+            return result;
         }
 
         private static DnsTransportCapabilityInfo CreateCapabilityInfo(DnsRequestFormat requestFormat) {

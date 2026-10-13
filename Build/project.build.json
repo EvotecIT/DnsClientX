@@ -3,7 +3,9 @@
   "RootPath": "..",
   "ExpectedVersionMap": {
     "DnsClientX": "2.1.X",
-    "DnsClientX.DnsSec.EdDsa": "2.1.X"
+    "DnsClientX.DnsSec.EdDsa": "2.1.X",
+    "DnsClientX.DnsCrypt": "2.1.X",
+    "DnsClientX.Odoh": "2.1.X"
   },
   "ExpectedVersionMapAsInclude": true,
   "ExpectedVersionMapUseWildcards": false,

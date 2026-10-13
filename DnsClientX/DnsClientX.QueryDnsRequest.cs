@@ -23,7 +23,7 @@ namespace DnsClientX {
                 throw new ArgumentNullException(nameof(request));
             }
 
-            return QueryDnsInternal(request, cancellationToken);
+            return QueryDnsInternal(request.CreateTrustPolicySnapshot(), cancellationToken);
         }
 
         /// <summary>
@@ -41,6 +41,10 @@ namespace DnsClientX {
 
             string[] namesToUse = request.GetExpandedNames();
             var ednsOptions = request.CreateEdnsOptions();
+
+            if (request.Configuration != null) {
+                return await ExecuteConfigurationAsync(request, namesToUse, ednsOptions, cancellationToken).ConfigureAwait(false);
+            }
 
             if (!string.IsNullOrWhiteSpace(request.ResolverSelectionPath)) {
                 return await ExecuteSelectionAsync(request, namesToUse, ednsOptions, cancellationToken).ConfigureAwait(false);
@@ -91,6 +95,7 @@ namespace DnsClientX {
                 RequestDnsSec = request.ShouldRequestDnsSec,
                 ValidateDnsSec = request.ShouldValidateDnsSec,
                 DnsSecSignatureVerifier = request.DnsSecSignatureVerifier,
+                DnsSecTrustAnchors = DnsSecZoneTrustAnchor.Snapshot(request.DnsSecTrustAnchors),
                 TypedRecords = request.TypedRecords,
                 ParseTypedTxtRecords = request.ParseTypedTxtRecords,
                 CheckingDisabled = request.CheckingDisabled,
@@ -355,6 +360,7 @@ namespace DnsClientX {
         private static void ApplyRequestConfiguration(ClientX client, ResolveDnsRequest request, EdnsOptions? ednsOptions) {
             client.EndpointConfiguration.BootstrapResolver = request.BootstrapResolver;
             client.EndpointConfiguration.DnsSecSignatureVerifier = request.DnsSecSignatureVerifier;
+            client.EndpointConfiguration.DnsSecTrustAnchors = DnsSecZoneTrustAnchor.Snapshot(request.DnsSecTrustAnchors);
             client.EndpointConfiguration.TimeOut = request.TimeOutMilliseconds;
             client.EndpointConfiguration.CheckingDisabled = request.CheckingDisabled;
             client.EndpointConfiguration.MaxConcurrency = request.EffectiveMaxConcurrency;

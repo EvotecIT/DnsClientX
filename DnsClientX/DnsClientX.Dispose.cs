@@ -52,6 +52,7 @@ namespace DnsClientX {
             }
             try {
                 if (disposing) {
+                    StopServiceBrowsingAsync().GetAwaiter().GetResult();
                     _udpClientPool.Dispose();
                     _streamConnectionPool.Dispose();
 #if NET8_0_OR_GREATER
@@ -108,6 +109,7 @@ namespace DnsClientX {
                 return;
             }
             try {
+                await StopServiceBrowsingAsync().ConfigureAwait(false);
                 _udpClientPool.Dispose();
                 await _streamConnectionPool.DisposeAsync().ConfigureAwait(false);
 #if NET8_0_OR_GREATER

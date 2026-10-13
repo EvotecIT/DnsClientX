@@ -2,10 +2,8 @@ using System;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 using Xunit;
 
 namespace DnsClientX.Tests {
@@ -19,10 +17,6 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task SendAxfrOverTcp_ShouldDisposeResources_OnTimeout() {
-            MethodInfo method = typeof(ClientX).GetMethod(
-                "SendAxfrOverTcp",
-                BindingFlags.NonPublic | BindingFlags.Static)!;
-
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -31,25 +25,20 @@ namespace DnsClientX.Tests {
             // Keep caller cancellation as a generous deadlock guard so the deliberately shorter
             // protocol timeout remains the observable result even on a busy CI runner.
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTCP) { Port = port };
-            var enumerable = (IAsyncEnumerable<ZoneTransferResult>)method.Invoke(null, new object[] {
-                new byte[] { 0, 0 }, (ushort)0, "example.com", "127.0.0.1", port, 200, false, config, false, cts.Token
-            })!;
-            var callTask = Task.Run(async () => {
-                await foreach (var _ in enumerable) { }
-            });
+            var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTCP) { Port = port, TimeOut = 200 };
+            using var client = new ClientX(config);
+            Task<ZoneTransferResult[]> callTask = client.ZoneTransferAsync("example.com", retryOnTransient: false,
+                cancellationToken: cts.Token);
 
             TcpClient serverClient = await acceptTask;
-            var buf = new byte[4];
-            int read = 0;
             var stream = serverClient.GetStream();
-            while (read < 4) {
-                int r = await stream.ReadAsync(buf, read, 4 - read, cts.Token);
-                if (r == 0) break;
-                read += r;
-            }
+            byte[] prefix = new byte[2];
+            await TestUtilities.ReadExactlyAsync(stream, prefix, 2, cts.Token);
+            byte[] query = new byte[(prefix[0] << 8) | prefix[1]];
+            await TestUtilities.ReadExactlyAsync(stream, query, query.Length, cts.Token);
 
-            await Assert.ThrowsAsync<TimeoutException>(async () => await callTask);
+            DnsClientException timeout = await Assert.ThrowsAsync<DnsClientException>(async () => await callTask);
+            Assert.IsType<TimeoutException>(timeout.InnerException);
 
             await Task.Delay(100);
             serverClient.ReceiveTimeout = 200;

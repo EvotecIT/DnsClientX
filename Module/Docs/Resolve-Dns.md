@@ -15,12 +15,22 @@ Specify either Name or Pattern. When no resolver source is specified, the librar
 ## SYNTAX
 ### Name (Default)
 ```powershell
-Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverDnsProvider <DnsEndpoint[]>] [-ResolverSelectionPath <string>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverDnsProvider <DnsEndpoint[]>] [-ResolverSelectionPath <string>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-DnsSecSignatureVerifier <IDnsSecSignatureVerifier>] [-DnsSecTrustAnchors <DnsSecZoneTrustAnchor[]>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+```
+
+### NameConfiguration
+```powershell
+Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] -Configuration <Configuration> [-DnsSecVerifierPath <string>] [-DnsSecSignatureVerifier <IDnsSecSignatureVerifier>] [-DnsSecTrustAnchors <DnsSecZoneTrustAnchor[]>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ### Pattern
 ```powershell
-Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverDnsProvider <DnsEndpoint[]>] [-ResolverSelectionPath <string>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverDnsProvider <DnsEndpoint[]>] [-ResolverSelectionPath <string>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-DnsSecSignatureVerifier <IDnsSecSignatureVerifier>] [-DnsSecTrustAnchors <DnsSecZoneTrustAnchor[]>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+```
+
+### PatternConfiguration
+```powershell
+Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] -Configuration <Configuration> [-DnsSecVerifierPath <string>] [-DnsSecSignatureVerifier <IDnsSecSignatureVerifier>] [-DnsSecTrustAnchors <DnsSecZoneTrustAnchor[]>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -134,7 +144,7 @@ Resolves endpoint hostnames through an IP-literal UDP/TCP endpoint, such as udp@
 
 ```yaml
 Type: String
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 
@@ -150,7 +160,7 @@ Sets the CD (checking disabled) bit on outgoing queries.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 
@@ -166,11 +176,29 @@ Sets the EDNS Client Subnet (ECS) in CIDR notation, for example 192.0.2.0/24.
 
 ```yaml
 Type: String
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 
 Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Configuration
+Complete resolver configuration, including an optional provider or verified DDR transport.
+Its endpoint, security policy and timeout are retained; explicitly specified query options can override query settings.
+The caller retains optional provider ownership.
+
+```yaml
+Type: Configuration
+Parameter Sets: NameConfiguration, PatternConfiguration
+Aliases: None
+Possible values:
+
+Required: True
 Position: named
 Default value: None
 Accept pipeline input: False
@@ -197,12 +225,45 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -DnsSecSignatureVerifier
+Optional typed signature verifier for DNSSEC algorithms supplied by an installed provider.
+Specify this object or DnsSecVerifierPath. The verifier remains caller-owned.
+
+```yaml
+Type: IDnsSecSignatureVerifier
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DnsSecTrustAnchors
+Explicit private-zone DNSSEC trust anchors. These replace configured anchors only when supplied.
+
+```yaml
+Type: DnsSecZoneTrustAnchor[]
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -DnsSecVerifierPath
 Local optional DNSSEC provider DLL path, with its dependencies beside it. Enables additional signature algorithms when ValidateDnsSec is selected.
 
 ```yaml
 Type: String
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 
@@ -234,7 +295,7 @@ Sets the EDNS UDP buffer size. When specified, EDNS is enabled automatically.
 
 ```yaml
 Type: Int32
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 
@@ -250,7 +311,7 @@ Enables EDNS on outgoing queries.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 
@@ -302,7 +363,7 @@ If specified, the full response is provided (answer, authority, and additional s
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 
@@ -366,7 +427,7 @@ Optional cap on client-side query concurrency for single-resolver operations. Wh
 
 ```yaml
 Type: Int32
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 
@@ -414,7 +475,7 @@ The name of the DNS record to query for
 
 ```yaml
 Type: String[]
-Parameter Sets: Name
+Parameter Sets: Name, NameConfiguration
 Aliases: None
 Possible values:
 
@@ -432,7 +493,7 @@ specified. When false, returns simple TXT records.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 
@@ -448,7 +509,7 @@ Pattern to expand into multiple DNS queries.
 
 ```yaml
 Type: String
-Parameter Sets: Pattern
+Parameter Sets: Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 
@@ -528,7 +589,7 @@ Request DNSSEC data (sets the DO bit).
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 
@@ -560,7 +621,7 @@ Requests the NSID EDNS option so compatible servers may include resolver identit
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 
@@ -706,7 +767,7 @@ Number of retry attempts on transient errors.
 
 ```yaml
 Type: Int32
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 
@@ -722,7 +783,7 @@ Delay between retry attempts in milliseconds.
 
 ```yaml
 Type: Int32
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 
@@ -756,7 +817,7 @@ Specifies the timeout for the DNS query, in milliseconds. If the DNS server does
 
 ```yaml
 Type: Int32
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 
@@ -772,7 +833,7 @@ The type of the record to query for. NXNAME is a denial bitmap signal and cannot
 
 ```yaml
 Type: DnsRecordType[]
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values: Reserved, A, NS, MD, MF, CNAME, SOA, MB, MG, MR, NULL, WKS, PTR, HINFO, MINFO, MX, TXT, RP, AFSDB, X25, ISDN, RT, NSAP, NSAP_PTR, SIG, PX, AAAA, LOC, NXT, SRV, ATMA, NAPTR, KX, CERT, A6, DNAME, SINK, OPT, APL, DS, SSHFP, IPSECKEY, RRSIG, NSEC, DNSKEY, DHCID, NSEC3, NSEC3PARAM, TLSA, SMIMEA, HIP, NINFO, RKEY, TALINK, CDS, CDNSKEY, OPENPGPKEY, CSYNC, ZONEMD, SVCB, HTTPS, SPF, LP, NXNAME, TKEY, TSIG, IXFR, AXFR, MAILB, MAILA, ANY, URI, CAA, AVC, DOA, AMTRELAY, RESINFO, TA, DLV
 
@@ -788,7 +849,7 @@ When set, attempts to parse answers into typed record objects.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 
@@ -836,7 +897,7 @@ Validate DNSSEC signatures. Implies requesting DNSSEC data.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: Name, Pattern
+Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
 Aliases: None
 Possible values:
 

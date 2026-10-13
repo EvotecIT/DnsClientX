@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace DnsClientX {
     /// <summary>
     /// Configures shared resolver query execution for probe and benchmark workflows.
@@ -11,6 +13,13 @@ namespace DnsClientX {
 
         /// <summary>Gets or sets the optional thread-safe DNSSEC signature verifier for every attempt.</summary>
         public IDnsSecSignatureVerifier? DnsSecSignatureVerifier { get; init; }
+
+        private IReadOnlyList<DnsSecZoneTrustAnchor>? _dnsSecTrustAnchors;
+        /// <summary>Gets or initializes an immutable catalog of trusted DNSSEC zones for every attempt.</summary>
+        public IReadOnlyList<DnsSecZoneTrustAnchor>? DnsSecTrustAnchors {
+            get => _dnsSecTrustAnchors;
+            init => _dnsSecTrustAnchors = DnsSecZoneTrustAnchor.Snapshot(value);
+        }
 
         /// <summary>Gets or sets whether to request EDNS NSID metadata.</summary>
         public bool RequestNsid { get; init; }

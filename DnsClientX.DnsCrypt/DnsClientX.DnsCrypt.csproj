@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Title>DnsClientX DNSCrypt</Title>
+    <Description>Optional authenticated DNSCrypt v2 and Anonymized DNSCrypt transport for DnsClientX, using libsodium.</Description>
+    <AssemblyName>DnsClientX.DnsCrypt</AssemblyName>
+    <RootNamespace>DnsClientX.DnsCrypt</RootNamespace>
+    <VersionPrefix>2.1.2</VersionPrefix>
+    <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`Windows`))' ">netstandard2.0;net472;net8.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`OSX`))' Or '$([MSBuild]::IsOsPlatform(`Linux`))' ">netstandard2.0;net8.0;net10.0</TargetFrameworks>
+    <LangVersion>Latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsPublishable>true</IsPublishable>
+    <PackageId>DnsClientX.DnsCrypt</PackageId>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>DnsClientX.png</PackageIcon>
+    <PackageProjectUrl>https://github.com/EvotecIT/DnsClientX</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/EvotecIT/DnsClientX</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Authors>Przemyslaw Klys</Authors>
+    <Company>Evotec</Company>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../DnsClientX/DnsClientX.csproj" />
+    <PackageReference Include="libsodium" Version="1.0.22" GeneratePathProperty="true" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../DnsClientX/DnsClientX.png" Pack="true" PackagePath="/" Link="DnsClientX.png" />
+    <None Include="buildTransitive/DnsClientX.DnsCrypt.targets" Pack="true" PackagePath="buildTransitive/" />
+  </ItemGroup>
+  <Import Project="buildTransitive/DnsClientX.DnsCrypt.targets" />
+</Project>

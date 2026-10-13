@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace DnsClientX {
     /// <summary>
     /// Configures shared single-target client creation for adapter-driven operations.
@@ -8,6 +10,13 @@ namespace DnsClientX {
 
         /// <summary>Gets or sets the optional thread-safe DNSSEC signature verifier.</summary>
         public IDnsSecSignatureVerifier? DnsSecSignatureVerifier { get; init; }
+
+        private IReadOnlyList<DnsSecZoneTrustAnchor>? _dnsSecTrustAnchors;
+        /// <summary>Gets or initializes explicitly trusted DNSSEC zones, preserving configured anchors when null.</summary>
+        public IReadOnlyList<DnsSecZoneTrustAnchor>? DnsSecTrustAnchors {
+            get => _dnsSecTrustAnchors;
+            init => _dnsSecTrustAnchors = DnsSecZoneTrustAnchor.Snapshot(value);
+        }
 
         /// <summary>Gets or sets whether to request EDNS NSID metadata.</summary>
         public bool RequestNsid { get; init; }
@@ -32,7 +41,7 @@ namespace DnsClientX {
         public bool ForceDohWirePost { get; init; }
 
         /// <summary>
-        /// Gets or sets the TSIG key used to authenticate RFC 2136 DNS UPDATE traffic.
+        /// Gets or sets the TSIG key used to authenticate RFC 2136 updates and RFC 8945 zone transfers.
         /// </summary>
         public TsigKey? TsigKey { get; init; }
     }

@@ -84,7 +84,7 @@ public class DnsSecCompactRootTests {
                     observed.Add((type, (query.Buffer[query.Buffer.Length - 4] & 0x40) != 0));
                     var response = type is DnsRecordType.DNSKEY or DnsRecordType.DS
                         ? material[(owner, type)] : answer(owner, type);
-                    byte[] bytes = Serialize(query.Buffer, questionEnd, response);
+                    byte[] bytes = DnsSecSignedFixture.SerializeResponse(query.Buffer, questionEnd, response);
                     await udp.SendAsync(bytes, bytes.Length, query.RemoteEndPoint);
                 }
             } catch (Exception ex) when (deadline.IsCancellationRequested
@@ -92,20 +92,4 @@ public class DnsSecCompactRootTests {
         }
     }
 
-    private static byte[] Serialize(byte[] query, int questionEnd, DnsResponse response) {
-        var bytes = new List<byte>();
-        U16((ushort)((query[0] << 8) | query[1])); U16((ushort)(0x8400 | (ushort)response.Status));
-        U16(1); U16((ushort)response.WireAnswers.Length); U16((ushort)response.WireAuthorities.Length); U16(0);
-        bytes.AddRange(query.Skip(12).Take(questionEnd - 12));
-        foreach (var record in response.WireAnswers.Concat(response.WireAuthorities)) {
-            bytes.AddRange(DnsWireNameCodec.ToCanonicalWire(record.Name));
-            U16((ushort)record.Type); U16(record.Class);
-            bytes.Add((byte)(record.RawTtl >> 24)); bytes.Add((byte)(record.RawTtl >> 16));
-            bytes.Add((byte)(record.RawTtl >> 8)); bytes.Add((byte)record.RawTtl);
-            U16(record.RdataLength);
-            bytes.AddRange(response.WireMessage.Skip(record.RdataOffset).Take(record.RdataLength));
-        }
-        return bytes.ToArray();
-        void U16(ushort value) { bytes.Add((byte)(value >> 8)); bytes.Add((byte)value); }
-    }
 }

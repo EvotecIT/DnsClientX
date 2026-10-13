@@ -25,6 +25,12 @@ Discovers services advertised via DNS Service Discovery.
 
 Wraps DiscoverServices to return services under a domain.
 
+### [Get-DnsDesignatedResolver](Get-DnsDesignatedResolver.md)
+Discovers encrypted resolvers designated by an explicit IP DNS resolver.
+
+Returns bounded RFC 9462 candidates with explicit certificate verification outcomes.
+Discovery does not switch resolvers. Only a verified, unexpired candidate can create an encrypted configuration.
+
 ### [Get-DnsResolverSelection](Get-DnsResolverSelection.md)
 Loads a saved resolver score snapshot and returns the recommended resolver selection.
 
@@ -49,6 +55,12 @@ Retrieves all records for the specified zone using TCP based zone transfer.
 Sends DNS UPDATE messages to a server.
 
 Adds or removes records in a zone using RFC 2136 over TCP.
+
+### [Receive-DnsService](Receive-DnsService.md)
+Continuously reports additions, changes, goodbyes and expirations of multicast DNS services.
+
+Uses a bounded persistent RFC 6762 multicast browse session. Stopping the pipeline
+cancels and drains its receiver. Each output is an independent service snapshot with its observed change.
 
 ### [Resolve-Dns](Resolve-Dns.md)
 Resolves DNS records (A, AAAA, MX, TXT, …) over UDP, TCP, DoT, DoH, QUIC, or multicast with optional multi-resolver strategies.

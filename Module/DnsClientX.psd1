@@ -1,7 +1,7 @@
-@{
-    AliasesToExport      = @('Get-DnsZoneTransfer', 'Resolve-DnsQuery')
+﻿@{
+    AliasesToExport      = @('Get-DnsZoneTransfer', 'Resolve-DnsQuery', 'Watch-DnsService')
     Author               = 'Przemyslaw Klys'
-    CmdletsToExport      = @('Clear-DnsMultiResolverCache', 'ConvertFrom-DnsStamp', 'Find-DnsService', 'Get-DnsResolverSelection', 'Get-DnsService', 'Get-DnsTransportCapability', 'Get-DnsZone', 'Invoke-DnsUpdate', 'Resolve-Dns', 'Test-DnsBenchmark', 'Test-DnsProbe', 'Test-DnsResolverCatalog')
+    CmdletsToExport      = @('Clear-DnsMultiResolverCache', 'ConvertFrom-DnsStamp', 'Find-DnsService', 'Get-DnsDesignatedResolver', 'Get-DnsResolverSelection', 'Get-DnsService', 'Get-DnsTransportCapability', 'Get-DnsZone', 'Invoke-DnsUpdate', 'Receive-DnsService', 'Resolve-Dns', 'Test-DnsBenchmark', 'Test-DnsProbe', 'Test-DnsResolverCatalog')
     CompanyName          = 'Evotec'
     CompatiblePSEditions = @('Desktop', 'Core')
     Copyright            = '(c) 2011 - 2026 Przemyslaw Klys @ Evotec. All rights reserved.'
@@ -22,5 +22,4 @@
     }
     RootModule           = 'DnsClientX.psm1'
     RequiredModules      = @()
-    ScriptsToProcess     = @()
 }

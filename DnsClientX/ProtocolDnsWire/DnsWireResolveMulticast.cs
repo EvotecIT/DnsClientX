@@ -11,7 +11,7 @@ namespace DnsClientX {
     /// <summary>
     /// Sends RFC 6762 multicast DNS queries and collects every response received during the query window.
     /// </summary>
-    internal static class DnsWireResolveMulticast {
+    internal static partial class DnsWireResolveMulticast {
         private const int MaxCollectedResponses = 256;
         internal static async Task<DnsResponse> ResolveWireFormatMulticast(
             string dnsServer,
@@ -221,18 +221,36 @@ namespace DnsClientX {
 #endif
         }
 
-        private static UdpClient CreateClient(IPAddress multicastAddress, int? interfaceIndex) {
+        internal static UdpClient CreateClient(IPAddress multicastAddress, int? interfaceIndex, int bindPort = 0, bool listenForMulticast = false) {
             var client = new UdpClient(multicastAddress.AddressFamily) {
                 ExclusiveAddressUse = false
             };
-            client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            IPAddress bindAddress = FindInterfaceAddress(multicastAddress.AddressFamily, interfaceIndex)
-                ?? (multicastAddress.AddressFamily == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Any : IPAddress.Any);
-            client.Client.Bind(new IPEndPoint(bindAddress, 0));
-            return client;
+            try {
+                client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                IPAddress? interfaceAddress = FindInterfaceAddress(multicastAddress.AddressFamily, interfaceIndex);
+                if (interfaceIndex.HasValue && interfaceAddress == null) {
+                    throw new ArgumentException("The selected multicast interface has no address for this IP family.", nameof(interfaceIndex));
+                }
+                IPAddress any = multicastAddress.AddressFamily == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Any : IPAddress.Any;
+                IPAddress bindAddress = listenForMulticast ? any : interfaceAddress ?? any;
+                client.Client.Bind(new IPEndPoint(bindAddress, bindPort));
+                if (listenForMulticast) {
+                    SocketOptionLevel level = multicastAddress.AddressFamily == AddressFamily.InterNetworkV6 ? SocketOptionLevel.IPv6 : SocketOptionLevel.IP;
+                    client.Client.SetSocketOption(level, SocketOptionName.MulticastTimeToLive, 255);
+                    if (interfaceIndex.HasValue && multicastAddress.AddressFamily == AddressFamily.InterNetworkV6) {
+                        client.Client.SetSocketOption(level, SocketOptionName.MulticastInterface, interfaceIndex.Value);
+                    } else if (interfaceAddress != null) {
+                        client.Client.SetSocketOption(level, SocketOptionName.MulticastInterface, interfaceAddress.GetAddressBytes());
+                    }
+                }
+                return client;
+            } catch {
+                client.Dispose();
+                throw;
+            }
         }
 
-        private static void JoinGroup(UdpClient client, IPAddress multicastAddress, int? interfaceIndex) {
+        internal static void JoinGroup(UdpClient client, IPAddress multicastAddress, int? interfaceIndex) {
             if (interfaceIndex.HasValue) {
                 if (multicastAddress.AddressFamily == AddressFamily.InterNetworkV6) {
                     client.JoinMulticastGroup(interfaceIndex.Value, multicastAddress);
@@ -269,7 +287,14 @@ namespace DnsClientX {
             }
 
             foreach (NetworkInterface networkInterface in NetworkInterface.GetAllNetworkInterfaces()) {
-                IPInterfaceProperties properties = networkInterface.GetIPProperties();
+                NetworkInterfaceComponent component = family == AddressFamily.InterNetwork
+                    ? NetworkInterfaceComponent.IPv4 : NetworkInterfaceComponent.IPv6;
+                if (!networkInterface.Supports(component)) {
+                    continue;
+                }
+                IPInterfaceProperties properties;
+                try { properties = networkInterface.GetIPProperties(); }
+                catch (NetworkInformationException) { continue; }
                 int? index = family == AddressFamily.InterNetwork
                     ? properties.GetIPv4Properties()?.Index
                     : properties.GetIPv6Properties()?.Index;
@@ -285,7 +310,7 @@ namespace DnsClientX {
             return null;
         }
 
-        private static bool IsMulticast(IPAddress address) {
+        internal static bool IsMulticast(IPAddress address) {
             byte[] bytes = address.GetAddressBytes();
             return address.AddressFamily == AddressFamily.InterNetwork
                 ? bytes[0] >= 224 && bytes[0] <= 239

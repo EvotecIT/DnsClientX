@@ -107,7 +107,7 @@ It provides querying multiple DNS Providers.
 | DnsCryptRelay            |     |     |     |     |     | ❌        |      |
 | RootServer               |     |     |     | ✓   | ✓   |          |      |
 
-`CloudflareQuic`, `GoogleQuic`, `CloudflareJsonPost`, `GoogleJsonPost`, `CloudflareOdoh`, and the DNSCrypt endpoint names are retained for source compatibility but fail explicitly: the providers do not publish the claimed service, or the protocol is not implemented. The core implements DoQ for published endpoints such as `Quad9Quic` without extra transport packages on modern .NET. ODoH and DNSCrypt v2 require dedicated protocol and cryptographic implementations and are intentionally outside the core package.
+`CloudflareQuic`, `GoogleQuic`, `CloudflareJsonPost`, `GoogleJsonPost`, `CloudflareOdoh`, and the DNSCrypt preset names are retained for source compatibility and fail explicitly when no supported service or configured provider is available. The core implements DoQ for published endpoints such as `Quad9Quic` without extra transport packages on modern .NET. [DnsClientX.Odoh](DnsClientX.Odoh/README.md) and [DnsClientX.DnsCrypt](DnsClientX.DnsCrypt/README.md) provide optional privacy transports through explicit caller-owned configuration; installing a package does not activate an obsolete preset.
 
 If you want to learn about DNS:
 - https://www.cloudflare.com/learning/dns/what-is-dns/
@@ -179,6 +179,11 @@ For name, mail, routing, and authority records such as NS, CNAME, MX, SOA, and S
 - [x] Implements IDisposable/IAsyncDisposable to release cached HTTP, UDP, and QUIC transport resources
 - [x] Multi-line record data normalized to use `\n` line endings
 - [x] Supports DNS Service Discovery (DNS-SD)
+- [x] Streams continuous mDNS service additions, changes, goodbyes, and expirations
+- [x] Discovers designated encrypted resolvers with SVCB and verifies their original resolver IP identity
+- [x] Sends atomic RFC 2136 UPDATE batches with name and RRset prerequisites
+- [x] Authenticates multi-message AXFR and IXFR transfers with TSIG
+- [x] Accepts explicit DNSSEC trust anchors for private zones
 
 ## Modern Transport Support
 
@@ -206,6 +211,38 @@ DnsClientX.Cli --capabilities --format json
 
 Saved probe and benchmark snapshots also persist runtime capability hints, so recommendation files can distinguish unsupported modern transports from ordinary resolver failures.
 Snapshots include a schema version, and resolver selection rejects snapshots from newer unsupported schemas before attempting reuse.
+
+### Optional privacy transports
+
+ODoH encrypts application DNS queries for a target and sends them through a separate HTTPS relay. Install `DnsClientX.Odoh` and configure both endpoints:
+
+```csharp
+using DnsClientX;
+using DnsClientX.Odoh;
+
+using var provider = new OdohClient(new OdohClientOptions(
+    new Uri("https://relay.example/dns-query"),
+    new Uri("https://target.example/dns-query")));
+using var client = new ClientX(provider.CreateConfiguration());
+var response = await client.Resolve("example.com", DnsRecordType.A);
+```
+
+The provider supports the RFC 9230 X25519/HKDF-SHA256/AES-128-GCM suite, refreshes target configurations obtained through HTTPS, and authenticates each response against its own query. Its default HTTP client disables cookies and redirects. Failed exchanges never fall back to direct DoH or plaintext DNS. Relay/target collusion and traffic analysis remain outside this protection. See the [ODoH package guide](DnsClientX.Odoh/README.md) for supplied HTTP-client requirements, padding, and configuration lifetimes.
+
+DNSCrypt v2 authenticates resolver certificates with a trusted provider public key and encrypts application queries using the NaCl XSalsa20 or XChaCha20 construction. Install `DnsClientX.DnsCrypt`, obtain the resolver metadata through a trusted source, and keep the provider alive while its clients run:
+
+```csharp
+using DnsClientX;
+using DnsClientX.DnsCrypt;
+
+var options = new DnsCryptOptions(
+    resolverAddress, 443, providerName, providerPublicKeyHex);
+using var provider = new DnsCryptClient(options);
+using var client = provider.CreateClient();
+var response = await client.Resolve("example.com", DnsRecordType.A);
+```
+
+The optional DNSCrypt package includes libsodium native assets for supported desktop platforms. `NetworkTransport` chooses encrypted UDP with TCP recovery or TCP directly; `RelayEndpoint` enables Anonymized DNSCrypt. Certificate discovery sends the provider TXT question, while application queries remain encrypted. See the [DNSCrypt package guide](DnsClientX.DnsCrypt/README.md) for cipher requirements, relay behavior, native runtime support, and refresh policy. Both optional providers implement `IDnsWireTransport`; the core retains response correlation, record parsing, and DNSSEC validation without taking ownership of the provider lifetime.
 
 ## Explicit Endpoint Syntax
 
@@ -442,8 +479,7 @@ This direct DNS client does not delegate name resolution to the operating-system
 > If you would like to help, please do so by opening an issue or a pull request.
 > The public API may change while protocol coverage and RFC conformance continue to mature.
 
-- [ ] Complete the concrete stabilization, transport, cache, system-policy, zone, and DNSSEC work tracked in [PLAN.md](PLAN.md)
-- [ ] Build specialized cryptography and privacy protocols as separately reviewed optional packages; keep the core dependency-light
+- [ ] Complete the interoperability, package, and platform qualification tracked in [PLAN.md](PLAN.md)
 
 ## Usage in .NET
 
@@ -895,6 +931,23 @@ The state file is a root of trust. Keep its directory durable and writable only 
 
 The state machine enforces the 30-day add hold-down plus original DNSKEY TTL, requires a validated post-deadline observation, resets absent pending keys, preserves missing active keys, immediately and permanently honors a key's verified self-revocation, and retains revoked tombstones through the 30-day remove hold-down. State writes replace a same-directory temporary file atomically; malformed state and clock rollback fail closed. No background timer is hidden inside `ClientX`: the application must call `RefreshRootTrustAnchorsAsync` by `NextRefreshUtc` and retry failed refreshes according to its scheduler. Without a configured store, the immutable IANA public-key anchors bundled with the package remain the validation boundary.
 
+Private signed zones can start their trust chain from an explicitly configured DS anchor:
+
+```csharp
+var configuration = new Configuration("192.0.2.53", DnsRequestFormat.DnsOverUDP) {
+    DnsSecTrustAnchors = new[] {
+        new DnsSecZoneTrustAnchor("corp.example", new DnsSecTrustAnchor(
+            trustedKeyTag, DnsKeyAlgorithm.ECDSAP256SHA256, 2, trustedSha256Digest))
+    }
+};
+using var client = new ClientX(configuration);
+var response = await client.Resolve("host.corp.example", DnsRecordType.A,
+    requestDnsSec: true, validateDnsSec: true);
+Console.WriteLine(response.DnsSecValidationStatus);
+```
+
+Obtain the key tag, algorithm, and digest through the zone owner's trusted provisioning channel. The configured apex is an explicit trust boundary: its DNSKEY RRset must match the DS and verify its signatures; descendant delegations still require authenticated DS/DNSKEY proofs. The most specific configured zone applies. Invalid, expired, unsupported, or mismatched anchor material cannot be bypassed through the public parent chain, and cache identities and authenticated lifetimes include the configured anchors. These DNSSEC anchors are separate from `TlsTrustAnchors`, which authenticate encrypted transport certificates.
+
 #### Pattern-Based Queries
 ```csharp
 using var client = new ClientX(DnsEndpoint.Cloudflare);
@@ -1055,6 +1108,33 @@ foreach (var endpoint in endpoints) {
 
 ### Service Discovery and Zone Operations
 
+#### Designated encrypted resolvers and SVCB
+
+DDR asks the currently selected unencrypted IP resolver which encrypted resolvers it designates. Inspect the candidates, then explicitly create a client from a verified designation:
+
+```csharp
+using var original = new ClientX("1.1.1.1", DnsRequestFormat.DnsOverUDP);
+var candidates = await original.DiscoverDesignatedResolversAsync();
+foreach (var candidate in candidates) {
+    Console.WriteLine($"{candidate.Binding.Alpn} {candidate.ConnectionAddress}: " +
+        $"{candidate.Verification} {candidate.VerificationError}");
+}
+
+var designated = candidates.FirstOrDefault(candidate =>
+    candidate.Verification == DnsDesignatedResolverVerification.Verified);
+if (designated is null) throw new InvalidOperationException("No verified encrypted resolver was discovered.");
+using var encrypted = new ClientX(designated.CreateConfiguration());
+var response = await encrypted.Resolve("example.com", DnsRecordType.A);
+```
+
+`DiscoverDesignatedResolversAsync` queries `_dns.resolver.arpa` and keeps SVCB/CNAME aliases and address lookups pinned to the original resolver. Compatible bindings respect mandatory parameters, ALPN, per-protocol default ports, explicit ports, address hints, and UTF-8 DoH paths. `DnsServiceBindingSelection.SelectDnsResolvers` exposes compatibility selection separately for already acquired SVCB records; selection alone does not authenticate a resolver.
+
+Verified discovery requires both a trusted certificate chain and an exact SAN IP match for the original resolver. A different connection address never replaces that identity or the DoH URI authority. Options bound alias depth, candidate count, and each verification connection's timeout. `Verify = false` returns inspection candidates marked `NotAttempted`; they cannot create an encrypted configuration. Failed or unsupported verification stays explicit, and discovery never changes the original client or falls back to cleartext. `CreateConfiguration` rejects expired designations. Repeat discovery after a network change, even if the next network uses the same resolver IP.
+
+DoH path templates use the dependency-free `DnsDohUriTemplate` parser. It supports all current RFC 6570 operators, variable lists, and scalar prefix/explode modifiers. GET fills only `dns` with unpadded Base64url; POST fills no template variables and sends the message in its body. Unknown variables remain undefined. Malformed templates and paths that replace the origin or introduce fragments are rejected. `Configuration.DohUriTemplate` accepts an absolute HTTPS template for explicitly configured wire-format DoH endpoints.
+
+Custom application TLS roots use `DnsDesignatedResolverDiscoveryOptions.TrustAnchors` and are retained by the returned encrypted configuration. `Configuration.TlsTrustAnchors` applies the same strict chain and SAN name validation to encrypted transports; it does not install certificates in a persistent store. Keep caller-owned root certificates alive with their clients. Isolated custom-root trust and HTTP/2 ALPN verification require modern .NET. QUIC verification also requires a host with usable QUIC support. HTTP connections to a different address with the original URI identity require .NET 8 or later; same-address DoH and DoT remain available on older targets.
+
 #### DNS Service Discovery (DNS-SD)
 ```csharp
 using var client = new ClientX(DnsEndpoint.Cloudflare);
@@ -1078,6 +1158,42 @@ foreach (var srv in srvRecords) {
     }
 }
 ```
+
+For ongoing local discovery, use a multicast client and dispose or cancel the enumeration when browsing ends:
+
+```csharp
+using var multicast = new ClientX("224.0.0.251", DnsRequestFormat.Multicast);
+using var stop = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+var bounds = new DnsServiceBrowseOptions {
+    MaximumRecords = 512,
+    MaximumServices = 128,
+    EventBufferCapacity = 32
+};
+await foreach (var change in multicast.BrowseServicesContinuousAsync(
+    "http", "tcp", "local", bounds, stop.Token)) {
+    Console.WriteLine($"{change.Change}: {change.Service.InstanceName} " +
+        $"{change.Service.Target}:{change.Service.Port}");
+}
+```
+
+`BrowseServicesContinuousAsync` keeps one receiver open for unsolicited announcements as well as query replies. It yields independent `Added`, `Updated`, `Removed`, and `Expired` snapshots with TXT metadata and target addresses. Record processing honors cache-flush and goodbye rescue intervals, TTL refresh queries, and known-answer suppression. The configured multicast interface and port apply throughout the session. Record/instance limits fail explicitly; the event queue applies backpressure, so a persistently slow consumer can lose UDP announcements. Early enumeration disposal and client disposal cancel and drain the receiver before returning.
+
+PowerShell uses the same core sessions and configuration:
+
+```powershell
+Import-Module DnsClientX
+
+Get-DnsDesignatedResolver -Server 1.1.1.1
+Receive-DnsService -Service http -Protocol tcp -Domain local
+
+# Pass a verified designation's configuration to the ordinary query cmdlet.
+$designation = Get-DnsDesignatedResolver -Server 1.1.1.1 |
+    Where-Object Verification -EQ Verified | Select-Object -First 1
+if ($null -eq $designation) { throw 'No verified encrypted resolver was discovered.' }
+Resolve-Dns -Name example.com -Configuration ($designation.CreateConfiguration())
+```
+
+Stopping `Receive-DnsService` or taking a bounded prefix ends its underlying browse session. `Watch-DnsService` is an alias. Use `-Configuration` and `-Options` for an explicit interface, multicast endpoint, and cache/event bounds.
 
 #### Zone Transfer (AXFR, IXFR, XFR-over-TLS, and ZONEMD)
 ```csharp
@@ -1116,7 +1232,9 @@ AppContext.SetSwitch("System.Net.Security.UseNetworkFramework", true);
 
 DnsClientX does not change this process-wide setting on the host's behalf. Check `DnsTransportCapabilities.SupportsZoneTransferOverTls` before selecting XFR-over-TLS.
 
-`ZoneDigestValidator` operates on canonical wire records preserved by `ZoneTransferAsync`; presentation-only `ZoneTransferResult` values are rejected. A matching digest establishes zone-data integrity, not origin authenticity. Authenticate the apex ZONEMD RRset separately with DNSSEC or use an authenticated transfer channel. Multi-message TSIG chaining for AXFR/IXFR is not implemented, so configuring the update-oriented `TsigKey` for a transfer fails explicitly instead of implying protection it does not provide.
+`ZoneDigestValidator` operates on canonical wire records preserved by `ZoneTransferAsync`; presentation-only `ZoneTransferResult` values are rejected. A matching digest establishes zone-data integrity, not origin authenticity. Authenticate the apex ZONEMD RRset separately with DNSSEC or use an authenticated transfer channel.
+
+Set `Configuration.TsigKey` to authenticate AXFR or IXFR message chains. The query is signed, the first and final responses require a valid TSIG, and unsigned intermediate messages are buffered until a subsequent signature authenticates them. Missing, invalid, or excessively delayed signatures fail the transfer before unauthenticated records are exposed. This authentication also applies to AXFR-style IXFR fallback and recursive transfers. XFR-over-TLS retains its strict certificate and ALPN requirements when TSIG is configured.
 
 #### Zone Master Files
 
@@ -1140,7 +1258,7 @@ The parser supports owner inheritance, `$ORIGIN`, compound TTL values, multiline
 #### DNS Updates
 ```csharp
 var configuration = new Configuration("192.0.2.53", DnsRequestFormat.DnsOverTCP) {
-    TsigKey = TsigKey.FromBase64("update-key.example.com", "AQIDBAUGBwg=")
+    TsigKey = TsigKey.FromBase64("update-key.example.com", updateSecretFromSecureConfiguration)
 };
 using var client = new ClientX(configuration);
 
@@ -1150,7 +1268,16 @@ await client.UpdateRecordAsync(
 
 // Delete the complete A RRset
 await client.DeleteRecordAsync("example.com", "www.example.com", DnsRecordType.A);
+
+// Provision both records only if this name is still absent at the authoritative server.
+var batch = new DnsUpdateBatch("example.com", new[] {
+    DnsUpdateOperation.Add("api.example.com", DnsRecordType.A, "192.0.2.20", ttl: 300),
+    DnsUpdateOperation.Add("api.example.com", DnsRecordType.TXT, "role=api", ttl: 300)
+}, new[] { DnsUpdatePrerequisite.NameAbsent("api.example.com") });
+await client.UpdateRecordsAsync(batch);
 ```
+
+`DnsUpdateBatch` sends its complete operation and prerequisite lists in one RFC 2136 message. The authoritative server evaluates name-existence, name-absence, RRset-existence, RRset-absence, or complete RRset equality before applying changes. Operations include additions, complete RRset deletion, individual-value deletion, and complete-name deletion. A failed prerequisite leaves the server's zone unchanged; the client does not split or partially replay a batch. The same TSIG request/response checks used for individual updates protect the complete transaction.
 
 RFC 2136 wire updates require an explicit UDP/TCP-configured endpoint and are sent over TCP. Built-in profiles, including `DnsEndpoint.System`, `DnsEndpoint.SystemTcp`, and `DnsEndpoint.RootServer`, are rejected before sending an update. Create `ClientX` or `Configuration` with the authoritative server's hostname or IP address, or use `ClientXBuilder.WithHostname` with a UDP/TCP request format. To migrate from OS resolver targeting, choose the zone's authoritative update server explicitly; the operating system's configured resolver may only be a recursive server. DnsClientX does not discover the zone's UPDATE target or verify that the supplied endpoint is authoritative.
 
@@ -1168,7 +1295,7 @@ using var client = new ClientX("224.0.0.251", DnsRequestFormat.Multicast) {
 var responses = await client.ResolveMulticastAllAsync("printer.local", DnsRecordType.A);
 ```
 
-The mDNS query uses transaction ID zero, clears RD, omits EDNS, and collects distinct valid responder messages for the configured timeout window. It is a bounded one-shot query, not a continuous RFC 6762 browser. `Resolve` is still available when a merged single response is more convenient.
+The mDNS query uses transaction ID zero, clears RD, omits EDNS, and collects distinct valid responder messages for the configured timeout window. `ResolveMulticastAllAsync` is a bounded snapshot; `BrowseServicesContinuousAsync` maintains ongoing DNS-SD state and yields changes. `Resolve` is still available when a merged single response is more convenient.
 
 ### Source Binding and Telemetry
 

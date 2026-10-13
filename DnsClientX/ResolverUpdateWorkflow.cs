@@ -5,7 +5,7 @@ namespace DnsClientX {
     /// <summary>
     /// Coordinates shared single-target DNS update and delete workflows.
     /// </summary>
-    public static class ResolverUpdateWorkflow {
+    public static partial class ResolverUpdateWorkflow {
         /// <summary>
         /// Resolves a single target source and sends a DNS update request.
         /// </summary>

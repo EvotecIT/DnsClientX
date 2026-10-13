@@ -39,6 +39,7 @@ namespace DnsClientX {
             }
 
             string normalizedZone = zone.Trim().TrimEnd('.');
+            Configuration transferConfiguration = EndpointConfiguration.CreateQuerySnapshot();
             (string[] authorities, ZoneTransferCandidate[] candidates) = await DiscoverZoneTransferCandidatesAsync(normalizedZone, cancellationToken).ConfigureAwait(false);
             if (candidates.Length == 0) {
                 throw new DnsClientException($"No authoritative AXFR targets were discovered for zone {normalizedZone}.");
@@ -51,7 +52,7 @@ namespace DnsClientX {
                 cancellationToken.ThrowIfCancellationRequested();
                 triedServers.Add(candidate.Server);
 
-                using var transferClient = CreateRecursiveZoneTransferClient(candidate.Server, port);
+                using var transferClient = CreateRecursiveZoneTransferClient(candidate.Server, port, transferConfiguration);
                 try {
                     ZoneTransferResult[] recordSets = await transferClient.ZoneTransferAsync(
                         normalizedZone,
@@ -212,19 +213,24 @@ namespace DnsClientX {
             candidates.Add(new ZoneTransferCandidate(authority, normalizedServer));
         }
 
-        private ClientX CreateRecursiveZoneTransferClient(string server, int port) {
+        private ClientX CreateRecursiveZoneTransferClient(string server, int port, Configuration configuration) {
             var client = new ClientX(
                 server,
                 DnsRequestFormat.DnsOverTCP,
-                EndpointConfiguration.TimeOut,
-                EndpointConfiguration.UserAgent,
-                EndpointConfiguration.HttpVersion,
+                configuration.TimeOut,
+                configuration.UserAgent,
+                configuration.HttpVersion,
                 IgnoreCertificateErrors,
                 enableCache: false,
                 useTcpFallback: false,
                 webProxy: _webProxy,
-                maxConnectionsPerServer: EndpointConfiguration.MaxConnectionsPerServer);
+                maxConnectionsPerServer: configuration.MaxConnectionsPerServer);
             client.EndpointConfiguration.Port = port;
+            client.EndpointConfiguration.TsigKey = configuration.TsigKey;
+            client.EndpointConfiguration.LocalEndPoint = configuration.LocalEndPoint;
+            client.EndpointConfiguration.MaxZoneTransferMessages = configuration.MaxZoneTransferMessages;
+            client.EndpointConfiguration.MaxZoneTransferRecords = configuration.MaxZoneTransferRecords;
+            client.EndpointConfiguration.MaxZoneTransferBytes = configuration.MaxZoneTransferBytes;
             return client;
         }
     }

@@ -120,6 +120,9 @@ namespace DnsClientX {
             try {
                 // lets we execute valid dns host name strategy
                 Configuration queryConfiguration = queryConfigurationOverride ?? EndpointConfiguration.CreateQuerySnapshot(name);
+                if (queryConfiguration.WireTransport != null && queryConfiguration.BuiltInEndpoint == DnsEndpoint.RootServer) {
+                    throw new NotSupportedException("Root iteration cannot use an optional privacy transport. Configure a recursive resolver for this provider.");
+                }
                 if (queryConfiguration.LocalEndPoint != null && IsHttpBasedTransport(queryConfiguration.RequestFormat)) {
                     throw new NotSupportedException(
                         $"LocalEndPoint is not supported by {queryConfiguration.RequestFormat}. Use UDP, TCP, DoT, or DoQ for explicit source binding.");
@@ -191,9 +194,10 @@ namespace DnsClientX {
                         queryConfiguration.EdnsOptions?.CompactAnswersOk ?? true,
                         queryConfiguration.Rfc5011TrustAnchorStorePath,
                         queryConfiguration.DnsSecSignatureVerifier,
+                        queryConfiguration.DnsSecTrustAnchors,
                         cancellationToken).ConfigureAwait(false);
                 } else {
-                    DnsResponse? bootstrapFailure = IsHttpBasedTransport(queryConfiguration.RequestFormat)
+                    DnsResponse? bootstrapFailure = queryConfiguration.WireTransport == null && IsHttpBasedTransport(queryConfiguration.RequestFormat)
                         ? await PrepareHttpBootstrapAsync(queryConfiguration, name, type, cancellationToken).ConfigureAwait(false) : null;
                     if (bootstrapFailure != null) {
                         response = bootstrapFailure;
@@ -201,11 +205,14 @@ namespace DnsClientX {
                         var transportClock = Stopwatch.StartNew();
                         // Get the HTTP client only for transports that can use it. Root iteration stays
                         // entirely on the shared wire engine and does not allocate an unused handler.
-                        using HttpClientLease? queryLease = IsHttpBasedTransport(queryConfiguration.RequestFormat)
+                        using HttpClientLease? queryLease = queryConfiguration.WireTransport == null && IsHttpBasedTransport(queryConfiguration.RequestFormat)
                             && queryConfiguration.RequestFormat != DnsRequestFormat.DnsOverGrpc
                             ? AcquireHttpClient(queryConfiguration, ignoreCertificateErrors) : null;
                         HttpClient? queryClient = queryLease?.Client;
-                        if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
+                        if (queryConfiguration.WireTransport != null) {
+                            response = await ResolveOptionalWireTransportAsync(queryConfiguration, name, type,
+                                requestDnsSec, wireValidationQuery, cancellationToken).ConfigureAwait(false);
+                        } else if (queryConfiguration.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
                             response = wireValidationQuery
                                 ? await queryClient!.ResolveWireFormatGet(name, type, requestDnsSec, true, Debug, queryConfiguration, cancellationToken, useStandardDnsQueryPath: true).ConfigureAwait(false)
                                 : await queryClient!.ResolveJsonFormat(name, type, requestDnsSec, false, Debug, queryConfiguration, cancellationToken).ConfigureAwait(false);
@@ -280,7 +287,8 @@ namespace DnsClientX {
                             queryConfigurationOverride: queryConfiguration.CreateQuerySnapshot(materialName),
                             certificatePolicy: ignoreCertificateErrors),
                         trustAnchorStorePath: queryConfiguration.Rfc5011TrustAnchorStorePath,
-                        signatureVerifier: queryConfiguration.DnsSecSignatureVerifier);
+                        signatureVerifier: queryConfiguration.DnsSecSignatureVerifier,
+                        zoneTrustAnchors: queryConfiguration.DnsSecTrustAnchors);
                     DnsSecValidationResult validation = await validator.ValidateAsync(response, name, type, cancellationToken).ConfigureAwait(false);
                     response.DnsSecValidationStatus = validation.Status;
                     response.DnsSecValidationMessage = validation.Message;

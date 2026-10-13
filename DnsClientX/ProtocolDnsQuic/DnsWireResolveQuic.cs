@@ -59,7 +59,9 @@ namespace DnsClientX {
             }
 
             IPAddress? address;
-            if (IPAddress.TryParse(dnsServer, out IPAddress? literal)) {
+            if (endpointConfiguration.ConnectionAddress != null) {
+                address = endpointConfiguration.ConnectionAddress;
+            } else if (IPAddress.TryParse(dnsServer, out IPAddress? literal)) {
                 address = literal;
             } else if (HostEntryResolver != null) {
                 IPHostEntry entry = HostEntryResolver(dnsServer);
@@ -85,6 +87,7 @@ namespace DnsClientX {
             string targetHost = string.IsNullOrWhiteSpace(endpointConfiguration.TlsServerName)
                 ? dnsServer
                 : endpointConfiguration.TlsServerName!;
+            targetHost = DnsTlsCertificateTrust.NormalizeAuthenticationName(targetHost);
             var options = new QuicClientConnectionOptions {
                 RemoteEndPoint = new IPEndPoint(address, port),
                 LocalEndPoint = endpointConfiguration.LocalEndPoint,
@@ -93,12 +96,15 @@ namespace DnsClientX {
                 ClientAuthenticationOptions = new SslClientAuthenticationOptions {
                     TargetHost = targetHost,
                     ApplicationProtocols = [new SslApplicationProtocol("doq")],
-                    EnabledSslProtocols = SslProtocols.Tls13
+                    EnabledSslProtocols = SslProtocols.Tls13,
+                    RemoteCertificateValidationCallback = (_, certificate, chain, errors) =>
+                        DnsTlsCertificateTrust.Validate(certificate, chain, errors, targetHost,
+                            endpointConfiguration.TlsTrustAnchors, endpointConfiguration.TlsRevocationMode)
                 }
             };
 
             using var timeout = CreateTimeoutTokenSource(endpointConfiguration.TimeOut, cancellationToken);
-            string poolKey = $"{targetHost}:{port}|{endpointConfiguration.LocalEndPoint?.ToString() ?? "default"}";
+            string poolKey = $"{targetHost}:{port}|{address}|{endpointConfiguration.LocalEndPoint?.ToString() ?? "default"}|{endpointConfiguration.TlsTrustPolicyKey}";
             try {
                 if (connectionPool == null) {
                     QuicConnection connection = await QuicConnectionFactory(options, timeout.Token).ConfigureAwait(false);
