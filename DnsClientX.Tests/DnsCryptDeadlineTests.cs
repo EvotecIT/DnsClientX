@@ -39,7 +39,7 @@ public class DnsCryptDeadlineTests {
     [InlineData(false)]
     [InlineData(true)]
     public async Task DiscoveryCannotRestartTheOverallQueryDeadline(bool useByteArrayApi) {
-        using var server = new DnsCryptTestServer { DropUdpCertificates = true, DropUdpApplications = true };
+        using var server = new DnsCryptTestServer { DropUdpCertificates = true, DropUdpApplications = true, ExpectPeerDisconnect = true };
         var options = Options(server);
         options.Timeout = TimeSpan.FromMilliseconds(250);
         options.OverallTimeout = TimeSpan.FromMilliseconds(400);

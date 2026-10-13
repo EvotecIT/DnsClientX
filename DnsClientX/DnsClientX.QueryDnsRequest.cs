@@ -271,7 +271,9 @@ namespace DnsClientX {
                 failure.Questions = new[] { new DnsQuestion { Name = name, OriginalName = name, Type = type } };
                 failure.ErrorCode = DnsQueryDiagnostics.ClassifyFailure(ex);
                 failure.Exception = ex;
-                if (string.IsNullOrEmpty(failure.Error)) failure.Error = ex.Message;
+                if (string.IsNullOrEmpty(failure.Error)) {
+                    failure.Error = ex.Message;
+                }
                 failure.RetryCount = request.RetryCount - 1;
                 failure.AddServerDetails(client.EndpointConfiguration);
                 return new[] { failure };
@@ -280,8 +282,11 @@ namespace DnsClientX {
 
         private static IEnumerable<(string Name, DnsRecordType Type)> EnumerateRequestQueries(string[] names,
             DnsRecordType[] types) {
-            foreach (DnsRecordType type in types)
-                foreach (string name in names) yield return (name, type);
+            foreach (DnsRecordType type in types) {
+                foreach (string name in names) {
+                    yield return (name, type);
+                }
+            }
         }
 
         // A linked HTTP body deadline can throw plain OperationCanceledException.

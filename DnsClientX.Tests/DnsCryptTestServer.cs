@@ -33,6 +33,7 @@ internal sealed class DnsCryptTestServer : IDisposable {
     internal bool HoldApplications;
     internal bool DropUdpApplications;
     internal bool DropUdpCertificates;
+    internal bool ExpectPeerDisconnect;
     internal bool HoldCertificates;
     internal bool TruncateUdp;
     internal bool TruncateEvenUdp;
@@ -117,8 +118,19 @@ internal sealed class DnsCryptTestServer : IDisposable {
                 // Deliberately split both the prefix and payload across writes.
                 await stream.WriteAsync(prefix, 0, 1); await stream.WriteAsync(prefix, 1, 1);
                 for (int offset = 0; offset < reply.Length; offset += 7) await stream.WriteAsync(reply, offset, Math.Min(7, reply.Length - offset));
-            } catch (Exception exception) when (_stop.IsCancellationRequested && (exception is IOException || exception is ObjectDisposedException || exception is SocketException)) { }
+            } catch (Exception exception) when (_stop.IsCancellationRequested && (exception is IOException || exception is ObjectDisposedException || exception is SocketException)
+                || IsExpectedPeerDisconnect(exception)) { }
         }
+    }
+
+    private bool IsExpectedPeerDisconnect(Exception exception) {
+        if (!ExpectPeerDisconnect) {
+            return false;
+        }
+        SocketException? socketFailure = exception as SocketException
+            ?? (exception is IOException ? exception.InnerException as SocketException : null);
+        return socketFailure != null && socketFailure.SocketErrorCode is SocketError.ConnectionAborted
+            or SocketError.ConnectionReset or SocketError.Shutdown;
     }
 
     private byte[] Reply(byte[] inner, bool application, bool tcp) {

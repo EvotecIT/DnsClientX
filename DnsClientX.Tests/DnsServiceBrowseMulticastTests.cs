@@ -142,7 +142,9 @@ public class DnsServiceBrowseMulticastTests {
             const string injectedInstance = "off-link._http._tcp.local";
             byte[] injected = DnsDiscoveryTestWire.Response(null,
                 DnsDiscoveryTestWire.Ptr(Type, injectedInstance), DnsDiscoveryTestWire.Srv(injectedInstance, "off-link.local", 80));
-            await offLink.SendAsync(injected, injected.Length, new IPEndPoint(IPAddress.Loopback, fixture.Port));
+            // The browser is wildcard-bound. Target the sender's real local interface
+            // so strict host routing does not reject a non-loopback source to loopback.
+            await offLink.SendAsync(injected, injected.Length, new IPEndPoint(otherAddress, fixture.Port));
             Assert.NotSame(first, await Task.WhenAny(first, Task.Delay(500, stop.Token)));
 
             using var local = new UdpClient(AddressFamily.InterNetwork);
@@ -162,8 +164,27 @@ public class DnsServiceBrowseMulticastTests {
         }
     }
 
-    /// <summary>The snapshot sibling rejects the same injected source, accepts an on-link unicast reply, and drains at its deadline.</summary>
-    [CrossInterfaceFact]
+    /// <summary>The snapshot accepts an on-link unicast reply and drains its binding at the deadline on every host.</summary>
+    [Fact]
+    public async Task SnapshotRetainsOnLinkReplyAndDrainsAtDeadline() {
+        using var fixture = new MulticastFixture();
+        using var client = fixture.CreateClient();
+        client.EndpointConfiguration.TimeOut = 1000;
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        Task<DnsResponse[]> query = client.ResolveMulticastAllAsync(Type, DnsRecordType.PTR, stop.Token);
+        IPEndPoint destination = await fixture.ReadQuery(stop.Token);
+        await fixture.Reply(destination, DnsDiscoveryTestWire.Ptr(Type, Instance));
+
+        DnsResponse response = Assert.Single(await query);
+
+        Assert.Equal(Instance, Assert.Single(response.Answers).Data);
+        using var replacement = new UdpClient();
+        replacement.Client.ExclusiveAddressUse = true;
+        replacement.Client.Bind(destination);
+    }
+
+    /// <summary>A route-capable host delivers an off-link source to the snapshot socket, which must reject it.</summary>
+    [CrossInterfaceRouteFact]
     public async Task SnapshotRejectsOffLinkUnicastAndRetainsOnLinkReply() {
         using var fixture = new MulticastFixture();
         using var client = fixture.CreateClient();
@@ -180,9 +201,6 @@ public class DnsServiceBrowseMulticastTests {
         await fixture.Reply(destination, DnsDiscoveryTestWire.Ptr(Type, Instance));
         DnsResponse response = Assert.Single(await query);
         Assert.Equal(Instance, Assert.Single(response.Answers).Data);
-        using var replacement = new UdpClient();
-        replacement.Client.ExclusiveAddressUse = true;
-        replacement.Client.Bind(destination);
     }
 
     /// <summary>Local multicast is valid across address prefixes for both families, but the selected interface still bounds admission.</summary>
@@ -220,6 +238,30 @@ public class DnsServiceBrowseMulticastTests {
         public CrossInterfaceFactAttribute() {
             if (FindOtherInterfaceAddress() == null) {
                 Skip = "Cross-interface admission proof requires an existing non-loopback IPv4 interface.";
+            }
+        }
+    }
+
+    private sealed class CrossInterfaceRouteFactAttribute : FactAttribute {
+        public CrossInterfaceRouteFactAttribute() {
+            IPAddress? source = FindOtherInterfaceAddress();
+            if (source == null) {
+                Skip = "Cross-interface admission proof requires an existing non-loopback IPv4 interface.";
+                return;
+            }
+
+            using var receiver = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            using var sender = new UdpClient(new IPEndPoint(source, 0));
+            receiver.Client.ReceiveTimeout = 250;
+            var destination = (IPEndPoint)receiver.Client.LocalEndPoint!;
+            try {
+                sender.Send(new byte[] { 1 }, 1, destination);
+                IPEndPoint remote = new(IPAddress.Any, 0);
+                receiver.Receive(ref remote);
+                Assert.Equal(source, remote.Address);
+            } catch (SocketException exception) when (exception.SocketErrorCode is SocketError.AddressNotAvailable
+                or SocketError.TimedOut or SocketError.WouldBlock) {
+                Skip = $"Host UDP route {source} -> {destination.Address} cannot deliver the off-link fixture: {exception.SocketErrorCode} ({exception.ErrorCode}).";
             }
         }
     }

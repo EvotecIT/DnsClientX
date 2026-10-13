@@ -2,10 +2,13 @@ param(
     [Parameter(Mandatory)]
     [string] $ModulePath,
     [string] $ResultsPath,
-    [string] $TestsPath = (Join-Path $PSScriptRoot '../Module/Tests')
+    [string] $TestsPath
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not $PSBoundParameters.ContainsKey('TestsPath')) {
+    $TestsPath = Join-Path $PSScriptRoot '../Module/Tests'
+}
 $manifest = Get-Item -LiteralPath $ModulePath
 $module = Import-Module $manifest.FullName -Force -PassThru
 $required = @('Resolve-Dns', 'Find-DnsService', 'Get-DnsService', 'Receive-DnsService', 'Get-DnsDesignatedResolver', 'Get-DnsTransportCapability', 'Invoke-DnsUpdate', 'Test-DnsHealth', 'Compare-DnsResolverSnapshot', 'Get-DnsQueryExplanation', 'Get-DnsCache', 'Clear-DnsCache')
