@@ -31,7 +31,7 @@ The modern core remains free of new production packages. The approved optional d
 - [ ] Complete required native/platform CI.
 - [x] Isolated packed NuGet consumer and actual unsigned PowerShell package proof on the local host.
 - [x] Repeat affected packaged proof after remediation: the final unsigned module passes all 61 PowerShell cases and fresh isolated NuGet consumers run on .NET 8 and .NET 10.
-- [ ] Verify DNSCrypt native assets and real provider execution on Windows and Linux in addition to the locally tested macOS ARM64 host.
+- [x] Verify DNSCrypt native assets and real packaged-provider execution on Windows, Linux, and macOS, including a Windows .NET Framework consumer.
 - [ ] Verify packaged PowerShell workflows on Windows PowerShell 5.1 and the supported PowerShell 7 hosts.
 - [x] Add one unsigned module ZIP producer and four isolated packaged PowerShell consumers to CI, preserving the existing source-test and transport checks.
 - [x] Complete one independent read-only risk review and remediate trust, timeout, and transport-capability findings with regression proof.
@@ -44,6 +44,7 @@ Controlled fixtures prove the paths they exercise. Independent producers add int
 - [x] Publish one complete ready-for-review PR for the administration/privacy outcome: [PR #582](https://github.com/EvotecIT/DnsClientX/pull/582).
 - [ ] Require current-head CI and repository review settlement, address validated findings, and resolve fixed conversations.
 - [ ] Recheck delayed reviewer feedback before declaring readiness.
+- [ ] Resolve and validate a local combined candidate with the resolver-workflow changes in [PR #581](https://github.com/EvotecIT/DnsClientX/pull/581), including configured-provider streaming and private-anchor cache behavior.
 - [x] Remove superseded task output and retain only concise proof and the final private package/module candidate through review settlement.
 
 The separate resolver-workflow work in [PR #581](https://github.com/EvotecIT/DnsClientX/pull/581) retains its own review and release boundary. Source implementation and isolated candidate packages do not establish public NuGet or PSGallery availability. Release signing, public package publication, and deployment follow their normal release process.

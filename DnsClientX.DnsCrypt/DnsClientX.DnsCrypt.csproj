@@ -21,12 +21,12 @@
     <Authors>Przemyslaw Klys</Authors>
     <Company>Evotec</Company>
   </PropertyGroup>
+  <Import Project="buildTransitive/DnsClientX.DnsCrypt.targets" />
   <ItemGroup>
     <ProjectReference Include="../DnsClientX/DnsClientX.csproj" />
-    <PackageReference Include="libsodium" Version="1.0.22" GeneratePathProperty="true" />
+    <PackageReference Include="libsodium" Version="$(DnsClientXSodiumVersion)" GeneratePathProperty="true" />
     <None Include="README.md" Pack="true" PackagePath="/" />
     <None Include="../DnsClientX/DnsClientX.png" Pack="true" PackagePath="/" Link="DnsClientX.png" />
     <None Include="buildTransitive/DnsClientX.DnsCrypt.targets" Pack="true" PackagePath="buildTransitive/" />
   </ItemGroup>
-  <Import Project="buildTransitive/DnsClientX.DnsCrypt.targets" />
 </Project>
