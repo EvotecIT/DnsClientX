@@ -501,8 +501,19 @@ namespace DnsClientX {
 
             private static async Task AuthenticateAsync(SslStream stream, string host, SslProtocols protocols,
                 int timeoutMilliseconds, CancellationToken cancellationToken) {
+#if NET8_0_OR_GREATER
+                Task authentication = stream.AuthenticateAsClientAsync(new SslClientAuthenticationOptions {
+                    TargetHost = host,
+                    EnabledSslProtocols = protocols,
+                    ApplicationProtocols = new List<SslApplicationProtocol> { new("dot") },
+                    // Match the previous native check flag; the stream callback owns the captured trust policy.
+                    CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck
+                }, cancellationToken);
+#else
+                Task authentication = stream.AuthenticateAsClientAsync(host, null, protocols, false);
+#endif
                 await WaitWithTimeoutAsync(
-                    stream.AuthenticateAsClientAsync(host, null, protocols, false),
+                    authentication,
                     timeoutMilliseconds,
                     cancellationToken,
                     $"TLS authentication with {host}").ConfigureAwait(false);
