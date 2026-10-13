@@ -46,12 +46,20 @@ public sealed class DnsCryptOptions {
     public DnsCryptNetworkTransport NetworkTransport { get; set; }
     /// <summary>Gets or sets the accepted classical encryption systems.</summary>
     public DnsCryptEncryptionPolicy EncryptionPolicy { get; set; }
-    /// <summary>Gets or sets the timeout for each certificate or encrypted exchange.</summary>
+    /// <summary>Gets or sets the timeout for each certificate or encrypted exchange, defaulting to five seconds.</summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(5);
+    /// <summary>Gets or sets the overall deadline for a query or explicit certificate refresh, including discovery and waiting for another refresh.</summary>
+    /// <remarks>When null, the deadline allows eight exchange timeouts for UDP with TCP fallback, or four for TCP only,
+    /// covering initial discovery and one certificate recovery. The derived deadline is capped at Int32.MaxValue milliseconds.
+    /// Caller cancellation and a shorter high-level Configuration.TimeOut still take precedence.</remarks>
+    public TimeSpan? OverallTimeout { get; set; }
     /// <summary>Gets or sets the periodic certificate refresh interval, capped at one hour.</summary>
     public TimeSpan CertificateRefreshInterval { get; set; } = TimeSpan.FromHours(1);
     /// <summary>Gets or sets the target encrypted UDP query length (256 through 4096 bytes).</summary>
     public int UdpQuerySize { get; set; } = 512;
+
+    internal int OverallTimeoutMilliseconds => (int)Math.Ceiling(Math.Min(int.MaxValue,
+        OverallTimeout?.TotalMilliseconds ?? Timeout.TotalMilliseconds * (NetworkTransport == DnsCryptNetworkTransport.Tcp ? 4 : 8)));
 
     internal DnsCryptOptions Snapshot() {
         if (ProviderPublicKey.Length != 32) throw new ArgumentException("The provider Ed25519 public key must contain 32 bytes.");
@@ -61,11 +69,13 @@ public sealed class DnsCryptOptions {
         DnsWireNameCodec.EncodeLabels(name);
         if (!Enum.IsDefined(typeof(DnsCryptNetworkTransport), NetworkTransport) || !Enum.IsDefined(typeof(DnsCryptEncryptionPolicy), EncryptionPolicy)) throw new ArgumentOutOfRangeException(nameof(NetworkTransport));
         if (Timeout <= TimeSpan.Zero || Timeout.TotalMilliseconds > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(Timeout));
+        if (OverallTimeout.HasValue && (OverallTimeout.Value <= TimeSpan.Zero || OverallTimeout.Value.TotalMilliseconds > int.MaxValue)) throw new ArgumentOutOfRangeException(nameof(OverallTimeout));
         if (CertificateRefreshInterval <= TimeSpan.Zero || CertificateRefreshInterval > TimeSpan.FromHours(1)) throw new ArgumentOutOfRangeException(nameof(CertificateRefreshInterval));
         if (UdpQuerySize < 256 || UdpQuerySize > 4096) throw new ArgumentOutOfRangeException(nameof(UdpQuerySize));
         return new DnsCryptOptions(CloneEndpoint(ResolverEndpoint), name, ProviderPublicKey) {
             RelayEndpoint = RelayEndpoint == null ? null : CloneEndpoint(RelayEndpoint), NetworkTransport = NetworkTransport,
-            EncryptionPolicy = EncryptionPolicy, Timeout = Timeout, CertificateRefreshInterval = CertificateRefreshInterval, UdpQuerySize = UdpQuerySize
+            EncryptionPolicy = EncryptionPolicy, Timeout = Timeout, OverallTimeout = OverallTimeout,
+            CertificateRefreshInterval = CertificateRefreshInterval, UdpQuerySize = UdpQuerySize
         };
     }
 

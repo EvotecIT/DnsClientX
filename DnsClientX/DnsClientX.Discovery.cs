@@ -185,6 +185,14 @@ public partial class ClientX {
     }
 
     private static async Task VerifyDesignationAsync(DnsDesignatedResolver candidate, TimeSpan timeout, X509Certificate2[] roots, X509RevocationMode revocation, CancellationToken cancellationToken) {
+        cancellationToken.ThrowIfCancellationRequested();
+        string? unsupportedReason = candidate.GetConfigurationUnsupportedReason();
+        if (unsupportedReason != null) {
+            candidate.Verification = DnsDesignatedResolverVerification.Unsupported;
+            candidate.VerificationError = unsupportedReason;
+            return;
+        }
+
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(timeout);
         bool identityPassed = false;

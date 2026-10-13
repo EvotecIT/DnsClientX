@@ -119,18 +119,22 @@ public sealed partial class CertificatePolicyBoundaryTests {
         private int _handshakeCount;
         private int _requestCount;
 
-        internal UntrustedHttpsServer(bool gated = false, bool gateHandshake = false) {
+        internal UntrustedHttpsServer(bool gated = false, bool gateHandshake = false, X509Certificate2? certificate = null) {
             var request = new CertificateRequest("CN=untrusted.invalid", _key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-            _certificate = TestUtilities.CreateTlsCertificate(request);
+            _certificate = certificate ?? TestUtilities.CreateTlsCertificate(request);
+            _ownsCertificate = certificate == null;
             _listener.Start();
             if (!gated) Release();
             if (!gateHandshake) ReleaseHandshake();
             _accept = AcceptAsync();
         }
 
+        private readonly bool _ownsCertificate;
+
         internal int RequestCount => Volatile.Read(ref _requestCount);
         internal string? ServerName { get; private set; }
         internal string? HttpHost { get; private set; }
+        internal string? RedirectHostname { get; set; }
         internal Task Entered => _entered.Task;
         internal void Release() => _release.TrySetResult(true);
         internal Task HandshakeEntered => _handshakeEntered.Task;
@@ -175,6 +179,13 @@ public sealed partial class CertificatePolicyBoundaryTests {
                         Interlocked.Increment(ref _requestCount);
                         _entered.TrySetResult(true);
                         await _release.Task.WaitAsync(_stop.Token);
+                        if (RedirectHostname != null && HttpHost?.StartsWith("127.0.0.1:", StringComparison.Ordinal) == true) {
+                            int port = ((IPEndPoint)_listener.LocalEndpoint).Port;
+                            byte[] redirect = Encoding.ASCII.GetBytes($"HTTP/1.1 302 Found\r\nLocation: https://{RedirectHostname}:{port}/resolve\r\nContent-Length: 0\r\n\r\n");
+                            await tls.WriteAsync(redirect, _stop.Token);
+                            await tls.FlushAsync(_stop.Token);
+                            continue;
+                        }
                         const string json = "{\"Status\":0,\"Answer\":[{\"name\":\"tls-policy.example.\",\"type\":1,\"TTL\":60,\"data\":\"192.0.2.99\"}]}";
                         byte[] body = Encoding.UTF8.GetBytes(json);
                         byte[] headerBytes = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/dns-json\r\nContent-Length: {body.Length}\r\n\r\n");
@@ -193,7 +204,7 @@ public sealed partial class CertificatePolicyBoundaryTests {
             _listener.Stop();
             await _accept;
             await Task.WhenAll(_connections);
-            _certificate.Dispose();
+            if (_ownsCertificate) _certificate.Dispose();
             _key.Dispose();
             _stop.Dispose();
         }

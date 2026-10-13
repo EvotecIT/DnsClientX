@@ -32,7 +32,7 @@ The modern core remains free of new production packages. The approved optional d
 - [ ] Repeat affected packaged proof if candidate remediation changes the covered contracts.
 - [ ] Verify DNSCrypt native assets and real provider execution on Windows and Linux in addition to the locally tested macOS ARM64 host.
 - [ ] Verify packaged PowerShell workflows on Windows PowerShell 5.1 and the supported PowerShell 7 hosts.
-- [ ] Complete one independent read-only risk review and remediate valid in-scope findings.
+- [x] Complete one independent read-only risk review and remediate trust, timeout, and transport-capability findings with regression proof.
 
 Controlled fixtures prove the paths they exercise. Independent producers add interoperability evidence. Native runtime, packaged-consumer, external CI, and public-release proof remain separate gates. Live resolver/network observations are environment evidence, not general performance guarantees.
 
@@ -48,7 +48,7 @@ The separate resolver-workflow work in [PR #581](https://github.com/EvotecIT/Dns
 ## Qualification limits
 
 - QUIC discovery and transport execution depend on both runtime APIs and native host support. An unsupported runtime reports that state explicitly.
-- Custom isolated TLS roots and HTTP/2 ALPN verification require modern .NET. A different HTTP connection address with the original authority requires .NET 8 or later.
+- Custom isolated TLS roots and HTTP/2 ALPN verification require modern .NET. HTTP/1.1 and HTTP/2 with a different connection address and the original authority require .NET 8 or later. HTTP/3 DDR with a different connection address reports `Unsupported` for both GET and POST; same-address HTTP/3 and alternate-address DoQ retain their existing QUIC capability checks.
 - DDR is per resolver and per network. Discovery does not replace global DNS configuration, and an unverified or expired designation cannot create an encrypted client configuration.
 - A slow browse consumer applies bounded backpressure; UDP announcements can be lost. Applications should rediscover after network/interface changes.
 - ODoH does not prevent a colluding relay and target or traffic analysis. A supplied HTTP handler must preserve its documented privacy settings.

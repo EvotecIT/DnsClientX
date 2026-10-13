@@ -24,11 +24,16 @@ internal sealed class DnsCryptTestServer : IDisposable {
     private readonly byte[] _resolverSecret = Enumerable.Range(0x20, 32).Select(value => (byte)value).ToArray();
     internal readonly ConcurrentBag<string> QueryIdentities = new();
     internal readonly TaskCompletionSource<IPEndPoint> UdpApplication = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    internal readonly TaskCompletionSource<IPEndPoint> UdpCertificate = new(TaskCreationOptions.RunContinuationsAsynchronously);
     internal readonly TaskCompletionSource<bool> TcpApplication = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    internal readonly TaskCompletionSource<bool> TcpCertificate = new(TaskCreationOptions.RunContinuationsAsynchronously);
     internal readonly TaskCompletionSource<bool> TcpClosed = new(TaskCreationOptions.RunContinuationsAsynchronously);
     internal int CertificateQueries;
     internal int ApplicationQueries;
     internal bool HoldApplications;
+    internal bool DropUdpApplications;
+    internal bool DropUdpCertificates;
+    internal bool HoldCertificates;
     internal bool TruncateUdp;
     internal bool TruncateEvenUdp;
     internal bool SendInvalidUdpFirst;
@@ -66,7 +71,10 @@ internal sealed class DnsCryptTestServer : IDisposable {
                 bool application = !DnsWireMessageParser.TryParseHeader(inner, out var header) || !DnsWireMessageParser.TryParseQuestion(inner, 0, out var question) || question.Type != 16;
                 if (application) {
                     UdpApplication.TrySetResult(incoming.RemoteEndPoint);
-                    if (HoldApplications) continue;
+                    if (HoldApplications || DropUdpApplications) continue;
+                } else {
+                    UdpCertificate.TrySetResult(incoming.RemoteEndPoint);
+                    if (HoldCertificates || DropUdpCertificates) continue;
                 }
                 byte[] reply = Reply(inner, application, false);
                 if (application && SendInvalidUdpFirst) {
@@ -100,6 +108,9 @@ internal sealed class DnsCryptTestServer : IDisposable {
                 if (application) {
                     TcpApplication.TrySetResult(true);
                     if (HoldApplications) { Assert.Equal(0, await stream.ReadAsync(new byte[1], 0, 1)); TcpClosed.TrySetResult(true); return; }
+                } else {
+                    TcpCertificate.TrySetResult(true);
+                    if (HoldCertificates) { Assert.Equal(0, await stream.ReadAsync(new byte[1], 0, 1)); return; }
                 }
                 byte[] reply = Reply(inner, application, true);
                 prefix[0] = (byte)(reply.Length >> 8); prefix[1] = (byte)reply.Length;

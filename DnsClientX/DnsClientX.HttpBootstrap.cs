@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
@@ -53,9 +54,12 @@ public partial class ClientX {
         };
         if (ignoreCertificateErrors) sockets.SslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
         else if (configuration.TlsTrustAnchors?.Count > 0) {
+            var trustAnchors = configuration.TlsTrustAnchors.ToArray();
+            var revocationMode = configuration.TlsRevocationMode;
+            string authenticationName = configuration.BaseUri!.IdnHost;
             sockets.SslOptions.RemoteCertificateValidationCallback = (_, certificate, chain, errors) =>
-                DnsTlsCertificateTrust.Validate(certificate, chain, errors, configuration.BaseUri!.IdnHost,
-                    configuration.TlsTrustAnchors, configuration.TlsRevocationMode);
+                DnsTlsCertificateTrust.Validate(certificate, chain, errors, authenticationName,
+                    trustAnchors, revocationMode);
         }
         sockets.ConnectCallback = async (context, cancellationToken) => {
             // Keep the original URL authority for HTTP Host, SNI, and certificate validation.

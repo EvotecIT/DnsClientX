@@ -13,7 +13,7 @@ public enum DnsDesignatedResolverVerification {
     Verified,
     /// <summary>A connection, certificate, or original resolver identity check failed.</summary>
     Failed,
-    /// <summary>The advertised transport cannot be verified by this runtime's discovery implementation.</summary>
+    /// <summary>The advertised transport cannot be verified or executed while retaining the original resolver identity.</summary>
     Unsupported
 }
 
@@ -56,7 +56,7 @@ public sealed class DnsDesignatedResolver {
     public DateTimeOffset ExpiresAt { get; }
     /// <summary>Gets the explicit verification outcome.</summary>
     public DnsDesignatedResolverVerification Verification { get; internal set; }
-    /// <summary>Gets the failure or unsupported-verification explanation, when present.</summary>
+    /// <summary>Gets the failure or unsupported-transport explanation, when present.</summary>
     public string? VerificationError { get; internal set; }
 
     internal DnsDesignatedResolver(IPAddress original, int originalPort, DnsServiceBinding binding, IPAddress connection, DateTimeOffset expiresAt, double expiresAtTimestamp, X509Certificate2[] trustAnchors, X509RevocationMode revocationMode) {
@@ -73,6 +73,7 @@ public sealed class DnsDesignatedResolver {
     /// <summary>Creates a configuration for a still-valid verified designation, retaining the original IP identity.</summary>
     /// <param name = "usePost">Whether an HTTP binding should send DNS messages in a POST body.</param>
     /// <returns>An explicit encrypted configuration; failed or unverified discovery never falls back to cleartext.</returns>
+    /// <exception cref="NotSupportedException">The transport cannot use its designated address while retaining the original identity.</exception>
     public Configuration CreateConfiguration(bool usePost = false) {
         if (Verification != DnsDesignatedResolverVerification.Verified) {
             throw new InvalidOperationException("Only a verified DDR candidate can create an encrypted resolver configuration.");
@@ -80,6 +81,11 @@ public sealed class DnsDesignatedResolver {
 
         if (ExpiresAt <= DateTimeOffset.UtcNow || Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency >= _expiresAtTimestamp) {
             throw new InvalidOperationException("The DDR designation has expired. Repeat discovery for the original resolver on the current network.");
+        }
+
+        string? unsupportedReason = GetConfigurationUnsupportedReason();
+        if (unsupportedReason != null) {
+            throw new NotSupportedException(unsupportedReason);
         }
 
         DnsRequestFormat format = Binding.RequestFormat;
@@ -111,6 +117,23 @@ public sealed class DnsDesignatedResolver {
         configuration.UseTcpFallback = false;
         configuration.SelectHostNameStrategy();
         return configuration;
+    }
+
+    // Capability is address-dependent, so SVCB compatibility selection alone cannot establish it.
+    internal string? GetConfigurationUnsupportedReason() {
+        if (Binding.DohPath == null || _connectionAddress.Equals(_originalAddress)) {
+            return null;
+        }
+
+        if (Binding.Alpn == "h3") {
+            return "HTTP/3 DDR cannot use a different connection address while retaining the original resolver's HTTPS authority.";
+        }
+
+#if !NET8_0_OR_GREATER
+        return "HTTP DDR with a different connection address and the original resolver's HTTPS authority requires .NET 8 or later.";
+#else
+        return null;
+#endif
     }
 
     private static IPAddress CopyAddress(IPAddress address) => address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ? new IPAddress(address.GetAddressBytes(), address.ScopeId) : new IPAddress(address.GetAddressBytes());

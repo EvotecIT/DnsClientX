@@ -32,9 +32,12 @@ public sealed partial class DnsCryptClient : IDnsWireTransport, IDisposable {
     public static string NativeLibraryVersion => DnsCryptSodium.Version;
 
     /// <summary>Creates a DnsClientX configuration using this provider. The caller retains provider ownership.</summary>
+    /// <remarks>The configuration timeout matches the provider's overall deadline. Assign TimeOut explicitly to shorten it.</remarks>
     public Configuration CreateConfiguration() {
         var endpoint = _options.RelayEndpoint ?? _options.ResolverEndpoint;
-        return new Configuration(endpoint.Address.ToString(), RequestFormat) { Port = endpoint.Port, WireTransport = this };
+        return new Configuration(endpoint.Address.ToString(), RequestFormat) {
+            Port = endpoint.Port, WireTransport = this, TimeOut = _options.OverallTimeoutMilliseconds
+        };
     }
 
     /// <summary>Creates a high-level client using this provider; dispose both objects when finished.</summary>
@@ -48,28 +51,54 @@ public sealed partial class DnsCryptClient : IDnsWireTransport, IDisposable {
     Task<DnsWireTransportResponse> IDnsWireTransport.QueryAsync(byte[] query, CancellationToken cancellationToken) => QueryExchangeAsync(query, cancellationToken);
 
     /// <summary>Returns an authenticated DNS response and the physical transport used by that exchange.</summary>
+    /// <exception cref="TimeoutException">The complete operation exceeded its overall deadline.</exception>
     public async Task<DnsWireTransportResponse> QueryExchangeAsync(byte[] query, CancellationToken cancellationToken = default) {
         DnsCryptWire.ValidateQuery(query);
         byte[] snapshot = (byte[])query.Clone();
         using var linked = Enter(cancellationToken);
         try {
-            linked.Token.ThrowIfCancellationRequested();
-            DnsCryptCertificate certificate = await GetCertificateAsync(false, linked.Token).ConfigureAwait(false);
-            try { return await QueryWithCertificateAsync(snapshot, certificate, linked.Token).ConfigureAwait(false); }
-            catch (Exception exception) when (IsExchangeFailure(exception)) {
-                // A resolver may withdraw a key before expiry. Refresh once for recovery,
-                // preserving a still-valid certificate when discovery itself is unavailable.
-                certificate = await GetCertificateAsync(true, linked.Token).ConfigureAwait(false);
-                return await QueryWithCertificateAsync(snapshot, certificate, linked.Token).ConfigureAwait(false);
+            using var deadline = CreateDeadline(linked.Token);
+            try {
+                DnsWireTransportResponse response = await ExecuteQueryAsync(snapshot, deadline.Token).ConfigureAwait(false);
+                deadline.Token.ThrowIfCancellationRequested();
+                return response;
+            } catch (OperationCanceledException exception) when (deadline.IsCancellationRequested && !linked.IsCancellationRequested) {
+                throw new TimeoutException("The DNSCrypt operation exceeded its overall deadline.", exception);
             }
         } finally { Exit(); }
     }
 
     /// <summary>Retrieves and validates currently advertised certificates without sending an application query.</summary>
+    /// <exception cref="TimeoutException">The refresh, including waiting for another refresh, exceeded its overall deadline.</exception>
     public async Task RefreshCertificatesAsync(CancellationToken cancellationToken = default) {
         using var linked = Enter(cancellationToken);
-        try { await GetCertificateAsync(true, linked.Token).ConfigureAwait(false); }
-        finally { Exit(); }
+        try {
+            using var deadline = CreateDeadline(linked.Token);
+            try {
+                await GetCertificateAsync(true, deadline.Token).ConfigureAwait(false);
+                deadline.Token.ThrowIfCancellationRequested();
+            } catch (OperationCanceledException exception) when (deadline.IsCancellationRequested && !linked.IsCancellationRequested) {
+                throw new TimeoutException("The DNSCrypt certificate refresh exceeded its overall deadline.", exception);
+            }
+        } finally { Exit(); }
+    }
+
+    private CancellationTokenSource CreateDeadline(CancellationToken token) {
+        CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+        deadline.CancelAfter(_options.OverallTimeoutMilliseconds);
+        return deadline;
+    }
+
+    private async Task<DnsWireTransportResponse> ExecuteQueryAsync(byte[] query, CancellationToken token) {
+        token.ThrowIfCancellationRequested();
+        DnsCryptCertificate certificate = await GetCertificateAsync(false, token).ConfigureAwait(false);
+        try { return await QueryWithCertificateAsync(query, certificate, token).ConfigureAwait(false); }
+        catch (Exception exception) when (IsExchangeFailure(exception)) {
+            // A resolver may withdraw a key before expiry. Refresh once for recovery,
+            // preserving a still-valid certificate when discovery itself is unavailable.
+            certificate = await GetCertificateAsync(true, token).ConfigureAwait(false);
+            return await QueryWithCertificateAsync(query, certificate, token).ConfigureAwait(false);
+        }
     }
 
     private async Task<DnsWireTransportResponse> QueryWithCertificateAsync(byte[] query, DnsCryptCertificate certificate, CancellationToken token) {
