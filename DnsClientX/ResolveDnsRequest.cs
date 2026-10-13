@@ -89,7 +89,7 @@ namespace DnsClientX {
         public int PerEndpointMaxInFlight { get; set; }
 
         /// <summary>
-        /// Gets or sets whether multi-resolver response caching is enabled.
+        /// Gets or sets whether response caching is enabled for the selected resolver source.
         /// </summary>
         public bool ResponseCache { get; set; }
 
@@ -381,6 +381,20 @@ namespace DnsClientX {
 
         internal IWebProxy? CreateWebProxy() {
             return ProxyUri is null ? null : new WebProxy(ProxyUri);
+        }
+
+        internal ResolveDnsRequest Snapshot() {
+            var copy = (ResolveDnsRequest)MemberwiseClone();
+            copy.Names = (string[])Names.Clone();
+            copy.RecordTypes = (DnsRecordType[])RecordTypes.Clone();
+            copy.DnsProviders = (DnsEndpoint[])DnsProviders.Clone();
+            copy.Servers = (string[])Servers.Clone();
+            copy.ResolverEndpoints = (string[])ResolverEndpoints.Clone();
+            copy.ResolverEndpointFiles = (string[])ResolverEndpointFiles.Clone();
+            copy.ResolverEndpointUrls = (string[])ResolverEndpointUrls.Clone();
+            copy.ResolverDnsProviders = (DnsEndpoint[])ResolverDnsProviders.Clone();
+            copy.EdnsCookie = EdnsCookie == null ? null : (byte[])EdnsCookie.Clone();
+            return copy;
         }
 
         internal EdnsOptions? CreateEdnsOptions() {

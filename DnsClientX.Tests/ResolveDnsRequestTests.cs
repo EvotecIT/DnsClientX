@@ -285,6 +285,8 @@ namespace DnsClientX.Tests {
                 UserAgent = "DnsClientX.Tests",
                 HttpVersion = new Version(3, 0),
                 IgnoreCertificateErrors = true,
+                ResponseCache = true,
+                MaxCacheTtlSeconds = 23,
                 UseTcpFallback = false,
                 ProxyUri = new Uri("http://127.0.0.1:8888"),
                 MaxConnectionsPerServer = 12
@@ -292,6 +294,8 @@ namespace DnsClientX.Tests {
             var endpoint = new DnsResolverEndpoint {
                 Transport = Transport.Doh,
                 DohUrl = new Uri("https://dns.example/dns-query"),
+                TlsServerName = "dns.example",
+                Family = System.Net.Sockets.AddressFamily.InterNetworkV6,
                 AllowTcpFallback = true
             };
 
@@ -300,6 +304,10 @@ namespace DnsClientX.Tests {
             Assert.Equal("DnsClientX.Tests", client.EndpointConfiguration.UserAgent);
             Assert.Equal(new Version(3, 0), client.EndpointConfiguration.HttpVersion);
             Assert.True(client.IgnoreCertificateErrors);
+            Assert.True(client.CacheEnabled);
+            Assert.Equal(TimeSpan.FromSeconds(23), client.MaxCacheTtl);
+            Assert.Equal("dns.example", client.EndpointConfiguration.TlsServerName);
+            Assert.Equal(System.Net.Sockets.AddressFamily.InterNetworkV6, client.EndpointConfiguration.PreferredAddressFamily);
             Assert.False(client.EndpointConfiguration.UseTcpFallback);
             Assert.Equal(12, client.EndpointConfiguration.MaxConnectionsPerServer);
             Assert.Equal(4321, client.EndpointConfiguration.TimeOut);

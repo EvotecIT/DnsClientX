@@ -1,21 +1,7 @@
 Import-Module "$PSScriptRoot/../DnsClientX.psd1" -Force
 
-$candidateFrameworks = @('net8.0', 'net10.0', 'netstandard2.0')
-$dnsClientAssemblyPath = foreach ($framework in $candidateFrameworks) {
-    $candidatePath = Join-Path $PSScriptRoot "../../DnsClientX/bin/Debug/$framework/DnsClientX.dll"
-    if (Test-Path -Path $candidatePath) {
-        $candidatePath
-        break
-    }
-}
-if (-not $dnsClientAssemblyPath) {
-    throw 'Unable to locate a built DnsClientX assembly for PowerShell tests.'
-}
-
-$loadedAssembly = [AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.GetName().Name -eq 'DnsClientX' } | Select-Object -First 1
-if (-not $loadedAssembly) {
-    Add-Type -Path $dnsClientAssemblyPath
-}
+# Exercise the assembly imported by the module, including packaged installations.
+$null = [DnsClientX.ClientX].Assembly
 
 Describe 'DnsMessage DO bit' {
     It 'Sets DO bit when requestDnsSec is true' {

@@ -155,6 +155,7 @@ namespace DnsClientX.Tests {
             if (source.Contains("VerbsCommon.Clear", StringComparison.Ordinal)) return "Clear";
             if (source.Contains("VerbsCommon.Find", StringComparison.Ordinal)) return "Find";
             if (source.Contains("VerbsData.ConvertFrom", StringComparison.Ordinal)) return "ConvertFrom";
+            if (source.Contains("VerbsData.Compare", StringComparison.Ordinal)) return "Compare";
             if (source.Contains("VerbsDiagnostic.Resolve", StringComparison.Ordinal)) return "Resolve";
             if (source.Contains("VerbsDiagnostic.Test", StringComparison.Ordinal)) return "Test";
             if (source.Contains("VerbsLifecycle.Invoke", StringComparison.Ordinal)) return "Invoke";

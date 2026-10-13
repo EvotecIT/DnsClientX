@@ -109,6 +109,9 @@ namespace DnsClientX {
         [JsonPropertyName("dnssec_validation_message")]
         public string DnsSecValidationMessage { get; internal set; } = string.Empty;
 
+        /// <summary>Gets material lookups observed during local recursive-resolver validation.</summary>
+        public DnsSecValidationDependency[] DnsSecValidationDependencies { get; internal set; } = Array.Empty<DnsSecValidationDependency>();
+
         /// <summary>Bounds cached validation by the lifetime of every authenticated dependency.</summary>
         [JsonIgnore]
         internal DateTimeOffset? DnsSecValidationExpiresUtc { get; set; }
@@ -429,6 +432,7 @@ namespace DnsClientX {
         /// </summary>
         public DnsResponse Clone() {
             var clone = (DnsResponse)MemberwiseClone();
+            clone.DnsSecValidationDependencies = (DnsSecValidationDependency[])DnsSecValidationDependencies.Clone();
             // Section models are structs, so cloning each array copies every record value.
             clone.Questions = Questions == null ? Array.Empty<DnsQuestion>() : (DnsQuestion[])Questions.Clone();
             clone.Answers = Answers == null ? Array.Empty<DnsAnswer>() : (DnsAnswer[])Answers.Clone();

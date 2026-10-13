@@ -1,0 +1,84 @@
+name: Qualify CLI packages
+
+on:
+    push:
+        branches: [main]
+        paths-ignore: ['*.md', 'Docs/**', 'Examples/**', '.gitignore']
+    pull_request:
+        branches: [main]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    publish:
+        name: CLI (${{ matrix.os }})
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - { os: windows-latest, runtimes: 'win-x64,win-arm64' }
+                    - { os: ubuntu-latest, runtimes: 'linux-x64,linux-arm64' }
+                    - { os: macos-latest, runtimes: 'osx-x64,osx-arm64' }
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 30
+        steps:
+            - uses: actions/checkout@v7
+            - name: Select the macOS SDK installation root
+              if: runner.os == 'macOS'
+              shell: bash
+              run: |
+                  # PowerForge qualifies SDKs from the standard platform installation roots.
+                  sudo mkdir -p /usr/local/share/dotnet
+                  sudo chown "$(id -un)" /usr/local/share/dotnet
+                  echo 'DOTNET_INSTALL_DIR=/usr/local/share/dotnet' >> "$GITHUB_ENV"
+            - uses: actions/setup-dotnet@v6
+              with:
+                  dotnet-version: |
+                      8.x
+                      10.x
+            - name: Install shared publish engine
+              shell: pwsh
+              run: Install-Module PSPublishModule -MinimumVersion 3.0.151 -Force -Scope CurrentUser -AllowClobber
+            - name: Publish platform CLI candidates
+              shell: pwsh
+              run: |
+                  Import-Module PSPublishModule -MinimumVersion 3.0.151 -ErrorAction Stop
+                  Invoke-DotNetPublish -ConfigPath Build/cli.publish.json -Runtimes ('${{ matrix.runtimes }}'.Split(',')) -NoPublishSign -NoInteractive -ExitCode
+            - name: Smoke native archive
+              shell: pwsh
+              run: |
+                  $architecture = [Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant()
+                  $platform = if ($IsWindows) { 'win' } elseif ($IsMacOS) { 'osx' } else { 'linux' }
+                  $name = if ($IsWindows) { 'DnsClientX.Cli.exe' } else { 'DnsClientX.Cli' }
+                  foreach ($line in Get-Content 'Artefacts/Cli/SHA256SUMS') {
+                      if ($line -notmatch '^([A-Fa-f0-9]{64}) \*(.+)$') { throw 'Invalid CLI checksum catalog.' }
+                      if ((Get-FileHash -LiteralPath $Matches[2] -Algorithm SHA256).Hash -ne $Matches[1]) { throw 'CLI archive checksum mismatch.' }
+                  }
+                  $archive = Join-Path 'Artefacts/Cli' "DnsClientX-$platform-$architecture.zip"
+                  $root = Join-Path $env:RUNNER_TEMP 'cli-candidate'
+                  Expand-Archive -LiteralPath $archive -DestinationPath $root
+                  $executable = Join-Path $root $name
+                  if (-not (Test-Path -LiteralPath $executable)) { throw 'CLI archive is missing its executable.' }
+                  & $executable --help
+                  if ($LASTEXITCODE) { throw 'Native CLI help failed.' }
+                  $json = & $executable --capabilities --format json
+                  if ($LASTEXITCODE) { throw 'Native CLI capability report failed.' }
+                  $json | ConvertFrom-Json -ErrorAction Stop | Out-Null
+                  Add-Type -Path ./Module/Tests/Fixtures/DnsWorkflowServer.cs
+                  $peer = [DnsWorkflowServer]::new()
+                  try {
+                      $json = & $executable package.test --resolver $peer.Endpoint --format json --explain --trace
+                      if ($LASTEXITCODE) { throw 'Packaged CLI loopback query failed.' }
+                      $report = $json | ConvertFrom-Json -ErrorAction Stop
+                      if ($report.Response.Status -ne 'NoError' -or $report.Response.Answer.Count -ne 1 -or $report.Response.Answer[0].data -ne '192.0.2.10' -or $report.Explanation.Transport -ne 'Udp' -or $report.Explanation.Attempts.Count -ne 1 -or $report.Explanation.Attempts[0].Port -ne $peer.Port) { throw 'Packaged CLI query report is incomplete.' }
+                  } finally { $peer.Dispose() }
+            - uses: actions/upload-artifact@v7
+              with:
+                  name: cli-${{ matrix.os }}
+                  path: |
+                      Artefacts/Cli/*.zip
+                      Artefacts/Cli/manifest.json
+                      Artefacts/Cli/SHA256SUMS
+                  if-no-files-found: error

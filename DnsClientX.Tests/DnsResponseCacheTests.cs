@@ -216,11 +216,7 @@ namespace DnsClientX.Tests {
         }
 
         private static void ClearCache() {
-            var cacheField = typeof(ClientX).GetField("_cache", BindingFlags.NonPublic | BindingFlags.Static)!;
-            var cache = cacheField.GetValue(null)!;
-            var dictField = cache.GetType().GetField("_cache", BindingFlags.NonPublic | BindingFlags.Instance)!;
-            var dict = dictField.GetValue(cache)!;
-            dict.GetType().GetMethod("Clear")!.Invoke(dict, null);
+            ClientX.ClearResponseCache();
         }
 
         private static TimeSpan GetCachedTtl() {

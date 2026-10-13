@@ -101,10 +101,10 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Ensures resolver files can auto-enable probe mode and import multiple custom endpoints.
+        /// Ensures explicit probe mode imports multiple custom endpoints from resolver files.
         /// </summary>
         [Fact]
-        public async Task ResolverFile_AutoEnablesProbeAndLoadsCustomEndpoints() {
+        public async Task ResolverFile_ExplicitProbeLoadsCustomEndpoints() {
             string resolverFile = Path.GetTempFileName();
             File.WriteAllText(
                 resolverFile,
@@ -117,7 +117,7 @@ namespace DnsClientX.Tests {
             try {
                 Console.SetOut(output);
 
-                int exitCode = await InvokeCliAsync("--resolver-file", resolverFile, "--probe-summary-only");
+                int exitCode = await InvokeCliAsync("--probe", "--resolver-file", resolverFile, "--probe-summary-only");
 
                 Assert.Equal(0, exitCode);
                 string text = output.ToString();

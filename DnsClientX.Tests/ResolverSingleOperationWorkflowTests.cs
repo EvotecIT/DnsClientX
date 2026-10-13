@@ -126,6 +126,64 @@ namespace DnsClientX.Tests {
             Assert.Single(result.AuditTrail);
         }
 
+        /// <summary>Saved endpoint DNSSEC settings survive normal selection; an explicit request can also enable DO.</summary>
+        [Theory]
+        [InlineData(true, false, true)]
+        [InlineData(false, false, false)]
+        [InlineData(null, false, false)]
+        [InlineData(false, true, true)]
+        public async Task QueryAsync_SavedEndpointPreservesDnsSecDoBit(bool? endpointDnsSec, bool requestDnsSec, bool expectedDo) {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            int port = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
+            Task<byte[][]> serverTask = CaptureProbeAndQueryAsync(udp, cts.Token);
+            string path = Path.GetTempFileName();
+            try {
+                var endpoint = new DnsResolverEndpoint { Host = "127.0.0.1", Port = port, Transport = Transport.Udp, DnsSecOk = endpointDnsSec };
+                ResolverProbeReport probe = await ResolverProbeWorkflow.RunAsync(
+                    ResolverExecutionPlanBuilder.BuildExplicitTargets(new[] { endpoint }), "example.com", DnsRecordType.A, 2000,
+                    new ResolverQueryRunOptions(), new ResolverProbePolicy(), cancellationToken: cts.Token);
+                ResolverScoreStore.Save(path, probe.Snapshot);
+                ResolverSingleOperationResult result = await ResolverSingleOperationWorkflow.QueryAsync(
+                    new ResolverExecutionTargetSource { ResolverSelectionPath = path }, "example.com", DnsRecordType.A,
+                    requestDnsSec: requestDnsSec, cancellationToken: cts.Token);
+                byte[][] queries = await serverTask;
+                Assert.Equal(DnsResponseCode.NoError, result.Response.Status);
+                Assert.Equal(endpointDnsSec == true, HasDoBit(queries[0]));
+                Assert.Equal(expectedDo, HasDoBit(queries[1]));
+                Assert.Equal(endpointDnsSec, endpoint.DnsSecOk);
+            } finally { cts.Cancel(); File.Delete(path); }
+        }
+
+        private static async Task<byte[][]> CaptureProbeAndQueryAsync(UdpClient udp, CancellationToken token) {
+            var queries = new byte[2][];
+            for (int index = 0; index < queries.Length; index++) {
+#if NET5_0_OR_GREATER
+                UdpReceiveResult received = await udp.ReceiveAsync(token);
+#else
+                Task<UdpReceiveResult> receive = udp.ReceiveAsync();
+                if (await Task.WhenAny(receive, Task.Delay(Timeout.Infinite, token)) != receive) throw new OperationCanceledException(token);
+                UdpReceiveResult received = await receive;
+#endif
+                queries[index] = received.Buffer;
+                byte[] response = TestUtilities.CreateResponseFromQuery(received.Buffer);
+                await udp.SendAsync(response, response.Length, received.RemoteEndPoint);
+            }
+            return queries;
+        }
+
+        private static bool HasDoBit(byte[] query) {
+            int additionalCount = (query[10] << 8) | query[11];
+            if (additionalCount == 0) return false;
+            Assert.Equal(1, additionalCount);
+            int offset = 12;
+            while (query[offset] != 0) offset += 1 + query[offset];
+            offset += 5; // Question terminator, type, and class.
+            Assert.Equal(0, query[offset]);
+            Assert.Equal((ushort)DnsRecordType.OPT, (ushort)((query[offset + 1] << 8) | query[offset + 2]));
+            return (query[offset + 7] & 0x80) != 0;
+        }
+
         /// <summary>
         /// Ensures update workflows return response and resolver metadata.
         /// </summary>

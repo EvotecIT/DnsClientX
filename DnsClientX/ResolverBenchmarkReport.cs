@@ -3,6 +3,8 @@ namespace DnsClientX {
     /// Represents a fully shaped shared benchmark report.
     /// </summary>
     public sealed class ResolverBenchmarkReport {
+        /// <summary>Gets or sets correlated attempt diagnostics, absent when built from pre-aggregated candidates.</summary>
+        public ResolverBenchmarkAttemptReport[] Attempts { get; set; } = System.Array.Empty<ResolverBenchmarkAttemptReport>();
         /// <summary>Gets or sets the ranked benchmark results.</summary>
         public ResolverBenchmarkReportResult[] Results { get; set; } = System.Array.Empty<ResolverBenchmarkReportResult>();
         /// <summary>Gets or sets the benchmark summary.</summary>

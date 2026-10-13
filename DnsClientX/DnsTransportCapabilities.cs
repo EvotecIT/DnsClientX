@@ -12,15 +12,8 @@ namespace DnsClientX {
     /// reference the same API surface, but unsupported transports are reported explicitly at runtime.
     /// </remarks>
     public static class DnsTransportCapabilities {
-        private static readonly DnsRequestFormat[] DefaultReportFormats = new[] {
-            DnsRequestFormat.DnsOverUDP,
-            DnsRequestFormat.DnsOverTCP,
-            DnsRequestFormat.DnsOverTLS,
-            DnsRequestFormat.DnsOverHttps,
-            DnsRequestFormat.DnsOverHttp2,
-            DnsRequestFormat.DnsOverHttp3,
-            DnsRequestFormat.DnsOverQuic
-        };
+        private static readonly DnsRequestFormat[] DefaultReportFormats =
+            Enum.GetValues(typeof(DnsRequestFormat)).Cast<DnsRequestFormat>().ToArray();
 
         /// <summary>
         /// Gets a value indicating whether DNS over HTTP/3 is supported by the current target/runtime combination.
@@ -60,6 +53,18 @@ namespace DnsClientX {
         /// Gets a value indicating whether modern HTTP transports are available to the current runtime.
         /// </summary>
         public static bool SupportsModernHttp => SupportsDnsOverHttp3;
+
+        /// <summary>Gets whether this target includes the custom DNS-over-gRPC service client.</summary>
+        /// <remarks>This transport implements DnsResolver/QueryDns and requires a matching service.</remarks>
+        public static bool SupportsDnsOverGrpc {
+            get {
+#if NET8_0_OR_GREATER
+                return true;
+#else
+                return false;
+#endif
+            }
+        }
 
         /// <summary>
         /// Gets a value indicating whether the current target and runtime can provide RFC 9103
@@ -110,10 +115,16 @@ namespace DnsClientX {
             return requestFormat switch {
                 DnsRequestFormat.DnsOverHttp3 => SupportsDnsOverHttp3,
                 DnsRequestFormat.DnsOverQuic => SupportsDnsOverQuic,
+                DnsRequestFormat.DnsOverGrpc => SupportsDnsOverGrpc,
                 DnsRequestFormat.ObliviousDnsOverHttps => false,
                 DnsRequestFormat.DnsCrypt => false,
                 DnsRequestFormat.DnsCryptRelay => false,
-                _ => true
+                DnsRequestFormat.DnsOverUDP or DnsRequestFormat.DnsOverTCP or DnsRequestFormat.DnsOverTLS
+                    or DnsRequestFormat.DnsOverHttps or DnsRequestFormat.DnsOverHttpsPOST
+                    or DnsRequestFormat.DnsOverHttpsWirePost or DnsRequestFormat.DnsOverHttpsJSON
+                    or DnsRequestFormat.DnsOverHttpsJSONPOST or DnsRequestFormat.DnsOverHttp2
+                    or DnsRequestFormat.Multicast => true,
+                _ => false
             };
         }
 
@@ -124,7 +135,8 @@ namespace DnsClientX {
         /// <returns>Capability report entries.</returns>
         public static DnsTransportCapabilityInfo[] GetCapabilityReport(bool modernOnly = false) {
             IEnumerable<DnsRequestFormat> formats = modernOnly
-                ? DefaultReportFormats.Where(format => format == DnsRequestFormat.DnsOverHttp3 || format == DnsRequestFormat.DnsOverQuic)
+                ? DefaultReportFormats.Where(format => format is DnsRequestFormat.DnsOverHttp3
+                    or DnsRequestFormat.DnsOverQuic or DnsRequestFormat.DnsOverGrpc)
                 : DefaultReportFormats;
 
             return formats
@@ -180,6 +192,8 @@ namespace DnsClientX {
                     "DNS over HTTP/3 is supported in the core package on net8+ and is unavailable on this runtime.",
                 DnsRequestFormat.DnsOverQuic =>
                     "DNS over QUIC is supported in the core package on net8+ when the runtime provides QUIC support and is unavailable on this runtime.",
+                DnsRequestFormat.DnsOverGrpc =>
+                    "The custom DNS-over-gRPC service client requires the net8.0 or newer target and is unavailable in this target.",
                 DnsRequestFormat.ObliviousDnsOverHttps =>
                     "ODoH requires HPKE plus relay and target handling and is not implemented by the core package.",
                 DnsRequestFormat.DnsCrypt or DnsRequestFormat.DnsCryptRelay =>
@@ -211,12 +225,46 @@ namespace DnsClientX {
                     TargetFrameworkScope = "All supported targets",
                     Notes = "Encrypted core transport available without adding extra transport packages."
                 },
-                DnsRequestFormat.DnsOverHttps => new DnsTransportCapabilityInfo {
-                    Name = "DNS over HTTPS",
+                DnsRequestFormat.DnsOverHttps or DnsRequestFormat.DnsOverHttpsPOST
+                    or DnsRequestFormat.DnsOverHttpsWirePost => new DnsTransportCapabilityInfo {
+                    Name = requestFormat == DnsRequestFormat.DnsOverHttps ? "DNS over HTTPS (wire GET)" : "DNS over HTTPS (wire POST)",
                     RequestFormat = requestFormat,
                     Supported = true,
                     TargetFrameworkScope = "All supported targets",
-                    Notes = "Covers the shared DoH family used by browser-safe and local workflows."
+                    Notes = "RFC 8484 wire-format DNS over HTTPS."
+                },
+                DnsRequestFormat.DnsOverHttpsJSON or DnsRequestFormat.DnsOverHttpsJSONPOST => new DnsTransportCapabilityInfo {
+                    Name = requestFormat == DnsRequestFormat.DnsOverHttpsJSON ? "DNS over HTTPS (JSON GET)" : "DNS over HTTPS (JSON POST)",
+                    RequestFormat = requestFormat,
+                    Supported = true,
+                    TargetFrameworkScope = "All supported targets",
+                    Notes = "Provider JSON API; requires an endpoint implementing the selected JSON contract."
+                },
+                DnsRequestFormat.Multicast => new DnsTransportCapabilityInfo {
+                    Name = "Multicast DNS",
+                    RequestFormat = requestFormat,
+                    Supported = true,
+                    TargetFrameworkScope = "All supported targets",
+                    RuntimeRequirement = "Requires access to the selected local multicast interface",
+                    Notes = "RFC 6762 local-link DNS; availability depends on network and interface policy."
+                },
+                DnsRequestFormat.DnsOverGrpc => new DnsTransportCapabilityInfo {
+                    Name = "DNS over gRPC (custom service)",
+                    RequestFormat = requestFormat,
+                    Supported = SupportsDnsOverGrpc,
+                    TargetFrameworkScope = ".NET 8+",
+                    RuntimeRequirement = "Requires a compatible DnsResolver/QueryDns service over HTTP/2",
+                    Notes = SupportsDnsOverGrpc
+                        ? "Custom service contract, not a standardized DNS transport."
+                        : GetUnsupportedMessage(requestFormat)
+                },
+                DnsRequestFormat.DnsCrypt or DnsRequestFormat.DnsCryptRelay
+                    or DnsRequestFormat.ObliviousDnsOverHttps => new DnsTransportCapabilityInfo {
+                    Name = requestFormat == DnsRequestFormat.ObliviousDnsOverHttps ? "Oblivious DNS over HTTPS" : requestFormat.ToString(),
+                    RequestFormat = requestFormat,
+                    Supported = false,
+                    TargetFrameworkScope = "Not implemented",
+                    Notes = GetUnsupportedMessage(requestFormat)
                 },
                 DnsRequestFormat.DnsOverHttp2 => new DnsTransportCapabilityInfo {
                     Name = "DNS over HTTP/2",

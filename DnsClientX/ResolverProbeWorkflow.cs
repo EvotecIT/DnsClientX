@@ -82,12 +82,14 @@ namespace DnsClientX {
                 explicitOverride,
                 cancellationToken).ConfigureAwait(false);
 
-            return ResolverProbeReportBuilder.Build(
+            ResolverProbeReport report = ResolverProbeReportBuilder.Build(
                 attempts,
                 name,
                 recordType,
                 timeoutMs,
                 policy);
+            ResolverScoreRecommendationBinding.Apply(report, runOptions, targets);
+            return report;
         }
     }
 }

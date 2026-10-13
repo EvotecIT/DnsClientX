@@ -27,6 +27,27 @@ namespace DnsClientX.Tests {
             Assert.Equal(DnsTransportCapabilities.SupportsDnsOverHttp3, DnsTransportCapabilities.Supports(DnsRequestFormat.DnsOverHttp3));
             Assert.Equal(DnsTransportCapabilities.SupportsDnsOverQuic, DnsTransportCapabilities.Supports(DnsRequestFormat.DnsOverQuic));
             Assert.True(DnsTransportCapabilities.Supports(DnsRequestFormat.DnsOverHttps));
+            Assert.False(DnsTransportCapabilities.Supports((DnsRequestFormat)int.MaxValue));
+#if NET8_0_OR_GREATER
+            Assert.True(DnsTransportCapabilities.Supports(DnsRequestFormat.DnsOverGrpc));
+#else
+            Assert.False(DnsTransportCapabilities.Supports(DnsRequestFormat.DnsOverGrpc));
+#endif
+        }
+
+        /// <summary>Every public transport identifier reports its actual implementation and target support.</summary>
+        [Fact]
+        public void CapabilityReportIncludesJsonMulticastAndUnimplementedProtocols() {
+            DnsTransportCapabilityInfo[] report = DnsTransportCapabilities.GetCapabilityReport();
+            foreach (DnsRequestFormat format in Enum.GetValues(typeof(DnsRequestFormat))) {
+                var entry = Assert.Single(report, item => item.RequestFormat == format);
+                Assert.Equal(DnsTransportCapabilities.Supports(format), entry.Supported);
+                Assert.False(string.IsNullOrWhiteSpace(entry.Notes));
+            }
+            Assert.Contains("custom", Assert.Single(report,
+                item => item.RequestFormat == DnsRequestFormat.DnsOverGrpc).Name, StringComparison.OrdinalIgnoreCase);
+            Assert.False(Assert.Single(report,
+                item => item.RequestFormat == DnsRequestFormat.ObliviousDnsOverHttps).Supported);
         }
 
         /// <summary>

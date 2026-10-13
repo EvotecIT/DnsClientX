@@ -1,283 +1,65 @@
-# PLAN
+# DnsClientX engineering plan
 
-## Purpose
+DnsClientX provides one DNS engine for C#, PowerShell and command-line users. The core owns protocol handling, record parsing, validation, caching and resolver operations. The surfaces expose that behavior without maintaining separate query engines.
 
-This roadmap tracks the next library-aligned work for DnsClientX after the recent cleanup wave.
+## Maintained capabilities
 
-The project identity remains:
+- UDP with TCP fallback, TCP, TLS, HTTPS wire and JSON, HTTP/2, HTTP/3, QUIC and gRPC transports, with runtime capability reporting. Modern transports depend on the target runtime and native platform support.
+- Typed records with owner, class, remaining TTL and raw record metadata; unknown payloads retain an explicit representation.
+- Local DNSSEC validation, authenticated denial proofs, iterative root resolution, QNAME minimization and RFC 5011 trust-anchor lifecycle management. Portable ECDSA and EdDSA verification remains an optional package.
+- Persistent TCP/DoT reuse, response correlation, cancellation and bounded recovery. Exact-policy response cache single-flight distinguishes network, coalesced and cached results.
+- System resolver discovery and supported Windows NRPT routing, explicit bootstrap resolvers, DNS stamps, EDNS NSID, padding, cookies and client subnet.
+- AXFR, IXFR, transfer over TLS, ZONEMD validation, authenticated updates and DNS service discovery.
+- Resolver catalog validation, probe/benchmark policies, saved score snapshots and resolver selection/reuse.
+- Bounded local health profiles, scope-aware snapshot comparisons and structured query explanations.
 
-- library first
-- cross-platform core
-- dependency-light main package
-- CLI and PowerShell surfaces built on the same engine
-- advanced DNS protocol features without drifting into unrelated network product areas
+## Priorities 1–3: implemented contracts
 
-## Principles
+These contracts provide the foundation for usable C#, PowerShell and CLI workflows:
 
-### Keep The Core Focused
+- [x] Bound negative cache entries by SOA TTL/MINIMUM, aliases and denial proofs; age public TTLs while preserving receipt-time wire evidence.
+- [x] Bound streaming admission and completed results; cancel and drain admitted work when the consumer stops, while preserving independent single-flight waiters.
+- [x] Make transport capability reports complete and reject unsupported legacy gRPC and unknown transport values consistently.
+- [x] Emit individual PowerShell answer/service rows, bind pipeline names, propagate cancellation and honor update confirmation before network activity.
+- [x] Keep JSON CLI output parseable with explanation/trace, expose complete probe/benchmark reports and support direct custom resolver queries.
+- [x] Add reusable client query options, typed metadata projections, ordered/completion-order streams and process-wide cache management.
+- [x] Reuse DNSSEC material only after accepted validation, bound it by TTL/proof expiry and revalidate it for each answer.
+- [x] Add repeatable health profiles, comparisons with explicit endpoint scope limitations and caller-supplied authoritative reference responses.
+- [x] Preserve tested endpoint settings in saved recommendations; report ambiguous execution evidence instead of inferring a reusable endpoint.
 
-The main package should stay centered on DNS resolution, DNS transport handling, diagnostics, DNSSEC, updates, zone transfer workflows, resolver selection, and protocol parsing.
+Protocol fixtures and loopback peers establish controlled correctness. They do not establish independent resolver interoperability, native QUIC availability on every platform, public package publication or universal performance.
 
-### Prefer Additive Depth Over Product Sprawl
+## Release and qualification gates
 
-The best next features deepen the resolver, parser, diagnostics, CLI, and automation story. Avoid turning the main package into a proxy, desktop security suite, operating system manager, or broad network-control product.
+Before distributing a release, validate the actual core and optional-provider NuGet packages through isolated local-feed consumers, import the actual PowerShell package in fresh processes, and exercise CLI archives on their native architectures. The package matrix covers Windows PowerShell 5.1, PowerShell 7.4 and modern PowerShell on Windows, Linux and macOS. Runtime transport reports must describe unsupported paths clearly.
 
-### Protect The No-Dependency Baseline
+The optional DNSSEC provider must be published alongside the core through the coordinated release flow before consumers can rely on its public NuGet availability. Source integration, local packages, public NuGet/PSGallery packages and installed user versions are separate delivery states. CLI archives use the shared PowerForge publish configuration for x64 and ARM64; native execution qualifies only the tested host/RID.
 
-Modern targets should remain dependency-free where practical. If a feature needs specialized dependencies, unusual crypto, a different support contract, or a much larger maintenance surface, it should move into an optional package.
+## Next priorities
 
-### Keep Runtime-Native Modern Transports In Core
+### Independent protocol qualification
 
-DoH3 and DoQ belong in the core package when the runtime provides the transport support without extra package weight. Older targets should report clear unsupported behavior instead of pulling in compatibility stacks.
+- [ ] Expand repeatable interoperability against independently produced DNS messages and resolvers for signed aliases, compact denial, transfers, updates and service discovery.
+- [ ] Qualify DoQ and HTTP/3 on supported Windows/Linux/macOS native runtimes, including certificate errors, timeout/cancellation and connection reuse; record unavailable platform paths.
+- [ ] Exercise IPv6, split DNS and platform search-domain routing on representative hosts without treating controlled fixtures as native policy proof.
+- [ ] Measure warm DNSSEC material reuse and bounded streaming with the existing controlled load runner. Separate allocations, throughput and network latency; publish only reproducible scenario claims.
 
-### Build Through Existing Surfaces
+### Diagnostic depth
 
-New capabilities should use the current architecture:
+- [ ] Record a complete ordered iterative delegation/trust graph before claiming that explanations show a full resolution or DNSSEC chain.
+- [ ] Add resolver-selection explanations that bind the chosen endpoint to persisted score, policy and capability evidence.
+- [ ] Distinguish endpoint execution identities throughout benchmark reports before allowing same-label variants in one benchmark profile. Probe-only profiles already preserve distinct settings; combined benchmark profiles reject ambiguous labels before execution.
+- [ ] Design profile overrides for CLI users only when their precedence can remain explicit and portable. Typed C#/PowerShell profiles can already be modified before execution.
 
-- core library for protocol, parsing, resolver, and diagnostics behavior
-- CLI for operator workflows and scripting
-- PowerShell for automation and administration
+### DNS-only policy
 
-## Completed Cleanup Wave
+- [ ] Define a deterministic, offline-testable rule model for domain blocking, static answers and resolver selection.
+- [ ] Keep one canonical policy evaluator behind library, CLI and PowerShell explain workflows.
+- [ ] Keep packet manipulation, browser traffic control, proxy orchestration and OS startup management outside this library.
 
-The previous roadmap items below are now implemented and should be treated as maintained surfaces rather than future work:
+### Optional protocol packages
 
-- CLI query output modes: `pretty`, `json`, `raw`, and `short`
-- CLI section toggles for question, answer, authority, and additional output
-- reverse lookup shortcut support in the CLI
-- TXT concatenation output support
-- EDNS padding and cookie option support
-- recursive AXFR convenience flow in the CLI
-- explicit resolver endpoint syntax shared by library, CLI, and PowerShell workflows
-- resolver import from files and URLs for probe and benchmark workflows
-- persisted probe and benchmark score snapshots
-- resolver selection and resolver reuse from saved score snapshots
-- runtime transport capability reporting
-- DNS stamp parsing and generation for plain DNS, DoH, DoT, and DoQ endpoint models
-- no-network DNS stamp inspection in the CLI and PowerShell
-- no-network resolver catalog validation in the CLI and PowerShell
-- resolver score snapshot schema versioning and future-version compatibility checks
-- release sanity coverage for version alignment and CLI help/README parity
+- [ ] Assess DNSCrypt and complete ODoH interoperability as separately reviewed protocol work, including dependency approval and independent fixtures.
+- [ ] Add server hosting or rule packages only for demonstrated consumers with a distinct support and dependency contract.
 
-## Current Direction
-
-The project already has strong foundations:
-
-- broad DNS transport support
-- DNSSEC and root validation work
-- typed records
-- AXFR and dynamic updates
-- multi-resolver strategies
-- probe, benchmark, scoring, and resolver reuse workflows
-- cross-platform targeting
-
-The next phase should focus on protocol completeness, sharper resolver operations, and a small DNS-only policy model.
-
-## Active 2.x Engineering Plan
-
-The current end-to-end goal is deliberately ordered so correctness and measurement land before deeper protocol work:
-
-- [x] Stabilize public behavior with authoritative-divergence fixtures, an adversarial parser corpus, and claims tied to reproducible evidence
-- [x] Maintain parser/cache microbenchmarks plus a separate controlled concurrency runner for 1/32/128-query scenarios
-- [x] Implement RFC 7766 persistent TCP and DoT connection reuse, pipelining, response correlation, cancellation, and bounded recovery
-- [x] Add exact-key cache single-flight and explicit cache/network provenance without crossing configuration or DNSSEC policy boundaries
-- [x] Discover Windows NRPT rules and route only matching namespaces through validated policy-aware resolvers, with explicit unsupported/error states
-- [x] Add IXFR, DNS zone transfer over TLS, and ZONEMD validation with bounded transfer and integrity contracts
-- [x] Add QNAME minimization and RFC 5011 trust-anchor lifecycle management to iterative DNSSEC resolution
-- [x] Put Ed25519/Ed448 DNSSEC verification in a separately versioned optional package so the dependency-light core remains unchanged
-
-Each capability must include focused contracts, cross-target validation, honest CLI/PowerShell/docs exposure where applicable, packaged-artifact proof, and consumer validation before release. Network benchmarks are environment evidence, not universal performance claims.
-
-## Roadmap
-
-## Phase 1: Protocol Completeness
-
-Goal: improve protocol coverage in the core package without adding dependency pressure.
-
-### Scope
-
-- cleaner NSID request and response convenience paths
-- stronger validation for EDNS option combinations and public request models
-- more focused tests around fully-qualified names, root labels, and wire serialization edge cases
-
-### Primary File Areas
-
-- `DnsClientX/Edns/*`
-- `DnsClientX/EdnsOptions.cs`
-- `DnsClientX/DnsMessageOptions.cs`
-- `DnsClientX/ResolveDnsRequest.cs`
-- `DnsClientX/EndpointParser.cs`
-- `DnsClientX/ProtocolDnsWire/DnsMessage.cs`
-- `DnsClientX.Tests/*Edns*`
-- `DnsClientX.Tests/*EndpointParser*`
-
-### Acceptance Criteria
-
-- supported DNS stamps remain round-trippable through the same `DnsResolverEndpoint` model as explicit endpoint syntax
-- NSID can be requested through reusable request models without hand-building EDNS options
-- wire-format tests cover trailing-dot and root-label edge cases
-
-## Phase 2: Resolver Operations
-
-Goal: make resolver selection workflows more repeatable and operator-friendly.
-
-### Scope
-
-- bootstrap resolver control for hostname-based DoH, DoT, DoH3, DoQ, and gRPC endpoints
-- resolver catalog import as a first-class library API, not only CLI plumbing
-- score snapshot migration guardrails for any future schema changes
-- optional resolver health profile files for repeated probe and benchmark runs
-- richer explain output for why a resolver was selected or rejected
-
-### Primary File Areas
-
-- `DnsClientX/EndpointParser.cs`
-- `DnsClientX/ResolverExecutionTargetResolver.cs`
-- `DnsClientX/ResolverScoreStore.cs`
-- `DnsClientX/ResolverProbe*`
-- `DnsClientX/ResolverBenchmark*`
-- `DnsClientX.Cli/Program.cs`
-- `DnsClientX.PowerShell/*Benchmark*`
-- `DnsClientX.PowerShell/*Probe*`
-
-### Acceptance Criteria
-
-- hostname-based transports can use an explicit bootstrap path when needed
-- resolver catalog loading and validation are reusable from library, CLI, and PowerShell
-- future score snapshot schema changes have migration or compatibility guardrails
-- explain output names policy, score, health, and capability factors
-
-## Phase 3: DNS-Only Policy Layer
-
-Goal: add domain-aware behavior while staying inside the DNS domain.
-
-### Initial Scope
-
-- block by domain
-- static answer override by domain
-- custom resolver selection by domain
-- rule explain output
-- testable policy decisions independent from network calls
-
-### Scope Guardrails
-
-This layer should not include:
-
-- proxy orchestration
-- packet fragmentation
-- SNI rewriting
-- browser or system traffic manipulation
-- OS startup management
-
-### Primary File Areas
-
-- new policy-focused files under `DnsClientX/`
-- `DnsClientX.QueryDnsRequest.cs`
-- `DnsClientX.Cli/Program.cs`
-- `DnsClientX.PowerShell/*`
-- dedicated policy tests under `DnsClientX.Tests/`
-
-### Acceptance Criteria
-
-- policy decisions are deterministic and explainable
-- rules can be evaluated without performing network I/O
-- public APIs stay DNS-focused and do not imply system-wide traffic control
-
-## Phase 4: Optional Packages
-
-Goal: leave room for valuable higher-complexity protocols without weighing down the main package.
-
-### Best Candidates
-
-- `DnsClientX.DnsCrypt`
-- `DnsClientX.Odoh`
-- `DnsClientX.Rules`
-- `DnsClientX.Server`
-
-### Packaging Policy
-
-- keep dependency-free DoH3 and DoQ support in the core package on modern targets
-- do not add compatibility dependencies just to backport modern transports to older targets
-- create optional packages when a feature needs specialized dependencies, crypto, server hosting, or a materially different maintenance contract
-
-## Concrete Backlog
-
-### Core
-
-- expose NSID convenience options through `ResolveDnsRequest`
-- add bootstrap resolver configuration to request and endpoint models
-- add migration guardrails when score snapshot schemas change
-- design a DNS-only rule model for block, override, and resolver selection
-
-### CLI
-
-- expose bootstrap resolver controls for explicit endpoints
-- add explain output for resolver score and policy decisions
-- keep help text and README feature lists aligned
-
-### PowerShell
-
-- expose bootstrap resolver controls
-- add parameter coverage for NSID and stamp workflows
-- add rule explain support once the policy model exists
-
-### Diagnostics And Testing
-
-- maintain release sanity tests for version alignment
-- maintain CLI help and README parity checks for documented switches
-- add parser tests for supported and unsupported stamps
-- maintain snapshot schema compatibility tests
-- add policy engine tests before public policy APIs are finalized
-
-## Recommended Next 3 PRs
-
-### PR 1: Bootstrap Resolver Control
-
-Goal:
-
-- let hostname-based transports use explicit bootstrap resolver behavior where needed
-
-Acceptance criteria:
-
-- bootstrap settings are available from reusable request models
-- CLI and PowerShell expose consistent parameter names
-- explain output shows when bootstrap behavior was used
-
-### PR 2: NSID Request Convenience
-
-Goal:
-
-- expose NSID as a first-class request option instead of requiring hand-built EDNS options
-
-Acceptance criteria:
-
-- reusable request models can ask for NSID
-- CLI and PowerShell expose matching NSID switches or parameters
-- response parsing and output surfaces include returned NSID data when present
-
-### PR 3: Resolver Health Profiles
-
-Goal:
-
-- make repeated probe and benchmark runs easier to configure and compare
-
-Acceptance criteria:
-
-- profile files can define resolver catalogs, domains, record types, and policy thresholds
-- CLI and PowerShell can load a profile and still override selected fields
-- reports include enough profile metadata to compare runs over time
-
-## Success Criteria
-
-The roadmap is succeeding if:
-
-- the main package remains dependency-light
-- new features build on existing abstractions
-- CLI and PowerShell stay useful for diagnostics and automation
-- protocol coverage improves without product sprawl
-- policy features remain DNS-focused
-- optional packages absorb higher-complexity protocols when needed
-
-## Summary
-
-DnsClientX should deepen along its current axis: protocol completeness, diagnostics, resolver workflows, and eventually DNS-only policy. The main package should avoid becoming a broader network-control product.
+DoH3 and DoQ stay in core where the runtime supplies them. Specialized crypto and hosting dependencies belong in optional owners. A new protocol name or green synthetic test alone does not make a feature supported.

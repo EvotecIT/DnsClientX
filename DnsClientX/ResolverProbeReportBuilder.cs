@@ -23,7 +23,8 @@ namespace DnsClientX {
 
             policy ??= new ResolverProbePolicy();
             ResolverProbeObservation[] observations = attempts
-                .Select(result => new ResolverProbeObservation {
+                .Select((result, index) => new ResolverProbeObservation {
+                    SourceIndex = index,
                     Target = result.Target,
                     Resolver = result.Resolver,
                     Transport = result.Transport,
@@ -34,13 +35,14 @@ namespace DnsClientX {
                 .ToArray();
 
             ResolverProbeEvaluation evaluation = ResolverProbeScorer.Evaluate(observations, policy);
-            Dictionary<string, ResolverQueryAttemptResult> attemptMap = attempts.ToDictionary(result => result.Target, StringComparer.OrdinalIgnoreCase);
 
             ResolverProbeReportResult[] results = evaluation.Results
                 .Select(result => {
-                    ResolverQueryAttemptResult attempt = attemptMap[result.Target];
+                    ResolverQueryAttemptResult attempt = attempts[result.SourceIndex];
                     return new ResolverProbeReportResult {
                         Target = result.Target,
+                        AnswerSignature = attempt.AnswerSignature,
+                        Explanation = attempt.Response == null ? null : DnsQueryExplanation.Create(attempt.Response),
                         Resolver = attempt.Resolver,
                         RequestFormat = attempt.RequestFormat,
                         Transport = attempt.Transport,
@@ -138,6 +140,10 @@ namespace DnsClientX {
             ResolverScoreSnapshot snapshot = evaluation.CreateSnapshot(policy, new[] { name ?? string.Empty }, new[] { recordType }, timeoutMs);
             snapshot.Summary.RuntimeUnsupportedCandidateCount = summary.RuntimeUnsupportedCandidateCount;
             snapshot.Summary.RuntimeCapabilityWarnings = summary.RuntimeCapabilityWarnings;
+            snapshot.Answers = attempts.Select(a => new ResolverAnswerObservation {
+                Target = a.Target, Name = name ?? string.Empty, RecordType = recordType,
+                Status = a.Status, AnswerSignature = a.AnswerSignature
+            }).ToArray();
 
             return new ResolverProbeReport {
                 Results = results,

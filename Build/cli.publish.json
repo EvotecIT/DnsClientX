@@ -1,0 +1,36 @@
+{
+  "$schema": "https://raw.githubusercontent.com/EvotecIT/PSPublishModule/main/Schemas/powerforge.dotnetpublish.schema.json",
+  "SchemaVersion": 1,
+  "DotNet": {
+    "ProjectRoot": "..",
+    "Configuration": "Release",
+    "EnvironmentVariables": {
+      "NUGET_PACKAGES": {
+        "FromEnvironmentVariable": "NUGET_PACKAGES",
+        "Required": false
+      }
+    }
+  },
+  "Targets": [
+    {
+      "Name": "DnsClientX",
+      "ProjectPath": "DnsClientX.Cli/DnsClientX.Cli.csproj",
+      "Kind": "Cli",
+      "Publish": {
+        "Framework": "net8.0",
+        "Runtimes": ["win-x64", "win-arm64", "linux-x64", "linux-arm64", "osx-x64", "osx-arm64"],
+        "Style": "FrameworkDependent",
+        "OutputPath": "Artefacts/Cli/{rid}",
+        "Zip": true,
+        "ZipNameTemplate": "DnsClientX-{rid}.zip",
+        "KeepSymbols": false,
+        "KeepDocs": false
+      }
+    }
+  ],
+  "Outputs": {
+    "ManifestJsonPath": "Artefacts/Cli/manifest.json",
+    "ManifestTextPath": "Artefacts/Cli/manifest.txt",
+    "ChecksumsPath": "Artefacts/Cli/SHA256SUMS"
+  }
+}

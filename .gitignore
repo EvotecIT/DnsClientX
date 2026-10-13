@@ -368,6 +368,10 @@ build/*
 !Build/
 !Build/*.ps1
 !Build/*.json
+!Build/PackageConsumer/
+!Build/PackageConsumer/*.cs
+!Build/PackageConsumer/*.csproj
+!Build/PackageConsumer/NuGet.Config
 
 /.idea/
 

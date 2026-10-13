@@ -426,6 +426,10 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
         public int? MinSuccessPercent { get; set; }
 
+        /// <summary><para type="description">Write a PolicyViolation error when the selected probe thresholds fail. Use ErrorAction Stop to fail an automation run; the default behavior only warns.</para></summary>
+        [Parameter]
+        public SwitchParameter FailOnPolicyViolation { get; set; }
+
         /// <summary>
         /// Emits a run-level summary object after the per-candidate probe rows.
         /// </summary>
@@ -491,6 +495,10 @@ namespace DnsClientX.PowerShell {
 
             if (IncludeSummary.IsPresent) {
                 WriteObject(summary);
+            }
+            if (FailOnPolicyViolation.IsPresent && !report.Evaluation.PolicyPassed) {
+                WriteError(new ErrorRecord(new InvalidOperationException($"Probe policy failed: {report.Evaluation.PolicyReason}"),
+                    "DnsProbePolicyViolation", ErrorCategory.InvalidResult, summary));
             }
         }
 

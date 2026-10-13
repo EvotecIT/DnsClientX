@@ -431,6 +431,10 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false, ParameterSetName = "ResolverSelection")]
         public int? MinSuccessfulCandidates { get; set; }
 
+        /// <summary><para type="description">Write a PolicyViolation error when the selected benchmark thresholds fail. Use ErrorAction Stop to fail an automation run; the default behavior only warns.</para></summary>
+        [Parameter]
+        public SwitchParameter FailOnPolicyViolation { get; set; }
+
         /// <summary>
         /// Emits a run-level summary object after the per-candidate benchmark results.
         /// </summary>
@@ -498,6 +502,10 @@ namespace DnsClientX.PowerShell {
             }
             if (IncludeSummary.IsPresent) {
                 WriteObject(ToDnsBenchmarkSummary(report.Summary));
+            }
+            if (FailOnPolicyViolation.IsPresent && !report.Evaluation.PolicyPassed) {
+                WriteError(new ErrorRecord(new InvalidOperationException($"Benchmark policy failed: {report.Evaluation.PolicyReason}"),
+                    "DnsBenchmarkPolicyViolation", ErrorCategory.InvalidResult, report.Summary));
             }
         }
 

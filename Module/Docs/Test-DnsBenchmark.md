@@ -13,17 +13,17 @@ Returns one object per candidate with latency, success rate, answer consistency,
 ## SYNTAX
 ### DnsProvider (Default)
 ```powershell
-Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-Attempts <int>] [-MaxConcurrency <int>] [-ConnectionMode <ResolverQueryConnectionMode>] [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-MinSuccessPercent <Int32>] [-MinSuccessfulCandidates <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-Attempts <int>] [-MaxConcurrency <int>] [-ConnectionMode <ResolverQueryConnectionMode>] [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-MinSuccessPercent <Int32>] [-MinSuccessfulCandidates <Int32>] [-FailOnPolicyViolation] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ### ResolverEndpoint
 ```powershell
-Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-Attempts <int>] [-MaxConcurrency <int>] [-ConnectionMode <ResolverQueryConnectionMode>] [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-MinSuccessPercent <Int32>] [-MinSuccessfulCandidates <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-Attempts <int>] [-MaxConcurrency <int>] [-ConnectionMode <ResolverQueryConnectionMode>] [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-MinSuccessPercent <Int32>] [-MinSuccessfulCandidates <Int32>] [-FailOnPolicyViolation] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ### ResolverSelection
 ```powershell
-Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] -ResolverSelectionPath <string> [-Attempts <int>] [-MaxConcurrency <int>] [-ConnectionMode <ResolverQueryConnectionMode>] [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-MinSuccessPercent <Int32>] [-MinSuccessfulCandidates <Int32>] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
+Test-DnsBenchmark [-Name] <string[]> [[-Type] <DnsRecordType[]>] -ResolverSelectionPath <string> [-Attempts <int>] [-MaxConcurrency <int>] [-ConnectionMode <ResolverQueryConnectionMode>] [-TimeOut <int>] [-RequestDnsSec] [-RequestNsid] [-BootstrapResolver <string>] [-ValidateDnsSec] [-DnsSecVerifierPath <string>] [-MinSuccessPercent <Int32>] [-MinSuccessfulCandidates <Int32>] [-FailOnPolicyViolation] [-IncludeSummary] [-SummaryOnly] [-SavePath <string>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -167,6 +167,22 @@ Local optional DNSSEC provider DLL path, with its dependencies beside it.
 
 ```yaml
 Type: String
+Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -FailOnPolicyViolation
+Write a PolicyViolation error when the selected benchmark thresholds fail. Use ErrorAction Stop to fail an automation run; the default behavior only warns.
+
+```yaml
+Type: SwitchParameter
 Parameter Sets: DnsProvider, ResolverEndpoint, ResolverSelection
 Aliases: None
 Possible values:

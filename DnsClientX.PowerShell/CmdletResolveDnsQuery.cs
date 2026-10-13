@@ -11,6 +11,7 @@ namespace DnsClientX.PowerShell {
     /// <para type="synopsis">Resolves DNS records (A, AAAA, MX, TXT, …) over UDP, TCP, DoT, DoH, QUIC, or multicast with optional multi-resolver strategies.</para>
     /// <para type="description">Supports single-provider queries, explicit servers with transport selection, multiple providers with FirstSuccess/FastestWins/SequentialFallback/RoundRobin, direct resolver endpoints, DNSSEC, EDNS/ECS, concurrency control, and TTL-based response caching.</para>
     /// <para type="description">Specify either Name or Pattern. When no resolver source is specified, the library's default resolver is used. Timeout, retry, response, typed-record, and DNSSEC options apply to every resolver source.</para>
+    /// <para type="description">Name accepts pipeline strings or objects with Name, Domain, or DnsName properties. By default each answer is an individual pipeline row. Use FullResponse for complete response objects, TypedRecords for typed values, or TypedRecordMetadata to keep typed values and record metadata together.</para>
     /// </summary>
     /// <example>
     ///  <para>Simple (system default)</para>
@@ -56,14 +57,29 @@ namespace DnsClientX.PowerShell {
     ///  <para>Reuse the recommended resolver from a saved selection snapshot</para>
     ///  <code>Resolve-Dns -Name 'example.com' -Type A -ResolverSelectionPath '.\resolver-score.json'</code>
     /// </example>
+    /// <example>
+    ///  <para>Resolve names from a pipeline and filter individual answers</para>
+    ///  <code>'example.com','example.net' | Resolve-Dns -Type A | Where-Object Type -EQ A</code>
+    /// </example>
+    /// <example>
+    ///  <para>Stream a bounded batch in completion order</para>
+    ///  <code>Resolve-Dns -Name 'example.com','example.net' -Type A,AAAA -Stream -CompletionOrder -MaxConcurrency 4</code>
+    /// </example>
+    /// <example>
+    ///  <para>Keep typed payloads together with their owner and TTL</para>
+    ///  <code>Resolve-Dns -Name 'example.com' -Type MX -TypedRecordMetadata | Select-Object Name,TTL,Value</code>
+    /// </example>
     /// <seealso cref="DnsClientX.PowerShell.AsyncPSCmdlet" />
     [Alias("Resolve-DnsQuery")]
     [Cmdlet(VerbsDiagnostic.Resolve, "Dns", DefaultParameterSetName = "Name")]
+    [OutputType(typeof(DnsAnswerMinimal), typeof(DnsResponse), typeof(DnsTypedRecord<object>))]
     public sealed class CmdletResolveDnsQuery : AsyncPSCmdlet {
         /// <summary>
-        /// <para type="description">The name of the DNS record to query for</para>
+        /// <para type="description">DNS names to query. Accepts pipeline strings and Name, Domain, or DnsName properties.</para>
         /// </summary>
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "Name")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "Name", ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
+        [Alias("Domain", "DnsName")]
+        [ValidateNotNullOrEmpty]
         public string[] Name { get; set; } = Array.Empty<string>();
 
         /// <summary>
@@ -164,7 +180,7 @@ namespace DnsClientX.PowerShell {
         public int PerEndpointMaxInFlight { get; set; } = 0;
 
         /// <summary>
-        /// <para type="description">Enables response caching based on TTLs for repeated queries of the same (name,type). Disabled by default.</para>
+        /// <para type="description">Enables TTL-based response caching for any resolver source. Disabled by default.</para>
         /// </summary>
         [Parameter(Mandatory = false)]
         public SwitchParameter ResponseCache { get; set; }
@@ -195,17 +211,29 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = false)]
         public SwitchParameter RandomServer;
         /// <summary>
-        /// <para type="description">Provides the full response of the query. If not specified, only the minimal response is provided (just the answer).</para>
+        /// <para type="description">Provides full response objects. If not specified, answers are enumerated as individual pipeline rows.</para>
         /// <para type="description">If specified, the full response is provided (answer, authority, and additional sections).</para>
         /// </summary>
         [Parameter(Mandatory = false)]
         public SwitchParameter FullResponse;
+
+        /// <summary><para type="description">Emit each response when its turn is available in record type order, then name order. MaxConcurrency bounds active queries without collecting the entire batch.</para></summary>
+        [Parameter]
+        public SwitchParameter Stream { get; set; }
+
+        /// <summary><para type="description">With Stream, emit responses in completion order. Omit this switch to preserve record type order, then name order.</para></summary>
+        [Parameter]
+        public SwitchParameter CompletionOrder { get; set; }
 
         /// <summary>
         /// <para type="description">When set, attempts to parse answers into typed record objects.</para>
         /// </summary>
         [Parameter(Mandatory = false)]
         public SwitchParameter TypedRecords;
+
+        /// <summary><para type="description">Return typed answer values together with their owner, TTL, class and original record. This implies TypedRecords; FullResponse takes precedence.</para></summary>
+        [Parameter]
+        public SwitchParameter TypedRecordMetadata { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether TXT records should be
@@ -342,10 +370,16 @@ namespace DnsClientX.PowerShell {
         private void WriteResponse(DnsResponse record) {
             if (FullResponse.IsPresent) {
                 WriteObject(record);
+            } else if (TypedRecordMetadata.IsPresent) {
+                foreach (DnsTypedRecord<object> answer in record.GetTypedAnswers<object>(ParseTypedTxtRecords.IsPresent)) {
+                    PSObject output = PSObject.AsPSObject(answer);
+                    output.TypeNames.Insert(0, "DnsClientX.TypedRecord");
+                    WriteObject(output);
+                }
             } else if (TypedRecords.IsPresent && record.TypedAnswers != null) {
                 WriteObject(record.TypedAnswers, true);
             } else {
-                WriteObject(record.AnswersMinimal);
+                WriteObject(record.AnswersMinimal, true);
             }
         }
 
@@ -378,7 +412,7 @@ namespace DnsClientX.PowerShell {
                 RequestDnsSec = RequestDnsSec.IsPresent || ValidateDnsSec.IsPresent,
                 ValidateDnsSec = ValidateDnsSec.IsPresent,
                 DnsSecSignatureVerifier = DnsSecProviderPath.Load(this, DnsSecVerifierPath),
-                TypedRecords = TypedRecords.IsPresent,
+                TypedRecords = TypedRecords.IsPresent || TypedRecordMetadata.IsPresent,
                 ParseTypedTxtRecords = ParseTypedTxtRecords.IsPresent,
                 EnableEdns = EnableEdns.IsPresent,
                 EdnsBufferSize = EdnsBufferSize,
@@ -424,7 +458,7 @@ namespace DnsClientX.PowerShell {
                 bound.ContainsKey(nameof(ResolverDnsProvider));
             if ((!hasMultiResolverSource || bound.ContainsKey(nameof(Server)) || bound.ContainsKey(nameof(ResolverSelectionPath))) && new[] {
                     nameof(ResolverStrategy), nameof(MaxParallelism), nameof(RespectEndpointTimeout), nameof(FastestCacheMinutes),
-                    nameof(PerEndpointMaxInFlight), nameof(ResponseCache), nameof(MaxCacheTtlSeconds)
+                    nameof(PerEndpointMaxInFlight)
                 }.Any(bound.ContainsKey)) {
                 throw new PSArgumentException("Multi-resolver options require multiple DnsProvider values, ResolverEndpoint, or ResolverDnsProvider.");
             }
@@ -445,6 +479,9 @@ namespace DnsClientX.PowerShell {
         /// <inheritdoc />
         protected override async Task ProcessRecordAsync() {
             ValidateResolverInputs();
+            if (CompletionOrder.IsPresent && !Stream.IsPresent) {
+                throw new PSArgumentException("CompletionOrder requires Stream.");
+            }
             ResolveDnsRequest request;
             try {
                 request = CreateRequest();
@@ -454,10 +491,17 @@ namespace DnsClientX.PowerShell {
             }
 
             try {
-                var result = await ClientX.QueryDns(request, CancelToken).ConfigureAwait(false);
-                foreach (var record in result) {
-                    LogResponse(record);
-                    WriteResponse(record);
+                if (Stream.IsPresent) {
+                    await foreach (DnsResponse record in ClientX.QueryDnsStreaming(request, !CompletionOrder.IsPresent, CancelToken).ConfigureAwait(false)) {
+                        LogResponse(record);
+                        WriteResponse(record);
+                    }
+                } else {
+                    var result = await ClientX.QueryDns(request, CancelToken).ConfigureAwait(false);
+                    foreach (var record in result) {
+                        LogResponse(record);
+                        WriteResponse(record);
+                    }
                 }
             } catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException) {
                 WriteError(new ErrorRecord(ex, "ResolveDnsInvalidInput", ErrorCategory.InvalidArgument, request));

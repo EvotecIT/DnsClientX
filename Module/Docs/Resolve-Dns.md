@@ -12,15 +12,17 @@ Supports single-provider queries, explicit servers with transport selection, mul
 
 Specify either Name or Pattern. When no resolver source is specified, the library's default resolver is used. Timeout, retry, response, typed-record, and DNSSEC options apply to every resolver source.
 
+Name accepts pipeline strings or objects with Name, Domain, or DnsName properties. By default each answer is an individual pipeline row. Use FullResponse for complete response objects, TypedRecords for typed values, or TypedRecordMetadata to keep typed values and record metadata together.
+
 ## SYNTAX
 ### Name (Default)
 ```powershell
-Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverDnsProvider <DnsEndpoint[]>] [-ResolverSelectionPath <string>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverDnsProvider <DnsEndpoint[]>] [-ResolverSelectionPath <string>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-Stream] [-CompletionOrder] [-TypedRecordMetadata] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ### Pattern
 ```powershell
-Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverDnsProvider <DnsEndpoint[]>] [-ResolverSelectionPath <string>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverDnsProvider <DnsEndpoint[]>] [-ResolverSelectionPath <string>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-Stream] [-CompletionOrder] [-TypedRecordMetadata] [-DnsSecVerifierPath <string>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -29,6 +31,8 @@ Resolves DNS records (A, AAAA, MX, TXT, …) over UDP, TCP, DoT, DoH, QUIC, or m
 Supports single-provider queries, explicit servers with transport selection, multiple providers with FirstSuccess/FastestWins/SequentialFallback/RoundRobin, direct resolver endpoints, DNSSEC, EDNS/ECS, concurrency control, and TTL-based response caching.
 
 Specify either Name or Pattern. When no resolver source is specified, the library's default resolver is used. Timeout, retry, response, typed-record, and DNSSEC options apply to every resolver source.
+
+Name accepts pipeline strings or objects with Name, Domain, or DnsName properties. By default each answer is an individual pipeline row. Use FullResponse for complete response objects, TypedRecords for typed values, or TypedRecordMetadata to keep typed values and record metadata together.
 
 ## EXAMPLES
 
@@ -109,6 +113,27 @@ Resolve-Dns -Name 'example.com' -Type A -ResolverSelectionPath '.\resolver-score
 
 Reuse the recommended resolver from a saved selection snapshot
 
+### EXAMPLE 12
+```powershell
+'example.com','example.net' | Resolve-Dns -Type A | Where-Object Type -EQ A
+```
+
+Resolve names from a pipeline and filter individual answers
+
+### EXAMPLE 13
+```powershell
+Resolve-Dns -Name 'example.com','example.net' -Type A,AAAA -Stream -CompletionOrder -MaxConcurrency 4
+```
+
+Stream a bounded batch in completion order
+
+### EXAMPLE 14
+```powershell
+Resolve-Dns -Name 'example.com' -Type MX -TypedRecordMetadata | Select-Object Name,TTL,Value
+```
+
+Keep typed payloads together with their owner and TTL
+
 ## PARAMETERS
 
 ### -AllServers
@@ -166,6 +191,22 @@ Sets the EDNS Client Subnet (ECS) in CIDR notation, for example 192.0.2.0/24.
 
 ```yaml
 Type: String
+Parameter Sets: Name, Pattern
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -CompletionOrder
+With Stream, emit responses in completion order. Omit this switch to preserve record type order, then name order.
+
+```yaml
+Type: SwitchParameter
 Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
@@ -296,7 +337,7 @@ Accept wildcard characters: False
 ```
 
 ### -FullResponse
-Provides the full response of the query. If not specified, only the minimal response is provided (just the answer).
+Provides full response objects. If not specified, answers are enumerated as individual pipeline rows.
 
 If specified, the full response is provided (answer, authority, and additional sections).
 
@@ -410,18 +451,18 @@ Accept wildcard characters: False
 ```
 
 ### -Name
-The name of the DNS record to query for
+DNS names to query. Accepts pipeline strings and Name, Domain, or DnsName properties.
 
 ```yaml
 Type: String[]
 Parameter Sets: Name
-Aliases: None
+Aliases: Domain, DnsName
 Possible values:
 
 Required: True
 Position: 0
 Default value: None
-Accept pipeline input: False
+Accept pipeline input: True (ByValue, ByPropertyName)
 Accept wildcard characters: False
 ```
 
@@ -686,7 +727,7 @@ Accept wildcard characters: False
 ```
 
 ### -ResponseCache
-Enables response caching based on TTLs for repeated queries of the same (name,type). Disabled by default.
+Enables TTL-based response caching for any resolver source. Disabled by default.
 
 ```yaml
 Type: SwitchParameter
@@ -751,6 +792,22 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -Stream
+Emit each response when its turn is available in record type order, then name order. MaxConcurrency bounds active queries without collecting the entire batch.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: Name, Pattern
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -TimeOut
 Specifies the timeout for the DNS query, in milliseconds. If the DNS server does not respond within this time, the query will fail. Default is 2000 ms (2 seconds) as defined by DefaultTimeout. Increase this value for slow networks or unreliable servers.
 
@@ -778,6 +835,22 @@ Possible values: Reserved, A, NS, MD, MF, CNAME, SOA, MB, MG, MR, NULL, WKS, PTR
 
 Required: False
 Position: 1
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -TypedRecordMetadata
+Return typed answer values together with their owner, TTL, class and original record. This implies TypedRecords; FullResponse takes precedence.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: Name, Pattern
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
 Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -852,11 +925,13 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## INPUTS
 
-- `None`
+- `System.String[]`
 
 ## OUTPUTS
 
-- `None`
+- `DnsClientX.DnsAnswerMinimal`
+- `DnsClientX.DnsResponse`
+- `DnsClientX.DnsTypedRecord[System.Object]`
 
 ## RELATED LINKS
 

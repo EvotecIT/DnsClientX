@@ -2,210 +2,172 @@ name: Test PowerShell
 
 on:
     push:
-        branches:
-            - main
-        paths-ignore:
-            - '*.md'
-            - 'Docs/**'
-            - 'Examples/**'
-            - '.gitignore'
+        branches: [main]
+        paths-ignore: ['*.md', 'Docs/**', 'Examples/**', '.gitignore']
     pull_request:
-        branches:
-            - main
+        branches: [main]
     workflow_dispatch:
 
 permissions:
     contents: read
 
-env:
-    DOTNET_VERSION: '10.x'
-    BUILD_CONFIGURATION: 'Debug'
-
 jobs:
-    refresh-psd1:
-        name: 'Refresh PSD1'
+    package:
+        name: Build unsigned package
         runs-on: windows-latest
-        timeout-minutes: 10
+        timeout-minutes: 30
         steps:
-            - name: Checkout code
-              uses: actions/checkout@v7
-
-            - name: Setup PowerShell modules
+            - uses: actions/checkout@v7
+            - uses: actions/setup-dotnet@v6
+              with:
+                  dotnet-version: |
+                      8.x
+                      10.x
+            - name: Install shared builder
+              shell: pwsh
+              run: Install-Module PSPublishModule -MinimumVersion 3.0.151 -Force -Scope CurrentUser -AllowClobber
+            - name: Build through native module entrypoint
               shell: pwsh
               run: |
-                  Install-Module PSPublishModule -Force -Scope CurrentUser -AllowClobber
-
-            - name: Refresh module manifest
-              shell: pwsh
-              run: |
-                  ./Module/Build/Build-Module.ps1 -RunMode Manifest -SignModule:$false
-
-            - name: Upload refreshed manifest
+                  $version = (Import-PowerShellDataFile ./Module/DnsClientX.psd1).ModuleVersion
+                  ./Module/Build/Build-Module.ps1 -RunMode Build -SignModule:$false -UpdateVersions:$false -ModuleVersion $version -SkipInstall
+            - name: Upload module and NuGet candidates
               uses: actions/upload-artifact@v7
               with:
-                  name: psd1
-                  path: Module/DnsClientX.psd1
+                  name: unsigned-packages
+                  path: |
+                      Artefacts/Packed/*.zip
+                      Artefacts/ProjectBuild/packages/*.nupkg
+                  if-no-files-found: error
 
-    test-windows-ps5:
-        needs: refresh-psd1
-        name: 'Windows PowerShell 5.1'
-        runs-on: windows-latest
-        timeout-minutes: 10
+    test:
+        needs: package
+        name: ${{ matrix.name }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - { name: Windows PowerShell 5.1 package, os: windows-latest, shell: powershell }
+                    - { name: Windows PowerShell 7 package, os: windows-latest, shell: pwsh }
+                    - { name: Linux PowerShell 7 package, os: ubuntu-latest, shell: pwsh }
+                    - { name: macOS PowerShell 7 package, os: macos-latest, shell: pwsh }
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 15
         steps:
-            - name: Checkout code
-              uses: actions/checkout@v7
-
-            - name: Download manifest
-              uses: actions/download-artifact@v8
+            - uses: actions/checkout@v7
+            - uses: actions/download-artifact@v8
               with:
-                  name: psd1
-                  path: .
-
-            - name: Setup .NET
-              uses: actions/setup-dotnet@v6
-              with:
-                  dotnet-version: ${{ env.DOTNET_VERSION }}
-
-            - name: Install PowerShell modules
-              shell: powershell
-              run: |
-                  Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)"
-                  Install-Module -Name Pester -Repository PSGallery -Force -SkipPublisherCheck -AllowClobber
-                  Install-Module -Name PSWriteColor -Repository PSGallery -Force -SkipPublisherCheck -AllowClobber
-
-            - name: Build .NET solution
-              run: |
-                  dotnet restore DnsClientX.sln
-                  dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
-
-            - name: Run PowerShell tests
-              shell: powershell
-              run: ./Module/DnsClientX.Tests.ps1
-
-    test-windows-ps7:
-        needs: refresh-psd1
-        name: 'Windows PowerShell 7'
-        runs-on: windows-latest
-        timeout-minutes: 10
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v7
-
-            - name: Download manifest
-              uses: actions/download-artifact@v8
-              with:
-                  name: psd1
-                  path: .
-
-            - name: Setup .NET
-              uses: actions/setup-dotnet@v6
-              with:
-                  dotnet-version: ${{ env.DOTNET_VERSION }}
-
-            - name: Install PowerShell modules
+                  name: unsigned-packages
+                  path: candidate
+            - name: Install Pester
               shell: pwsh
               run: |
-                  Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)"
-                  Install-Module -Name Pester -Repository PSGallery -Force -SkipPublisherCheck -AllowClobber
-                  Install-Module -Name PSWriteColor -Repository PSGallery -Force -SkipPublisherCheck -AllowClobber
-
-            - name: Build .NET solution
-              run: |
-                  dotnet restore DnsClientX.sln
-                  dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
-
-            - name: Run PowerShell tests
+                  $install = {
+                      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                      Install-Module Pester -MinimumVersion 5.7.1 -Force -Scope CurrentUser -SkipPublisherCheck -AllowClobber -ErrorAction Stop
+                  }
+                  if ('${{ matrix.shell }}' -eq 'powershell') {
+                      & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command $install
+                      if ($LASTEXITCODE) { throw 'Windows PowerShell Pester installation failed.' }
+                  } else {
+                      & $install
+                  }
+            - name: Import packaged module and run contracts
               shell: pwsh
-              run: ./Module/DnsClientX.Tests.ps1
+              run: |
+                  $archive = @(Get-ChildItem candidate/Packed -Filter 'DnsClientX-PowerShellModule.*.zip')
+                  if ($archive.Count -ne 1) { throw 'Expected one module archive.' }
+                  $root = Join-Path $env:RUNNER_TEMP 'module-candidate'
+                  Expand-Archive -LiteralPath $archive[0].FullName -DestinationPath $root
+                  $manifest = @(Get-ChildItem $root -Filter DnsClientX.psd1 -Recurse)
+                  if ($manifest.Count -ne 1) { throw 'Expected one packaged module manifest.' }
+                  if ('${{ matrix.shell }}' -eq 'powershell') {
+                      & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./Build/Test-PackagedModule.ps1 -ModulePath $manifest[0].FullName -ResultsPath "$env:RUNNER_TEMP/pester.xml"
+                      if ($LASTEXITCODE) { throw 'Windows PowerShell package validation failed.' }
+                  } else {
+                      ./Build/Test-PackagedModule.ps1 -ModulePath $manifest[0].FullName -ResultsPath "$env:RUNNER_TEMP/pester.xml"
+                  }
+            - uses: actions/upload-artifact@v7
+              if: always()
+              with:
+                  name: pester-${{ matrix.os }}-${{ matrix.shell }}
+                  path: ${{ runner.temp }}/pester.xml
 
-    test-ubuntu:
-        needs: refresh-psd1
-        name: 'Ubuntu PowerShell 7'
+    test-minimum:
+        needs: package
+        name: Minimum PowerShell 7.4.0 package
         runs-on: ubuntu-latest
-        timeout-minutes: 10
+        timeout-minutes: 15
         steps:
-            - name: Checkout code
-              uses: actions/checkout@v7
-
-            - name: Download manifest
-              uses: actions/download-artifact@v8
+            - uses: actions/checkout@v7
+            - uses: actions/download-artifact@v8
               with:
-                  name: psd1
-                  path: .
-
-            - name: Setup .NET
-              uses: actions/setup-dotnet@v6
-              with:
-                  dotnet-version: ${{ env.DOTNET_VERSION }}
-
-            - name: Install PowerShell
-              run: |
-                  curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-                  curl https://packages.microsoft.com/config/ubuntu/20.04/prod.list | sudo tee /etc/apt/sources.list.d/microsoft.list
-                  sudo apt-get update
-                  sudo apt-get install -y powershell
-
-            - name: Install PowerShell modules
+                  name: unsigned-packages
+                  path: candidate
+            - name: Install isolated minimum supported host
               shell: pwsh
               run: |
-                  Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)"
-                  Install-Module -Name Pester -Repository PSGallery -Force -SkipPublisherCheck -AllowClobber
-                  Install-Module -Name PSWriteColor -Repository PSGallery -Force -SkipPublisherCheck -AllowClobber
-
-            - name: Build .NET solution
-              run: |
-                  dotnet restore DnsClientX.sln
-                  dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
-
-            - name: Run PowerShell tests
+                  $root = Join-Path $env:RUNNER_TEMP 'powershell-7.4.0'
+                  New-Item -ItemType Directory -Path $root | Out-Null
+                  $archive = Join-Path $env:RUNNER_TEMP 'powershell-7.4.0.tar.gz'
+                  Invoke-WebRequest https://github.com/PowerShell/PowerShell/releases/download/v7.4.0/powershell-7.4.0-linux-x64.tar.gz -OutFile $archive
+                  if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne 'AA82C3E9241503B52DB1827E3FD7FC099DA74F828BA032E9B726E50C72B4BEE5') { throw 'PowerShell download hash mismatch.' }
+                  tar -xzf $archive -C $root
+                  if ($LASTEXITCODE) { throw 'PowerShell extraction failed.' }
+                  chmod +x "$root/pwsh"
+                  if ($LASTEXITCODE) { throw 'PowerShell executable setup failed.' }
+                  Install-Module Pester -MinimumVersion 5.7.1 -Force -Scope CurrentUser -AllowClobber
+            - name: Import package on minimum host and run contracts
               shell: pwsh
-              run: ./Module/DnsClientX.Tests.ps1
+              run: |
+                  $archive = @(Get-ChildItem candidate/Packed -Filter 'DnsClientX-PowerShellModule.*.zip')
+                  if ($archive.Count -ne 1) { throw 'Expected one module archive.' }
+                  $root = Join-Path $env:RUNNER_TEMP 'module-candidate'
+                  Expand-Archive -LiteralPath $archive[0].FullName -DestinationPath $root
+                  $manifest = @(Get-ChildItem $root -Filter DnsClientX.psd1 -Recurse)
+                  if ($manifest.Count -ne 1) { throw 'Expected one packaged module manifest.' }
+                  & "$env:RUNNER_TEMP/powershell-7.4.0/pwsh" -NoProfile -File ./Build/Test-PackagedModule.ps1 -ModulePath $manifest[0].FullName -ResultsPath "$env:RUNNER_TEMP/pester.xml"
+                  if ($LASTEXITCODE) { throw 'Minimum PowerShell contract validation failed.' }
+            - uses: actions/upload-artifact@v7
+              if: always()
+              with:
+                  name: pester-powershell-7.4.0
+                  path: ${{ runner.temp }}/pester.xml
 
-    test-macos:
-        needs: refresh-psd1
-        name: 'macOS PowerShell 7'
-        runs-on: macos-latest
-        timeout-minutes: 10
+    package-consumer:
+        needs: package
+        name: Packed NuGet consumer (${{ matrix.os }})
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [windows-latest, ubuntu-latest, macos-latest]
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 15
         steps:
-            - name: Checkout code
-              uses: actions/checkout@v7
-
-            - name: Download manifest
-              uses: actions/download-artifact@v8
+            - uses: actions/checkout@v7
+            - uses: actions/download-artifact@v8
               with:
-                  name: psd1
-                  path: .
-
-            - name: Setup .NET
-              uses: actions/setup-dotnet@v6
+                  name: unsigned-packages
+                  path: candidate
+            - uses: actions/setup-dotnet@v6
               with:
-                  dotnet-version: ${{ env.DOTNET_VERSION }}
-
-            - name: Install PowerShell
-              shell: bash
-              run: |
-                  if command -v pwsh >/dev/null 2>&1; then
-                    pwsh --version
-                    exit 0
-                  fi
-
-                  brew update
-                  brew tap powershell/tap
-                  brew install --cask powershell || brew install powershell/tap/powershell
-
-            - name: Install PowerShell modules
+                  dotnet-version: |
+                      8.x
+                      10.x
+            - name: Consume private candidates with isolated restore
               shell: pwsh
               run: |
-                  Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)"
-                  Install-Module -Name Pester -Repository PSGallery -Force -SkipPublisherCheck -AllowClobber
-                  Install-Module -Name PSWriteColor -Repository PSGallery -Force -SkipPublisherCheck -AllowClobber
-
-            - name: Build .NET solution
-              run: |
-                  dotnet restore DnsClientX.sln
-                  dotnet build DnsClientX.sln --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
-
-            - name: Run PowerShell tests
-              shell: pwsh
-              run: ./Module/DnsClientX.Tests.ps1
-
+                  $feed = (Resolve-Path candidate/ProjectBuild/packages).Path
+                  $core = @(Get-ChildItem $feed -Filter 'DnsClientX.*.nupkg' | Where-Object Name -Match '^DnsClientX\.\d')
+                  $provider = @(Get-ChildItem $feed -Filter 'DnsClientX.DnsSec.EdDsa.*.nupkg')
+                  if ($core.Count -ne 1 -or $provider.Count -ne 1) { throw 'Expected core and optional provider candidates.' }
+                  $version = $core[0].BaseName.Substring('DnsClientX.'.Length)
+                  $providerVersion = $provider[0].BaseName.Substring('DnsClientX.DnsSec.EdDsa.'.Length)
+                  $env:NUGET_PACKAGES = Join-Path $env:RUNNER_TEMP 'candidate-nuget-cache'
+                  $env:DNSCLIENTX_CANDIDATE_FEED = $feed
+                  dotnet restore Build/PackageConsumer/PackageConsumer.csproj --configfile Build/PackageConsumer/NuGet.Config -p:DnsClientXPackageVersion=$version -p:DnsClientXEdDsaPackageVersion=$providerVersion
+                  if ($LASTEXITCODE) { throw 'Packed consumer restore failed.' }
+                  foreach ($framework in @('net8.0', 'net10.0')) {
+                      dotnet run --project Build/PackageConsumer/PackageConsumer.csproj --framework $framework --no-restore -p:DnsClientXPackageVersion=$version -p:DnsClientXEdDsaPackageVersion=$providerVersion
+                      if ($LASTEXITCODE) { throw "Packed consumer failed on $framework." }
+                  }

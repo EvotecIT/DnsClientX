@@ -5,7 +5,13 @@ param(
 
     [bool] $SignModule = $true,
 
-    [string] $ProjectBuildConfigPath = '..\Build\project.build.json',
+    [bool] $UpdateVersions = $true,
+
+    [string] $ModuleVersion = '2.1.X',
+
+    [switch] $SkipInstall,
+
+    [string] $ProjectBuildConfigPath = '../Build/project.build.json',
 
     [string] $PowerShellGalleryApiKeyPath = 'C:\Support\Important\PowerShellGalleryAPI.txt',
 
@@ -14,10 +20,10 @@ param(
 
 Import-Module PSPublishModule -Force -ErrorAction Stop
 
-Build-Module -ModuleName 'DnsClientX' -RunMode $RunMode {
+Build-Module -ModuleName 'DnsClientX' -RunMode $RunMode -SkipInstall:$SkipInstall {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = '2.1.X'
+        ModuleVersion        = $ModuleVersion
         CompatiblePSEditions = @('Desktop', 'Core')
         GUID                 = '77fa806c-70b7-48d9-8b88-942ed73f24ed'
         Author               = 'Przemyslaw Klys'
@@ -28,9 +34,10 @@ Build-Module -ModuleName 'DnsClientX' -RunMode $RunMode {
         IconUri              = 'https://raw.githubusercontent.com/EvotecIT/DnsClientX/master/Assets/Icons/DnsClientX3_128x128.png'
         ProjectUri           = 'https://github.com/EvotecIT/DnsClientX'
         PowerShellVersion    = '5.1'
-        #FormatsToProcess     = @('DnsClientX.Format.ps1xml')
+        FormatsToProcess     = @('DnsClientX.Format.ps1xml')
     }
     New-ConfigurationManifest @Manifest
+    New-ConfigurationInformation -IncludeRoot '*.psm1', '*.psd1', '*.Libraries.ps1', '*.ps1xml', 'License*'
 
 
     $ConfigurationFormat = [ordered] @{
@@ -74,7 +81,7 @@ Build-Module -ModuleName 'DnsClientX' -RunMode $RunMode {
     New-ConfigurationFormat -ApplyTo 'DefaultPSD1', 'OnMergePSD1' -PSD1Style 'Minimal'
 
     # configuration for documentation, at the same time it enables documentation processing
-    New-ConfigurationDocumentation -Enable -PathReadme 'Docs\Readme.md' -Path 'Docs' -SyncExternalHelpToProjectRoot
+    New-ConfigurationDocumentation -Enable -PathReadme 'Docs/Readme.md' -Path 'Docs' -SyncExternalHelpToProjectRoot
 
     New-ConfigurationImportModule -ImportSelf -ImportRequiredModules
 
@@ -84,7 +91,7 @@ Build-Module -ModuleName 'DnsClientX' -RunMode $RunMode {
         MergeModuleOnBuild                = $true
         MergeFunctionsFromApprovedModules = $true
         CertificateThumbprint             = '92E95FB58EFFA6A4A75E77A33CDD6BFE6DD30F1A'
-        NETProjectPath                    = '..\DnsClientX.PowerShell\DnsClientX.PowerShell.csproj'
+        NETProjectPath                    = '../DnsClientX.PowerShell/DnsClientX.PowerShell.csproj'
         ResolveBinaryConflicts            = $true
         ResolveBinaryConflictsName        = 'DnsClientX.PowerShell'
         NETProjectName                    = 'DnsClientX.PowerShell'
@@ -94,18 +101,18 @@ Build-Module -ModuleName 'DnsClientX' -RunMode $RunMode {
         DotSourceLibraries                = $true
         NETSearchClass                    = 'DnsClientX.PowerShell.CmdletResolveDnsQuery'
         NETBinaryModuleDocumentation      = $true
-        SyncNETProjectVersion             = $true
+        SyncNETProjectVersion             = $UpdateVersions
     }
 
     New-ConfigurationBuild @newConfigurationBuildSplat
 
-    $GitHubTokenPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($GitHubApiKeyPath)
-    New-ConfigurationProjectBuild -Name 'DnsClientX' -ConfigPath $ProjectBuildConfigPath -Enabled -BuildBeforeModule -UseAsReleaseVersionSource -ProvideLocalNuGetFeed -PublishNuget -PublishGitHub -Options @{ GitHubAccessTokenFilePath = $GitHubTokenPath }
-    New-ConfigurationRelease -StageRoot '..\Artefacts\UploadReady' -VersionSource ProjectBuild -PrimaryProject 'DnsClientX' -SynchronizeModuleVersion -BuildOrder 'Packages', 'Module' -PublishOrder 'NuGet', 'PowerShellGallery', 'GitHub'
+    New-ConfigurationProjectBuild -Name 'DnsClientX' -ConfigPath $ProjectBuildConfigPath -Enabled -BuildBeforeModule -UseAsReleaseVersionSource:$UpdateVersions -ProvideLocalNuGetFeed -UpdateVersions:$UpdateVersions -SignAssemblies:$SignModule -SignPackages:$SignModule -PublishNuget:($RunMode -eq 'Publish') -PublishGitHub:($RunMode -eq 'Publish') -Options @{ GitHubAccessTokenFilePath = $GitHubApiKeyPath }
+    $ReleaseVersionSource = if ($UpdateVersions) { 'ProjectBuild' } else { 'Module' }
+    New-ConfigurationRelease -StageRoot '../Artefacts/UploadReady' -VersionSource $ReleaseVersionSource -PrimaryProject 'DnsClientX' -SynchronizeModuleVersion:$UpdateVersions -BuildOrder 'Packages', 'Module' -PublishOrder 'NuGet', 'PowerShellGallery', 'GitHub'
 
-    New-ConfigurationArtefact -Type Unpacked -Enable -Path '..\Artefacts\Unpacked' -ModulesPath 'Modules'
-    New-ConfigurationArtefact -Type Packed -Enable -Path '..\Artefacts\Packed' -IncludeTagName -ArtefactName 'DnsClientX-PowerShellModule.<TagModuleVersionWithPreRelease>.zip' -ID 'ToGitHub'
+    New-ConfigurationArtefact -Type Unpacked -Enable -Path '../Artefacts/Unpacked' -ModulesPath 'Modules'
+    New-ConfigurationArtefact -Type Packed -Enable -Path '../Artefacts/Packed' -IncludeTagName -ArtefactName 'DnsClientX-PowerShellModule.<TagModuleVersionWithPreRelease>.zip' -ID 'ToGitHub'
 
     New-ConfigurationPublish -Type PowerShellGallery -FilePath $PowerShellGalleryApiKeyPath -Enabled:$false
-    New-ConfigurationPublish -Type GitHub -FilePath $GitHubTokenPath -UserName 'EvotecIT' -RepositoryName 'DnsClientX' -Enabled:$false -ID 'ToGitHub' -GenerateReleaseNotes -OverwriteTagName 'DnsClientX-v{ModuleVersionWithPreRelease}'
-} -ExitCode
+    New-ConfigurationPublish -Type GitHub -FilePath $GitHubApiKeyPath -UserName 'EvotecIT' -RepositoryName 'DnsClientX' -Enabled:$false -ID 'ToGitHub' -GenerateReleaseNotes -OverwriteTagName 'DnsClientX-v{ModuleVersionWithPreRelease}'
+} -ExitCode -ErrorAction Stop
