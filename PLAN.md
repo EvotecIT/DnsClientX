@@ -38,10 +38,10 @@ Controlled fixtures prove the paths they exercise. Independent producers add int
 
 ## Candidate delivery
 
-- [ ] Publish one complete ready-for-review PR for the administration/privacy outcome after focused and stable local validation.
+- [x] Publish one complete ready-for-review PR for the administration/privacy outcome: [PR #582](https://github.com/EvotecIT/DnsClientX/pull/582).
 - [ ] Require current-head CI and repository review settlement, address validated findings, and resolve fixed conversations.
 - [ ] Recheck delayed reviewer feedback before declaring readiness.
-- [ ] Remove superseded task output and retain only concise proof or an intentionally retained candidate.
+- [x] Remove superseded task output and retain only concise proof and the final private package/module candidate through review settlement.
 
 The separate resolver-workflow work in [PR #581](https://github.com/EvotecIT/DnsClientX/pull/581) retains its own review and release boundary. Source implementation and isolated candidate packages do not establish public NuGet or PSGallery availability. Release signing, public package publication, and deployment follow their normal release process.
 
