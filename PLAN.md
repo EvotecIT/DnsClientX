@@ -40,6 +40,7 @@ Local source, compiled assemblies, isolated packed candidates, hosted CI, merged
 ## Qualification limits
 
 - QUIC execution requires runtime APIs and native host support; unsupported paths report that state explicitly. Local legacy compilation does not establish Windows runtime behavior.
+- Modern pooled DoT offers `dot` ALPN. Legacy targets retain the previous TLS overload and are not qualified against servers that require ALPN.
 - Isolated custom TLS roots and HTTP/2 ALPN verification require modern .NET. HTTP/1.1 or HTTP/2 with a different connection address and the original authority requires .NET 8 or later. Alternate-address HTTP/3 DDR reports `Unsupported` for GET and POST; same-address HTTP/3 and alternate-address DoQ retain QUIC capability checks.
 - DDR is per resolver/network. Unverified or expired designations cannot create encrypted configurations, and discovery does not replace global DNS settings.
 - Slow browse consumers apply bounded backpressure; UDP announcements may be lost. Applications should rediscover after network/interface changes.
@@ -49,6 +50,7 @@ Local source, compiled assemblies, isolated packed candidates, hosted CI, merged
 ## Next product work
 
 - [ ] Expand independently produced protocol evidence for signed aliases, compact denial, transfers, updates and service discovery.
+- [ ] Add privacy-protocol stamp workflows, mobile native assets and optional post-quantum DNSCrypt under their own compatibility and dependency contracts.
 - [ ] Record a complete ordered delegation/trust graph before claiming a full resolution or DNSSEC chain; bind resolver-selection explanations to persisted score, policy and capability evidence.
 - [ ] Distinguish endpoint identities throughout benchmark reports before allowing same-label variants in one profile. Publish performance claims only from repeatable scenarios that separate allocations, throughput and network latency.
 - [ ] Design portable CLI profile overrides with explicit precedence when demonstrated callers need them.
