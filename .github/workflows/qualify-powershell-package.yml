@@ -61,9 +61,8 @@ jobs:
           $config.StagingPath = Join-Path $env:RUNNER_TEMP 'package-qualification-stage'
           $configPath = Join-Path $env:RUNNER_TEMP 'package-qualification.build.json'
           $config | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $configPath -Encoding utf8
-          $PSDefaultParameterValues['Build-Module:SkipInstall'] = $true
           "version=$($versions['DnsClientX'])" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
-          ./Module/Build/Build-Module.ps1 -RunMode Build -SignModule:$false -ModuleVersion $versions['DnsClientX'] -ProjectBuildConfigPath $configPath
+          ./Module/Build/Build-Module.ps1 -RunMode Build -SignModule:$false -UpdateVersions:$false -SkipInstall -ModuleVersion $versions['DnsClientX'] -ProjectBuildConfigPath $configPath
       - name: Upload the actual ZIP
         uses: actions/upload-artifact@v7
         with:

@@ -5,7 +5,11 @@ param(
 
     [bool] $SignModule = $true,
 
+    [bool] $UpdateVersions = $true,
+
     [string] $ModuleVersion = '2.1.X',
+
+    [switch] $SkipInstall,
 
     [string] $ProjectBuildConfigPath = '..\Build\project.build.json',
 
@@ -16,7 +20,7 @@ param(
 
 Import-Module PSPublishModule -Force -ErrorAction Stop
 
-Build-Module -ModuleName 'DnsClientX' -RunMode $RunMode {
+Build-Module -ModuleName 'DnsClientX' -RunMode $RunMode -SkipInstall:$SkipInstall {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
         ModuleVersion        = $ModuleVersion
@@ -96,17 +100,18 @@ Build-Module -ModuleName 'DnsClientX' -RunMode $RunMode {
         DotSourceLibraries                = $true
         NETSearchClass                    = 'DnsClientX.PowerShell.CmdletResolveDnsQuery'
         NETBinaryModuleDocumentation      = $true
-        SyncNETProjectVersion             = $true
+        SyncNETProjectVersion             = $UpdateVersions
     }
 
     New-ConfigurationBuild @newConfigurationBuildSplat
 
-    New-ConfigurationProjectBuild -Name 'DnsClientX' -ConfigPath $ProjectBuildConfigPath -Enabled -BuildBeforeModule -UseAsReleaseVersionSource -ProvideLocalNuGetFeed -PublishNuget -PublishGitHub -Options @{ GitHubAccessTokenFilePath = $GitHubApiKeyPath }
-    New-ConfigurationRelease -StageRoot '..\Artefacts\UploadReady' -VersionSource ProjectBuild -PrimaryProject 'DnsClientX' -SynchronizeModuleVersion -BuildOrder 'Packages', 'Module' -PublishOrder 'NuGet', 'PowerShellGallery', 'GitHub'
+    New-ConfigurationProjectBuild -Name 'DnsClientX' -ConfigPath $ProjectBuildConfigPath -Enabled -BuildBeforeModule -UseAsReleaseVersionSource:$UpdateVersions -ProvideLocalNuGetFeed -UpdateVersions:$UpdateVersions -SignAssemblies:$SignModule -SignPackages:$SignModule -PublishNuget:($RunMode -eq 'Publish') -PublishGitHub:($RunMode -eq 'Publish') -Options @{ GitHubAccessTokenFilePath = $GitHubApiKeyPath }
+    $ReleaseVersionSource = if ($UpdateVersions) { 'ProjectBuild' } else { 'Module' }
+    New-ConfigurationRelease -StageRoot '..\Artefacts\UploadReady' -VersionSource $ReleaseVersionSource -PrimaryProject 'DnsClientX' -SynchronizeModuleVersion:$UpdateVersions -BuildOrder 'Packages', 'Module' -PublishOrder 'NuGet', 'PowerShellGallery', 'GitHub'
 
     New-ConfigurationArtefact -Type Unpacked -Enable -Path '..\Artefacts\Unpacked' -ModulesPath 'Modules'
     New-ConfigurationArtefact -Type Packed -Enable -Path '..\Artefacts\Packed' -IncludeTagName -ArtefactName 'DnsClientX-PowerShellModule.<TagModuleVersionWithPreRelease>.zip' -ID 'ToGitHub'
 
     New-ConfigurationPublish -Type PowerShellGallery -FilePath $PowerShellGalleryApiKeyPath -Enabled:$false
     New-ConfigurationPublish -Type GitHub -FilePath $GitHubApiKeyPath -UserName 'EvotecIT' -RepositoryName 'DnsClientX' -Enabled:$false -ID 'ToGitHub' -GenerateReleaseNotes -OverwriteTagName 'DnsClientX-v{ModuleVersionWithPreRelease}'
-} -ExitCode
+} -ExitCode -ErrorAction Stop
