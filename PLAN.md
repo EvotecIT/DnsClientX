@@ -29,7 +29,8 @@ The modern core has no new production packages. The approved optional dependenci
 - [x] Build one unsigned candidate through the native entrypoint with exact source versions, version updates disabled, no signing/publication and no local installation.
 - [x] Import the actual module ZIP in a fresh process, run the combined PowerShell suite, verify loaded assembly locations and type/format/export assets, and prove rejection of teardown/discovery failures, empty suites and stale assemblies.
 - [x] Complete the combined broad .NET 8/.NET 10 proof and one bounded independent read-only review; configured streaming retains providers, private anchors, cache controls and concurrency limits.
-- [ ] Complete the authenticated DoT execution regression and repeat affected combined package/legacy proof after the transport candidate is frozen.
+- [x] Verify ordinary DoT and configurations returned by DDR against a strict `dot` ALPN peer, then repeat the combined broad .NET 8/.NET 10 suites with the transport correction.
+- [x] Repeat the actual module ZIP suite, both fresh package-only consumer routes on .NET 8/.NET 10, and the complete legacy test/reference and PowerShell compilation against the frozen transport candidate.
 - [x] Remove superseded build/package extraction output and retain one current ZIP with concise proof and cleanup receipts.
 
 ## Existing proof and remaining qualification
@@ -43,7 +44,7 @@ Remaining release/platform gates:
 - [ ] Complete current-head CI and repository review settlement for each published PR; address validated findings and recheck delayed feedback.
 - [ ] Qualify private-zone DNSSEC and UPDATE prerequisites against an independently operated authoritative lab.
 - [ ] Execute combined packaged workflows on Windows PowerShell 5.1, minimum PowerShell 7.4 and supported modern PowerShell hosts.
-- [ ] Verify DNSCrypt native assets and actual provider execution on Windows/Linux in addition to macOS ARM64.
+- [x] Verify the separate privacy candidate's DNSCrypt native assets and real provider execution on Windows, Linux and macOS, including a Windows .NET Framework consumer. The combined candidate retains local native execution and byte-matched Windows asset copies; combined Windows/Linux execution remains a hosted gate.
 - [ ] Qualify DoQ and HTTP/3 on supported Windows/Linux/macOS native runtimes, including certificate errors, cancellation and connection reuse.
 - [ ] Exercise IPv6, split DNS and search-domain routing on representative hosts.
 - [ ] Exercise CLI archives on their native x64/ARM64 architectures through the shared PowerForge publish configuration.

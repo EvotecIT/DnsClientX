@@ -195,6 +195,7 @@ public class DnsDesignatedResolverTests {
                 using var tls = new SslStream(peer.GetStream());
                 try {
                     await tls.AuthenticateAsServerAsync(new SslServerAuthenticationOptions { ServerCertificate = fixture.Leaf, EnabledSslProtocols = SslProtocols.Tls12, ApplicationProtocols = new List<SslApplicationProtocol> { new SslApplicationProtocol("dot") } }, stop.Token);
+                    Assert.Equal(new SslApplicationProtocol("dot"), tls.NegotiatedApplicationProtocol);
                     if (attempt == (matchingIp ? 1 : 0)) {
                         var length = new byte[2];
                         await tls.ReadExactlyAsync(length, stop.Token);
