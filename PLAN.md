@@ -28,6 +28,9 @@ The modern core remains free of new production packages. The approved optional d
 - [ ] Qualify private-zone DNSSEC and update prerequisites against an independently operated authoritative lab.
 - [x] Stable broad .NET 8/.NET 10 regression suites and local legacy compilation.
 - [x] Remediate the first platform CI findings with portable TLS fixtures, deployment-bound Framework native loading, normalized package paths, and deadline tests that observe completion rather than machine speed.
+- [x] Correct the native unsigned module wrapper's version controls; build the actual ZIP without signing, version updates, publication or installation and repeat its PowerShell suite.
+- [x] Verify ordinary DoT and configurations returned by DDR against a strict `dot` ALPN peer; preserve TLS identity, trust, cancellation and reuse, and complete a bounded authentication review.
+- [ ] Confirm the changed TLS 1.3 fixture on supported Windows in current-head CI.
 - [ ] Complete required native/platform CI.
 - [x] Isolated packed NuGet consumer and actual unsigned PowerShell package proof on the local host.
 - [x] Repeat affected packaged proof after remediation: the final unsigned module passes all 61 PowerShell cases and fresh isolated NuGet consumers run on .NET 8 and .NET 10.
@@ -44,7 +47,8 @@ Controlled fixtures prove the paths they exercise. Independent producers add int
 - [x] Publish one complete ready-for-review PR for the administration/privacy outcome: [PR #582](https://github.com/EvotecIT/DnsClientX/pull/582).
 - [ ] Require current-head CI and repository review settlement, address validated findings, and resolve fixed conversations.
 - [ ] Recheck delayed reviewer feedback before declaring readiness.
-- [ ] Resolve and validate a local combined candidate with the resolver-workflow changes in [PR #581](https://github.com/EvotecIT/DnsClientX/pull/581), including configured-provider streaming and private-anchor cache behavior.
+- [x] Resolve the local conflicts with [PR #581](https://github.com/EvotecIT/DnsClientX/pull/581); reproduce and fix provider, private-anchor, cache-control, PowerShell binding and streaming-concurrency regressions, then run broad source and actual module ZIP tests.
+- [x] Repeat the combined broad suites, actual unsigned module ZIP tests, fresh core/privacy package consumers and full legacy compilation after the DoT correction. The combined candidate remains local and needs its own hosted/native acceptance before release.
 - [x] Remove superseded task output and retain only concise proof and the final private package/module candidate through review settlement.
 
 The separate resolver-workflow work in [PR #581](https://github.com/EvotecIT/DnsClientX/pull/581) retains its own review and release boundary. Source implementation and isolated candidate packages do not establish public NuGet or PSGallery availability. Release signing, public package publication, and deployment follow their normal release process.
