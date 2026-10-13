@@ -11,15 +11,15 @@ namespace DnsClientX.PowerShell;
 /// </summary>
 /// <example>
 ///   <para>Add an A record</para>
-///   <code>Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Data 1.2.3.4 -Ttl 300</code>
+///   <code>Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www.example.com -Type A -Data 1.2.3.4 -Ttl 300</code>
 /// </example>
 /// <example>
 ///   <para>Delete an existing record</para>
-///   <code>Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Delete</code>
+///   <code>Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www.example.com -Type A -Delete</code>
 /// </example>
 /// <example>
 ///   <para>Delete one value while preserving the rest of the RRset</para>
-///   <code>Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Data 192.0.2.10 -DeleteValue</code>
+///   <code>Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www.example.com -Type A -Data 192.0.2.10 -DeleteValue</code>
 /// </example>
 [Cmdlet(VerbsLifecycle.Invoke, "DnsUpdate", DefaultParameterSetName = "Record", SupportsShouldProcess = true, ConfirmImpact = ConfirmImpact.Medium)]
 public sealed class CmdletDnsUpdate : AsyncPSCmdlet {

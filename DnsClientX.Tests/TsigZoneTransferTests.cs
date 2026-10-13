@@ -64,6 +64,45 @@ namespace DnsClientX.Tests {
             Assert.Equal(3, result.FullZoneRecords.Count);
         }
 
+        /// <summary>Both signed and legacy unsigned new-SOA frames must be followed through their added records.</summary>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task AuthenticatesIncrementalSequenceSplitAfterNewSoa(bool sparseSignatures) {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var server = new TransferServer(q => CreateIncrementalFrames(q, sparseSignatures), cts.Token);
+            using var client = CreateClient(server.Port);
+
+            IncrementalZoneTransferResult result = await client.IncrementalZoneTransferAsync("example.com", 1, cts.Token);
+            await server.Completion;
+
+            Assert.Equal(IncrementalZoneTransferKind.Incremental, result.Kind);
+            IncrementalZoneChange change = Assert.Single(result.Changes);
+            Assert.Equal(1u, change.PreviousSoa.Serial);
+            Assert.Equal(2u, change.CurrentSoa.Serial);
+            Assert.Equal("192.0.2.1", Assert.Single(change.DeletedRecords).Data);
+            Assert.Equal("192.0.2.2", Assert.Single(change.AddedRecords).Data);
+        }
+
+        /// <summary>A signed single-SOA response also completes when the client's serial is newer than the primary's.</summary>
+        [Theory]
+        [InlineData(8u, 7u)]
+        [InlineData(0u, uint.MaxValue)]
+        public async Task AuthenticatesNoChangeFromAnOlderPrimary(uint requestedSerial, uint primarySerial) {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var server = new TransferServer(q => new[] {
+                Sign(Message(U16(q, 0), Soa(primarySerial)), ReadRequestMac(q), Array.Empty<byte[]>(), first: true)
+            }, cts.Token);
+            using var client = CreateClient(server.Port);
+
+            IncrementalZoneTransferResult result = await client.IncrementalZoneTransferAsync("example.com", requestedSerial, cts.Token);
+            await server.Completion;
+
+            Assert.Equal(IncrementalZoneTransferKind.NoChange, result.Kind);
+            Assert.Equal(primarySerial, result.CurrentSoa.Serial);
+            Assert.Empty(result.Changes);
+        }
+
         private static ClientX CreateClient(int port) => new ClientX(new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTCP) {
             Port = port, TimeOut = 5000, TsigKey = new TsigKey(KeyName, Secret)
         });
@@ -94,19 +133,39 @@ namespace DnsClientX.Tests {
             return frames.ToArray();
         }
 
-        private static byte[] Message(ushort id, bool soa) {
+        private static byte[][] CreateIncrementalFrames(byte[] query, bool sparseSignatures) {
+            ushort id = U16(query, 0);
+            byte[] opening = Sign(Message(id, Soa(2)), ReadRequestMac(query), Array.Empty<byte[]>(), first: true);
+            byte[] difference = Message(id, Soa(1), Address("old.example.com.", 1), Soa(2));
+            byte[] middle = sparseSignatures ? difference
+                : Sign(difference, ReadRequestMac(opening), Array.Empty<byte[]>(), first: false);
+            byte[] closing = Sign(Message(id, Address("new.example.com.", 2), Soa(2)),
+                ReadRequestMac(sparseSignatures ? opening : middle),
+                sparseSignatures ? new[] { difference } : Array.Empty<byte[]>(), first: false);
+            return new[] { opening, middle, closing };
+        }
+
+        private static byte[] Message(ushort id, bool soa) => Message(id, soa ? Soa(1) : Address("www.example.com.", 1));
+
+        private static byte[] Message(ushort id, params (string Name, DnsRecordType Type, byte[] Data)[] records) {
             using var s = new MemoryStream();
-            W16(s, id); W16(s, 0x8400); W16(s, 0); W16(s, 1); W16(s, 0); W16(s, 0);
-            Name(s, soa ? "example.com." : "www.example.com.");
-            W16(s, soa ? (ushort)6 : (ushort)1); W16(s, 1); W32(s, 60);
-            using var data = new MemoryStream();
-            if (soa) {
-                Name(data, "ns.example.com."); Name(data, "hostmaster.example.com.");
-                W32(data, 1); W32(data, 3600); W32(data, 600); W32(data, 86400); W32(data, 60);
-            } else data.Write(new byte[] { 192, 0, 2, 1 }, 0, 4);
-            byte[] bytes = data.ToArray(); W16(s, checked((ushort)bytes.Length)); s.Write(bytes, 0, bytes.Length);
+            W16(s, id); W16(s, 0x8400); W16(s, 0); W16(s, checked((ushort)records.Length)); W16(s, 0); W16(s, 0);
+            foreach (var record in records) {
+                Name(s, record.Name); W16(s, (ushort)record.Type); W16(s, 1); W32(s, 60);
+                W16(s, checked((ushort)record.Data.Length)); s.Write(record.Data, 0, record.Data.Length);
+            }
             return s.ToArray();
         }
+
+        private static (string Name, DnsRecordType Type, byte[] Data) Soa(uint serial) {
+            using var data = new MemoryStream();
+            Name(data, "ns.example.com."); Name(data, "hostmaster.example.com.");
+            W32(data, serial); W32(data, 3600); W32(data, 600); W32(data, 86400); W32(data, 60);
+            return ("example.com.", DnsRecordType.SOA, data.ToArray());
+        }
+
+        private static (string Name, DnsRecordType Type, byte[] Data) Address(string name, byte finalOctet) =>
+            (name, DnsRecordType.A, new byte[] { 192, 0, 2, finalOctet });
 
         private static byte[] Sign(byte[] message, byte[] prior, byte[][] intermediaries, bool first, byte[]? secret = null) {
             ulong time = checked((ulong)DateTimeOffset.UtcNow.ToUnixTimeSeconds());

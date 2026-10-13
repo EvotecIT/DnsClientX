@@ -34,21 +34,21 @@ Use WhatIf to preview an update without contacting the server, or Confirm to app
 
 ### EXAMPLE 1
 ```powershell
-Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Data 1.2.3.4 -Ttl 300
+Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www.example.com -Type A -Data 1.2.3.4 -Ttl 300
 ```
 
 Add an A record
 
 ### EXAMPLE 2
 ```powershell
-Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Delete
+Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www.example.com -Type A -Delete
 ```
 
 Delete an existing record
 
 ### EXAMPLE 3
 ```powershell
-Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Data 192.0.2.10 -DeleteValue
+Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www.example.com -Type A -Data 192.0.2.10 -DeleteValue
 ```
 
 Delete one value while preserving the rest of the RRset

@@ -122,11 +122,114 @@ public class DnsServiceBrowseMulticastTests {
         Assert.Contains("MaximumRecords", exception.Message);
     }
 
+    /// <summary>A loopback-scoped browser rejects unicast data from another interface while retaining real multicast announcements.</summary>
+    [CrossInterfaceFact]
+    public async Task SelectedInterfaceRejectsOffLinkUnicastAnnouncements() {
+        IPAddress otherAddress = FindOtherInterfaceAddress()!;
+        using var fixture = new MulticastFixture();
+        using var client = fixture.CreateClient();
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await using var stream = client.BrowseServicesContinuousAsync("http", "tcp", cancellationToken: stop.Token).GetAsyncEnumerator();
+        Task<bool> first = stream.MoveNextAsync().AsTask();
+        try {
+            await fixture.ReadQuery(stop.Token);
+            // Leave the browse socket as the sole wildcard listener so unicast cannot be consumed by the fixture.
+            fixture.Dispose();
+            using var offLink = new UdpClient(AddressFamily.InterNetwork);
+            offLink.ExclusiveAddressUse = false;
+            offLink.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            offLink.Client.Bind(new IPEndPoint(otherAddress, fixture.Port));
+            const string injectedInstance = "off-link._http._tcp.local";
+            byte[] injected = DnsDiscoveryTestWire.Response(null,
+                DnsDiscoveryTestWire.Ptr(Type, injectedInstance), DnsDiscoveryTestWire.Srv(injectedInstance, "off-link.local", 80));
+            await offLink.SendAsync(injected, injected.Length, new IPEndPoint(IPAddress.Loopback, fixture.Port));
+            Assert.NotSame(first, await Task.WhenAny(first, Task.Delay(500, stop.Token)));
+
+            using var local = new UdpClient(AddressFamily.InterNetwork);
+            local.ExclusiveAddressUse = false;
+            local.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            local.Client.Bind(new IPEndPoint(IPAddress.Loopback, fixture.Port));
+            local.Client.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.MulticastInterface, IPAddress.Loopback.GetAddressBytes());
+            byte[] announcement = DnsDiscoveryTestWire.Response(null,
+                DnsDiscoveryTestWire.Ptr(Type, Instance), DnsDiscoveryTestWire.Srv(Instance, "host.local", 80));
+            await local.SendAsync(announcement, announcement.Length, new IPEndPoint(fixture.Group, fixture.Port));
+            Assert.True(await first);
+            Assert.Equal(Instance, stream.Current.Service.ServiceName);
+        }
+        finally {
+            stop.Cancel();
+            try { await first; } catch (OperationCanceledException) { }
+        }
+    }
+
+    /// <summary>The snapshot sibling rejects the same injected source, accepts an on-link unicast reply, and drains at its deadline.</summary>
+    [CrossInterfaceFact]
+    public async Task SnapshotRejectsOffLinkUnicastAndRetainsOnLinkReply() {
+        using var fixture = new MulticastFixture();
+        using var client = fixture.CreateClient();
+        client.EndpointConfiguration.TimeOut = 1000;
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        Task<DnsResponse[]> query = client.ResolveMulticastAllAsync(Type, DnsRecordType.PTR, stop.Token);
+        IPEndPoint destination = await fixture.ReadQuery(stop.Token);
+        using var offLink = new UdpClient(AddressFamily.InterNetwork);
+        offLink.ExclusiveAddressUse = false;
+        offLink.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+        offLink.Client.Bind(new IPEndPoint(FindOtherInterfaceAddress()!, fixture.Port));
+        byte[] injected = DnsDiscoveryTestWire.Response(null, DnsDiscoveryTestWire.Ptr(Type, "off-link._http._tcp.local"));
+        await offLink.SendAsync(injected, injected.Length, destination);
+        await fixture.Reply(destination, DnsDiscoveryTestWire.Ptr(Type, Instance));
+        DnsResponse response = Assert.Single(await query);
+        Assert.Equal(Instance, Assert.Single(response.Answers).Data);
+        using var replacement = new UdpClient();
+        replacement.Client.ExclusiveAddressUse = true;
+        replacement.Client.Bind(destination);
+    }
+
+    /// <summary>Local multicast is valid across address prefixes for both families, but the selected interface still bounds admission.</summary>
+    [Theory]
+    [InlineData("224.0.0.251", "192.0.2.10")]
+    [InlineData("ff02::fb", "2001:db8::10")]
+    public void ReceiveBoundaryPreservesOverlayMulticast(string groupText, string sourceText) {
+        IPAddress group = IPAddress.Parse(groupText);
+        var packet = new DnsWireResolveMulticast.ReceivedPacket(Array.Empty<byte>(),
+            new IPEndPoint(IPAddress.Parse(sourceText), 5353), group, 17);
+        Assert.True(DnsWireResolveMulticast.IsLocalResponse(packet, group, 5353, 17));
+        Assert.False(DnsWireResolveMulticast.IsLocalResponse(packet, group, 5353, 18));
+    }
+
+    /// <summary>Unicast admission checks the source against the receive interface's configured subnet.</summary>
+    [Theory]
+    [InlineData("127.0.0.2", true)]
+    [InlineData("192.0.2.10", false)]
+    public void ReceiveBoundaryChecksUnicastSourceSubnet(string sourceText, bool expected) {
+        int loopback = NetworkInterface.GetAllNetworkInterfaces().First(item => item.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+            .GetIPProperties().GetIPv4Properties()!.Index;
+        var packet = new DnsWireResolveMulticast.ReceivedPacket(Array.Empty<byte>(),
+            new IPEndPoint(IPAddress.Parse(sourceText), 5353), IPAddress.Loopback, loopback);
+        Assert.Equal(expected, DnsWireResolveMulticast.IsLocalResponse(packet, IPAddress.Parse("224.0.0.251"), 5353, loopback));
+    }
+
+    private static IPAddress? FindOtherInterfaceAddress() => NetworkInterface.GetAllNetworkInterfaces()
+        .Where(item => item.NetworkInterfaceType != NetworkInterfaceType.Loopback && item.OperationalStatus == OperationalStatus.Up
+            && item.Supports(NetworkInterfaceComponent.IPv4))
+        .SelectMany(item => item.GetIPProperties().UnicastAddresses)
+        .Select(item => item.Address)
+        .FirstOrDefault(address => address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(address));
+
+    private sealed class CrossInterfaceFactAttribute : FactAttribute {
+        public CrossInterfaceFactAttribute() {
+            if (FindOtherInterfaceAddress() == null) {
+                Skip = "Cross-interface admission proof requires an existing non-loopback IPv4 interface.";
+            }
+        }
+    }
+
     private sealed class MulticastFixture : IDisposable {
         private readonly UdpClient _socket = new(AddressFamily.InterNetwork);
         private readonly IPAddress _group = IPAddress.Parse("239.255.42.99");
         private readonly int _interfaceIndex;
         internal int Port { get; }
+        internal IPAddress Group => _group;
 
         internal MulticastFixture() {
             NetworkInterface loopback = NetworkInterface.GetAllNetworkInterfaces().First(item => item.NetworkInterfaceType == NetworkInterfaceType.Loopback);
@@ -142,12 +245,12 @@ public class DnsServiceBrowseMulticastTests {
         }
 
         internal ClientX CreateClient() => new(new Configuration(_group.ToString(), DnsRequestFormat.Multicast) { Port = Port, MulticastInterfaceIndex = _interfaceIndex });
-        internal async Task ReadQuery(CancellationToken token) {
+        internal async Task<IPEndPoint> ReadQuery(CancellationToken token) {
             using CancellationTokenRegistration cancel = token.Register(_socket.Dispose);
             while (true) {
                 UdpReceiveResult received = await _socket.ReceiveAsync();
                 if (received.Buffer.Length >= 12 && (received.Buffer[2] & 0x80) == 0) {
-                    return;
+                    return received.RemoteEndPoint;
                 }
             }
         }
@@ -155,6 +258,11 @@ public class DnsServiceBrowseMulticastTests {
         internal Task Announce(params DnsDiscoveryTestWire.Record[] records) {
             byte[] response = DnsDiscoveryTestWire.Response(null, records);
             return _socket.SendAsync(response, response.Length, new IPEndPoint(_group, Port));
+        }
+
+        internal Task Reply(IPEndPoint destination, params DnsDiscoveryTestWire.Record[] records) {
+            byte[] response = DnsDiscoveryTestWire.Response(null, records);
+            return _socket.SendAsync(response, response.Length, destination);
         }
 
         public void Dispose() => _socket.Dispose();

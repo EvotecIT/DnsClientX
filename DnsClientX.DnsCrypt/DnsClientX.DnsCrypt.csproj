@@ -27,6 +27,6 @@
     <PackageReference Include="libsodium" Version="$(DnsClientXSodiumVersion)" GeneratePathProperty="true" />
     <None Include="README.md" Pack="true" PackagePath="/" />
     <None Include="../DnsClientX/DnsClientX.png" Pack="true" PackagePath="/" Link="DnsClientX.png" />
-    <None Include="buildTransitive/DnsClientX.DnsCrypt.targets" Pack="true" PackagePath="buildTransitive/" />
+    <None Include="buildTransitive/DnsClientX.DnsCrypt.targets" Pack="true" PackagePath="build/;buildTransitive/" />
   </ItemGroup>
 </Project>

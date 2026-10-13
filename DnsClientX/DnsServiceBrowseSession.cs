@@ -99,7 +99,7 @@ internal sealed class DnsServiceBrowseSession : IAsyncDisposable {
 
     private async Task RunAsync() {
         UdpClient? socket = null;
-        Task<UdpReceiveResult>? receive = null;
+        Task<DnsWireResolveMulticast.ReceivedPacket>? receive = null;
         Exception? failure = null;
         try {
             if (!IPAddress.TryParse(_configuration.Hostname, out IPAddress? group) || !DnsWireResolveMulticast.IsMulticast(group)) {
@@ -111,7 +111,8 @@ internal sealed class DnsServiceBrowseSession : IAsyncDisposable {
             IPEndPoint target = DnsWireResolveMulticast.CreateTargetEndPoint(group, _configuration.Port, _configuration.MulticastInterfaceIndex);
             using CancellationTokenRegistration registration = _stop.Token.Register(socket.Dispose);
             var schedules = new Dictionary<(string, DnsRecordType), Schedule>();
-            receive = socket.ReceiveAsync();
+            var receiveBuffer = new byte[ushort.MaxValue];
+            receive = DnsWireResolveMulticast.ReceivePacketAsync(socket, receiveBuffer);
             double nextTick = 0;
             Task tick = Task.CompletedTask;
             while (true) {
@@ -160,9 +161,9 @@ internal sealed class DnsServiceBrowseSession : IAsyncDisposable {
                     continue;
                 }
 
-                UdpReceiveResult datagram = await receive.ConfigureAwait(false);
-                receive = socket.ReceiveAsync();
-                if (datagram.RemoteEndPoint.Port != _configuration.Port) {
+                DnsWireResolveMulticast.ReceivedPacket datagram = await receive.ConfigureAwait(false);
+                receive = DnsWireResolveMulticast.ReceivePacketAsync(socket, receiveBuffer);
+                if (!DnsWireResolveMulticast.IsLocalResponse(datagram, group, _configuration.Port, _configuration.MulticastInterfaceIndex)) {
                     continue;
                 }
 

@@ -90,6 +90,12 @@ namespace DnsClientX {
                 if (rrset.Key.Type == DnsRecordType.CNAME
                     && ReadSignatures(response, rrset.Key.Name, rrset.Key.Type, rrset.Key.Class).Count == 0
                     && rrset.All(record => IsSynthesizedDnameCname(answerRecords, record))) {
+                    foreach (DnsWireResourceRecord record in rrset) {
+                        TryGetDnameTarget(answerRecords, record.Name, out _, out string? dnameOwner);
+                        if (!DnameRespectsZoneTrustBoundary(record.Name, dnameOwner!)) {
+                            return DnsSecValidationResult.Bogus("An ancestor DNAME cannot bypass a configured zone trust boundary.");
+                        }
+                    }
                     continue;
                 }
                 DnsSecValidationResult result = await ValidateAnswerRrsetAsync(response, rrset.Key, cancellationToken).ConfigureAwait(false);
@@ -97,8 +103,16 @@ namespace DnsClientX {
                 insecure |= result.Status == DnsSecValidationStatus.Insecure;
             }
 
-            if (!TryFollowAnswerChain(answerRecords, name, type, out string finalName, out bool terminal, out string? chainError)) {
-                return DnsSecValidationResult.Indeterminate(chainError ?? "The answer did not contain a usable canonical-name chain.");
+            bool rejectedDname = false;
+            bool AcceptDname(string source, string owner) {
+                if (DnameRespectsZoneTrustBoundary(source, owner)) return true;
+                rejectedDname = true;
+                return false;
+            }
+            if (!TryFollowAnswerChain(answerRecords, name, type, out string finalName, out bool terminal, out string? chainError, AcceptDname)) {
+                return rejectedDname
+                    ? DnsSecValidationResult.Bogus("An ancestor DNAME cannot bypass a configured zone trust boundary.")
+                    : DnsSecValidationResult.Indeterminate(chainError ?? "The answer did not contain a usable canonical-name chain.");
             }
             DnsSecProof.ProvesCompactNameError(response, finalName, out bool hasNxName);
             if (response.Status == DnsResponseCode.NXDomain || hasNxName) {
@@ -448,7 +462,8 @@ namespace DnsClientX {
         }
 
         internal static bool TryFollowAnswerChain(DnsWireResourceRecord[] answers, string requestedName,
-            DnsRecordType requestedType, out string finalName, out bool terminal, out string? error) {
+            DnsRecordType requestedType, out string finalName, out bool terminal, out string? error,
+            Func<string, string, bool>? acceptDname = null) {
             finalName = DnsWireNameCodec.Canonical(requestedName);
             terminal = false;
             error = null;
@@ -473,7 +488,8 @@ namespace DnsClientX {
                     finalName = DnsWireNameCodec.Canonical(alias.Value.Data);
                     continue;
                 }
-                if (!TryGetDnameTarget(answers, currentName, out string? dnameTarget)) return true;
+                if (!TryGetDnameTarget(answers, currentName, out string? dnameTarget, out string? dnameOwner)) return true;
+                if (acceptDname != null && !acceptDname(currentName, dnameOwner!)) return false;
                 finalName = dnameTarget!;
             }
             error = "The DNS answer contains an excessively long canonical-name chain.";
@@ -492,8 +508,12 @@ namespace DnsClientX {
         private static bool TryGetDnameTarget(
             DnsWireResourceRecord[] answers,
             string currentName,
-            out string? target) {
+            out string? target) => TryGetDnameTarget(answers, currentName, out target, out _);
+
+        private static bool TryGetDnameTarget(DnsWireResourceRecord[] answers, string currentName,
+            out string? target, out string? owner) {
             target = null;
+            owner = null;
             string canonicalName = DnsWireNameCodec.Canonical(currentName);
             DnsWireResourceRecord? dname = answers
                 .Where(record => record.Type == DnsRecordType.DNAME)
@@ -503,6 +523,7 @@ namespace DnsClientX {
                 .FirstOrDefault();
             if (!dname.HasValue) return false;
 
+            owner = dname.Value.Name;
             target = DnsWireNameCodec.RewriteDnameTarget(canonicalName, dname.Value.Name, dname.Value.Data);
             return true;
         }

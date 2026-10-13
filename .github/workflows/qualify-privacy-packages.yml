@@ -10,6 +10,8 @@ on:
       - 'DnsClientX.Odoh/**'
       - 'DnsClientX.DnsCrypt/**'
       - 'scripts/qualification/privacy-packages/**'
+      - 'scripts/qualification/privacy-packages-legacy/**'
+      - 'Build/Qualify-PrivacyPackages.ps1'
       - '.github/workflows/qualify-privacy-packages.yml'
   workflow_dispatch:
 
@@ -64,4 +66,8 @@ jobs:
             if ($LASTEXITCODE) { throw 'Legacy package consumer build failed.' }
             & (Join-Path $artifacts 'bin/PrivacyPackages/release_net472/PrivacyPackages.exe')
             if ($LASTEXITCODE) { throw 'Legacy package consumer failed.' }
+            ./Build/Qualify-PrivacyPackages.ps1 `
+              -AssetsFile (Join-Path $artifacts 'obj/PrivacyPackages/project.assets.json') `
+              -PackageCache $cache -NuGetConfig $config `
+              -OutputRoot (Join-Path $taskRoot 'packages-config-consumer')
           }

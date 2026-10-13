@@ -2,7 +2,7 @@
 
 DnsClientX provides one DNS engine for C#, PowerShell and command-line users. The core owns protocol handling, record parsing, certificate policy, DNSSEC, caching and resolver operations. Optional packages own specialized cryptography and native protocol requirements; the user surfaces call those owners.
 
-This working plan covers the local combined candidate for [PR #581](https://github.com/EvotecIT/DnsClientX/pull/581) and [PR #582](https://github.com/EvotecIT/DnsClientX/pull/582). Both PRs retain their existing review and release gates. The combined candidate is local: neither a local merge nor a green local package establishes merged PRs, combined hosted CI, native Windows execution, or public NuGet/PSGallery availability.
+This plan records implemented capabilities, their qualification limits and remaining product work. Changes merge after current-head CI and review settlement. Signing, public package publication and deployment remain separate release steps.
 
 ## Maintained capabilities
 
@@ -20,35 +20,19 @@ This working plan covers the local combined candidate for [PR #581](https://gith
 
 The modern core has no new production packages. The approved optional dependencies are BouncyCastle.Cryptography for ODoH and libsodium for DNSCrypt. Optional providers remain caller-owned and must stay alive while clients use their configurations.
 
-## Local combined candidate checklist
-
-- [x] Select the portable native module builder and retain both branches' PowerShell contracts, including atomic-batch WhatIf and individual updates.
-- [x] Reconcile core and cmdlet integration, including configured-provider streaming without plaintext fallback and private-anchor DNSSEC material-cache binding; prove the reachable regressions before packaging.
-- [x] Keep one packaged CI producer/consumer lane with native PowerShell, minimum PowerShell 7.4 and three-OS NuGet consumers; consolidate strict package, asset and Pester-result checks in one helper.
-- [x] Regenerate the manifest, command Markdown and external help through PowerForge from the frozen merged C# sources.
-- [x] Build one unsigned candidate through the native entrypoint with exact source versions, version updates disabled, no signing/publication and no local installation.
-- [x] Import the actual module ZIP in a fresh process, run the combined PowerShell suite, verify loaded assembly locations and type/format/export assets, and prove rejection of teardown/discovery failures, empty suites and stale assemblies.
-- [x] Complete the combined broad .NET 8/.NET 10 proof and one bounded independent read-only review; configured streaming retains providers, private anchors, cache controls and concurrency limits.
-- [x] Verify ordinary DoT and configurations returned by DDR against a strict `dot` ALPN peer, then repeat the combined broad .NET 8/.NET 10 suites with the transport correction.
-- [x] Repeat the actual module ZIP suite, both fresh package-only consumer routes on .NET 8/.NET 10, and the complete legacy test/reference and PowerShell compilation against the frozen transport candidate.
-- [x] Remove superseded build/package extraction output and retain one current ZIP with concise proof and cleanup receipts.
-
 ## Existing proof and remaining qualification
 
-The separate candidates have controlled .NET 8/.NET 10 regressions, loopback discovery and multicast peers, ephemeral certificate fixtures, private-zone DNSSEC and atomic UPDATE wire fixtures, and local .NET Framework 4.7.2 compilation. Independent Go producers add TSIG AXFR/IXFR, ODoH target/relay and DNSCrypt responder evidence. The local combined candidate repeats the affected broad source, fresh package-consumer, actual module ZIP and legacy-compilation proof.
+The separate candidates have controlled .NET 8/.NET 10 regressions, loopback discovery and multicast peers, ephemeral certificate fixtures, private-zone DNSSEC and atomic UPDATE wire fixtures, and local .NET Framework 4.7.2 compilation. Independent Go producers add TSIG AXFR/IXFR, ODoH target/relay and DNSCrypt responder evidence. The combined implementation has broad source, fresh package-consumer, actual module ZIP and legacy-compilation checks. Focused regressions cover private-anchor DNAME boundaries, split-frame authenticated IXFR, serial wraparound, mDNS link admission and server fallback after transport deadlines.
 
-The administration/privacy candidate also has native Windows TLS 1.3 execution and actual packaged PowerShell tests on Windows PowerShell 5.1/7, Linux and macOS. Its CI and delayed repository review have settled for the runtime changes. This standalone acceptance does not qualify combined Windows execution or combined hosted CI; those remain release gates.
+The administration/privacy candidate also has native Windows TLS 1.3 execution and actual packaged PowerShell tests on Windows PowerShell 5.1/7, Linux and macOS. Hosted consumer jobs qualify the combined module on Windows PowerShell 5.1, minimum PowerShell 7.4 and modern Windows/Linux/macOS hosts. DNSCrypt qualification includes PackageReference consumers and a non-SDK packages.config Windows consumer that verifies native asset delivery and loading.
 
 Live public DDR observations bind trusted certificates to the designating resolver's IP and preserve the original HTTPS authority during alternate-address queries. They describe the observed resolver/network environment, not all resolvers or general performance.
 
-Remaining release/platform gates:
+Remaining independent and platform qualification:
 
-- [ ] Complete current-head CI and repository review settlement for each published PR; address validated findings and recheck delayed feedback.
 - [ ] Qualify private-zone DNSSEC and UPDATE prerequisites against an independently operated authoritative lab.
-- [ ] Execute combined packaged workflows on Windows PowerShell 5.1, minimum PowerShell 7.4 and supported modern PowerShell hosts.
-- [x] Verify the separate privacy candidate's DNSCrypt native assets and real provider execution on Windows, Linux and macOS, including a Windows .NET Framework consumer. The combined candidate retains local native execution and byte-matched Windows asset copies; combined Windows/Linux execution remains a hosted gate.
 - [ ] Qualify DoQ and HTTP/3 on supported Windows/Linux/macOS native runtimes, including certificate errors, cancellation and connection reuse.
-- [ ] Exercise IPv6, split DNS and search-domain routing on representative hosts.
+- [ ] Exercise IPv6, split DNS and search-domain routing on representative hosts, and qualify multicast discovery across physical interfaces and network changes.
 - [ ] Exercise CLI archives on their native x64/ARM64 architectures through the shared PowerForge publish configuration.
 
 Local source, compiled assemblies, isolated packed candidates, hosted CI, merged source, public packages and installed versions remain separate delivery states. Coordinated release must publish the core and optional providers before downstream users rely on public package availability. Signing, public publication and deployment follow their normal authorized release process.

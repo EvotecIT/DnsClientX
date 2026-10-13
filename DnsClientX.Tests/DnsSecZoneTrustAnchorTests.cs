@@ -100,6 +100,54 @@ public class DnsSecZoneTrustAnchorTests {
         Assert.Equal(DnsSecValidationStatus.Secure, (await engine.ValidateAsync(ds, fixture.Zone.Name, DnsRecordType.DS, default)).Status);
     }
 
+    /// <summary>An ancestor DNAME cannot redirect a name across an explicitly configured child trust boundary.</summary>
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, false, true)]
+    [InlineData(false, true, false)]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, false)]
+    [InlineData(true, true, true)]
+    public async Task AncestorDnameCannotBypassPrivateBoundary(bool synthesizedCname, bool negative, bool aliasOnly) {
+        using var fixture = new DnsSecSignedFixture();
+        const string query = "www.child.old.example.com";
+        const string target = "www.child.new.example.com";
+        DnsResponse answer = fixture.Signed("old.example.com", DnsRecordType.DNAME,
+            DnsWireNameCodec.ToCanonicalWire("new.example.com"));
+        if (synthesizedCname) {
+            byte[] targetWire = DnsWireNameCodec.ToCanonicalWire(target);
+            int offset = answer.WireMessage.Length;
+            answer.WireMessage = answer.WireMessage.Concat(targetWire).ToArray();
+            answer.WireAnswers = answer.WireAnswers.Concat(new[] {
+                new DnsWireResourceRecord(query, DnsRecordType.CNAME, 1, 3600, 3600,
+                    offset, (ushort)targetWire.Length, target)
+            }).ToArray();
+        }
+        if (negative) {
+            DnsSecSignedFixture.WithProofs(answer,
+                fixture.Nsec3("example.com", "example.com", false, DnsRecordType.SOA));
+            answer.Status = DnsResponseCode.NXDomain;
+        } else if (!aliasOnly) {
+            DnsResponse terminal = fixture.Signed(target, DnsRecordType.A, new byte[] { 192, 0, 2, 9 });
+            int offset = answer.WireMessage.Length;
+            answer.WireMessage = answer.WireMessage.Concat(terminal.WireMessage).ToArray();
+            answer.WireAnswers = answer.WireAnswers.Concat(terminal.WireAnswers.Select(record =>
+                new DnsWireResourceRecord(record.Name, record.Type, record.Class, record.Ttl,
+                    record.RawTtl, record.RdataOffset + offset, record.RdataLength, record.Data))).ToArray();
+        }
+        async Task<DnsSecValidationResult> Validate(DnsSecValidationEngine validator) => aliasOnly
+            ? await validator.ValidateAliasAsync(answer, query, DnsRecordType.A, default)
+            : await validator.ValidateAsync(answer, query, DnsRecordType.A, default);
+
+        Assert.Equal(DnsSecValidationStatus.Secure, (await Validate(Engine(fixture, new[] { Anchor(fixture) }))).Status);
+        var child = new DnsSecZoneTrustAnchor("child.old.example.com",
+            new DnsSecTrustAnchor(1, DnsKeyAlgorithm.RSASHA256, 2, new string('0', 64)));
+        Assert.Equal(DnsSecValidationStatus.Bogus,
+            (await Validate(Engine(fixture, new[] { Anchor(fixture), child }))).Status);
+    }
+
     /// <summary>Snapshots are immutable and cache identity changes with zone, digest or validity policy.</summary>
     [Fact]
     public void ConfigurationSnapshotsAndCacheKeysBindAnchorPolicy() {

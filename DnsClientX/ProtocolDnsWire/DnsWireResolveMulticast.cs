@@ -90,6 +90,8 @@ namespace DnsClientX {
                 return await CollectResponses(
                     client,
                     query,
+                    multicastAddress,
+                    port,
                     debug,
                     endpointConfiguration,
                     cancellationToken).ConfigureAwait(false);
@@ -98,6 +100,8 @@ namespace DnsClientX {
                     client.DropMulticastGroup(multicastAddress);
                 } catch (SocketException) {
                     // The socket may already have left the group while it was being disposed.
+                } catch (ObjectDisposedException) {
+                    // The collection deadline closes and drains the receiver before returning.
                 }
             }
         }
@@ -105,6 +109,8 @@ namespace DnsClientX {
         private static async Task<DnsResponse[]> CollectResponses(
             UdpClient client,
             DnsMessage query,
+            IPAddress group,
+            int port,
             bool debug,
             Configuration configuration,
             CancellationToken cancellationToken) {
@@ -112,10 +118,15 @@ namespace DnsClientX {
             var packets = new HashSet<string>(StringComparer.Ordinal);
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(Math.Max(1, configuration.TimeOut));
+            using CancellationTokenRegistration registration = deadline.Token.Register(client.Dispose);
+            var receiveBuffer = new byte[ushort.MaxValue];
 
             while (!deadline.IsCancellationRequested && responses.Count < MaxCollectedResponses) {
                 try {
-                    UdpReceiveResult received = await Receive(client, deadline.Token).ConfigureAwait(false);
+                    ReceivedPacket received = await ReceivePacketAsync(client, receiveBuffer).ConfigureAwait(false);
+                    if (!IsLocalResponse(received, group, port, configuration.MulticastInterfaceIndex)) {
+                        continue;
+                    }
                     DnsResponse response = await DnsWire.DeserializeDnsMulticastResponse(received.Buffer, debug).ConfigureAwait(false);
                     if (!response.IsResponse
                         || response.TransactionId != query.TransactionId
@@ -128,9 +139,8 @@ namespace DnsClientX {
                     RetainRelevantRecords(response, query.Name, query.Type);
                     response.AddServerDetails(configuration, Transport.Multicast);
                     responses.Add(response);
-                } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
-                    break;
-                } catch (TimeoutException) when (!cancellationToken.IsCancellationRequested) {
+                } catch (Exception exception) when (deadline.IsCancellationRequested
+                    && exception is OperationCanceledException or SocketException or ObjectDisposedException) {
                     break;
                 } catch (DnsClientException ex) {
                     if (debug) {
@@ -205,28 +215,14 @@ namespace DnsClientX {
             return fields.Length == 0 ? null : fields[fields.Length - 1];
         }
 
-        private static async Task<UdpReceiveResult> Receive(UdpClient client, CancellationToken cancellationToken) {
-#if NET5_0_OR_GREATER
-            return await client.ReceiveAsync(cancellationToken).ConfigureAwait(false);
-#else
-            Task<UdpReceiveResult> receiveTask = client.ReceiveAsync();
-            Task completed = await Task.WhenAny(receiveTask, Task.Delay(Timeout.Infinite, cancellationToken)).ConfigureAwait(false);
-            if (completed == receiveTask) {
-                return await receiveTask.ConfigureAwait(false);
-            }
-
-            ObserveFault(receiveTask);
-            cancellationToken.ThrowIfCancellationRequested();
-            throw new TimeoutException("The multicast DNS collection window elapsed.");
-#endif
-        }
-
         internal static UdpClient CreateClient(IPAddress multicastAddress, int? interfaceIndex, int bindPort = 0, bool listenForMulticast = false) {
             var client = new UdpClient(multicastAddress.AddressFamily) {
                 ExclusiveAddressUse = false
             };
             try {
                 client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                SocketOptionLevel packetLevel = multicastAddress.AddressFamily == AddressFamily.InterNetworkV6 ? SocketOptionLevel.IPv6 : SocketOptionLevel.IP;
+                client.Client.SetSocketOption(packetLevel, SocketOptionName.PacketInformation, true);
                 IPAddress? interfaceAddress = FindInterfaceAddress(multicastAddress.AddressFamily, interfaceIndex);
                 if (interfaceIndex.HasValue && interfaceAddress == null) {
                     throw new ArgumentException("The selected multicast interface has no address for this IP family.", nameof(interfaceIndex));
@@ -235,13 +231,13 @@ namespace DnsClientX {
                 IPAddress bindAddress = listenForMulticast ? any : interfaceAddress ?? any;
                 client.Client.Bind(new IPEndPoint(bindAddress, bindPort));
                 if (listenForMulticast) {
-                    SocketOptionLevel level = multicastAddress.AddressFamily == AddressFamily.InterNetworkV6 ? SocketOptionLevel.IPv6 : SocketOptionLevel.IP;
-                    client.Client.SetSocketOption(level, SocketOptionName.MulticastTimeToLive, 255);
-                    if (interfaceIndex.HasValue && multicastAddress.AddressFamily == AddressFamily.InterNetworkV6) {
-                        client.Client.SetSocketOption(level, SocketOptionName.MulticastInterface, interfaceIndex.Value);
-                    } else if (interfaceAddress != null) {
-                        client.Client.SetSocketOption(level, SocketOptionName.MulticastInterface, interfaceAddress.GetAddressBytes());
-                    }
+                    client.Client.SetSocketOption(packetLevel, SocketOptionName.MulticastTimeToLive, 255);
+                }
+                // A unicast bind does not select the outbound multicast route on every platform.
+                if (interfaceIndex.HasValue && multicastAddress.AddressFamily == AddressFamily.InterNetworkV6) {
+                    client.Client.SetSocketOption(packetLevel, SocketOptionName.MulticastInterface, interfaceIndex.Value);
+                } else if (interfaceAddress != null) {
+                    client.Client.SetSocketOption(packetLevel, SocketOptionName.MulticastInterface, interfaceAddress.GetAddressBytes());
                 }
                 return client;
             } catch {
@@ -324,12 +320,6 @@ namespace DnsClientX {
             merged.Additional = responses.SelectMany(response => response.Additional ?? Array.Empty<DnsAnswer>()).Distinct().ToArray();
             merged.RefreshDerivedData(configuration.Port, DnsRequestFormat.Multicast);
             return merged;
-        }
-
-        private static void ObserveFault(Task task) {
-            _ = task.ContinueWith(
-                completed => _ = completed.Exception,
-                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
         }
     }
 }

@@ -20,6 +20,11 @@ internal sealed partial class DnsSecValidationEngine {
         return boundary == null || IsNameWithinZone(signer, boundary);
     }
 
+    private bool DnameRespectsZoneTrustBoundary(string source, string dnameOwner) {
+        string? boundary = ZoneTrustBoundary(source, DnsRecordType.CNAME);
+        return boundary == null || IsNameWithinZone(dnameOwner, boundary);
+    }
+
     private ZoneKeysResult ValidateConfiguredZoneKeys(string zone, DnsResponse response, RrsetKey rrset,
         IReadOnlyList<DnsSecSignature> signatures, IReadOnlyList<DnsSecKey> keys,
         IReadOnlyList<DnsSecZoneTrustAnchor> configured) {
