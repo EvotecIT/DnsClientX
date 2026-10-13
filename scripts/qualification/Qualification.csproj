@@ -8,6 +8,7 @@
     <EnablePreviewFeatures>true</EnablePreviewFeatures>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="privacy-packages/**/*.cs" />
     <ProjectReference Include="../../DnsClientX/DnsClientX.csproj" />
   </ItemGroup>
 </Project>

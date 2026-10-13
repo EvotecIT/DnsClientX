@@ -52,6 +52,7 @@ namespace DnsClientX {
             }
             try {
                 if (disposing) {
+                    StopServiceBrowsingAsync().GetAwaiter().GetResult();
                     if (_dnsSecMaterialCache.IsValueCreated) _dnsSecMaterialCache.Value.Dispose();
                     _udpClientPool.Dispose();
                     _streamConnectionPool.Dispose();
@@ -109,6 +110,7 @@ namespace DnsClientX {
                 return;
             }
             try {
+                await StopServiceBrowsingAsync().ConfigureAwait(false);
                 if (_dnsSecMaterialCache.IsValueCreated) _dnsSecMaterialCache.Value.Dispose();
                 _udpClientPool.Dispose();
                 await _streamConnectionPool.DisposeAsync().ConfigureAwait(false);

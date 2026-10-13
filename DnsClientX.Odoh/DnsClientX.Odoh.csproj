@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Title>DnsClientX Oblivious DNS over HTTPS</Title>
+    <Description>Optional portable RFC 9230 Oblivious DNS over HTTPS with RFC 9180 HPKE for DnsClientX.</Description>
+    <AssemblyName>DnsClientX.Odoh</AssemblyName>
+    <RootNamespace>DnsClientX.Odoh</RootNamespace>
+    <VersionPrefix>2.1.2</VersionPrefix>
+    <AssemblyVersion>2.1.2</AssemblyVersion>
+    <FileVersion>2.1.2</FileVersion>
+    <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`Windows`))' ">netstandard2.0;net472;net8.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$([MSBuild]::IsOsPlatform(`OSX`))' Or '$([MSBuild]::IsOsPlatform(`Linux`))' ">netstandard2.0;net8.0;net10.0</TargetFrameworks>
+    <LangVersion>Latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+    <IsPublishable>True</IsPublishable>
+    <PackageId>DnsClientX.Odoh</PackageId>
+    <PackageTags>dns;odoh;hpke;privacy;rfc9230;rfc9180</PackageTags>
+    <PackageProjectUrl>https://github.com/EvotecIT/DnsClientX</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>DnsClientX.png</PackageIcon>
+    <RepositoryUrl>https://github.com/EvotecIT/DnsClientX</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Company>Evotec</Company>
+    <Authors>Przemyslaw Klys</Authors>
+    <Copyright>(c) 2011 - 2026 Przemyslaw Klys @ Evotec. All rights reserved.</Copyright>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DnsClientX\DnsClientX.csproj" />
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="True" PackagePath="\" />
+    <None Include="..\DnsClientX\DnsClientX.png" Pack="True" PackagePath="\" Link="DnsClientX.png" />
+  </ItemGroup>
+</Project>

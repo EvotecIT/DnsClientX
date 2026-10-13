@@ -24,7 +24,7 @@ namespace DnsClientX {
     /// <summary>
     /// Constructs RFC 2136 DNS UPDATE messages with optional RFC 8945 TSIG authentication.
     /// </summary>
-    internal static class DnsUpdateMessage {
+    internal static partial class DnsUpdateMessage {
         private const ushort ClassIn = 1;
         private const ushort ClassNone = 254;
         private const ushort ClassAny = 255;
@@ -44,33 +44,8 @@ namespace DnsClientX {
         private static DnsUpdateRequestMessage Create(string zone, string name, DnsRecordType type,
             ushort recordClass, uint ttl, byte[] rdata, TsigKey? key) {
             ValidateRecordType(type);
-            zone = DnsWireNameCodec.Normalize(zone);
-            name = DnsWireNameCodec.Normalize(name);
-            if (zone != "." && !string.Equals(name, zone, StringComparison.OrdinalIgnoreCase) &&
-                !name.EndsWith("." + zone, StringComparison.OrdinalIgnoreCase)) {
-                throw new ArgumentException($"Record name {name} is outside update zone {zone}.", nameof(name));
-            }
-            ushort transactionId = CreateTransactionId();
-            using var stream = new MemoryStream();
-            WriteUInt16(stream, transactionId);
-            WriteUInt16(stream, 0x2800); // OPCODE=UPDATE
-            WriteUInt16(stream, 1); // ZOCOUNT
-            WriteUInt16(stream, 0); // PRCOUNT
-            WriteUInt16(stream, 1); // UPCOUNT
-            WriteUInt16(stream, 0); // ADCOUNT before optional TSIG
-            WriteName(stream, zone);
-            WriteUInt16(stream, (ushort)DnsRecordType.SOA);
-            WriteUInt16(stream, ClassIn);
-            WriteName(stream, name);
-            WriteUInt16(stream, (ushort)type);
-            WriteUInt16(stream, recordClass);
-            WriteUInt32(stream, ttl);
-            WriteUInt16(stream, checked((ushort)rdata.Length));
-            stream.Write(rdata, 0, rdata.Length);
-            byte[] unsigned = stream.ToArray();
-            if (key == null) return new DnsUpdateRequestMessage(transactionId, zone, unsigned, Array.Empty<byte>());
-            DnsTsigSignedMessage signed = DnsTsig.Sign(unsigned, transactionId, key);
-            return new DnsUpdateRequestMessage(transactionId, zone, signed.WireData, signed.Mac);
+            return SerializeEntries(zone, Array.Empty<UpdateEntry>(),
+                new[] { new UpdateEntry(name, type, recordClass, ttl, rdata) }, key);
         }
 
         private static byte[] BuildRdata(DnsRecordType type, string data) {

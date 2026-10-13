@@ -48,6 +48,7 @@ namespace DnsClientX {
                 TimeoutMs = Math.Max(1, options.TimeoutMs),
                 BootstrapResolver = options.BootstrapResolver,
                 DnsSecSignatureVerifier = options.DnsSecSignatureVerifier,
+                DnsSecTrustAnchors = options.DnsSecTrustAnchors,
                 RequestNsid = options.RequestNsid,
                 PortOverride = options.PortOverride,
                 ForceDohWirePost = options.ForceDohWirePost

@@ -46,6 +46,8 @@
     <ItemGroup>
         <ProjectReference Include="..\DnsClientX\DnsClientX.csproj" />
         <ProjectReference Include="..\DnsClientX.DnsSec.EdDsa\DnsClientX.DnsSec.EdDsa.csproj" />
+        <ProjectReference Include="..\DnsClientX.DnsCrypt\DnsClientX.DnsCrypt.csproj" />
+        <ProjectReference Include="..\DnsClientX.Odoh\DnsClientX.Odoh.csproj" />
         <ProjectReference Include="..\DnsClientX.Cli\DnsClientX.Cli.csproj" />
         <ProjectReference Include="..\DnsClientX.LoadTests\DnsClientX.LoadTests.csproj"
             Condition="'$(TargetFramework)' != 'net472'" />

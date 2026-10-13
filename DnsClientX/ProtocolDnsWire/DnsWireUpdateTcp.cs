@@ -7,6 +7,16 @@ namespace DnsClientX {
     /// Sends DNS UPDATE messages using TCP transport.
     /// </summary>
     internal static class DnsWireUpdateTcp {
+        internal static async Task<DnsResponse> SendUpdateAsync(DnsUpdateRequestMessage message, bool debug,
+            Configuration configuration, CancellationToken cancellationToken) {
+            byte[] reply = await SendMessageOverTcp(message.WireData, configuration.Hostname!, configuration.Port,
+                configuration, cancellationToken).ConfigureAwait(false);
+            if (configuration.TsigKey != null) { DnsTsig.VerifyResponse(reply, message.TransactionId, configuration.TsigKey, message.TsigMac); }
+            DnsResponse response = await DnsWire.DeserializeDnsUpdateResponse(reply, debug, message.TransactionId, message.Zone).ConfigureAwait(false);
+            response.AddServerDetails(configuration);
+            response.UsedTransport = Transport.Tcp;
+            return response;
+        }
         /// <summary>
         /// Sends a DNS UPDATE message to add or modify a record.
         /// </summary>
@@ -27,6 +37,7 @@ namespace DnsClientX {
             if (endpointConfiguration.TsigKey != null) DnsTsig.VerifyResponse(responseBuffer, message.TransactionId, endpointConfiguration.TsigKey, message.TsigMac);
             DnsResponse response = await DnsWire.DeserializeDnsUpdateResponse(responseBuffer, debug, message.TransactionId, message.Zone).ConfigureAwait(false);
             response.AddServerDetails(endpointConfiguration);
+            response.UsedTransport = Transport.Tcp;
             return response;
         }
 
@@ -48,6 +59,7 @@ namespace DnsClientX {
             if (endpointConfiguration.TsigKey != null) DnsTsig.VerifyResponse(responseBuffer, message.TransactionId, endpointConfiguration.TsigKey, message.TsigMac);
             DnsResponse response = await DnsWire.DeserializeDnsUpdateResponse(responseBuffer, debug, message.TransactionId, message.Zone).ConfigureAwait(false);
             response.AddServerDetails(endpointConfiguration);
+            response.UsedTransport = Transport.Tcp;
             return response;
         }
 
@@ -59,6 +71,7 @@ namespace DnsClientX {
             if (endpointConfiguration.TsigKey != null) DnsTsig.VerifyResponse(responseBuffer, message.TransactionId, endpointConfiguration.TsigKey, message.TsigMac);
             DnsResponse response = await DnsWire.DeserializeDnsUpdateResponse(responseBuffer, debug, message.TransactionId, message.Zone).ConfigureAwait(false);
             response.AddServerDetails(endpointConfiguration);
+            response.UsedTransport = Transport.Tcp;
             return response;
         }
 

@@ -44,32 +44,21 @@ namespace DnsClientX {
                 configuration.Hostname!, configuration.Port, configuration.TimeOut, configuration,
                 IgnoreCertificateErrors, cancellationToken).ConfigureAwait(false);
             Stream stream = connection.Stream;
-            await WriteFramedTransferQueryAsync(stream, query.WireData, configuration.TimeOut,
+            byte[] queryBytes = query.WireData;
+            byte[]? requestMac = null;
+            if (configuration.TsigKey != null) {
+                DnsTsigSignedMessage signed = DnsTsig.Sign(queryBytes, query.TransactionId, configuration.TsigKey);
+                queryBytes = signed.WireData;
+                requestMac = signed.Mac;
+            }
+            await WriteFramedTransferQueryAsync(stream, queryBytes, configuration.TimeOut,
                 configuration.Hostname!, configuration.Port, cancellationToken).ConfigureAwait(false);
 
             var records = new List<DnsAnswer>();
-            var lengthBuffer = new byte[2];
             DnsAnswer? openingSoa = null;
-            int messageCount = 0;
-            long transferredBytes = 0;
-            while (true) {
-                await ReadExactWithTimeoutAsync(stream, lengthBuffer, 0, 2, configuration.TimeOut, cancellationToken)
-                    .ConfigureAwait(false);
-                if (BitConverter.IsLittleEndian) Array.Reverse(lengthBuffer);
-                int length = BitConverter.ToUInt16(lengthBuffer, 0);
-                messageCount++;
-                transferredBytes += length + 2L;
-                if (messageCount > configuration.MaxZoneTransferMessages) {
-                    throw new DnsClientException($"Incremental zone transfer exceeded the configured {configuration.MaxZoneTransferMessages} message limit.");
-                }
-                if (transferredBytes > configuration.MaxZoneTransferBytes) {
-                    throw new DnsClientException($"Incremental zone transfer exceeded the configured {configuration.MaxZoneTransferBytes} byte limit.");
-                }
-
-                var responseBuffer = new byte[length];
-                await ReadExactWithTimeoutAsync(stream, responseBuffer, 0, length, configuration.TimeOut, cancellationToken)
-                    .ConfigureAwait(false);
-                ValidateTransferEnvelope(responseBuffer, query.TransactionId);
+            await foreach (TransferFrame frame in ReadTransferFramesAsync(stream, configuration,
+                query.TransactionId, requestMac, cancellationToken).ConfigureAwait(false)) {
+                byte[] responseBuffer = frame.Data;
                 DnsResponse response = await DnsWire.DeserializeDnsWireFormat(null, Debug, responseBuffer)
                     .ConfigureAwait(false);
                 response.AddServerDetails(configuration);
@@ -98,15 +87,18 @@ namespace DnsClientX {
 
                 if (records.Count == 1 && answers.Length == 1
                     && ParseSoa(records[0]).Serial == requestedSerial) {
+                    RequireSignedTransferEnd(configuration, frame);
                     return records;
                 }
                 if (openingSoa.HasValue && records.Count > 1
                     && answers.Length > 0
                     && answers[answers.Length - 1].Type == DnsRecordType.SOA
                     && SameSoa(answers[answers.Length - 1], openingSoa.Value)) {
+                    RequireSignedTransferEnd(configuration, frame);
                     return records;
                 }
             }
+            throw new DnsClientException("Incremental zone transfer closed before its final SOA.");
         }
 
         private static IncrementalZoneTransferResult ParseIxfr(string zone, uint requestedSerial,

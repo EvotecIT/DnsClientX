@@ -37,6 +37,7 @@ namespace DnsClientX {
             using var client = new ClientX(options.DnsEndpoint, options.DnsSelectionStrategy,
                 timeOutMilliseconds: options.TimeOutMilliseconds);
             client.EndpointConfiguration.DnsSecSignatureVerifier = options.DnsSecSignatureVerifier;
+            client.EndpointConfiguration.DnsSecTrustAnchors = DnsSecZoneTrustAnchor.Snapshot(options.DnsSecTrustAnchors);
             return await client.Resolve(name, recordType,
                 requestDnsSec: options.RequestDnsSec, validateDnsSec: options.ValidateDnsSec,
                 typedRecords: options.TypedRecords, parseTypedTxtRecords: options.ParseTypedTxtRecords,

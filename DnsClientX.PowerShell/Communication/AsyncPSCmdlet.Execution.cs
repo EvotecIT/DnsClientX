@@ -20,7 +20,7 @@ public abstract partial class AsyncPSCmdlet
         var hookGeneration = Interlocked.Increment(ref _nextHookGeneration);
         var synchronizationContext = SynchronizationContext.Current;
         var hookSynchronizationContext =
-            new AsyncHookSynchronizationContext();
+            new AsyncHookSynchronizationContext(this, hookGeneration);
 
         void ClearPipes()
         {
@@ -483,6 +483,7 @@ public abstract partial class AsyncPSCmdlet
                         if (Volatile.Read(ref deferPipeDisposal) != 0)
                         {
                             ClearPipes();
+                            DeactivateHook();
                             DisposePipeOnce();
                         }
                     }
@@ -539,9 +540,9 @@ public abstract partial class AsyncPSCmdlet
                 if (blockTask.IsCompleted)
                 {
                     ClearPipes();
+                    DeactivateHook();
                     DisposePipeOnce();
                 }
-                DeactivateHook();
             }
 
             if (pipelineException is OperationCanceledException && stopRequested)

@@ -83,6 +83,9 @@ namespace DnsClientX {
             ThrowIfDisposed();
             if (type == DnsRecordType.NXNAME) throw new ArgumentException("NXNAME is a denial bitmap signal and cannot be queried.", nameof(type));
             queryConfiguration ??= EndpointConfiguration.CreateQuerySnapshot(name);
+            if (queryConfiguration.WireTransport != null) {
+                throw new NotSupportedException("Root iteration cannot use an optional privacy transport. Configure a recursive resolver for this provider.");
+            }
             using DnsClientTelemetry.DnsQueryTelemetryScope? telemetry = DnsClientTelemetry.StartQuery(name, type, EndpointConfiguration);
             try {
                 DnsResponse response = await ResolveFromRootCore(
@@ -97,6 +100,7 @@ namespace DnsClientX {
                     queryConfiguration.EdnsOptions?.CompactAnswersOk ?? true,
                     queryConfiguration.Rfc5011TrustAnchorStorePath,
                     queryConfiguration.DnsSecSignatureVerifier,
+                    queryConfiguration.DnsSecTrustAnchors,
                     cancellationToken).ConfigureAwait(false);
                 telemetry?.Complete(response);
                 return response;
@@ -118,6 +122,7 @@ namespace DnsClientX {
             bool compactAnswersOk,
             string? trustAnchorStorePath,
             IDnsSecSignatureVerifier? signatureVerifier,
+            IReadOnlyList<DnsSecZoneTrustAnchor>? zoneTrustAnchors,
             CancellationToken cancellationToken) {
             if (string.IsNullOrWhiteSpace(name)) throw new ArgumentNullException(nameof(name));
             if (maxHops <= 0) throw new ArgumentOutOfRangeException(nameof(maxHops));
@@ -165,7 +170,8 @@ namespace DnsClientX {
                         materialState,
                         token).ConfigureAwait(false);
                 }, trustAnchorStorePath: trustAnchorStorePath,
-                    signatureVerifier: signatureVerifier);
+                    signatureVerifier: signatureVerifier,
+                    zoneTrustAnchors: zoneTrustAnchors);
                 DnsSecValidationResult validation = DnsSecValidationResult.Indeterminate(
                     "The iterative resolver did not retain a terminal DNSSEC validation segment.");
                 IReadOnlyList<RootDnsSecSegment> segments = state.ValidationSegments.Count == 0

@@ -37,9 +37,9 @@ namespace DnsClientX {
         internal Task<byte[]> QueryTlsAsync(IPAddress address, int port, IPEndPoint? localEndPoint,
             string tlsServerName, bool ignoreCertificateErrors, SslProtocols protocols,
             byte[] query, int timeoutMilliseconds, int maxInFlight, CancellationToken cancellationToken,
-            bool waitForCanceledQueryDrain = false) {
+            bool waitForCanceledQueryDrain = false, Configuration? tlsConfiguration = null) {
             var key = new PoolKey(address, port, localEndPoint, true, tlsServerName,
-                ignoreCertificateErrors, protocols, maxInFlight);
+                ignoreCertificateErrors, protocols, maxInFlight, tlsConfiguration);
             return QueryAsync(key, query, timeoutMilliseconds, cancellationToken, waitForCanceledQueryDrain);
         }
 
@@ -123,16 +123,18 @@ namespace DnsClientX {
 
         internal readonly struct PoolKey : IEquatable<PoolKey> {
             internal PoolKey(IPAddress address, int port, IPEndPoint? localEndPoint, bool useTls,
-                string tlsServerName, bool ignoreCertificateErrors, SslProtocols protocols, int maxInFlight) {
+                string tlsServerName, bool ignoreCertificateErrors, SslProtocols protocols, int maxInFlight, Configuration? tlsConfiguration = null) {
                 Address = address ?? throw new ArgumentNullException(nameof(address));
                 Port = port;
                 LocalAddress = localEndPoint?.Address;
                 LocalPort = localEndPoint?.Port ?? 0;
                 UseTls = useTls;
-                TlsServerName = tlsServerName ?? string.Empty;
+                TlsServerName = DnsTlsCertificateTrust.NormalizeAuthenticationName(tlsServerName ?? string.Empty);
                 IgnoreCertificateErrors = ignoreCertificateErrors;
                 Protocols = protocols;
                 MaxInFlight = maxInFlight > 0 ? maxInFlight : throw new ArgumentOutOfRangeException(nameof(maxInFlight));
+                TrustConfiguration = tlsConfiguration;
+                TrustPolicyKey = tlsConfiguration?.TlsTrustPolicyKey ?? string.Empty;
             }
 
             internal IPAddress Address { get; }
@@ -144,6 +146,8 @@ namespace DnsClientX {
             internal bool IgnoreCertificateErrors { get; }
             internal SslProtocols Protocols { get; }
             internal int MaxInFlight { get; }
+            internal Configuration? TrustConfiguration { get; }
+            internal string TrustPolicyKey { get; }
             internal IPEndPoint? LocalEndPoint => LocalAddress == null ? null : new IPEndPoint(LocalAddress, LocalPort);
 
             public bool Equals(PoolKey other) =>
@@ -152,7 +156,7 @@ namespace DnsClientX {
                 UseTls == other.UseTls &&
                 string.Equals(TlsServerName, other.TlsServerName, StringComparison.OrdinalIgnoreCase) &&
                 IgnoreCertificateErrors == other.IgnoreCertificateErrors && Protocols == other.Protocols &&
-                MaxInFlight == other.MaxInFlight;
+                MaxInFlight == other.MaxInFlight && string.Equals(TrustPolicyKey, other.TrustPolicyKey, StringComparison.Ordinal);
 
             public override bool Equals(object? obj) => obj is PoolKey other && Equals(other);
 
@@ -167,6 +171,7 @@ namespace DnsClientX {
                     hash = (hash * 397) ^ IgnoreCertificateErrors.GetHashCode();
                     hash = (hash * 397) ^ (int)Protocols;
                     hash = (hash * 397) ^ MaxInFlight;
+                    hash = (hash * 397) ^ StringComparer.Ordinal.GetHashCode(TrustPolicyKey);
                     return hash;
                 }
             }
@@ -324,7 +329,10 @@ namespace DnsClientX {
                         stream = client.GetStream();
                         if (_key.UseTls) {
                             var sslStream = new SslStream(stream, false,
-                                (_, _, _, errors) => errors == SslPolicyErrors.None || _key.IgnoreCertificateErrors);
+                                (_, certificate, chain, errors) => _key.IgnoreCertificateErrors
+                                    || DnsTlsCertificateTrust.Validate(certificate, chain, errors, _key.TlsServerName,
+                                        _key.TrustConfiguration?.TlsTrustAnchors,
+                                        _key.TrustConfiguration?.TlsRevocationMode ?? System.Security.Cryptography.X509Certificates.X509RevocationMode.Online));
                             stream = sslStream;
                             await AuthenticateAsync(sslStream, _key.TlsServerName, _key.Protocols,
                                 timeoutMilliseconds, cancellationToken).ConfigureAwait(false);

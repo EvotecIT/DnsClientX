@@ -13,7 +13,7 @@ namespace DnsClientX {
         internal byte[] Mac { get; }
     }
 
-    internal static class DnsTsig {
+    internal static partial class DnsTsig {
         private const ushort TsigType = 250;
         private const ushort AnyClass = 255;
         internal static Func<DateTimeOffset> UtcNow { get; set; } = () => DateTimeOffset.UtcNow;
@@ -79,9 +79,21 @@ namespace DnsClientX {
         }
 
         internal static void VerifyResponse(byte[] response, ushort expectedId, TsigKey key, byte[] requestMac) {
+            ParsedTsig parsed = ParseResponse(response, expectedId, key)
+                ?? throw new DnsClientException("The authenticated DNS response is missing TSIG.");
+            using var input = new MemoryStream();
+            WriteUInt16(input, checked((ushort)requestMac.Length));
+            input.Write(requestMac, 0, requestMac.Length);
+            input.Write(parsed.UnsignedMessage, 0, parsed.UnsignedMessage.Length);
+            byte[] variables = BuildVariables(key.Name, parsed.Algorithm, parsed.Time, parsed.Fudge, parsed.Error, parsed.Other);
+            input.Write(variables, 0, variables.Length);
+            ValidateMac(ComputeMac(key, input.ToArray()), parsed, requestMac.Length);
+        }
+
+        private static ParsedTsig? ParseResponse(byte[] response, ushort expectedId, TsigKey key) {
             if (response == null || response.Length < 12) throw new DnsClientException("The TSIG response is truncated.");
             ushort additionalCount = ReadUInt16(response, 10);
-            if (additionalCount == 0) throw new DnsClientException("The authenticated DNS response is missing TSIG.");
+
             var reader = new DnsWireReader(response);
             reader.Skip(4);
             ushort questions = reader.ReadUInt16();
@@ -117,7 +129,8 @@ namespace DnsClientX {
                     rdataLength = length;
                 }
             }
-            if (!reader.IsAtEnd || tsigStart < 0) throw new DnsClientException("The authenticated DNS response has an invalid additional section.");
+            if (!reader.IsAtEnd) throw new DnsClientException("The DNS response has an invalid additional section.");
+            if (tsigStart < 0) return null;
             if (tsigClass != AnyClass || tsigTtl != 0 || !string.Equals(DnsWireNameCodec.Canonical(tsigName), DnsWireNameCodec.Canonical(key.Name), StringComparison.Ordinal)) {
                 throw new DnsClientException("The TSIG response key name, class, or TTL is invalid.");
             }
@@ -134,23 +147,38 @@ namespace DnsClientX {
             if (!string.Equals(DnsWireNameCodec.Canonical(algorithm), DnsWireNameCodec.Canonical(AlgorithmName(key.Algorithm)), StringComparison.Ordinal)) {
                 throw new DnsClientException("The TSIG response uses a different HMAC algorithm.");
             }
-            if (originalId != expectedId) throw new DnsClientException("The TSIG original transaction ID does not match the update request.");
+            if (originalId != expectedId) throw new DnsClientException("The TSIG original transaction ID does not match the request.");
             long now = UtcNow().ToUnixTimeSeconds();
             if (Math.Abs(now - checked((long)time)) > fudge) throw new DnsClientException("The TSIG response time is outside the allowed fudge interval.");
+
 
             var messageWithoutTsig = new byte[tsigStart];
             Buffer.BlockCopy(response, 0, messageWithoutTsig, 0, tsigStart);
             WriteUInt16(messageWithoutTsig, 0, originalId);
             WriteUInt16(messageWithoutTsig, 10, checked((ushort)(additionalCount - 1)));
-            using var macInput = new MemoryStream();
-            WriteUInt16(macInput, checked((ushort)requestMac.Length));
-            macInput.Write(requestMac, 0, requestMac.Length);
-            macInput.Write(messageWithoutTsig, 0, messageWithoutTsig.Length);
-            byte[] variables = BuildVariables(key.Name, algorithm, time, fudge, error, other);
-            macInput.Write(variables, 0, variables.Length);
-            byte[] expected = ComputeMac(key, macInput.ToArray());
-            if (!FixedTimeEquals(expected, responseMac)) throw new DnsClientException("The TSIG response MAC is invalid.");
-            if (error != 0) throw new DnsClientException($"The DNS server returned authenticated TSIG error {error}.");
+            return new ParsedTsig(messageWithoutTsig, algorithm, time, fudge, responseMac, error, other);
+        }
+
+        private static void ValidateMac(byte[] expected, ParsedTsig parsed, int priorMacLength) {
+            if (parsed.Mac.Length < priorMacLength || !FixedTimeEquals(expected, parsed.Mac)) {
+                throw new DnsClientException("The TSIG response MAC is invalid or shorter than the preceding MAC.");
+            }
+            if (parsed.Error != 0) throw new DnsClientException($"The DNS server returned authenticated TSIG error {parsed.Error}.");
+        }
+
+        private sealed class ParsedTsig {
+            internal ParsedTsig(byte[] unsignedMessage, string algorithm, ulong time, ushort fudge,
+                byte[] mac, ushort error, byte[] other) {
+                UnsignedMessage = unsignedMessage; Algorithm = algorithm; Time = time; Fudge = fudge;
+                Mac = mac; Error = error; Other = other;
+            }
+            internal byte[] UnsignedMessage { get; }
+            internal string Algorithm { get; }
+            internal ulong Time { get; }
+            internal ushort Fudge { get; }
+            internal byte[] Mac { get; }
+            internal ushort Error { get; }
+            internal byte[] Other { get; }
         }
 
         private static byte[] BuildVariables(string keyName, string algorithmName, ulong time, ushort fudge, ushort error, byte[] other) {

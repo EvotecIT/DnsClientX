@@ -180,7 +180,7 @@ namespace DnsClientX {
 
         /// <summary>
         /// Gets or sets an optional path for persistent RFC 5011 root trust-anchor state.
-        /// When null, validation uses only the immutable anchors bundled with this release.
+        /// When null, root validation uses the bundled anchors unless an explicit root-zone anchor is configured.
         /// Use a durable file writable only by the application identity or its administrator.
         /// Relative paths are resolved when assigned, so retries use the same state file.
         /// </summary>
@@ -196,6 +196,33 @@ namespace DnsClientX {
         /// the dependency-free core, such as Ed25519 and Ed448.
         /// </summary>
         public IDnsSecSignatureVerifier? DnsSecSignatureVerifier { get; set; }
+
+        /// <summary>Gets or sets explicitly trusted DNSSEC zone anchors for private zones or other islands of security.</summary>
+        /// <remarks>Each configured zone starts its own authenticated chain. An invalid or expired exact-zone
+        /// anchor cannot fall back to the public parent chain. Unconfigured zones retain the root trust policy.</remarks>
+        public IReadOnlyList<DnsSecZoneTrustAnchor>? DnsSecTrustAnchors { get; set; }
+
+        /// <summary>Gets or sets the caller-owned optional wire transport for ODoH or DNSCrypt.</summary>
+        /// <remarks>The provider must match <see cref="RequestFormat"/>. Query snapshots retain the
+        /// provider reference, so the provider must support concurrent exchanges.</remarks>
+        public IDnsWireTransport? WireTransport { get; set; }
+
+        /// <summary>Gets or sets the complete HTTPS DoH URI template used by a discovered resolver.</summary>
+        public string? DohUriTemplate { get; set; }
+
+        /// <summary>Gets or sets an explicit connection address while retaining the configured TLS/HTTP identity.</summary>
+        /// <remarks>HTTP address overrides require the modern .NET socket handler; TCP/TLS use the shared wire dial path.</remarks>
+        public IPAddress? ConnectionAddress { get; set; }
+
+        /// <summary>Gets or sets caller-owned public CA certificates for isolated TLS trust on modern .NET.</summary>
+        /// <remarks>Certificate objects must remain usable for the client lifetime; no persistent certificate store is changed.</remarks>
+        public IReadOnlyList<X509Certificate2>? TlsTrustAnchors { get; set; }
+
+        /// <summary>Gets or sets revocation checking for explicitly configured TLS trust anchors.</summary>
+        public X509RevocationMode TlsRevocationMode { get; set; } = X509RevocationMode.Online;
+
+        internal string TlsTrustPolicyKey => TlsTrustAnchors == null || TlsTrustAnchors.Count == 0 ? string.Empty
+            : TlsRevocationMode + ":" + string.Join(",", TlsTrustAnchors.Select(root => Convert.ToBase64String(root.RawData)));
 
         /// <summary>
         /// Gets the DNSSEC signature algorithms supported by this target and the configured
@@ -263,7 +290,7 @@ namespace DnsClientX {
         public int? MaxConcurrency { get; set; }
 
         /// <summary>
-        /// Gets or sets the TSIG key used to authenticate RFC 2136 DNS UPDATE requests and responses.
+        /// Gets or sets the TSIG key used to authenticate RFC 2136 updates and RFC 8945 zone transfer sequences.
         /// </summary>
         public TsigKey? TsigKey { get; set; }
 
@@ -488,6 +515,12 @@ namespace DnsClientX {
                 Configuration snapshot = (Configuration)MemberwiseClone();
                 snapshot.ServerResolution = null;
                 snapshot.EdnsOptions = EdnsOptions?.Clone();
+                snapshot.DnsSecTrustAnchors = DnsSecZoneTrustAnchor.Snapshot(DnsSecTrustAnchors);
+                snapshot.TlsTrustAnchors = TlsTrustAnchors == null ? null : Array.AsReadOnly(TlsTrustAnchors.ToArray());
+                snapshot.ConnectionAddress = ConnectionAddress == null ? null
+                    : ConnectionAddress.AddressFamily == AddressFamily.InterNetworkV6
+                        ? new IPAddress(ConnectionAddress.GetAddressBytes(), ConnectionAddress.ScopeId)
+                        : new IPAddress(ConnectionAddress.GetAddressBytes());
                 snapshot.LocalEndPoint = LocalEndPoint == null
                     ? null
                     : new IPEndPoint(LocalEndPoint.Address, LocalEndPoint.Port);

@@ -70,6 +70,11 @@ namespace DnsClientX {
                 return new DnsServerResolutionResult(null, "DNS server hostname is empty.", DnsQueryErrorCode.Network);
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
+            if (queryConfiguration?.ConnectionAddress != null) {
+                return Finish(queryConfiguration.ConnectionAddress, null, false, false, null);
+            }
+
             if (IPAddress.TryParse(dnsServer, out var parsed)) {
                 return Finish(parsed, null, false, false, null);
             }
@@ -140,7 +145,7 @@ namespace DnsClientX {
 
             DnsServerResolutionResult Finish(IPAddress? address, string? error, bool fromCache, bool stale,
                 string? diagnosticError, DnsQueryErrorCode errorCode = DnsQueryErrorCode.None, Exception? exception = null) {
-                if (queryConfiguration != null && !IPAddress.TryParse(dnsServer, out _)) {
+                if (queryConfiguration != null && (queryConfiguration.ConnectionAddress != null || !IPAddress.TryParse(dnsServer, out _))) {
                     queryConfiguration.ServerResolution = new DnsServerResolutionInfo(dnsServer, address?.ToString(),
                         bootstrapResolver == null ? null : $"{bootstrapResolver.Transport.ToString().ToLowerInvariant()}@{bootstrapResolver}", fromCache, stale, diagnosticError);
                 }

@@ -5,15 +5,24 @@ using System.Text;
 
 namespace DnsClientX {
     internal static class DnsCacheKeyBuilder {
+        private sealed class TransportIdentity {
+            internal string Value { get; } = Guid.NewGuid().ToString("N");
+        }
+        private static readonly ConditionalWeakTable<IDnsWireTransport, TransportIdentity> TransportIdentities = new();
         internal static string Build(Configuration configuration, string normalizedName, DnsRecordType type,
             bool requestDnsSec, bool validateDnsSec, bool returnAllTypes, bool typedRecords, bool parseTypedTxtRecords,
             TimeSpan maxCacheTtl, bool ignoreCertificateErrors) {
             var builder = new StringBuilder(256);
             Append(builder, configuration.RequestFormat.ToString());
+            Append(builder, configuration.WireTransport == null ? string.Empty
+                : TransportIdentities.GetValue(configuration.WireTransport, _ => new TransportIdentity()).Value);
             Append(builder, configuration.BuiltInEndpoint?.ToString() ?? string.Empty);
             Append(builder, configuration.BaseUri?.AbsoluteUri ?? configuration.Hostname ?? string.Empty);
             Append(builder, configuration.Port.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Append(builder, configuration.TlsServerName ?? string.Empty);
+            Append(builder, configuration.ConnectionAddress?.ToString() ?? string.Empty);
+            Append(builder, configuration.DohUriTemplate ?? string.Empty);
+            Append(builder, configuration.TlsTrustPolicyKey);
             Append(builder, DnsBootstrapResolver.CacheKey(configuration.BootstrapResolver));
             Append(builder, configuration.LocalEndPoint?.ToString() ?? string.Empty);
             Append(builder, configuration.MulticastInterfaceIndex?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty);
@@ -22,6 +31,7 @@ namespace DnsClientX {
             Append(builder, configuration.IterativeMaxHops.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Append(builder, configuration.EnableQNameMinimization ? "qname-minimized" : "full-qname");
             Append(builder, configuration.Rfc5011TrustAnchorStorePath ?? string.Empty);
+            Append(builder, validateDnsSec ? DnsSecZoneTrustAnchor.CacheIdentity(configuration.DnsSecTrustAnchors) : string.Empty);
             IDnsSecSignatureVerifier? signatureVerifier = configuration.DnsSecSignatureVerifier;
             Append(builder, !validateDnsSec || signatureVerifier == null
                 ? string.Empty
@@ -50,7 +60,7 @@ namespace DnsClientX {
             return builder.ToString();
         }
 
-        private static void Append(StringBuilder builder, string value) {
+        internal static void Append(StringBuilder builder, string value) {
             builder.Append(value.Length).Append(':').Append(value).Append('|');
         }
     }

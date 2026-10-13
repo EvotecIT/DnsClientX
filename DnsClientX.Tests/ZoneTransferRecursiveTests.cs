@@ -221,7 +221,7 @@ namespace DnsClientX.Tests {
             return new UdpServer(port, Serve());
         }
 
-        private static AxfrServer RunAxfrServerAsync(byte[][] responses, CancellationToken token) {
+        private static AxfrServer RunAxfrServerAsync(byte[][] responses, CancellationToken token, TsigKey? key = null) {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -246,9 +246,14 @@ namespace DnsClientX.Tests {
                     byte[] query = new byte[qLen];
                     await TestUtilities.ReadExactlyAsync(stream, query, qLen, token);
 
-                    foreach (byte[] response in responses) {
+                    foreach (byte[] original in responses) {
+                        byte[] response = (byte[])original.Clone();
                         response[0] = query[0];
                         response[1] = query[1];
+                        if (key != null) {
+                            response = DnsTsig.SignResponse(response, (ushort)((query[0] << 8) | query[1]), key,
+                                TsigZoneTransferTests.ReadRequestMac(query)).WireData;
+                        }
                         byte[] prefix = BitConverter.GetBytes((ushort)response.Length);
                         if (BitConverter.IsLittleEndian) {
                             Array.Reverse(prefix);
@@ -272,6 +277,35 @@ namespace DnsClientX.Tests {
             }
 
             return new AxfrServer(port, Serve());
+        }
+
+        /// <summary>Recursive authority discovery cannot strip the transfer key from an already-started operation.</summary>
+        [Fact]
+        public async Task RecursiveTransferPreservesTsigSnapshotAcrossDiscovery() {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var key = new TsigKey("transfer-key.example.com", new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+            byte[] soa = BuildSoaRdata();
+            byte[] complete = BuildAxfrMessage("example.com", ("example.com", DnsRecordType.SOA, soa),
+                ("www.example.com", DnsRecordType.A, new byte[] { 192, 0, 2, 1 }), ("example.com", DnsRecordType.SOA, soa));
+            AxfrServer transfer = RunAxfrServerAsync(new[] { complete }, cts.Token, key);
+            ClientX? client = null;
+            UdpServer discovery = RunDiscoveryServerAsync(query => {
+                client!.EndpointConfiguration.TsigKey = null;
+                return BuildDiscoveryResponse(query, ("ns1.example.com", "127.0.0.1"));
+            }, cts.Token);
+            try {
+                client = new ClientX(new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
+                    Port = discovery.Port, TsigKey = key
+                });
+                RecursiveZoneTransferResult result = await client.ZoneTransferRecursiveAsync("example.com", transfer.Port,
+                    retryOnTransient: false, cancellationToken: cts.Token);
+                Assert.Equal(3, result.RecordSets.Sum(set => set.Records.Length));
+                Assert.Null(client.EndpointConfiguration.TsigKey);
+            } finally {
+                client?.Dispose();
+                cts.Cancel();
+                await Task.WhenAll(transfer.Task, discovery.Task);
+            }
         }
 
         /// <summary>
