@@ -132,25 +132,19 @@ namespace DnsClientX {
             }
 
             IEnumerable<DnsResponse> responses;
-            if (request.AllServers) {
+            if (request.AllServers || request.Fallback) {
                 var aggregated = new List<DnsResponse>();
                 foreach (string serverName in serverOrder) {
-                    aggregated.AddRange(await ExecuteWithRetryAsync(request, async () => {
-                        using var client = CreateClientForServer(request, serverName, ednsOptions);
-                        return await QueryWithRequestAsync(client, request, namesToUse, cancellationToken).ConfigureAwait(false);
-                    }, cancellationToken).ConfigureAwait(false));
-                }
-
-                responses = aggregated;
-            } else if (request.Fallback) {
-                var aggregated = new List<DnsResponse>();
-                foreach (string serverName in serverOrder) {
-                    var result = await ExecuteWithRetryAsync(request, async () => {
-                        using var client = CreateClientForServer(request, serverName, ednsOptions);
-                        return await QueryWithRequestAsync(client, request, namesToUse, cancellationToken).ConfigureAwait(false);
-                    }, cancellationToken).ConfigureAwait(false);
-                    aggregated.AddRange(result);
-                    if (aggregated.Any(r => r.Status == DnsResponseCode.NoError)) {
+                    using var client = CreateClientForServer(request, serverName, ednsOptions);
+                    bool succeeded = false;
+                    await foreach (DnsResponse[] batch in DnsConcurrentStream.Execute(
+                        EnumerateRequestQueries(namesToUse, request.RecordTypes),
+                        (query, token) => QueryOneWithRequestAsync(client, request, query.Name, query.Type, token),
+                        request.EffectiveMaxConcurrency, preserveOrder: true, cancellationToken).ConfigureAwait(false)) {
+                        aggregated.AddRange(batch);
+                        succeeded |= batch.Any(response => response.Status == DnsResponseCode.NoError);
+                    }
+                    if (!request.AllServers && succeeded) {
                         break;
                     }
                 }
@@ -231,10 +225,11 @@ namespace DnsClientX {
 
                 try {
                     lastResults = await query().ConfigureAwait(false);
+                    lastException = null;
                     if (!lastResults.Any(DnsQueryDiagnostics.IsTransient)) {
                         return lastResults;
                     }
-                } catch (Exception ex) when (DnsQueryDiagnostics.IsTransient(ex)) {
+                } catch (Exception ex) when (IsNonCallerTransientFailure(ex, cancellationToken)) {
                     lastException = ex;
                 }
 
@@ -249,6 +244,46 @@ namespace DnsClientX {
 
             return lastResults;
         }
+
+        /// <summary>Owns one query's retry outcome and failure envelope without erasing sibling results.</summary>
+        private static async Task<DnsResponse[]> QueryOneWithRequestAsync(ClientX client, ResolveDnsRequest request,
+            string name, DnsRecordType type, CancellationToken cancellationToken, bool? requestDnsSecOverride = null) {
+            try {
+                return await ExecuteWithRetryAsync(request, async () => {
+                    var overrideHandler = QueryDnsRequestOverride;
+                    if (overrideHandler != null) {
+                        return await overrideHandler(request, new[] { name }, type, cancellationToken).ConfigureAwait(false);
+                    }
+                    return new[] { await client.Resolve(name, type, requestDnsSecOverride ?? request.ShouldRequestDnsSec,
+                        request.ShouldValidateDnsSec, false, false, 1, request.RetryDelayMs,
+                        request.TypedRecords, request.ParseTypedTxtRecords, cancellationToken).ConfigureAwait(false) };
+                }, cancellationToken).ConfigureAwait(false);
+            } catch (Exception ex) when ((request.Fallback || request.AllServers)
+                && IsNonCallerTransientFailure(ex, cancellationToken)) {
+                cancellationToken.ThrowIfCancellationRequested();
+                DnsResponse failure = ex is DnsClientException { Response: { } response }
+                    ? response.Clone() : new DnsResponse { Status = DnsResponseCode.ServerFailure };
+                failure.Questions = new[] { new DnsQuestion { Name = name, OriginalName = name, Type = type } };
+                failure.ErrorCode = DnsQueryDiagnostics.ClassifyFailure(ex);
+                failure.Exception = ex;
+                if (string.IsNullOrEmpty(failure.Error)) failure.Error = ex.Message;
+                failure.RetryCount = request.RetryCount - 1;
+                failure.AddServerDetails(client.EndpointConfiguration);
+                return new[] { failure };
+            }
+        }
+
+        private static IEnumerable<(string Name, DnsRecordType Type)> EnumerateRequestQueries(string[] names,
+            DnsRecordType[] types) {
+            foreach (DnsRecordType type in types)
+                foreach (string name in names) yield return (name, type);
+        }
+
+        // A linked HTTP body deadline can throw plain OperationCanceledException.
+        // The operation token distinguishes that transport timeout from caller/stream cancellation.
+        private static bool IsNonCallerTransientFailure(Exception exception, CancellationToken cancellationToken) =>
+            !cancellationToken.IsCancellationRequested
+            && (exception is OperationCanceledException || DnsQueryDiagnostics.IsTransient(exception));
 
         private static ClientX CreateClientForServer(ResolveDnsRequest request, string serverName, EdnsOptions? ednsOptions) {
             ClientX client;
