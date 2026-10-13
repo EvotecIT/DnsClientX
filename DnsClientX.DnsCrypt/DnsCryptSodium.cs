@@ -1,12 +1,11 @@
 using System;
-using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 
 namespace DnsClientX.DnsCrypt;
 
 /// <summary>Narrow native boundary for the DNSCrypt NaCl box constructions and certificate signatures.</summary>
-internal static class DnsCryptSodium {
+internal static partial class DnsCryptSodium {
     private const string Library = "libsodium";
     private static readonly Lazy<string> Availability = new Lazy<string>(Initialize, true);
 
@@ -68,12 +67,7 @@ internal static class DnsCryptSodium {
             // Framework hosts lack the runtime asset resolver used by modern .NET. Preload the
             // exact bundled architecture without modifying the process DLL search path.
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && RuntimeInformation.FrameworkDescription.StartsWith(".NET Framework", StringComparison.Ordinal)) {
-                string architecture = RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
-                string directory = Path.GetDirectoryName(typeof(DnsCryptSodium).Assembly.Location)!;
-                string path = Path.Combine(directory, "runtimes", "win-" + architecture, "native", "libsodium.dll");
-                if (!File.Exists(path) || LoadLibraryEx(path, IntPtr.Zero, 0x1100) == IntPtr.Zero) {
-                    throw new DllNotFoundException("The packaged libsodium native library for win-" + architecture + " could not be loaded from " + path + ".");
-                }
+                LoadFrameworkNativeLibrary();
             }
             if (sodium_init() < 0) throw new CryptographicException("libsodium initialization failed.");
             string version = Marshal.PtrToStringAnsi(sodium_version_string()) ?? "unknown";

@@ -1,0 +1,114 @@
+name: Qualify PowerShell package
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'DnsClientX/**'
+      - 'DnsClientX.PowerShell/**'
+      - 'DnsClientX.DnsSec.EdDsa/**'
+      - 'DnsClientX.Odoh/**'
+      - 'DnsClientX.DnsCrypt/**'
+      - 'Module/**'
+      - 'Build/**'
+      - 'Directory.Build.props'
+      - 'scripts/qualification/Test-PackagedModule.ps1'
+      - '.github/workflows/qualify-powershell-package.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build unsigned module ZIP
+    runs-on: windows-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.build.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.x'
+      - name: Install existing build dependency
+        shell: pwsh
+        run: Install-Module PSPublishModule -Force -Scope CurrentUser -AllowClobber
+      - name: Build through the module release wrapper
+        id: build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $config = Get-Content ./Build/project.build.json -Raw | ConvertFrom-Json -AsHashtable
+          $versions = [ordered] @{}
+          foreach ($name in $config.ExpectedVersionMap.Keys) {
+            [xml] $project = Get-Content "$name/$name.csproj" -Raw
+            $versions[$name] = $project.SelectSingleNode('/Project/PropertyGroup/VersionPrefix').InnerText
+          }
+          $config.RootPath = $env:GITHUB_WORKSPACE
+          $config.ExpectedVersionMap = $versions
+          $config.AlignPackageVersions = $false
+          $config.UpdateVersions = $false
+          $config.CertificateThumbprint = $null
+          foreach ($flag in 'SignAssemblies', 'SignDependencyAssemblies', 'SignPackages', 'PublishNuget', 'PublishGitHub', 'CreateReleaseZip') {
+            $config[$flag] = $false
+          }
+          $config.OutputPath = Join-Path $env:RUNNER_TEMP 'package-qualification-feed'
+          $config.StagingPath = Join-Path $env:RUNNER_TEMP 'package-qualification-stage'
+          $configPath = Join-Path $env:RUNNER_TEMP 'package-qualification.build.json'
+          $config | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $configPath -Encoding utf8
+          $PSDefaultParameterValues['Build-Module:SkipInstall'] = $true
+          "version=$($versions['DnsClientX'])" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
+          ./Module/Build/Build-Module.ps1 -RunMode Build -SignModule:$false -ModuleVersion $versions['DnsClientX'] -ProjectBuildConfigPath $configPath
+      - name: Upload the actual ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          name: powershell-module-package
+          path: Artefacts/Packed/DnsClientX-PowerShellModule.v${{ steps.build.outputs.version }}.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  consume:
+    name: Packaged module (${{ matrix.name }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows PowerShell 5.1
+            os: windows-latest
+            shell: powershell
+          - name: Windows PowerShell 7
+            os: windows-latest
+            shell: pwsh
+          - name: Linux PowerShell 7
+            os: ubuntu-latest
+            shell: pwsh
+          - name: macOS PowerShell 7
+            os: macos-latest
+            shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: powershell-module-package
+          path: ${{ runner.temp }}/packed-module
+      - name: Install existing test dependency
+        shell: ${{ matrix.shell }}
+        run: Install-Module Pester -MinimumVersion 5.0.0 -Repository PSGallery -Force -Scope CurrentUser -SkipPublisherCheck -AllowClobber
+      - name: Test the extracted package
+        shell: ${{ matrix.shell }}
+        run: |
+          ./scripts/qualification/Test-PackagedModule.ps1 -ZipPath '${{ runner.temp }}/packed-module/DnsClientX-PowerShellModule.v${{ needs.build.outputs.version }}.zip' -TestsPath './Module/Tests' -OutputDirectory '${{ runner.temp }}/packaged-module-consumer'
+      - name: Upload native Pester results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: packaged-module-results-${{ matrix.os }}-${{ matrix.shell }}
+          path: ${{ runner.temp }}/packaged-module-consumer/TestResults.xml
+          if-no-files-found: warn
+          retention-days: 7

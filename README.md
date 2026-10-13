@@ -107,7 +107,7 @@ It provides querying multiple DNS Providers.
 | DnsCryptRelay            |     |     |     |     |     | ❌        |      |
 | RootServer               |     |     |     | ✓   | ✓   |          |      |
 
-`CloudflareQuic`, `GoogleQuic`, `CloudflareJsonPost`, `GoogleJsonPost`, `CloudflareOdoh`, and the DNSCrypt preset names are retained for source compatibility and fail explicitly when no supported service or configured provider is available. The core implements DoQ for published endpoints such as `Quad9Quic` without extra transport packages on modern .NET. [DnsClientX.Odoh](DnsClientX.Odoh/README.md) and [DnsClientX.DnsCrypt](DnsClientX.DnsCrypt/README.md) provide optional privacy transports through explicit caller-owned configuration; installing a package does not activate an obsolete preset.
+`CloudflareQuic`, `GoogleQuic`, `CloudflareJsonPost`, `GoogleJsonPost`, `CloudflareOdoh`, and the DNSCrypt preset names are retained for source compatibility and always throw when passed to the built-in endpoint constructor. The core implements DoQ for published endpoints such as `Quad9Quic` without extra transport packages on modern .NET. Create explicit caller-owned configurations through [DnsClientX.Odoh](DnsClientX.Odoh/README.md) or [DnsClientX.DnsCrypt](DnsClientX.DnsCrypt/README.md) to use privacy transports.
 
 If you want to learn about DNS:
 - https://www.cloudflare.com/learning/dns/what-is-dns/

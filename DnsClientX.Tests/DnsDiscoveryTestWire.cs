@@ -127,7 +127,8 @@ internal static class DnsDiscoveryTestWire {
     }
 }
 
-/// <summary>Creates a private CA and leaf with ephemeral software keys, without importing certificates into a store.</summary>
+/// <summary>Creates a private CA and native-server leaf from generated software keys without using certificate stores.</summary>
+/// <remarks>Disposal releases the leaf's temporary Windows key container or macOS keychain; Linux keys remain ephemeral.</remarks>
 internal sealed class DnsDiscoveryCertificateFixture : IDisposable {
     private readonly RSA _rootKey = RSA.Create();
     private readonly RSA _leafKey = RSA.Create();
@@ -162,7 +163,8 @@ internal sealed class DnsDiscoveryCertificateFixture : IDisposable {
         }
 
         using var publicLeaf = request.Create(Root, DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(30), new byte[] { 1, 2, 3, 4, 5 });
-        Leaf = publicLeaf.CopyWithPrivateKey(_leafKey);
+        using var keyedLeaf = publicLeaf.CopyWithPrivateKey(_leafKey);
+        Leaf = TestUtilities.ImportForServer(keyedLeaf);
     }
 
     public void Dispose() {

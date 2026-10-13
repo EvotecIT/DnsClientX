@@ -191,7 +191,9 @@ namespace DnsClientX {
         /// <summary>Reports the configured transport, including an explicitly supplied optional provider.</summary>
         /// <remarks>Provider registration does not establish remote endpoint reachability.</remarks>
         public static DnsTransportCapabilityInfo GetConfiguredCapability(Configuration configuration) {
-            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (configuration == null) {
+                throw new ArgumentNullException(nameof(configuration));
+            }
             DnsTransportCapabilityInfo result = CreateCapabilityInfo(configuration.RequestFormat);
             if (configuration.RequestFormat is DnsRequestFormat.ObliviousDnsOverHttps
                 or DnsRequestFormat.DnsCrypt or DnsRequestFormat.DnsCryptRelay) {

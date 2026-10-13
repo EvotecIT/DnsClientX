@@ -31,8 +31,11 @@ namespace DnsClientX.PowerShell {
 
         /// <inheritdoc />
         protected override Task ProcessRecordAsync() {
-            if (Configuration != null) WriteObject(DnsTransportCapabilities.GetConfiguredCapability(Configuration));
-            else WriteObject(DnsTransportCapabilities.GetCapabilityReport(ModernOnly.IsPresent), true);
+            if (Configuration != null) {
+                WriteObject(DnsTransportCapabilities.GetConfiguredCapability(Configuration));
+            } else {
+                WriteObject(DnsTransportCapabilities.GetCapabilityReport(ModernOnly.IsPresent), true);
+            }
             return Task.CompletedTask;
         }
     }

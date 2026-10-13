@@ -170,7 +170,7 @@ public class DnsDesignatedResolverTests {
         await RunTlsDiscovery(true);
     }
 
-    /// <summary>A valid chain for a different IP fails the DDR identity binding and cannot produce a configuration.</summary>
+    /// <summary>A server proven usable by an authenticated DoT control still fails DDR when its certificate names a different original IP.</summary>
     [Fact]
     public async Task ValidCertificateForDifferentIpCannotRedirectDdr() {
         await RunTlsDiscovery(false);
@@ -190,12 +190,12 @@ public class DnsDesignatedResolverTests {
             await dns.SendAsync(response, query.RemoteEndPoint, stop.Token);
         });
         Task tlsServer = Task.Run(async () => {
-            for (int attempt = 0; attempt < (matchingIp ? 2 : 1); attempt++) {
+            for (int attempt = 0; attempt < 2; attempt++) {
                 using TcpClient peer = await tlsListener.AcceptTcpClientAsync(stop.Token);
                 using var tls = new SslStream(peer.GetStream());
                 try {
                     await tls.AuthenticateAsServerAsync(new SslServerAuthenticationOptions { ServerCertificate = fixture.Leaf, EnabledSslProtocols = SslProtocols.Tls12, ApplicationProtocols = new List<SslApplicationProtocol> { new SslApplicationProtocol("dot") } }, stop.Token);
-                    if (attempt == 1) {
+                    if (attempt == (matchingIp ? 1 : 0)) {
                         var length = new byte[2];
                         await tls.ReadExactlyAsync(length, stop.Token);
                         var query = new byte[(length[0] << 8) | length[1]];
@@ -207,13 +207,29 @@ public class DnsDesignatedResolverTests {
                         await tls.WriteAsync(response, stop.Token);
                     }
                 }
-                catch (AuthenticationException)when (!matchingIp) {
+                catch (AuthenticationException)when (!matchingIp && attempt == 1) {
                 }
-                catch (System.IO.IOException)when (!matchingIp) {
+                catch (System.IO.IOException)when (!matchingIp && attempt == 1) {
                 }
             }
         });
         try {
+            if (!matchingIp) {
+                // The same negative fixture must first serve a real query authenticated for its own IP SAN.
+                // Server credential/setup failures cannot masquerade as an original-resolver identity rejection.
+                using var control = new ClientX(new Configuration("127.0.0.2", DnsRequestFormat.DnsOverTLS) {
+                    Port = encryptedPort,
+                    ConnectionAddress = IPAddress.Loopback,
+                    TlsTrustAnchors = new[] { fixture.Root },
+                    TlsRevocationMode = X509RevocationMode.NoCheck,
+                    UseTcpFallback = false
+                });
+                Assert.False(control.IgnoreCertificateErrors);
+                DnsResponse response = await control.Resolve("payload.example", retryOnTransient: false, cancellationToken: stop.Token);
+                Assert.Equal(DnsResponseCode.NoError, response.Status);
+                Assert.Equal("192.0.2.55", Assert.Single(response.Answers).Data);
+            }
+
             using var original = new ClientX(new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = ((IPEndPoint)dns.Client.LocalEndPoint!).Port, UseTcpFallback = false }, ignoreCertificateErrors: !matchingIp);
             DnsDesignatedResolver designated = Assert.Single(await original.DiscoverDesignatedResolversAsync(new DnsDesignatedResolverDiscoveryOptions { TrustAnchors = new[] { fixture.Root }, RevocationMode = X509RevocationMode.NoCheck, VerificationTimeout = TimeSpan.FromSeconds(5) }, stop.Token));
             if (matchingIp) {

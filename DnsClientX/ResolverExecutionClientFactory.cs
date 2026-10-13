@@ -28,7 +28,9 @@ namespace DnsClientX {
 
         /// <summary>Creates a client from a defensive query snapshot, preserving its endpoint and security policy.</summary>
         public static ClientX CreateConfiguredClient(Configuration configuration, ResolverExecutionClientOptions? options = null) {
-            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (configuration == null) {
+                throw new ArgumentNullException(nameof(configuration));
+            }
             var client = new ClientX(configuration.CreateQuerySnapshot());
             ApplyOptions(client, options);
             return client;
@@ -44,9 +46,15 @@ namespace DnsClientX {
             }
 
             client.EnableAudit = options.EnableAudit;
-            if (options.BootstrapResolver != null) client.EndpointConfiguration.BootstrapResolver = options.BootstrapResolver;
-            if (options.DnsSecSignatureVerifier != null) client.EndpointConfiguration.DnsSecSignatureVerifier = options.DnsSecSignatureVerifier;
-            if (options.DnsSecTrustAnchors != null) client.EndpointConfiguration.DnsSecTrustAnchors = DnsSecZoneTrustAnchor.Snapshot(options.DnsSecTrustAnchors);
+            if (options.BootstrapResolver != null) {
+                client.EndpointConfiguration.BootstrapResolver = options.BootstrapResolver;
+            }
+            if (options.DnsSecSignatureVerifier != null) {
+                client.EndpointConfiguration.DnsSecSignatureVerifier = options.DnsSecSignatureVerifier;
+            }
+            if (options.DnsSecTrustAnchors != null) {
+                client.EndpointConfiguration.DnsSecTrustAnchors = DnsSecZoneTrustAnchor.Snapshot(options.DnsSecTrustAnchors);
+            }
             if (options.RequestNsid) {
                 client.EndpointConfiguration.EdnsOptions ??= new EdnsOptions();
                 client.EndpointConfiguration.EdnsOptions.RequestNsid = true;

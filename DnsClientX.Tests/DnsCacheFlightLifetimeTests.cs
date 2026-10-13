@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -34,21 +33,29 @@ public class DnsCacheFlightLifetimeTests {
     [InlineData(true)]
     public async Task DifferentCapturedTimeoutsDoNotShareExecutionDeadline(bool sameClient) {
         using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
-        using var longClient = CreateClient(server, 800);
+        using var longClient = CreateClient(server, 10000);
         using var shortClient = CreateClient(server, 50);
+        using var ownerCancellation = new CancellationTokenSource();
         var name = Guid.NewGuid().ToString("N") + ".example";
-        var owner = longClient.Resolve(name, retryOnTransient: false);
-        await ReceiveAsync(server);
-        var elapsed = Stopwatch.StartNew();
-        if (sameClient) {
-            longClient.EndpointConfiguration.TimeOut = 50;
+        var owner = longClient.Resolve(name, retryOnTransient: false, cancellationToken: ownerCancellation.Token);
+        try {
+            await ReceiveAsync(server);
+            if (sameClient) {
+                longClient.EndpointConfiguration.TimeOut = 50;
+            }
+            var shortQuery = (sameClient ? longClient : shortClient).Resolve(name, retryOnTransient: false);
+            // A separate packet proves the short caller did not inherit the live owner's execution.
+            // Its timeout is a correctness event, not a scheduling-latency benchmark.
+            await ReceiveAsync(server);
+            var response = await shortQuery;
+            Assert.Equal(DnsQueryErrorCode.Timeout, response.ErrorCode);
+            Assert.False(owner.IsCompleted);
+        } finally {
+            ownerCancellation.Cancel();
+            try {
+                await owner;
+            } catch (OperationCanceledException) { }
         }
-        var response = await (sameClient ? longClient : shortClient).Resolve(name, retryOnTransient: false);
-        Assert.InRange(elapsed.ElapsedMilliseconds, 0, 500);
-        Assert.Equal(DnsQueryErrorCode.Timeout, response.ErrorCode);
-        Assert.False(owner.IsCompleted);
-        await ReceiveAsync(server);
-        await owner;
     }
 
     /// <summary>One canceled waiter leaves a shared live transport and cache result intact.</summary>

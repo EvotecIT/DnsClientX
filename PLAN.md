@@ -27,12 +27,15 @@ The modern core remains free of new production packages. The approved optional d
 - [x] Independent Go TSIG AXFR/IXFR exchanges, controlled atomic UPDATE wire/prerequisite failures, and actual signed private-zone UDP responses.
 - [ ] Qualify private-zone DNSSEC and update prerequisites against an independently operated authoritative lab.
 - [x] Stable broad .NET 8/.NET 10 regression suites and local legacy compilation.
+- [x] Remediate the first platform CI findings with portable TLS fixtures, deployment-bound Framework native loading, normalized package paths, and deadline tests that observe completion rather than machine speed.
 - [ ] Complete required native/platform CI.
 - [x] Isolated packed NuGet consumer and actual unsigned PowerShell package proof on the local host.
 - [x] Repeat affected packaged proof after remediation: the final unsigned module passes all 61 PowerShell cases and fresh isolated NuGet consumers run on .NET 8 and .NET 10.
 - [ ] Verify DNSCrypt native assets and real provider execution on Windows and Linux in addition to the locally tested macOS ARM64 host.
 - [ ] Verify packaged PowerShell workflows on Windows PowerShell 5.1 and the supported PowerShell 7 hosts.
+- [x] Add one unsigned module ZIP producer and four isolated packaged PowerShell consumers to CI, preserving the existing source-test and transport checks.
 - [x] Complete one independent read-only risk review and remediate trust, timeout, and transport-capability findings with regression proof.
+- [x] Complete a bounded platform/package closure review; packaged PowerShell validation rejects teardown and discovery failures as well as failed or unexecuted tests.
 
 Controlled fixtures prove the paths they exercise. Independent producers add interoperability evidence. Native runtime, packaged-consumer, external CI, and public-release proof remain separate gates. Live resolver/network observations are environment evidence, not general performance guarantees.
 
