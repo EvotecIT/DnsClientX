@@ -28,7 +28,12 @@ public partial class ClientX {
             selectedEndpoint = target.ExplicitEndpoint;
             selectedProvider = target.BuiltInEndpoint;
         }
-        if (request.IsMultiResolverRequest) {
+        if (request.Configuration != null) {
+            using var client = CreateClientForConfiguration(request, edns);
+            await foreach (DnsResponse response in Stream((name, type, token) => QueryOneWithRequestAsync(client, request, name, type, token)).ConfigureAwait(false)) {
+                yield return response;
+            }
+        } else if (request.IsMultiResolverRequest) {
             DnsResolverEndpoint[] endpoints = await ExpandMultiResolverEndpointsAsync(request, cancellationToken).ConfigureAwait(false);
             using var resolver = new DnsMultiResolver(endpoints, CreateMultiResolverOptions(request, edns));
             await foreach (DnsResponse response in Stream(async (name, type, token) => {

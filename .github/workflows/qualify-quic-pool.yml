@@ -7,12 +7,16 @@ on:
     paths:
       - '.github/workflows/qualify-quic-pool.yml'
       - 'DnsClientX/ProtocolDnsQuic/DnsQuicConnectionPool.cs'
+      - 'DnsClientX/ProtocolDnsQuic/DnsWireResolveQuic.cs'
+      - 'DnsClientX/Network/DnsTlsCertificateTrust.cs'
       - 'DnsClientX.Tests/DnsQuicConnectionPool*'
   push:
     branches: [main]
     paths:
       - '.github/workflows/qualify-quic-pool.yml'
       - 'DnsClientX/ProtocolDnsQuic/DnsQuicConnectionPool.cs'
+      - 'DnsClientX/ProtocolDnsQuic/DnsWireResolveQuic.cs'
+      - 'DnsClientX/Network/DnsTlsCertificateTrust.cs'
       - 'DnsClientX.Tests/DnsQuicConnectionPool*'
 
 permissions:

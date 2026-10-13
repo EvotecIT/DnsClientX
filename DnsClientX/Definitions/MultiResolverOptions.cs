@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net;
 
 namespace DnsClientX {
@@ -93,6 +94,9 @@ namespace DnsClientX {
         /// <summary>Gets or sets the optional thread-safe verifier shared by all resolver endpoints.</summary>
         public IDnsSecSignatureVerifier? DnsSecSignatureVerifier { get; set; }
 
+        /// <summary>Gets or sets explicitly trusted DNSSEC zones shared by all resolver endpoints.</summary>
+        public IReadOnlyList<DnsSecZoneTrustAnchor>? DnsSecTrustAnchors { get; set; }
+
         /// <summary>
         /// Requests typed record output for successful responses.
         /// </summary>
@@ -172,6 +176,7 @@ namespace DnsClientX {
                 RequestDnsSec = RequestDnsSec,
                 ValidateDnsSec = ValidateDnsSec,
                 DnsSecSignatureVerifier = DnsSecSignatureVerifier,
+                DnsSecTrustAnchors = DnsSecZoneTrustAnchor.Snapshot(DnsSecTrustAnchors),
                 TypedRecords = TypedRecords,
                 ParseTypedTxtRecords = ParseTypedTxtRecords,
                 CheckingDisabled = CheckingDisabled,

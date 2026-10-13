@@ -166,6 +166,20 @@ namespace DnsClientX.Tests {
         }
         private static void U16(List<byte> bytes, ushort n) { bytes.Add((byte)(n >> 8)); bytes.Add((byte)n); }
         private static void U32(List<byte> bytes, uint n) { bytes.Add((byte)(n >> 24)); bytes.Add((byte)(n >> 16)); bytes.Add((byte)(n >> 8)); bytes.Add((byte)n); }
+
+        internal static byte[] SerializeResponse(byte[] query, int questionEnd, DnsResponse response) {
+            var bytes = new List<byte>();
+            U16(bytes, (ushort)((query[0] << 8) | query[1])); U16(bytes, (ushort)(0x8400 | (ushort)response.Status));
+            U16(bytes, 1); U16(bytes, (ushort)response.WireAnswers.Length); U16(bytes, (ushort)response.WireAuthorities.Length); U16(bytes, 0);
+            bytes.AddRange(query.Skip(12).Take(questionEnd - 12));
+            foreach (var record in response.WireAnswers.Concat(response.WireAuthorities)) {
+                bytes.AddRange(DnsWireNameCodec.ToCanonicalWire(record.Name)); U16(bytes, (ushort)record.Type); U16(bytes, record.Class);
+                U32(bytes, record.RawTtl); U16(bytes, record.RdataLength);
+                bytes.AddRange(response.WireMessage.Skip(record.RdataOffset).Take(record.RdataLength));
+            }
+            return bytes.ToArray();
+        }
+
         public void Dispose() { _rsa.Dispose(); Directory.Delete(_directory, recursive: true); }
     }
 }

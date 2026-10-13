@@ -1,0 +1,28 @@
+<Project>
+  <!-- .NET Framework does not resolve NuGet runtime assets through a .deps.json file. -->
+  <PropertyGroup>
+    <DnsClientXSodiumVersion>1.0.22</DnsClientXSodiumVersion>
+    <_DnsClientXSodiumPackagesConfig Condition="Exists('$(MSBuildProjectDirectory)/packages.config')">$(MSBuildProjectDirectory)/packages.config</_DnsClientXSodiumPackagesConfig>
+    <_DnsClientXSodiumLegacyPackageRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../..'))</_DnsClientXSodiumLegacyPackageRoot>
+    <DnsClientXSodiumPackagePath Condition="'$(DnsClientXSodiumPackagePath)' == '' And '$(Pkglibsodium)' != ''">$(Pkglibsodium)</DnsClientXSodiumPackagePath>
+    <DnsClientXSodiumPackagePath Condition="'$(DnsClientXSodiumPackagePath)' == '' And '$(_DnsClientXSodiumPackagesConfig)' == ''">$([System.IO.Path]::Combine('$(NuGetPackageRoot)', 'libsodium', '$(DnsClientXSodiumVersion)'))</DnsClientXSodiumPackagePath>
+  </PropertyGroup>
+  <!-- One named target runs once even when PackageReference imports both package folders. -->
+  <Target Name="DnsClientXIncludeFrameworkNativeAssets" BeforeTargets="AssignTargetPaths"
+          Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">
+    <XmlPeek Condition="'$(DnsClientXSodiumPackagePath)' == '' And '$(_DnsClientXSodiumPackagesConfig)' != ''"
+             XmlInputPath="$(_DnsClientXSodiumPackagesConfig)"
+             Query="/packages/package[translate(@id, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = 'libsodium']/@version">
+      <Output TaskParameter="Result" PropertyName="_DnsClientXSodiumResolvedVersion" />
+    </XmlPeek>
+    <PropertyGroup>
+      <_DnsClientXSodiumResolvedVersion Condition="'$(_DnsClientXSodiumResolvedVersion)' == ''">$(DnsClientXSodiumVersion)</_DnsClientXSodiumResolvedVersion>
+      <DnsClientXSodiumPackagePath Condition="'$(DnsClientXSodiumPackagePath)' == ''">$([System.IO.Path]::Combine('$(_DnsClientXSodiumLegacyPackageRoot)', 'libsodium.$(_DnsClientXSodiumResolvedVersion)'))</DnsClientXSodiumPackagePath>
+    </PropertyGroup>
+    <ItemGroup>
+      <None Include="$(DnsClientXSodiumPackagePath)/runtimes/win-x86/native/libsodium.dll" Link="runtimes/win-x86/native/libsodium.dll" CopyToOutputDirectory="PreserveNewest" />
+      <None Include="$(DnsClientXSodiumPackagePath)/runtimes/win-x64/native/libsodium.dll" Link="runtimes/win-x64/native/libsodium.dll" CopyToOutputDirectory="PreserveNewest" />
+      <None Include="$(DnsClientXSodiumPackagePath)/runtimes/win-arm64/native/libsodium.dll" Link="runtimes/win-arm64/native/libsodium.dll" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+</Project>

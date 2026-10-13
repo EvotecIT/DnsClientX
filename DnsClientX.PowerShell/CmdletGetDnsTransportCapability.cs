@@ -15,18 +15,27 @@ namespace DnsClientX.PowerShell {
     ///   <para>Show only the runtime-gated modern transport entries</para>
     ///   <code>Get-DnsTransportCapability -ModernOnly</code>
     /// </example>
-    [Cmdlet(VerbsCommon.Get, "DnsTransportCapability")]
+    [Cmdlet(VerbsCommon.Get, "DnsTransportCapability", DefaultParameterSetName = "Core")]
     [OutputType(typeof(DnsTransportCapabilityInfo))]
     public sealed class CmdletGetDnsTransportCapability : AsyncPSCmdlet {
         /// <summary>
         /// Emits only modern runtime-gated transports such as DoH3 and DoQ.
         /// </summary>
-        [Parameter(Mandatory = false)]
+        [Parameter(Mandatory = false, ParameterSetName = "Core")]
         public SwitchParameter ModernOnly { get; set; }
+
+        /// <summary>Reports the transport and optional provider supplied by this configuration.</summary>
+        [Parameter(Mandatory = true, ParameterSetName = "Configured", ValueFromPipeline = true)]
+        [ValidateNotNull]
+        public Configuration? Configuration { get; set; }
 
         /// <inheritdoc />
         protected override Task ProcessRecordAsync() {
-            WriteObject(DnsTransportCapabilities.GetCapabilityReport(ModernOnly.IsPresent), true);
+            if (Configuration != null) {
+                WriteObject(DnsTransportCapabilities.GetConfiguredCapability(Configuration));
+            } else {
+                WriteObject(DnsTransportCapabilities.GetCapabilityReport(ModernOnly.IsPresent), true);
+            }
             return Task.CompletedTask;
         }
     }

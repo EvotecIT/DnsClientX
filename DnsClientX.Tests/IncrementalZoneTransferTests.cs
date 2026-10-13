@@ -44,17 +44,62 @@ namespace DnsClientX.Tests {
             Assert.Equal((ushort)DnsRecordType.IXFR, ReadUInt16(request, 25));
         }
 
-        /// <summary>Recognizes the single-SOA no-change response.</summary>
-        [Fact]
-        public async Task ParsesNoChangeResponse() {
+        /// <summary>A primary with the same or an older serial returns its single current SOA, including across serial wrap.</summary>
+        [Theory]
+        [InlineData(7u, 7u)]
+        [InlineData(8u, 7u)]
+        [InlineData(0u, uint.MaxValue)]
+        public async Task ParsesNoChangeResponse(uint requestedSerial, uint primarySerial) {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            TransferServer server = RunServer(BuildMessage("example.com", Soa(7)), cts.Token);
+            TransferServer server = RunServer(BuildMessage("example.com", Soa(primarySerial)), cts.Token);
             using var client = CreateClient(server.Port);
 
-            IncrementalZoneTransferResult result = await client.IncrementalZoneTransferAsync("example.com", 7, cts.Token);
+            IncrementalZoneTransferResult result = await client.IncrementalZoneTransferAsync("example.com", requestedSerial, cts.Token);
 
             Assert.Equal(IncrementalZoneTransferKind.NoChange, result.Kind);
-            Assert.Equal((uint)7, result.CurrentSoa.Serial);
+            Assert.Equal(primarySerial, result.CurrentSoa.Serial);
+            Assert.Empty(result.Changes);
+            Assert.Empty(result.FullZoneRecords);
+        }
+
+        /// <summary>A delta's new SOA can end a frame before the added records and the distinct closing SOA arrive.</summary>
+        [Fact]
+        public async Task ParsesIncrementalSequenceSplitAfterNewSoa() {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            TransferServer server = RunServer(cts.Token,
+                BuildMessage("example.com", Soa(2), Soa(1), A("old.example.com", 192, 0, 2, 1), Soa(2)),
+                BuildMessage("example.com", A("new.example.com", 192, 0, 2, 2), Soa(2)));
+            using var client = CreateClient(server.Port);
+
+            IncrementalZoneTransferResult result = await client.IncrementalZoneTransferAsync("example.com", 1, cts.Token);
+
+            Assert.Equal(IncrementalZoneTransferKind.Incremental, result.Kind);
+            IncrementalZoneChange change = Assert.Single(result.Changes);
+            Assert.Equal(1u, change.PreviousSoa.Serial);
+            Assert.Equal(2u, change.CurrentSoa.Serial);
+            Assert.Equal("192.0.2.1", Assert.Single(change.DeletedRecords).Data);
+            Assert.Equal("192.0.2.2", Assert.Single(change.AddedRecords).Data);
+        }
+
+        /// <summary>RFC 1982 leaves a half-range serial difference unordered, so it cannot establish no change.</summary>
+        [Fact]
+        public async Task RejectsSingleSoaWithUndefinedSerialOrder() {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            TransferServer server = RunServer(BuildMessage("example.com", Soa(0x80000000u)), cts.Token);
+            using var client = CreateClient(server.Port);
+
+            await Assert.ThrowsAsync<DnsClientException>(() => client.IncrementalZoneTransferAsync("example.com", 0, cts.Token));
+        }
+
+        /// <summary>A complete delta still requires the closing current SOA to be the final answer in its message.</summary>
+        [Fact]
+        public async Task RejectsRecordsAfterIncrementalClosingSoa() {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            TransferServer server = RunServer(BuildMessage("example.com", Soa(2), Soa(1), Soa(2),
+                A("new.example.com", 192, 0, 2, 2), Soa(2), A("extra.example.com", 192, 0, 2, 3)), cts.Token);
+            using var client = CreateClient(server.Port);
+
+            await Assert.ThrowsAsync<DnsClientException>(() => client.IncrementalZoneTransferAsync("example.com", 1, cts.Token));
         }
 
         /// <summary>Recognizes a standards-compliant AXFR-style fallback.</summary>
@@ -72,19 +117,21 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>An AXFR fallback whose opening SOA is isolated in the first frame is read to its closing SOA.</summary>
-        [Fact]
-        public async Task ParsesMultiMessageFullTransferFallback() {
+        [Theory]
+        [InlineData(1u, 4u)]
+        [InlineData(uint.MaxValue, 0u)]
+        public async Task ParsesMultiMessageFullTransferFallback(uint requestedSerial, uint primarySerial) {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             TransferServer server = RunServer(cts.Token,
-                BuildMessage("example.com", Soa(4)),
-                BuildMessage("example.com", A("www.example.com", 192, 0, 2, 4), Soa(4)));
+                BuildMessage("example.com", Soa(primarySerial)),
+                BuildMessage("example.com", A("www.example.com", 192, 0, 2, 4), Soa(primarySerial)));
             using var client = CreateClient(server.Port);
 
             IncrementalZoneTransferResult result = await client.IncrementalZoneTransferAsync(
-                "example.com", 1, cts.Token);
+                "example.com", requestedSerial, cts.Token);
 
             Assert.Equal(IncrementalZoneTransferKind.FullTransfer, result.Kind);
-            Assert.Equal((uint)4, result.CurrentSoa.Serial);
+            Assert.Equal(primarySerial, result.CurrentSoa.Serial);
             Assert.Equal(3, result.FullZoneRecords.Count);
         }
 

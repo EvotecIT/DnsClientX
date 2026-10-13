@@ -40,6 +40,12 @@ Gets process-wide DNS response cache statistics.
 
 Returns capacity, current entries and lifetime lookup counters shared by all cache-enabled DnsClientX clients in this PowerShell process. Clearing entries does not reset these counters.
 
+### [Get-DnsDesignatedResolver](Get-DnsDesignatedResolver.md)
+Discovers encrypted resolvers designated by an explicit IP DNS resolver.
+
+Returns bounded RFC 9462 candidates with explicit certificate verification outcomes.
+Discovery does not switch resolvers. Only a verified, unexpired candidate can create an encrypted configuration.
+
 ### [Get-DnsQueryExplanation](Get-DnsQueryExplanation.md)
 Explains captured evidence from a completed DNS response.
 
@@ -71,6 +77,12 @@ Sends DNS UPDATE messages to a server.
 Adds or removes records in a zone using RFC 2136 over TCP.
 
 Use WhatIf to preview an update without contacting the server, or Confirm to approve each change.
+
+### [Receive-DnsService](Receive-DnsService.md)
+Continuously reports additions, changes, goodbyes and expirations of multicast DNS services.
+
+Uses a bounded persistent RFC 6762 multicast browse session. Stopping the pipeline
+cancels and drains its receiver. Each output is an independent service snapshot with its observed change.
 
 ### [Resolve-Dns](Resolve-Dns.md)
 Resolves DNS records (A, AAAA, MX, TXT, …) over UDP, TCP, DoT, DoH, QUIC, or multicast with optional multi-resolver strategies.

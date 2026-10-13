@@ -107,12 +107,18 @@ namespace DnsClientX {
             var query = new DnsMessage(zone, DnsRecordType.AXFR, new DnsMessageOptions(
                 CheckingDisabled: queryConfiguration.CheckingDisabled,
                 RecursionDesired: false));
-            var queryBytes = query.SerializeDnsWireFormat();
+            byte[] queryBytes = query.SerializeDnsWireFormat();
+            byte[]? requestMac = null;
+            if (queryConfiguration.TsigKey != null) {
+                DnsTsigSignedMessage signedQuery = DnsTsig.Sign(queryBytes, query.TransactionId, queryConfiguration.TsigKey);
+                queryBytes = signedQuery.WireData;
+                requestMac = signedQuery.Mac;
+            }
 
             for (int attempt = 0; attempt < maxRetries; attempt++) {
                 cancellationToken.ThrowIfCancellationRequested();
                 bool yieldedAny = false;
-                await using var enumerator = SendAxfrOverTcp(queryBytes, query.TransactionId, zone, queryConfiguration.Hostname!, queryConfiguration.Port, queryConfiguration.TimeOut, Debug, queryConfiguration, IgnoreCertificateErrors, cancellationToken).GetAsyncEnumerator(cancellationToken);
+                await using var enumerator = SendAxfrOverTcp(queryBytes, requestMac, query.TransactionId, zone, queryConfiguration.Hostname!, queryConfiguration.Port, queryConfiguration.TimeOut, Debug, queryConfiguration, IgnoreCertificateErrors, cancellationToken).GetAsyncEnumerator(cancellationToken);
                 Exception? iterationException = null;
 
                 while (true) {
@@ -162,6 +168,7 @@ namespace DnsClientX {
 
         private static async IAsyncEnumerable<ZoneTransferResult> SendAxfrOverTcp(
             byte[] query,
+            byte[]? requestMac,
             ushort expectedTransactionId,
             string expectedZone,
             string dnsServer,
@@ -196,57 +203,18 @@ namespace DnsClientX {
                     }
                     await writeTask.ConfigureAwait(false);
 
-                    var lenBuf = new byte[2];
                     var current = new List<DnsAnswer>();
                     var currentCanonical = new List<ZoneCanonicalRecord>();
                     int soaCount = 0;
                     bool sawClosing = false;
-                    bool received = false;
                     bool started = false;
                     int index = 0;
+                    int recordCount = 0;
                     DnsAnswer? lastRecord = null;
                     DnsAnswer? openingSoa = null;
-                    int messageCount = 0;
-                    int recordCount = 0;
-                    long transferredBytes = 0;
-
-                    while (true) {
-                        try {
-                            await ReadExactWithTimeoutAsync(stream, lenBuf, 0, 2, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
-                        } catch (EndOfStreamException) when (!received) {
-                            throw new DnsClientException("Connection closed during zone transfer.",
-                                new EndOfStreamException("The server closed the AXFR stream before returning a response."));
-                        } catch (EndOfStreamException) {
-                            break;
-                        }
-
-                        received = true;
-                        if (BitConverter.IsLittleEndian) {
-                            Array.Reverse(lenBuf);
-                        }
-                        int length = BitConverter.ToUInt16(lenBuf, 0);
-                        messageCount++;
-                        transferredBytes += length + 2L;
-                        if (messageCount > configuration.MaxZoneTransferMessages) {
-                            throw new DnsClientException($"Zone transfer exceeded the configured {configuration.MaxZoneTransferMessages} message limit.");
-                        }
-                        if (transferredBytes > configuration.MaxZoneTransferBytes) {
-                            throw new DnsClientException($"Zone transfer exceeded the configured {configuration.MaxZoneTransferBytes} byte limit.");
-                        }
-                        var responseBuffer = new byte[length];
-                        await ReadExactWithTimeoutAsync(stream, responseBuffer, 0, length, timeoutMilliseconds, cancellationToken).ConfigureAwait(false);
-
-                        if (responseBuffer.Length < 12) {
-                            throw new DnsClientException("Zone transfer returned a truncated DNS header.");
-                        }
-                        ushort responseId = (ushort)((responseBuffer[0] << 8) | responseBuffer[1]);
-                        ushort responseFlags = (ushort)((responseBuffer[2] << 8) | responseBuffer[3]);
-                        if (responseId != expectedTransactionId) {
-                            throw new DnsClientException("Zone transfer response transaction ID did not match the request.");
-                        }
-                        if ((responseFlags & 0x8000) == 0 || ((responseFlags >> 11) & 0x0F) != 0) {
-                            throw new DnsClientException("Zone transfer returned an invalid DNS response envelope.");
-                        }
+                    await foreach (TransferFrame frame in ReadTransferFramesAsync(stream, configuration,
+                        expectedTransactionId, requestMac, cancellationToken).ConfigureAwait(false)) {
+                        byte[] responseBuffer = frame.Data;
 
                         var response = await DnsWire.DeserializeDnsWireFormat(null, debug, responseBuffer).ConfigureAwait(false);
                         response.AddServerDetails(configuration);
@@ -323,6 +291,7 @@ namespace DnsClientX {
                         }
 
                         if (sawClosing) {
+                            RequireSignedTransferEnd(configuration, frame);
                             if (current.Count > 0) {
                                 yield return new ZoneTransferResult(current.ToArray(), currentCanonical.ToArray(), index == 0, true, index);
                             }
@@ -364,10 +333,7 @@ namespace DnsClientX {
             if (configuration.MaxZoneTransferMessages <= 0) throw new ArgumentOutOfRangeException(nameof(configuration.MaxZoneTransferMessages));
             if (configuration.MaxZoneTransferRecords <= 0) throw new ArgumentOutOfRangeException(nameof(configuration.MaxZoneTransferRecords));
             if (configuration.MaxZoneTransferBytes <= 0) throw new ArgumentOutOfRangeException(nameof(configuration.MaxZoneTransferBytes));
-            if (configuration.TsigKey != null) {
-                throw new NotSupportedException(
-                    "Multi-message AXFR/IXFR TSIG chaining is not implemented. Use RFC 9103 mutual TLS or an endpoint ACL rather than assuming the UPDATE-only TSIG setting protects a transfer.");
-            }
+
         }
 
     }

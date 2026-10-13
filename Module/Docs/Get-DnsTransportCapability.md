@@ -11,9 +11,14 @@ Returns runtime transport support information for the DnsClientX core transport 
 Reports which core transports are available on the current runtime, including modern DoH3 and DoQ support on .NET 8+.
 
 ## SYNTAX
-### __AllParameterSets
+### Core (Default)
 ```powershell
 Get-DnsTransportCapability [-ModernOnly] [<CommonParameters>]
+```
+
+### Configured
+```powershell
+Get-DnsTransportCapability -Configuration <Configuration> [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -39,12 +44,28 @@ Show only the runtime-gated modern transport entries
 
 ## PARAMETERS
 
+### -Configuration
+Reports the transport and optional provider supplied by this configuration.
+
+```yaml
+Type: Configuration
+Parameter Sets: Configured
+Aliases: None
+Possible values:
+
+Required: True
+Position: named
+Default value: None
+Accept pipeline input: True (ByValue)
+Accept wildcard characters: False
+```
+
 ### -ModernOnly
 Emits only modern runtime-gated transports such as DoH3 and DoQ.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: __AllParameterSets
+Parameter Sets: Core
 Aliases: None
 Possible values:
 
@@ -60,7 +81,7 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## INPUTS
 
-- `None`
+- `DnsClientX.Configuration`
 
 ## OUTPUTS
 

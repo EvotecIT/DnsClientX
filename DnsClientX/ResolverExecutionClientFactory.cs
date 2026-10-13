@@ -26,6 +26,21 @@ namespace DnsClientX {
             return client;
         }
 
+        /// <summary>Creates a client from a defensive query snapshot, preserving its endpoint and security policy.</summary>
+        public static ClientX CreateConfiguredClient(Configuration configuration, ResolverExecutionClientOptions? options = null) {
+            return CreateConfiguredClient(configuration, options, enableCache: false);
+        }
+
+        /// <summary>Creates a supplied-configuration client with the request's response-cache policy.</summary>
+        internal static ClientX CreateConfiguredClient(Configuration configuration, ResolverExecutionClientOptions? options, bool enableCache) {
+            if (configuration == null) {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+            var client = new ClientX(configuration.CreateQuerySnapshot(), enableCache: enableCache);
+            ApplyOptions(client, options);
+            return client;
+        }
+
         private static void ApplyOptions(ClientX client, ResolverExecutionClientOptions? options) {
             if (client == null) {
                 throw new ArgumentNullException(nameof(client));
@@ -36,8 +51,15 @@ namespace DnsClientX {
             }
 
             client.EnableAudit = options.EnableAudit;
-            client.EndpointConfiguration.BootstrapResolver = options.BootstrapResolver;
-            client.EndpointConfiguration.DnsSecSignatureVerifier = options.DnsSecSignatureVerifier;
+            if (options.BootstrapResolver != null) {
+                client.EndpointConfiguration.BootstrapResolver = options.BootstrapResolver;
+            }
+            if (options.DnsSecSignatureVerifier != null) {
+                client.EndpointConfiguration.DnsSecSignatureVerifier = options.DnsSecSignatureVerifier;
+            }
+            if (options.DnsSecTrustAnchors != null) {
+                client.EndpointConfiguration.DnsSecTrustAnchors = DnsSecZoneTrustAnchor.Snapshot(options.DnsSecTrustAnchors);
+            }
             if (options.RequestNsid) {
                 client.EndpointConfiguration.EdnsOptions ??= new EdnsOptions();
                 client.EndpointConfiguration.EdnsOptions.RequestNsid = true;

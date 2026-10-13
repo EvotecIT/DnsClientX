@@ -18,6 +18,8 @@ jobs:
         timeout-minutes: 30
         steps:
             - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
             - uses: actions/setup-dotnet@v6
               with:
                   dotnet-version: |
@@ -29,8 +31,24 @@ jobs:
             - name: Build through native module entrypoint
               shell: pwsh
               run: |
-                  $version = (Import-PowerShellDataFile ./Module/DnsClientX.psd1).ModuleVersion
-                  ./Module/Build/Build-Module.ps1 -RunMode Build -SignModule:$false -UpdateVersions:$false -ModuleVersion $version -SkipInstall
+                  $ErrorActionPreference = 'Stop'
+                  $config = Get-Content ./Build/project.build.json -Raw | ConvertFrom-Json -AsHashtable
+                  $versions = [ordered] @{}
+                  foreach ($name in $config.ExpectedVersionMap.Keys) {
+                      [xml] $project = Get-Content "$name/$name.csproj" -Raw
+                      $versions[$name] = $project.SelectSingleNode('/Project/PropertyGroup/VersionPrefix').InnerText
+                  }
+                  $config.RootPath = $env:GITHUB_WORKSPACE
+                  $config.ExpectedVersionMap = $versions
+                  $config.AlignPackageVersions = $false
+                  $config.UpdateVersions = $false
+                  $config.CertificateThumbprint = $null
+                  foreach ($flag in 'SignAssemblies', 'SignDependencyAssemblies', 'SignPackages', 'PublishNuget', 'PublishGitHub', 'CreateReleaseZip') {
+                      $config[$flag] = $false
+                  }
+                  $configPath = Join-Path $env:RUNNER_TEMP 'package-qualification.build.json'
+                  $config | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $configPath -Encoding utf8
+                  ./Module/Build/Build-Module.ps1 -RunMode Build -SignModule:$false -UpdateVersions:$false -ModuleVersion $versions['DnsClientX'] -SkipInstall -ProjectBuildConfigPath $configPath
             - name: Upload module and NuGet candidates
               uses: actions/upload-artifact@v7
               with:
@@ -55,6 +73,8 @@ jobs:
         timeout-minutes: 15
         steps:
             - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
             - uses: actions/download-artifact@v8
               with:
                   name: unsigned-packages
@@ -100,6 +120,8 @@ jobs:
         timeout-minutes: 15
         steps:
             - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
             - uses: actions/download-artifact@v8
               with:
                   name: unsigned-packages
@@ -145,6 +167,8 @@ jobs:
         timeout-minutes: 15
         steps:
             - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
             - uses: actions/download-artifact@v8
               with:
                   name: unsigned-packages

@@ -6,8 +6,10 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <EnablePreviewFeatures>true</EnablePreviewFeatures>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Program.cs" />
     <ProjectReference Include="../../DnsClientX/DnsClientX.csproj" />
   </ItemGroup>
 </Project>

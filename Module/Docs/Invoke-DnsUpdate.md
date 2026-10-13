@@ -13,9 +13,14 @@ Adds or removes records in a zone using RFC 2136 over TCP.
 Use WhatIf to preview an update without contacting the server, or Confirm to approve each change.
 
 ## SYNTAX
-### __AllParameterSets
+### Record (Default)
 ```powershell
 Invoke-DnsUpdate [-Zone] <string> [-Server] <string> [-Name] <string> [-Type] <DnsRecordType> [[-Data] <string>] [-Port <int>] [-Ttl <int>] [-TsigKey <TsigKey>] [-Delete] [-DeleteValue] [-WhatIf] [-Confirm] [<CommonParameters>]
+```
+
+### Batch
+```powershell
+Invoke-DnsUpdate [-Server] <string> -Batch <DnsUpdateBatch> [-Port <int>] [-TsigKey <TsigKey>] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -29,33 +34,49 @@ Use WhatIf to preview an update without contacting the server, or Confirm to app
 
 ### EXAMPLE 1
 ```powershell
-Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Data 1.2.3.4 -Ttl 300
+Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www.example.com -Type A -Data 1.2.3.4 -Ttl 300
 ```
 
 Add an A record
 
 ### EXAMPLE 2
 ```powershell
-Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Delete
+Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www.example.com -Type A -Delete
 ```
 
 Delete an existing record
 
 ### EXAMPLE 3
 ```powershell
-Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www -Type A -Data 192.0.2.10 -DeleteValue
+Invoke-DnsUpdate -Zone example.com -Server 127.0.0.1 -Name www.example.com -Type A -Data 192.0.2.10 -DeleteValue
 ```
 
 Delete one value while preserving the rest of the RRset
 
 ## PARAMETERS
 
+### -Batch
+Atomic update batch with optional server-side prerequisites.
+
+```yaml
+Type: DnsUpdateBatch
+Parameter Sets: Batch
+Aliases: None
+Possible values:
+
+Required: True
+Position: named
+Default value: None
+Accept pipeline input: True (ByValue)
+Accept wildcard characters: False
+```
+
 ### -Data
 Record data used when adding a record.
 
 ```yaml
 Type: String
-Parameter Sets: __AllParameterSets
+Parameter Sets: Record
 Aliases: None
 Possible values:
 
@@ -71,7 +92,7 @@ If specified, the record is removed instead of added.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: __AllParameterSets
+Parameter Sets: Record
 Aliases: None
 Possible values:
 
@@ -87,7 +108,7 @@ If specified, only the exact value supplied through Data is removed.
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: __AllParameterSets
+Parameter Sets: Record
 Aliases: None
 Possible values:
 
@@ -103,7 +124,7 @@ Record name.
 
 ```yaml
 Type: String
-Parameter Sets: __AllParameterSets
+Parameter Sets: Record
 Aliases: None
 Possible values:
 
@@ -119,7 +140,7 @@ Port number to use. Defaults to 53.
 
 ```yaml
 Type: Int32
-Parameter Sets: __AllParameterSets
+Parameter Sets: Record, Batch
 Aliases: None
 Possible values:
 
@@ -135,7 +156,7 @@ DNS server to send the update to.
 
 ```yaml
 Type: String
-Parameter Sets: __AllParameterSets
+Parameter Sets: Record, Batch
 Aliases: ServerName
 Possible values:
 
@@ -151,7 +172,7 @@ Optional typed TSIG key used to authenticate the update and its response.
 
 ```yaml
 Type: TsigKey
-Parameter Sets: __AllParameterSets
+Parameter Sets: Record, Batch
 Aliases: None
 Possible values:
 
@@ -167,7 +188,7 @@ TTL for the new record. Zero is valid under RFC 2136; the default is 300 seconds
 
 ```yaml
 Type: Int32
-Parameter Sets: __AllParameterSets
+Parameter Sets: Record
 Aliases: None
 Possible values:
 
@@ -183,7 +204,7 @@ Type of record to update. NXNAME is a denial bitmap signal and cannot be updated
 
 ```yaml
 Type: DnsRecordType
-Parameter Sets: __AllParameterSets
+Parameter Sets: Record
 Aliases: None
 Possible values: Reserved, A, NS, MD, MF, CNAME, SOA, MB, MG, MR, NULL, WKS, PTR, HINFO, MINFO, MX, TXT, RP, AFSDB, X25, ISDN, RT, NSAP, NSAP_PTR, SIG, PX, AAAA, LOC, NXT, SRV, ATMA, NAPTR, KX, CERT, A6, DNAME, SINK, OPT, APL, DS, SSHFP, IPSECKEY, RRSIG, NSEC, DNSKEY, DHCID, NSEC3, NSEC3PARAM, TLSA, SMIMEA, HIP, NINFO, RKEY, TALINK, CDS, CDNSKEY, OPENPGPKEY, CSYNC, ZONEMD, SVCB, HTTPS, SPF, LP, NXNAME, TKEY, TSIG, IXFR, AXFR, MAILB, MAILA, ANY, URI, CAA, AVC, DOA, AMTRELAY, RESINFO, TA, DLV
 
@@ -199,7 +220,7 @@ Zone to update.
 
 ```yaml
 Type: String
-Parameter Sets: __AllParameterSets
+Parameter Sets: Record
 Aliases: None
 Possible values:
 
@@ -215,7 +236,7 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## INPUTS
 
-- `None`
+- `DnsClientX.DnsUpdateBatch`
 
 ## OUTPUTS
 

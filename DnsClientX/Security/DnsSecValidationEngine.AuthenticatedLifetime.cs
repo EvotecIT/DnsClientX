@@ -12,6 +12,11 @@ namespace DnsClientX {
         private DnsSecValidationResult CompleteValidation(DnsResponse response, DnsSecValidationResult result) {
             if (result.Status != DnsSecValidationStatus.Secure) response.DnsSecCompactDenial = false;
             if ((result.Status == DnsSecValidationStatus.Secure || result.Status == DnsSecValidationStatus.Insecure)
+                && _authenticatedZoneAnchors.Any(anchor => !anchor.Anchor.IsValidAt(ValidationTime) || (anchor.Anchor.Flags & 0x0080) != 0)) {
+                response.DnsSecCompactDenial = false;
+                return DnsSecValidationResult.Indeterminate("A configured zone trust anchor expired before validation completed.");
+            }
+            if ((result.Status == DnsSecValidationStatus.Secure || result.Status == DnsSecValidationStatus.Insecure)
                 && _authenticatedSignatures.Any(signature => !DnsSecWire.SignatureTimeIsValid(signature, ValidationTime))) {
                 response.DnsSecCompactDenial = false;
                 return DnsSecValidationResult.Indeterminate("An authenticated dependency's signature expired before validation completed.");
@@ -83,6 +88,7 @@ namespace DnsClientX {
                         ? byOwner.TryGetValue(canonical, out var expires)
                         : byRecord.TryGetValue((canonical, answers[i].Type), out expires);
                     if (authenticated) {
+                        if (_zoneTrustDeadline.HasValue && _zoneTrustDeadline.Value < expires) expires = _zoneTrustDeadline.Value;
                         int remaining = (int)Math.Min(int.MaxValue, Math.Max(0, (expires - now).TotalSeconds));
                         answers[i].TTL = Math.Min(Math.Max(0, answers[i].TTL), remaining);
                     }

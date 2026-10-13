@@ -38,38 +38,35 @@ namespace DnsClientX {
                 cancellationToken);
         }
 
+        private enum IxfrReceivePhase {
+            Classify,
+            FullTransfer,
+            Deletes,
+            Adds
+        }
+
         private async Task<List<DnsAnswer>> ReceiveIxfrAsync(DnsIxfrQueryMessage query, string zone,
             uint requestedSerial, Configuration configuration, CancellationToken cancellationToken) {
             await using DnsZoneTransferConnection connection = await DnsZoneTransferConnection.ConnectAsync(
                 configuration.Hostname!, configuration.Port, configuration.TimeOut, configuration,
                 IgnoreCertificateErrors, cancellationToken).ConfigureAwait(false);
             Stream stream = connection.Stream;
-            await WriteFramedTransferQueryAsync(stream, query.WireData, configuration.TimeOut,
+            byte[] queryBytes = query.WireData;
+            byte[]? requestMac = null;
+            if (configuration.TsigKey != null) {
+                DnsTsigSignedMessage signed = DnsTsig.Sign(queryBytes, query.TransactionId, configuration.TsigKey);
+                queryBytes = signed.WireData;
+                requestMac = signed.Mac;
+            }
+            await WriteFramedTransferQueryAsync(stream, queryBytes, configuration.TimeOut,
                 configuration.Hostname!, configuration.Port, cancellationToken).ConfigureAwait(false);
 
             var records = new List<DnsAnswer>();
-            var lengthBuffer = new byte[2];
             DnsAnswer? openingSoa = null;
-            int messageCount = 0;
-            long transferredBytes = 0;
-            while (true) {
-                await ReadExactWithTimeoutAsync(stream, lengthBuffer, 0, 2, configuration.TimeOut, cancellationToken)
-                    .ConfigureAwait(false);
-                if (BitConverter.IsLittleEndian) Array.Reverse(lengthBuffer);
-                int length = BitConverter.ToUInt16(lengthBuffer, 0);
-                messageCount++;
-                transferredBytes += length + 2L;
-                if (messageCount > configuration.MaxZoneTransferMessages) {
-                    throw new DnsClientException($"Incremental zone transfer exceeded the configured {configuration.MaxZoneTransferMessages} message limit.");
-                }
-                if (transferredBytes > configuration.MaxZoneTransferBytes) {
-                    throw new DnsClientException($"Incremental zone transfer exceeded the configured {configuration.MaxZoneTransferBytes} byte limit.");
-                }
-
-                var responseBuffer = new byte[length];
-                await ReadExactWithTimeoutAsync(stream, responseBuffer, 0, length, configuration.TimeOut, cancellationToken)
-                    .ConfigureAwait(false);
-                ValidateTransferEnvelope(responseBuffer, query.TransactionId);
+            IxfrReceivePhase phase = IxfrReceivePhase.Classify;
+            await foreach (TransferFrame frame in ReadTransferFramesAsync(stream, configuration,
+                query.TransactionId, requestMac, cancellationToken).ConfigureAwait(false)) {
+                byte[] responseBuffer = frame.Data;
                 DnsResponse response = await DnsWire.DeserializeDnsWireFormat(null, Debug, responseBuffer)
                     .ConfigureAwait(false);
                 response.AddServerDetails(configuration);
@@ -78,7 +75,9 @@ namespace DnsClientX {
                 }
 
                 DnsAnswer[] answers = response.Answers ?? Array.Empty<DnsAnswer>();
-                foreach (DnsAnswer answer in answers) {
+                bool sawClosing = false;
+                for (int answerIndex = 0; answerIndex < answers.Length; answerIndex++) {
+                    DnsAnswer answer = answers[answerIndex];
                     if (records.Count >= configuration.MaxZoneTransferRecords) {
                         throw new DnsClientException($"Incremental zone transfer exceeded the configured {configuration.MaxZoneTransferRecords} record limit.");
                     }
@@ -92,21 +91,52 @@ namespace DnsClientX {
                             throw new DnsClientException("Incremental zone transfer did not begin with the zone SOA.");
                         }
                         openingSoa = answer;
+                    } else {
+                        if (answer.Type == DnsRecordType.SOA && !SameName(answer.Name, zone)) {
+                            throw new DnsClientException("Incremental zone transfer returned an SOA outside the requested zone apex.");
+                        }
+                        switch (phase) {
+                            case IxfrReceivePhase.Classify:
+                                phase = answer.Type == DnsRecordType.SOA ? IxfrReceivePhase.Deletes : IxfrReceivePhase.FullTransfer;
+                                break;
+                            case IxfrReceivePhase.FullTransfer:
+                                if (answer.Type == DnsRecordType.SOA) {
+                                    if (!SameSoa(answer, openingSoa.Value)) {
+                                        throw new DnsClientException("IXFR AXFR fallback contains an SOA record outside its opening and closing boundaries.");
+                                    }
+                                    sawClosing = true;
+                                }
+                                break;
+                            case IxfrReceivePhase.Deletes:
+                                // The new SOA starts additions, even when it equals the primary's
+                                // current SOA and is the final record of this DNS message.
+                                if (answer.Type == DnsRecordType.SOA) phase = IxfrReceivePhase.Adds;
+                                break;
+                            case IxfrReceivePhase.Adds:
+                                if (answer.Type == DnsRecordType.SOA) {
+                                    sawClosing = SameSoa(answer, openingSoa.Value);
+                                    if (!sawClosing) phase = IxfrReceivePhase.Deletes;
+                                }
+                                break;
+                        }
+                    }
+                    if (sawClosing && answerIndex != answers.Length - 1) {
+                        throw new DnsClientException("Incremental zone transfer closing SOA record is not last.");
                     }
                     records.Add(answer);
                 }
 
                 if (records.Count == 1 && answers.Length == 1
-                    && ParseSoa(records[0]).Serial == requestedSerial) {
+                    && SerialIsEqualOrNewer(requestedSerial, ParseSoa(records[0]).Serial)) {
+                    RequireSignedTransferEnd(configuration, frame);
                     return records;
                 }
-                if (openingSoa.HasValue && records.Count > 1
-                    && answers.Length > 0
-                    && answers[answers.Length - 1].Type == DnsRecordType.SOA
-                    && SameSoa(answers[answers.Length - 1], openingSoa.Value)) {
+                if (sawClosing) {
+                    RequireSignedTransferEnd(configuration, frame);
                     return records;
                 }
             }
+            throw new DnsClientException("Incremental zone transfer closed before its final SOA.");
         }
 
         private static IncrementalZoneTransferResult ParseIxfr(string zone, uint requestedSerial,
@@ -116,9 +146,9 @@ namespace DnsClientX {
             }
             SoaRecord current = ParseSoa(records[0]);
             if (records.Count == 1) {
-                if (current.Serial != requestedSerial) {
+                if (!SerialIsEqualOrNewer(requestedSerial, current.Serial)) {
                     throw new DnsClientException(
-                        $"A single-SOA IXFR response reported serial {current.Serial}, not the requested serial {requestedSerial}.");
+                        $"A single-SOA IXFR response reported serial {current.Serial}, which is not equal to or older than the requested serial {requestedSerial}.");
                 }
                 return new IncrementalZoneTransferResult(IncrementalZoneTransferKind.NoChange, current);
             }
@@ -200,6 +230,9 @@ namespace DnsClientX {
 
         private static bool SerialIsNewer(uint candidate, uint current) =>
             candidate != current && unchecked((int)(candidate - current)) > 0;
+
+        private static bool SerialIsEqualOrNewer(uint candidate, uint current) =>
+            candidate == current || SerialIsNewer(candidate, current);
 
         private static void ValidateTransferEnvelope(byte[] response, ushort expectedTransactionId) {
             if (response.Length < 12) throw new DnsClientException("Zone transfer returned a truncated DNS header.");

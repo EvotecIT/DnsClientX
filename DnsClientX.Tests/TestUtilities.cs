@@ -16,7 +16,15 @@ namespace DnsClientX.Tests {
         internal static X509Certificate2 CreateTlsCertificate(CertificateRequest request) {
             using X509Certificate2 temporary = request.CreateSelfSigned(
                 DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddHours(1));
-            byte[] pfx = temporary.Export(X509ContentType.Pfx);
+            return ImportForServer(temporary);
+        }
+
+        /// <summary>Imports a generated, exportable software fixture key for a native TLS server.</summary>
+        /// <remarks>This helper accepts only test-created certificates, never user/store certificates or hardware keys.
+        /// It writes no certificate store and omits PersistKeySet. The caller must dispose the returned certificate
+        /// to release its temporary Windows software-key container or macOS keychain. Linux imports stay in memory.</remarks>
+        internal static X509Certificate2 ImportForServer(X509Certificate2 certificate) {
+            byte[] pfx = certificate.Export(X509ContentType.Pfx);
             try {
                 // SChannel needs a temporary named software key; macOS requires a temporary keychain for PFX.
                 // Omit PersistKeySet so disposal releases the key file/keychain. Use memory-only imports elsewhere.

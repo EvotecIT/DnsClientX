@@ -50,6 +50,7 @@ namespace DnsClientX {
                         ? dnsServer
                         : throw new InvalidOperationException(
                             "XFR-over-TLS configured by IP address requires Configuration.TlsServerName for strict authentication."));
+                authenticationName = DnsTlsCertificateTrust.NormalizeAuthenticationName(authenticationName);
             }
 #endif
 
@@ -72,7 +73,10 @@ namespace DnsClientX {
                 var sslStream = new SslStream(
                     networkStream,
                     leaveInnerStreamOpen: false,
-                    configuration.ZoneTransferServerCertificateValidationCallback);
+                    configuration.ZoneTransferServerCertificateValidationCallback
+                        ?? ((_, certificate, chain, errors) => DnsTlsCertificateTrust.Validate(certificate,
+                            chain, errors, authenticationName!, configuration.TlsTrustAnchors,
+                            configuration.TlsRevocationMode)));
                 var dotProtocol = new SslApplicationProtocol("dot");
                 var authenticationOptions = new SslClientAuthenticationOptions {
                     TargetHost = authenticationName!,

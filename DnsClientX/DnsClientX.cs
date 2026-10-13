@@ -288,6 +288,10 @@ namespace DnsClientX {
         /// Creates an optimized HttpClient with proper connection management and realistic timeouts
         /// </summary>
         private HttpClient CreateOptimizedHttpClient(Configuration configuration, bool ignoreCertificateErrors) {
+            // Constructor-created handlers also need immutable trust inputs: EndpointConfiguration
+            // remains caller-editable, while a connection can authenticate after the query starts.
+            var trustAnchors = configuration.TlsTrustAnchors?.ToArray();
+            var revocationMode = configuration.TlsRevocationMode;
             // Create handler with proper connection management
             HttpMessageHandler transportHandler;
             if (UsesHttpBootstrap(configuration)) {
@@ -297,6 +301,10 @@ namespace DnsClientX {
                 handler = new HttpClientHandler();
                 if (ignoreCertificateErrors) {
                     handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+                } else if (trustAnchors?.Length > 0) {
+                    handler.ServerCertificateCustomValidationCallback = (request, certificate, chain, errors) =>
+                        request.RequestUri != null && DnsTlsCertificateTrust.Validate(certificate, chain, errors,
+                            request.RequestUri.IdnHost, trustAnchors, revocationMode);
                 }
 
                 handler.SslProtocols = (SslProtocols)SecurityProtocol;
@@ -356,9 +364,11 @@ namespace DnsClientX {
         /// Configures the client to required parameters (legacy method for backward compatibility)
         /// </summary>
         private void ConfigureClient() {
-            if (!IsHttpBasedTransport(EndpointConfiguration.RequestFormat)
+            if (EndpointConfiguration.WireTransport != null
+                || !IsHttpBasedTransport(EndpointConfiguration.RequestFormat)
                 || EndpointConfiguration.RequestFormat == DnsRequestFormat.DnsOverGrpc
-                || EndpointConfiguration.BootstrapResolver != null) return;
+                || EndpointConfiguration.BootstrapResolver != null
+                || EndpointConfiguration.ConnectionAddress != null) return;
             lock (_lock) {
                 if (Client != null && TryAddDisposedClient(Client)) {
                     _managedClients.Remove(Client);

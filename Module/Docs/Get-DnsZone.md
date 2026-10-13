@@ -13,12 +13,17 @@ Retrieves all records for the specified zone using TCP based zone transfer.
 ## SYNTAX
 ### ExplicitServer (Default)
 ```powershell
-Get-DnsZone [-Zone] <string> [-Server] <string> [-Port <int>] [<CommonParameters>]
+Get-DnsZone [-Zone] <string> [-Server] <string> [-Port <int>] [-TsigKey <TsigKey>] [-CurrentSerial <UInt32>] [<CommonParameters>]
 ```
 
 ### Recursive
 ```powershell
 Get-DnsZone [-Zone] <string> [[-Server] <string>] -Recursive [-Port <int>] [-DnsProvider <DnsEndpoint>] [-IncludeTransferSummary] [<CommonParameters>]
+```
+
+### Configured
+```powershell
+Get-DnsZone [-Zone] <string> -Configuration <Configuration> [-Port <int>] [-TsigKey <TsigKey>] [-CurrentSerial <UInt32>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -50,6 +55,38 @@ Get-DnsZone -Zone example.com -Recursive
 Discover authoritative servers and transfer from the first one that allows AXFR
 
 ## PARAMETERS
+
+### -Configuration
+Explicit transfer configuration, including TLS authentication or a TSIG key.
+
+```yaml
+Type: Configuration
+Parameter Sets: Configured
+Aliases: None
+Possible values:
+
+Required: True
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -CurrentSerial
+Requests IXFR from the specified serial; returns a validated result, including any AXFR fallback.
+
+```yaml
+Type: UInt32
+Parameter Sets: ExplicitServer, Configured
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
 
 ### -DnsProvider
 Resolver profile used to discover authoritative servers when Recursive is specified and no explicit discovery server is provided.
@@ -88,7 +125,7 @@ Port number to use. Defaults to 53.
 
 ```yaml
 Type: Int32
-Parameter Sets: ExplicitServer, Recursive
+Parameter Sets: ExplicitServer, Recursive, Configured
 Aliases: None
 Possible values:
 
@@ -131,12 +168,28 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -TsigKey
+Authenticates the query and every transfer signature window.
+
+```yaml
+Type: TsigKey
+Parameter Sets: ExplicitServer, Configured
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -Zone
 The zone to transfer.
 
 ```yaml
 Type: String
-Parameter Sets: ExplicitServer, Recursive
+Parameter Sets: ExplicitServer, Recursive, Configured
 Aliases: None
 Possible values:
 

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
@@ -30,11 +31,13 @@ public partial class ClientX {
         return response;
     }
 
-    private static bool UsesHttpBootstrap(Configuration configuration) => configuration.BootstrapResolver != null
-        && configuration.BaseUri != null && !IPAddress.TryParse(configuration.BaseUri.IdnHost, out _);
+    private static bool UsesHttpBootstrap(Configuration configuration) => configuration.BaseUri != null
+        && (configuration.ConnectionAddress != null || configuration.BootstrapResolver != null
+            && !IPAddress.TryParse(configuration.BaseUri.IdnHost, out _));
 
-    private static string HttpBootstrapKey(Configuration configuration) => !UsesHttpBootstrap(configuration) ? string.Empty :
-        $"{DnsBootstrapResolver.CacheKey(configuration.BootstrapResolver)}|{configuration.ServerResolution?.Hostname}|{configuration.ServerResolution?.Address}";
+    private static string HttpBootstrapKey(Configuration configuration) => configuration.TlsTrustPolicyKey + "|" +
+        (!UsesHttpBootstrap(configuration) ? string.Empty :
+        $"{DnsBootstrapResolver.CacheKey(configuration.BootstrapResolver)}|{configuration.ConnectionAddress}|{configuration.ServerResolution?.Hostname}|{configuration.ServerResolution?.Address}");
 
     private HttpMessageHandler CreateBootstrapHttpHandler(Configuration configuration, bool ignoreCertificateErrors) {
 #if NET8_0_OR_GREATER
@@ -50,6 +53,14 @@ public partial class ClientX {
             SslOptions = new SslClientAuthenticationOptions { EnabledSslProtocols = (SslProtocols)_securityProtocol }
         };
         if (ignoreCertificateErrors) sockets.SslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
+        else if (configuration.TlsTrustAnchors?.Count > 0) {
+            var trustAnchors = configuration.TlsTrustAnchors.ToArray();
+            var revocationMode = configuration.TlsRevocationMode;
+            string authenticationName = configuration.BaseUri!.IdnHost;
+            sockets.SslOptions.RemoteCertificateValidationCallback = (_, certificate, chain, errors) =>
+                DnsTlsCertificateTrust.Validate(certificate, chain, errors, authenticationName,
+                    trustAnchors, revocationMode);
+        }
         sockets.ConnectCallback = async (context, cancellationToken) => {
             // Keep the original URL authority for HTTP Host, SNI, and certificate validation.
             if (!string.Equals(context.DnsEndPoint.Host.TrimEnd('.'), resolution.Hostname.TrimEnd('.'), StringComparison.OrdinalIgnoreCase)) {

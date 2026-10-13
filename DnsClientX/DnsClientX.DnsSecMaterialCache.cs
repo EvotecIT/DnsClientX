@@ -40,7 +40,8 @@ public partial class ClientX {
                 certificatePolicy: ignoreCertificateErrors));
         var validator = new DnsSecValidationEngine(materialSession.LookupAsync,
             trustAnchorStorePath: queryConfiguration.Rfc5011TrustAnchorStorePath,
-            signatureVerifier: queryConfiguration.DnsSecSignatureVerifier);
+            signatureVerifier: queryConfiguration.DnsSecSignatureVerifier,
+            zoneTrustAnchors: queryConfiguration.DnsSecTrustAnchors);
         DnsSecValidationResult validation = await validator.ValidateAsync(response, name, type, cancellationToken).ConfigureAwait(false);
         response.DnsSecValidationStatus = validation.Status;
         response.DnsSecValidationMessage = validation.Message;

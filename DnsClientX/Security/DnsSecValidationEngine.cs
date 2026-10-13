@@ -14,14 +14,17 @@ namespace DnsClientX {
         private readonly Dictionary<string, Task<ZoneKeysResult>> _zoneCache = new(StringComparer.Ordinal);
         private readonly Rfc5011Store? _trustAnchorStore;
         private readonly IDnsSecSignatureVerifier? _signatureVerifier;
+        private readonly IReadOnlyList<DnsSecZoneTrustAnchor> _zoneTrustAnchors;
 
         internal DnsSecValidationEngine(Func<string, DnsRecordType, CancellationToken, Task<DnsResponse>> lookup,
             DateTimeOffset? now = null, string? trustAnchorStorePath = null,
-            IDnsSecSignatureVerifier? signatureVerifier = null) {
+            IDnsSecSignatureVerifier? signatureVerifier = null,
+            IReadOnlyList<DnsSecZoneTrustAnchor>? zoneTrustAnchors = null) {
             _lookup = lookup ?? throw new ArgumentNullException(nameof(lookup));
             _now = now ?? DateTimeOffset.UtcNow;
             _useCurrentTime = !now.HasValue;
             _signatureVerifier = signatureVerifier;
+            _zoneTrustAnchors = DnsSecZoneTrustAnchor.Snapshot(zoneTrustAnchors) ?? Array.Empty<DnsSecZoneTrustAnchor>();
             if (!string.IsNullOrWhiteSpace(trustAnchorStorePath)) {
                 _trustAnchorStore = new Rfc5011Store(trustAnchorStorePath!);
             }
@@ -87,6 +90,12 @@ namespace DnsClientX {
                 if (rrset.Key.Type == DnsRecordType.CNAME
                     && ReadSignatures(response, rrset.Key.Name, rrset.Key.Type, rrset.Key.Class).Count == 0
                     && rrset.All(record => IsSynthesizedDnameCname(answerRecords, record))) {
+                    foreach (DnsWireResourceRecord record in rrset) {
+                        TryGetDnameTarget(answerRecords, record.Name, out _, out string? dnameOwner);
+                        if (!DnameRespectsZoneTrustBoundary(record.Name, dnameOwner!)) {
+                            return DnsSecValidationResult.Bogus("An ancestor DNAME cannot bypass a configured zone trust boundary.");
+                        }
+                    }
                     continue;
                 }
                 DnsSecValidationResult result = await ValidateAnswerRrsetAsync(response, rrset.Key, cancellationToken).ConfigureAwait(false);
@@ -94,8 +103,16 @@ namespace DnsClientX {
                 insecure |= result.Status == DnsSecValidationStatus.Insecure;
             }
 
-            if (!TryFollowAnswerChain(answerRecords, name, type, out string finalName, out bool terminal, out string? chainError)) {
-                return DnsSecValidationResult.Indeterminate(chainError ?? "The answer did not contain a usable canonical-name chain.");
+            bool rejectedDname = false;
+            bool AcceptDname(string source, string owner) {
+                if (DnameRespectsZoneTrustBoundary(source, owner)) return true;
+                rejectedDname = true;
+                return false;
+            }
+            if (!TryFollowAnswerChain(answerRecords, name, type, out string finalName, out bool terminal, out string? chainError, AcceptDname)) {
+                return rejectedDname
+                    ? DnsSecValidationResult.Bogus("An ancestor DNAME cannot bypass a configured zone trust boundary.")
+                    : DnsSecValidationResult.Indeterminate(chainError ?? "The answer did not contain a usable canonical-name chain.");
             }
             DnsSecProof.ProvesCompactNameError(response, finalName, out bool hasNxName);
             if (response.Status == DnsResponseCode.NXDomain || hasNxName) {
@@ -126,7 +143,7 @@ namespace DnsClientX {
             return insecure
                 ? DnsSecValidationResult.Insecure("A secure delegation chain proved that at least one answer zone is unsigned.")
                 : DnsSecValidationResult.Secure(terminal
-                    ? "The complete answer chain and delegation chain were validated to a root trust anchor."
+                    ? "The complete answer and delegation chains were validated to a configured trust anchor."
                     : "The canonical-name chain and authenticated denial for its final target were validated.");
         }
 
@@ -134,7 +151,7 @@ namespace DnsClientX {
             CancellationToken cancellationToken) {
             List<DnsSecSignature> signatures = ReadSignatures(response, rrset.Name, rrset.Type, rrset.Class);
             if (signatures.Count == 0) {
-                return await FindUnsignedDelegationAsync(rrset.Name, cancellationToken).ConfigureAwait(false);
+                return await FindUnsignedDelegationAsync(rrset.Name, rrset.Type, cancellationToken).ConfigureAwait(false);
             }
 
             DnsSecValidationResult? unsupported = null;
@@ -145,6 +162,7 @@ namespace DnsClientX {
                 if (!IsNameWithinZone(rrset.Name, signer.Key)) {
                     continue;
                 }
+                if (!IsPermittedByZoneTrustBoundary(rrset.Name, rrset.Type, signer.Key)) continue;
                 ZoneKeysResult keys = await GetZoneKeysAsync(signer.Key, cancellationToken).ConfigureAwait(false);
                 if (keys.Status != DnsSecValidationStatus.Secure) {
                     unsupported = new DnsSecValidationResult(keys.Status, keys.Message);
@@ -170,7 +188,7 @@ namespace DnsClientX {
             DnsWireResourceRecord[] proofRecords = DnsSecWire.Records(response)
                 .Where(record => record.Type == DnsRecordType.NSEC || record.Type == DnsRecordType.NSEC3)
                 .ToArray();
-            if (proofRecords.Length == 0) return await FindUnsignedDelegationAsync(name, cancellationToken).ConfigureAwait(false);
+            if (proofRecords.Length == 0) return await FindUnsignedDelegationAsync(name, type, cancellationToken).ConfigureAwait(false);
 
             bool optOut = false;
             bool compactDenial = false;
@@ -227,6 +245,8 @@ namespace DnsClientX {
 
             RrsetKey keyRrset = new(zone, DnsRecordType.DNSKEY, keyRecords[0].Class);
             List<DnsSecSignature> keySignatures = ReadSignatures(keyResponse, zone, DnsRecordType.DNSKEY, keyRecords[0].Class);
+            DnsSecZoneTrustAnchor[] configuredZone = _zoneTrustAnchors.Where(anchor => anchor.Zone == zone).ToArray();
+            if (configuredZone.Length != 0) return ValidateConfiguredZoneKeys(zone, keyResponse, keyRrset, keySignatures, keys, configuredZone);
             if (zone == ".") {
                 DnsSecKey[] configuredAnchors;
                 try {
@@ -298,6 +318,7 @@ namespace DnsClientX {
                 // DS belongs to the parent side of a zone cut. Loading the child's keys here
                 // creates a self-dependency; a strict ancestor also prevents multi-zone cycles.
                 if (!IsStrictAncestor(zone, signer.Key)) continue;
+                if (!IsPermittedByZoneTrustBoundary(zone, DnsRecordType.DS, signer.Key)) continue;
                 ZoneKeysResult parent = await GetZoneKeysAsync(signer.Key, cancellationToken).ConfigureAwait(false);
                 if (parent.Status != DnsSecValidationStatus.Secure) {
                     dsSignature = new DnsSecValidationResult(parent.Status, parent.Message);
@@ -374,6 +395,7 @@ namespace DnsClientX {
                 foreach (DnsSecSignature signature in ReadSignatures(response, owner, proof.Type, proof.Class)) {
                     if (IsWildcardExpansion(signature)) continue;
                     if (!IsNameWithinZone(name, signature.SignerName)) continue;
+                    if (!IsPermittedByZoneTrustBoundary(name, requireParent ? DnsRecordType.DS : DnsRecordType.A, signature.SignerName)) continue;
                     if (requireParent && !IsStrictAncestor(name, signature.SignerName)) continue;
                     if (requiredSigner != null && !string.Equals(requiredSigner, signature.SignerName, StringComparison.Ordinal)) continue;
                     // NSEC3 hashes describe names in exactly the signer's zone.
@@ -440,7 +462,8 @@ namespace DnsClientX {
         }
 
         internal static bool TryFollowAnswerChain(DnsWireResourceRecord[] answers, string requestedName,
-            DnsRecordType requestedType, out string finalName, out bool terminal, out string? error) {
+            DnsRecordType requestedType, out string finalName, out bool terminal, out string? error,
+            Func<string, string, bool>? acceptDname = null) {
             finalName = DnsWireNameCodec.Canonical(requestedName);
             terminal = false;
             error = null;
@@ -465,7 +488,8 @@ namespace DnsClientX {
                     finalName = DnsWireNameCodec.Canonical(alias.Value.Data);
                     continue;
                 }
-                if (!TryGetDnameTarget(answers, currentName, out string? dnameTarget)) return true;
+                if (!TryGetDnameTarget(answers, currentName, out string? dnameTarget, out string? dnameOwner)) return true;
+                if (acceptDname != null && !acceptDname(currentName, dnameOwner!)) return false;
                 finalName = dnameTarget!;
             }
             error = "The DNS answer contains an excessively long canonical-name chain.";
@@ -484,8 +508,12 @@ namespace DnsClientX {
         private static bool TryGetDnameTarget(
             DnsWireResourceRecord[] answers,
             string currentName,
-            out string? target) {
+            out string? target) => TryGetDnameTarget(answers, currentName, out target, out _);
+
+        private static bool TryGetDnameTarget(DnsWireResourceRecord[] answers, string currentName,
+            out string? target, out string? owner) {
             target = null;
+            owner = null;
             string canonicalName = DnsWireNameCodec.Canonical(currentName);
             DnsWireResourceRecord? dname = answers
                 .Where(record => record.Type == DnsRecordType.DNAME)
@@ -495,6 +523,7 @@ namespace DnsClientX {
                 .FirstOrDefault();
             if (!dname.HasValue) return false;
 
+            owner = dname.Value.Name;
             target = DnsWireNameCodec.RewriteDnameTarget(canonicalName, dname.Value.Name, dname.Value.Data);
             return true;
         }
@@ -505,9 +534,11 @@ namespace DnsClientX {
         internal static bool IsNameWithinZone(string name, string zone) =>
             DnsWireNameCodec.IsSubdomainOrEqual(name, zone);
 
-        private async Task<DnsSecValidationResult> FindUnsignedDelegationAsync(string name, CancellationToken cancellationToken) {
+        private async Task<DnsSecValidationResult> FindUnsignedDelegationAsync(string name, DnsRecordType type, CancellationToken cancellationToken) {
             string current = DnsWireNameCodec.Canonical(name);
+            string? boundary = ZoneTrustBoundary(name, type);
             while (current != ".") {
+                if (current == boundary) return DnsSecValidationResult.Bogus($"The configured trust-anchor zone {boundary} has no authenticated answer or unsigned child delegation proof.");
                 DnsResponse response = await _lookup(current, DnsRecordType.DS, cancellationToken).ConfigureAwait(false);
                 if (!(response.WireAnswers ?? Array.Empty<DnsWireResourceRecord>()).Any(record => record.Type == DnsRecordType.DS)) {
                     ZoneKeysResult result = await ValidateUnsignedDelegationAsync(current, response, cancellationToken).ConfigureAwait(false);

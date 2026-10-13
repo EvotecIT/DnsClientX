@@ -1,0 +1,29 @@
+<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)/$(MSBuildToolsVersion)/Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)/$(MSBuildToolsVersion)/Microsoft.Common.props')" />
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>LegacyPrivacyPackages</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <OutputPath Condition="'$(OutputPath)' == ''">bin/</OutputPath>
+    <IntermediateOutputPath Condition="'$(IntermediateOutputPath)' == ''">obj/</IntermediateOutputPath>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Compile Include="Program.cs" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <!-- Generated from the existing package-only consumer's resolved package graph. -->
+  <Import Project="PackageReferences.props" />
+  <Import Project="$(MSBuildToolsPath)/Microsoft.CSharp.targets" />
+  <!-- This is the import NuGet adds when installing a build asset into packages.config projects. -->
+  <Import Project="$(LegacyPackagesDirectory)/DnsClientX.DnsCrypt.$(CandidateVersion)/build/DnsClientX.DnsCrypt.targets"
+          Condition="Exists('$(LegacyPackagesDirectory)/DnsClientX.DnsCrypt.$(CandidateVersion)/build/DnsClientX.DnsCrypt.targets')" />
+  <Target Name="QualifyNativeCopies" DependsOnTargets="_CopySourceItemsToOutputDirectory">
+    <Error Condition="!Exists('$(OutputPath)/runtimes/win-x86/native/libsodium.dll')" Text="The packages.config consumer did not receive the x86 native DLL." />
+    <Error Condition="!Exists('$(OutputPath)/runtimes/win-x64/native/libsodium.dll')" Text="The packages.config consumer did not receive the x64 native DLL." />
+    <Error Condition="!Exists('$(OutputPath)/runtimes/win-arm64/native/libsodium.dll')" Text="The packages.config consumer did not receive the ARM64 native DLL." />
+  </Target>
+</Project>

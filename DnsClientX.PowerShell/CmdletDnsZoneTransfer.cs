@@ -25,6 +25,7 @@ public sealed class CmdletDnsZoneTransfer : AsyncPSCmdlet {
     /// <summary>The zone to transfer.</summary>
     [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ExplicitServer")]
     [Parameter(Mandatory = true, Position = 0, ParameterSetName = "Recursive")]
+    [Parameter(Mandatory = true, Position = 0, ParameterSetName = "Configured")]
     public string Zone { get; set; } = string.Empty;
 
     /// <summary>DNS server to query.</summary>
@@ -48,6 +49,21 @@ public sealed class CmdletDnsZoneTransfer : AsyncPSCmdlet {
     /// <summary>Emit the recursive transfer summary object before the transferred RRsets.</summary>
     [Parameter(Mandatory = false, ParameterSetName = "Recursive")]
     public SwitchParameter IncludeTransferSummary { get; set; }
+
+    /// <summary>Explicit transfer configuration, including TLS authentication or a TSIG key.</summary>
+    [Parameter(Mandatory = true, ParameterSetName = "Configured")]
+    [ValidateNotNull]
+    public Configuration? Configuration { get; set; }
+
+    /// <summary>Authenticates the query and every transfer signature window.</summary>
+    [Parameter(ParameterSetName = "ExplicitServer")]
+    [Parameter(ParameterSetName = "Configured")]
+    public TsigKey? TsigKey { get; set; }
+
+    /// <summary>Requests IXFR from the specified serial; returns a validated result, including any AXFR fallback.</summary>
+    [Parameter(ParameterSetName = "ExplicitServer")]
+    [Parameter(ParameterSetName = "Configured")]
+    public uint? CurrentSerial { get; set; }
 
     /// <inheritdoc />
     protected override async Task ProcessRecordAsync() {
@@ -79,14 +95,22 @@ public sealed class CmdletDnsZoneTransfer : AsyncPSCmdlet {
             return;
         }
 
-        await foreach (var rrset in ResolverZoneTransferWorkflow.StreamAsync(new ResolverExecutionTarget {
-            DisplayName = $"tcp@{Server}:{Port}",
-            ExplicitEndpoint = new DnsResolverEndpoint {
-                Transport = Transport.Tcp,
-                Host = Server,
-                Port = Port
-            }
-        }, Zone, cancellationToken: CancelToken).ConfigureAwait(false)) {
+        var options = new ResolverExecutionClientOptions { TsigKey = TsigKey };
+        await using ClientX client = Configuration != null
+            ? ResolverExecutionClientFactory.CreateConfiguredClient(Configuration, options)
+            : ResolverExecutionClientFactory.CreateClient(new ResolverExecutionTarget {
+                DisplayName = $"tcp@{Server}:{Port}",
+                ExplicitEndpoint = new DnsResolverEndpoint { Transport = Transport.Tcp, Host = Server, Port = Port }
+            }, options);
+        if (Configuration != null && MyInvocation.BoundParameters.ContainsKey(nameof(Port))) {
+            client.EndpointConfiguration.Port = Port;
+        }
+        if (CurrentSerial.HasValue) {
+            WriteObject(await client.IncrementalZoneTransferAsync(Zone, CurrentSerial.Value, CancelToken).ConfigureAwait(false));
+            return;
+        }
+        await foreach (ZoneTransferResult rrset in client.ZoneTransferStreamAsync(Zone,
+            cancellationToken: CancelToken).ConfigureAwait(false)) {
             WriteObject(rrset);
         }
     }

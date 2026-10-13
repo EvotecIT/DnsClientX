@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace DnsClientX {
     /// <summary>
@@ -47,6 +48,9 @@ namespace DnsClientX {
 
         /// <summary>Gets or sets the optional thread-safe DNSSEC signature verifier.</summary>
         public IDnsSecSignatureVerifier? DnsSecSignatureVerifier { get; set; }
+
+        /// <summary>Gets or sets explicitly trusted DNSSEC zone anchors for this query.</summary>
+        public IReadOnlyList<DnsSecZoneTrustAnchor>? DnsSecTrustAnchors { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether typed records should be returned.

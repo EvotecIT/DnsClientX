@@ -1,0 +1,73 @@
+name: Qualify privacy packages
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'DnsClientX/**'
+      - 'DnsClientX.Odoh/**'
+      - 'DnsClientX.DnsCrypt/**'
+      - 'scripts/qualification/privacy-packages/**'
+      - 'scripts/qualification/privacy-packages-legacy/**'
+      - 'Build/Qualify-PrivacyPackages.ps1'
+      - '.github/workflows/qualify-privacy-packages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  packages:
+    name: Privacy packages (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.x
+            10.x
+      - name: Pack and exercise isolated public consumers
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $taskRoot = Join-Path $env:RUNNER_TEMP 'dns-privacy-packages'
+          $feed = Join-Path $taskRoot 'feed'
+          $cache = Join-Path $taskRoot 'private-cache'
+          $artifacts = Join-Path $taskRoot 'artifacts'
+          New-Item -ItemType Directory -Path $feed -Force | Out-Null
+          [xml] $core = Get-Content ./DnsClientX/DnsClientX.csproj
+          $version = @($core.Project.PropertyGroup.VersionPrefix | Where-Object { $_ })[0]
+          foreach ($project in 'DnsClientX', 'DnsClientX.Odoh', 'DnsClientX.DnsCrypt') {
+            dotnet pack "$project/$project.csproj" -c Release --artifacts-path $artifacts -o $feed
+            if ($LASTEXITCODE) { throw "Packing $project failed." }
+          }
+          $config = Join-Path $taskRoot 'NuGet.Config'
+          $feedXml = [System.Security.SecurityElement]::Escape($feed)
+          @"
+          <configuration><packageSources><clear/><add key="candidate" value="$feedXml"/><add key="nuget" value="https://api.nuget.org/v3/index.json"/></packageSources><packageSourceMapping><packageSource key="candidate"><package pattern="DnsClientX"/><package pattern="DnsClientX.*"/></packageSource><packageSource key="nuget"><package pattern="*"/></packageSource></packageSourceMapping></configuration>
+          "@ | Set-Content $config -Encoding utf8
+          $consumer = './scripts/qualification/privacy-packages/PrivacyPackages.csproj'
+          dotnet restore $consumer --configfile $config --packages $cache --artifacts-path $artifacts -p:CandidateVersion=$version
+          if ($LASTEXITCODE) { throw 'Isolated candidate restore failed.' }
+          foreach ($framework in 'net8.0', 'net10.0') {
+            dotnet run --project $consumer -c Release -f $framework --no-restore --artifacts-path $artifacts -p:CandidateVersion=$version
+            if ($LASTEXITCODE) { throw "Package consumer failed on $framework." }
+          }
+          if ($IsWindows) {
+            dotnet build $consumer -c Release -f net472 --no-restore --artifacts-path $artifacts -p:CandidateVersion=$version
+            if ($LASTEXITCODE) { throw 'Legacy package consumer build failed.' }
+            & (Join-Path $artifacts 'bin/PrivacyPackages/release_net472/PrivacyPackages.exe')
+            if ($LASTEXITCODE) { throw 'Legacy package consumer failed.' }
+            ./Build/Qualify-PrivacyPackages.ps1 `
+              -AssetsFile (Join-Path $artifacts 'obj/PrivacyPackages/project.assets.json') `
+              -PackageCache $cache -NuGetConfig $config `
+              -OutputRoot (Join-Path $taskRoot 'packages-config-consumer')
+          }

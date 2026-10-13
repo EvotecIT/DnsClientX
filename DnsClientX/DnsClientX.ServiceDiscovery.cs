@@ -271,7 +271,7 @@ namespace DnsClientX {
             return (value ?? string.Empty).Trim().TrimEnd('.');
         }
 
-        private static string GetPtrTarget(DnsAnswer answer) {
+        internal static string GetPtrTarget(DnsAnswer answer) {
             string raw = (answer.DataRaw ?? string.Empty).Trim();
             if (raw.Length > 0 && !raw.StartsWith("\\#", StringComparison.Ordinal)) {
                 return NormalizeDiscoveryName(raw);
