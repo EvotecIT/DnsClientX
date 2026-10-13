@@ -30,7 +30,7 @@ public partial class ClientX {
         }
         if (request.Configuration != null) {
             using var client = CreateClientForConfiguration(request, edns);
-            await foreach (DnsResponse response in Stream((name, type, token) => QueryOne(client, name, type, token)).ConfigureAwait(false)) {
+            await foreach (DnsResponse response in Stream((name, type, token) => QueryOneWithRequestAsync(client, request, name, type, token)).ConfigureAwait(false)) {
                 yield return response;
             }
         } else if (request.IsMultiResolverRequest) {
@@ -47,7 +47,7 @@ public partial class ClientX {
             foreach (string server in servers) {
                 using var client = CreateClientForServer(request, server, edns);
                 bool succeeded = false;
-                await foreach (DnsResponse response in Stream((name, type, token) => QueryOne(client, name, type, token)).ConfigureAwait(false)) {
+                await foreach (DnsResponse response in Stream((name, type, token) => QueryOneWithRequestAsync(client, request, name, type, token)).ConfigureAwait(false)) {
                     succeeded |= response.Status == DnsResponseCode.NoError;
                     yield return response;
                 }
@@ -57,28 +57,16 @@ public partial class ClientX {
             using var client = selectedEndpoint != null
                 ? CreateClientForEndpoint(request, selectedEndpoint, edns)
                 : CreateClientForProvider(request, selectedProvider ?? (request.DnsProviders.Length > 0 ? request.DnsProviders[0] : DnsEndpoint.System), edns);
-            await foreach (DnsResponse response in Stream((name, type, token) => QueryOne(client, name, type, token,
+            await foreach (DnsResponse response in Stream((name, type, token) => QueryOneWithRequestAsync(client, request, name, type, token,
                 request.ShouldRequestDnsSec || selectedEndpoint?.DnsSecOk == true)).ConfigureAwait(false)) yield return response;
         }
 
         async IAsyncEnumerable<DnsResponse> Stream(Func<string, DnsRecordType, CancellationToken, Task<DnsResponse[]>> operation) {
-            await foreach (DnsResponse[] batch in DnsConcurrentStream.Execute(Pairs(),
+            await foreach (DnsResponse[] batch in DnsConcurrentStream.Execute(EnumerateRequestQueries(names, request.RecordTypes),
                 (query, token) => operation(query.Name, query.Type, token), request.EffectiveMaxConcurrency,
                 preserveOrder, cancellationToken).ConfigureAwait(false)) {
                 foreach (DnsResponse response in batch) yield return response;
             }
         }
-        IEnumerable<(string Name, DnsRecordType Type)> Pairs() {
-            foreach (DnsRecordType type in request.RecordTypes)
-                foreach (string name in names) yield return (name, type);
-        }
-        Task<DnsResponse[]> QueryOne(ClientX client, string name, DnsRecordType type, CancellationToken token, bool? dnsSec = null) =>
-            ExecuteWithRetryAsync(request, async () => {
-                if (QueryDnsRequestOverride != null)
-                    return await QueryDnsRequestOverride(request, new[] { name }, type, token).ConfigureAwait(false);
-                return new[] { await client.Resolve(name, type, dnsSec ?? request.ShouldRequestDnsSec,
-                    request.ShouldValidateDnsSec, false, false, 1, request.RetryDelayMs,
-                    request.TypedRecords, request.ParseTypedTxtRecords, token).ConfigureAwait(false) };
-            }, token);
     }
 }
