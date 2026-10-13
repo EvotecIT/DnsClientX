@@ -35,7 +35,9 @@ The modern core has no new production packages. The approved optional dependenci
 
 ## Existing proof and remaining qualification
 
-The separate candidates have controlled .NET 8/.NET 10 regressions, loopback discovery and multicast peers, ephemeral certificate fixtures, private-zone DNSSEC and atomic UPDATE wire fixtures, and local .NET Framework 4.7.2 compilation. Independent Go producers add TSIG AXFR/IXFR, ODoH target/relay and DNSCrypt responder evidence. Local fresh package consumers and unsigned module ZIP imports cover their tested hosts. The combined source must repeat the affected proof; these earlier results do not qualify the merged candidate.
+The separate candidates have controlled .NET 8/.NET 10 regressions, loopback discovery and multicast peers, ephemeral certificate fixtures, private-zone DNSSEC and atomic UPDATE wire fixtures, and local .NET Framework 4.7.2 compilation. Independent Go producers add TSIG AXFR/IXFR, ODoH target/relay and DNSCrypt responder evidence. The local combined candidate repeats the affected broad source, fresh package-consumer, actual module ZIP and legacy-compilation proof.
+
+The administration/privacy candidate also has native Windows TLS 1.3 execution and actual packaged PowerShell tests on Windows PowerShell 5.1/7, Linux and macOS. Its CI and delayed repository review have settled for the runtime changes. This standalone acceptance does not qualify combined Windows execution or combined hosted CI; those remain release gates.
 
 Live public DDR observations bind trusted certificates to the designating resolver's IP and preserve the original HTTPS authority during alternate-address queries. They describe the observed resolver/network environment, not all resolvers or general performance.
 
