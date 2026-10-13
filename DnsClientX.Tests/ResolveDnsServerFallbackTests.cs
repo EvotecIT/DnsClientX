@@ -135,7 +135,7 @@ namespace DnsClientX.Tests {
                 ClientX.QueryDnsRequestOverride = (_, _, _, token) => {
                     calls++;
                     cancellation.Cancel();
-                    throw new TaskCanceledException("Caller canceled the query.", null, token);
+                throw new TaskCanceledException("Caller canceled the query.");
                 };
 
                 await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
