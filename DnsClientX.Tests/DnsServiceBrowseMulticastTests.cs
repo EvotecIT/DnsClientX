@@ -278,7 +278,7 @@ public class DnsServiceBrowseMulticastTests {
                 Assert.Equal(payload, receiver.Receive(ref remote));
                 Assert.Equal(source, remote.Address);
             } catch (SocketException exception) when (exception.SocketErrorCode is SocketError.AddressNotAvailable
-                or SocketError.NetworkUnreachable or SocketError.TimedOut or SocketError.WouldBlock) {
+                or SocketError.NetworkUnreachable or SocketError.HostUnreachable or SocketError.TimedOut or SocketError.WouldBlock) {
                 Skip = $"Native UDP multicast loopback on {source} cannot execute the active-adapter fixture: {exception.SocketErrorCode} ({exception.ErrorCode}).";
             }
         }
@@ -310,7 +310,7 @@ public class DnsServiceBrowseMulticastTests {
                 receiver.Receive(ref remote);
                 Assert.Equal(source, remote.Address);
             } catch (SocketException exception) when (exception.SocketErrorCode is SocketError.AddressNotAvailable
-                or SocketError.TimedOut or SocketError.WouldBlock) {
+                or SocketError.NetworkUnreachable or SocketError.HostUnreachable or SocketError.TimedOut or SocketError.WouldBlock) {
                 Skip = $"Host UDP route {source} -> {destination.Address} cannot deliver the off-link fixture: {exception.SocketErrorCode} ({exception.ErrorCode}).";
             }
         }

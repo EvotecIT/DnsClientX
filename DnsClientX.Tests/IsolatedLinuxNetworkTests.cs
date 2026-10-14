@@ -107,9 +107,9 @@ public sealed class IsolatedLinuxNetworkTests {
         await browse.DisposeAsync();
         await client.DisposeAsync();
         peer.Dispose();
-        using var replacement = new UdpClient();
+        using var replacement = new UdpClient(address.AddressFamily);
         replacement.ExclusiveAddressUse = true;
-        replacement.Client.Bind(new IPEndPoint(IPAddress.Any, port));
+        replacement.Client.Bind(new IPEndPoint(ipv6 ? IPAddress.IPv6Any : IPAddress.Any, port));
     }
 }
 #endif

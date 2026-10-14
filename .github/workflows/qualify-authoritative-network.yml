@@ -82,7 +82,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes bind9 bind9-utils dnsutils iproute2 util-linux
           sudo systemctl stop named
-          sudo install -d -o "$(id -u)" -g "$(id -g)" -m 0700 /var/lib/bind/dnsclientx-qualification
+          sudo install -d -o root -g root -m 0700 /var/lib/bind/dnsclientx-qualification
       - name: Build before entering isolated namespaces
         run: dotnet build DnsClientX.Tests/DnsClientX.Tests.csproj -c Release -f ${{ matrix.framework }} --artifacts-path artifacts/build
       - name: Qualify actual resolver discovery, IPv6, search domains and adapter changes

@@ -35,7 +35,8 @@ jobs:
     test-windows:
         name: 'Windows'
         runs-on: windows-latest
-        timeout-minutes: 10
+        # SDK setup and restore can take over eight minutes before three test targets run.
+        timeout-minutes: 20
         steps:
             - name: Checkout code
               uses: actions/checkout@v7
