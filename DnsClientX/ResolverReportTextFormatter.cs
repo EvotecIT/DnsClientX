@@ -19,7 +19,7 @@ namespace DnsClientX {
                 return "none";
             }
 
-            return DnsTerminalText.Escape($"{DescribeCandidate(summary.FastestSuccessTarget, summary.FastestSuccessCandidateId)} in {durationFormatter(TimeSpan.FromMilliseconds(summary.FastestSuccessMs))} via {summary.FastestSuccessTransport}");
+            return DnsTerminalText.Escape($"{summary.FastestSuccessTarget} in {durationFormatter(TimeSpan.FromMilliseconds(summary.FastestSuccessMs))} via {summary.FastestSuccessTransport}{DescribeIdentitySuffix(summary.FastestSuccessCandidateId)}");
         }
 
         /// <summary>
@@ -34,7 +34,7 @@ namespace DnsClientX {
                 return "none";
             }
 
-            return DnsTerminalText.Escape($"{DescribeCandidate(summary.FastestConsensusTarget, summary.FastestConsensusCandidateId)} in {durationFormatter(TimeSpan.FromMilliseconds(summary.FastestConsensusMs))} via {summary.FastestConsensusTransport}");
+            return DnsTerminalText.Escape($"{summary.FastestConsensusTarget} in {durationFormatter(TimeSpan.FromMilliseconds(summary.FastestConsensusMs))} via {summary.FastestConsensusTransport}{DescribeIdentitySuffix(summary.FastestConsensusCandidateId)}");
         }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace DnsClientX {
                 return "none";
             }
 
-            return DnsTerminalText.Escape($"{DescribeCandidate(summary.RecommendedTarget, summary.RecommendedCandidateId)} in {durationFormatter(TimeSpan.FromMilliseconds(summary.RecommendedAverageMs))} via {summary.RecommendedTransport}");
+            return DnsTerminalText.Escape($"{summary.RecommendedTarget} in {durationFormatter(TimeSpan.FromMilliseconds(summary.RecommendedAverageMs))} via {summary.RecommendedTransport}{DescribeIdentitySuffix(summary.RecommendedCandidateId)}");
         }
 
         /// <summary>
@@ -199,7 +199,7 @@ namespace DnsClientX {
             }
 
             string average = result.SuccessCount == 0 ? "n/a" : durationFormatter(TimeSpan.FromMilliseconds(result.AverageMs));
-            return DnsTerminalText.Escape($"  Ranked {rankIndex}: {DescribeCandidate(result.Target, result.CandidateId)} avg {average}, success {result.SuccessPercent}% ({result.SuccessCount}/{result.TotalQueries}), resolver {result.Resolver}");
+            return DnsTerminalText.Escape($"  Ranked {rankIndex}: {result.Target} avg {average}, success {result.SuccessPercent}% ({result.SuccessCount}/{result.TotalQueries}), resolver {result.Resolver}{DescribeIdentitySuffix(result.CandidateId)}");
         }
 
         /// <summary>
@@ -213,12 +213,12 @@ namespace DnsClientX {
             ResolverBenchmarkReportResult? best = summary.RecommendationAvailable
                 ? results.FirstOrDefault(result => string.Equals(
                     ResolverCandidateIdentity.GroupKey(result.CandidateId, result.Target),
-                    ResolverCandidateIdentity.GroupKey(summary.RecommendedCandidateId, summary.RecommendedTarget), StringComparison.OrdinalIgnoreCase))
+                    ResolverCandidateIdentity.GroupKey(summary.RecommendedCandidateId, summary.RecommendedTarget), StringComparison.Ordinal))
                 : results.FirstOrDefault(result => result.SuccessCount > 0);
 
             return best == null
                 ? "none"
-                : DnsTerminalText.Escape($"{DescribeCandidate(best.Target, best.CandidateId)} in {durationFormatter(TimeSpan.FromMilliseconds(best.AverageMs))} average ({best.SuccessPercent}% success)");
+                : DnsTerminalText.Escape($"{best.Target} in {durationFormatter(TimeSpan.FromMilliseconds(best.AverageMs))} average ({best.SuccessPercent}% success){DescribeIdentitySuffix(best.CandidateId)}");
         }
 
         /// <summary>
@@ -244,7 +244,7 @@ namespace DnsClientX {
 
             string status = result.Succeeded ? "OK" : "FAIL";
             var lines = new List<string> {
-                $"  [{status}] {DescribeCandidate(result.Target, result.CandidateId)} via {result.RequestFormat}",
+                $"  [{status}] {result.Target} via {result.RequestFormat}{DescribeIdentitySuffix(result.CandidateId)}",
                 $"      Resolver: {result.Resolver}",
                 $"      Status: {result.Status}",
                 $"      Transport: {result.Transport}",
@@ -269,7 +269,7 @@ namespace DnsClientX {
 
             string status = result.Succeeded ? "OK" : "FAIL";
             var lines = new List<string> {
-                $"  [{status}] {DescribeCandidate(result.Target, result.CandidateId)} via {result.RequestFormat}",
+                $"  [{status}] {result.Target} via {result.RequestFormat}{DescribeIdentitySuffix(result.CandidateId)}",
                 $"      Resolver: {result.Resolver}",
                 $"      Status: {result.Status}",
                 $"      Transport: {result.Transport}",
@@ -489,7 +489,10 @@ namespace DnsClientX {
         }
 
         private static string DescribeCandidate(string target, string candidateId) =>
-            string.IsNullOrWhiteSpace(candidateId) ? target : $"{target} (candidate: {candidateId})";
+            target + DescribeIdentitySuffix(candidateId);
+
+        private static string DescribeIdentitySuffix(string candidateId) =>
+            string.IsNullOrWhiteSpace(candidateId) ? string.Empty : $" (candidate: {candidateId})";
 
         private static string DescribeCandidates(string[] targets, string[] candidateIds) =>
             string.Join(", ", targets.Select((target, index) => DescribeCandidate(target,

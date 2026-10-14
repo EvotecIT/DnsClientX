@@ -124,10 +124,12 @@ public sealed class ResolverScoreComparisonContractTests {
     }
 
     /// <summary>Different configured private trust boundaries cannot produce a comparable DNSSEC health verdict.</summary>
-    [Fact]
-    public async Task Compare_PrivateTrustAnchorChangeWithholdsHealthRegression() {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Compare_PrivateTrustAnchorScopeAppliesOnlyDuringValidation(bool validate) {
         ResolverQueryRunOptions Options(char digest) => new() {
-            RequestDnsSec = true, ValidateDnsSec = true,
+            RequestDnsSec = true, ValidateDnsSec = validate,
             DnsSecTrustAnchors = new[] { new DnsSecZoneTrustAnchor("example.com",
                 new DnsSecTrustAnchor(1234, DnsKeyAlgorithm.RSASHA256, 2, new string(digest, 64))) }
         };
@@ -136,8 +138,9 @@ public sealed class ResolverScoreComparisonContractTests {
         before.Snapshot.Summary.PolicyPassed = true;
         after.Snapshot.Summary.PolicyPassed = false;
         ResolverScoreComparison comparison = ResolverScoreComparer.Compare(before.Snapshot, after.Snapshot);
-        Assert.False(comparison.ScopeComparable);
-        Assert.False(comparison.HealthRegression);
-        Assert.Null(Assert.Single(comparison.Candidates).AverageMsDelta);
+        Assert.Equal(!validate, comparison.ScopeComparable);
+        Assert.Equal(!validate, comparison.HealthRegression);
+        if (validate) Assert.Null(Assert.Single(comparison.Candidates).AverageMsDelta);
+        else Assert.Equal(0, Assert.Single(comparison.Candidates).AverageMsDelta);
     }
 }

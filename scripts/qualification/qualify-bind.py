@@ -19,6 +19,7 @@ import time
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--lab-root", type=Path, help="Existing writable directory allowed by the host BIND confinement policy")
     parser.add_argument("--framework", choices=("net8.0", "net10.0"), required=True)
     parser.add_argument("--tool-directory", type=Path)
     args = parser.parse_args()
@@ -33,7 +34,7 @@ def main():
             raise RuntimeError(f"BIND test tool is missing: {name}")
         tools[name] = tool
     repo = Path(__file__).resolve().parents[2]
-    with tempfile.TemporaryDirectory(prefix="bind-lab-", dir=output) as temporary:
+    with tempfile.TemporaryDirectory(prefix="bind-lab-", dir=args.lab_root.resolve() if args.lab_root else output) as temporary:
         lab = Path(temporary)
         with socket.socket() as reservation:
             reservation.bind(("127.0.0.1", 0))

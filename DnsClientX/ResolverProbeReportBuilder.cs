@@ -125,7 +125,7 @@ namespace DnsClientX {
                 RuntimeUnsupportedCandidateCount = DnsTransportCapabilities.CountUnsupportedTargets(attempts),
                 RuntimeCapabilityWarnings = runtimeCapabilityWarnings,
                 MismatchedTargets = mismatched.Select(result => result.Target).ToArray(),
-                MismatchedCandidateIds = mismatched.Select(result => result.CandidateId).ToArray(),
+                MismatchedCandidateIds = mismatched.Select(result => ResolverCandidateIdentity.NormalizeId(result.CandidateId)).ToArray(),
                 AnswerVariants = groups
                     .Select(group => {
                         ResolverQueryAttemptResult[] responders = group.OrderBy(result => result.Target, StringComparer.OrdinalIgnoreCase)
@@ -133,7 +133,7 @@ namespace DnsClientX {
                         return new ResolverProbeAnswerVariant {
                             AnswerSet = DescribeAnswerSet(group[0]),
                             Targets = responders.Select(result => result.Target).ToArray(),
-                            CandidateIds = responders.Select(result => result.CandidateId).ToArray()
+                            CandidateIds = responders.Select(result => ResolverCandidateIdentity.NormalizeId(result.CandidateId)).ToArray()
                         };
                     })
                     .ToArray()
@@ -143,7 +143,7 @@ namespace DnsClientX {
             snapshot.Summary.RuntimeUnsupportedCandidateCount = summary.RuntimeUnsupportedCandidateCount;
             snapshot.Summary.RuntimeCapabilityWarnings = summary.RuntimeCapabilityWarnings;
             snapshot.Answers = attempts.Select(a => new ResolverAnswerObservation {
-                Target = a.Target, CandidateId = a.CandidateId, Name = name ?? string.Empty, RecordType = recordType,
+                Target = a.Target, CandidateId = ResolverCandidateIdentity.NormalizeId(a.CandidateId), Name = name ?? string.Empty, RecordType = recordType,
                 Status = a.Status, AnswerSignature = a.AnswerSignature
             }).ToArray();
 

@@ -36,6 +36,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes bind9 bind9-utils dnsutils
           sudo systemctl stop named
+          sudo install -d -o "$(id -u)" -g "$(id -g)" -m 0700 /var/lib/bind/dnsclientx-qualification
       - name: Install independent BIND tools on macOS
         if: runner.os == 'macOS'
         env:
@@ -47,7 +48,7 @@ jobs:
           if [ "${{ runner.os }}" = "macOS" ]; then
             python3 scripts/qualification/qualify-bind.py --framework '${{ matrix.framework }}' --output artifacts/bind --tool-directory "$(brew --prefix bind)/bin"
           else
-            python3 scripts/qualification/qualify-bind.py --framework '${{ matrix.framework }}' --output artifacts/bind
+            python3 scripts/qualification/qualify-bind.py --framework '${{ matrix.framework }}' --output artifacts/bind --lab-root /var/lib/bind/dnsclientx-qualification
           fi
       - name: Keep independent evidence
         if: always()
@@ -81,6 +82,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes bind9 bind9-utils dnsutils iproute2 util-linux
           sudo systemctl stop named
+          sudo install -d -o "$(id -u)" -g "$(id -g)" -m 0700 /var/lib/bind/dnsclientx-qualification
       - name: Build before entering isolated namespaces
         run: dotnet build DnsClientX.Tests/DnsClientX.Tests.csproj -c Release -f ${{ matrix.framework }} --artifacts-path artifacts/build
       - name: Qualify actual resolver discovery, IPv6, search domains and adapter changes
@@ -92,7 +94,8 @@ jobs:
           sudo env "PATH=$(dirname "$dotnet_path"):$PATH" unshare --net --mount --propagation private --fork \
             python3 scripts/qualification/qualify-linux-network.py \
               --host-network "$host_network" --host-mount "$host_mount" \
-              --framework '${{ matrix.framework }}' --artifacts "$PWD/artifacts/build" --output "$PWD/artifacts/network"
+              --framework '${{ matrix.framework }}' --artifacts "$PWD/artifacts/build" --output "$PWD/artifacts/network" \
+              --lab-root /var/lib/bind/dnsclientx-qualification
       - name: Keep OS network evidence
         if: always()
         uses: actions/upload-artifact@v7

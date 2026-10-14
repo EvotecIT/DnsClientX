@@ -15,8 +15,8 @@ namespace DnsClientX.Tests {
             var summary = new ResolverBenchmarkReportSummary {
                 RecommendationAvailable = true, RecommendedTarget = "same", RecommendedCandidateId = "second"
             };
-            Assert.Equal("same (candidate: second) in 7 ms average (100% success)", ResolverReportTextFormatter.DescribeBenchmarkBest(rows, summary, FormatDuration));
-            Assert.Contains("same (candidate: second)", ResolverReportTextFormatter.BuildBenchmarkRankedLine(rows[1], 1, FormatDuration));
+            Assert.Equal("same in 7 ms average (100% success) (candidate: second)", ResolverReportTextFormatter.DescribeBenchmarkBest(rows, summary, FormatDuration));
+            Assert.Contains("(candidate: second)", ResolverReportTextFormatter.BuildBenchmarkRankedLine(rows[1], 1, FormatDuration));
             Assert.Contains("same (candidate: first)", ResolverReportTextFormatter.BuildBenchmarkResultLines(rows[0], FormatDuration)[0]);
             Assert.Contains("best_candidate_id=second", ResolverReportTextFormatter.BuildBenchmarkSummaryLine(summary, 0));
         }
@@ -35,9 +35,9 @@ namespace DnsClientX.Tests {
                     AnswerSet = "example.com A 192.0.2.1", Targets = new[] { "same", "same" }, CandidateIds = new[] { first, second }
                 } }
             };
-            Assert.Contains($"same (candidate: {first})", ResolverReportTextFormatter.DescribeProbeFastestSuccess(summary, FormatDuration));
-            Assert.Contains($"same (candidate: {second})", ResolverReportTextFormatter.DescribeProbeFastestConsensus(summary, FormatDuration));
-            Assert.Contains($"same (candidate: {second})", ResolverReportTextFormatter.DescribeProbeRecommended(summary, FormatDuration));
+            Assert.Contains($"(candidate: {first})", ResolverReportTextFormatter.DescribeProbeFastestSuccess(summary, FormatDuration));
+            Assert.Contains($"(candidate: {second})", ResolverReportTextFormatter.DescribeProbeFastestConsensus(summary, FormatDuration));
+            Assert.Contains($"(candidate: {second})", ResolverReportTextFormatter.DescribeProbeRecommended(summary, FormatDuration));
             Assert.Equal($"same (candidate: {first})", ResolverReportTextFormatter.DescribeProbeMismatchedTargets(summary));
             Assert.Contains($"same (candidate: {first}), same (candidate: {second})", ResolverReportTextFormatter.DescribeProbeAnswerVariants(summary));
             Assert.Contains(first, ResolverReportTextFormatter.BuildProbeResultLines(new ResolverQueryAttemptResult { Target = "same", CandidateId = first }, FormatDuration)[0]);

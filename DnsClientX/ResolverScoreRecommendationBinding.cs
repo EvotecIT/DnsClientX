@@ -33,7 +33,7 @@ namespace DnsClientX {
         private static bool Bind(ResolverScoreSnapshot snapshot, ResolverQueryRunOptions options, IReadOnlyList<ResolverExecutionTarget> targets) {
             snapshot.Context = ResolverScoreRunContext.Capture(options, targets);
             ResolverScoreSummary summary = snapshot.Summary;
-            if (!summary.RecommendationAvailable || snapshot.Context.TryGetExecutionKey(string.IsNullOrEmpty(summary.RecommendedCandidateId) ? summary.RecommendedTarget : summary.RecommendedCandidateId, out _)) return false;
+            if (!summary.RecommendationAvailable || snapshot.Context.TryGetExecutionKey(string.IsNullOrEmpty(summary.RecommendedCandidateId) ? summary.RecommendedTarget : summary.RecommendedCandidateId, out _, !string.IsNullOrEmpty(summary.RecommendedCandidateId))) return false;
             summary.RecommendationAvailable = false;
             summary.RecommendedTarget = summary.RecommendedResolver = summary.RecommendedTransport = "none";
             summary.RecommendedCandidateId = string.Empty;

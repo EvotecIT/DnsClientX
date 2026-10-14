@@ -6,6 +6,36 @@ namespace DnsClientX.Tests;
 
 /// <summary>Protects resolver configuration identity across benchmark execution and reports.</summary>
 public sealed class ResolverBenchmarkIdentityTests {
+    /// <summary>Public report builders preserve opaque ID case, normalize surrounding whitespace and correlate answer evidence.</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CallerCandidateIdsRemainDistinctAndNormalized(bool aggregateInput) {
+        var attempts = new[] { " Resolver:A ", "resolver:a" }.Select((id, index) => new ResolverQueryAttemptResult {
+            Target = "same", CandidateId = id, Name = "example.com", RecordType = DnsRecordType.A,
+            Elapsed = TimeSpan.FromMilliseconds(index + 1), Response = new DnsResponse {
+                Status = DnsResponseCode.NoError, Answers = new[] { new DnsAnswer {
+                    Name = "example.com", Type = DnsRecordType.A, DataRaw = "192.0.2." + (index + 1)
+                } }
+            }
+        }).ToArray();
+        ResolverBenchmarkReport report = aggregateInput
+            ? ResolverBenchmarkReportBuilder.Build(attempts.Select(a => new ResolverBenchmarkCandidate {
+                Target = a.Target, CandidateId = a.CandidateId, TotalQueries = 1, SuccessCount = 1, AverageMs = a.Elapsed.TotalMilliseconds
+            }).ToArray(), new[] { "example.com" }, new[] { DnsRecordType.A }, 1, 1, 2000, new ResolverBenchmarkPolicy())
+            : ResolverBenchmarkReportBuilder.Build(attempts, new[] { "example.com" }, new[] { DnsRecordType.A }, 1, 1, 2000, new ResolverBenchmarkPolicy());
+        Assert.Equal(2, report.Results.Length);
+        Assert.Equal(new[] { "Resolver:A", "resolver:a" }, report.Results.Select(row => row.CandidateId));
+        Assert.All(report.Results, row => Assert.Equal(1, row.TotalQueries));
+        if (!aggregateInput) {
+            ResolverScoreComparison comparison = ResolverScoreComparer.Compare(report.Snapshot, report.Snapshot);
+            Assert.Equal(2, comparison.Candidates.Length);
+            Assert.Equal(2, comparison.Answers.Length);
+            Assert.All(comparison.Candidates, row => Assert.Equal("Unchanged", row.Change));
+            Assert.All(comparison.Answers, row => Assert.Single(row.Current));
+        }
+    }
+
     /// <summary>Two valid endpoint configurations sharing a label retain their individual outcomes.</summary>
     [Fact]
     public async Task SameLabelEndpointVariantsRemainSeparateCandidates() {

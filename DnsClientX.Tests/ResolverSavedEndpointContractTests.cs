@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
@@ -108,6 +107,7 @@ public sealed class ResolverSavedEndpointContractTests {
     [InlineData("inconsistent")]
     [InlineData("ambiguous")]
     [InlineData("identity-missing")]
+    [InlineData("identity-and-context-missing")]
     public async Task Selection_RejectsIncompleteOrInconsistentNewEndpointMetadata(string defect) {
         ResolverProbeReport report = await ProbeAsync(new[] { ConfiguredEndpoint(true) });
         ResolverScoreRunContext context = report.Snapshot.Context!;
@@ -116,15 +116,34 @@ public sealed class ResolverSavedEndpointContractTests {
             case "missing": context.ExplicitEndpoints = null; break;
             case "inconsistent": context.ExplicitEndpoints![target] = ConfiguredEndpoint(false); break;
             case "ambiguous":
-                context.ExplicitEndpoints = new Dictionary<string, DnsResolverEndpoint> {
-                    [target] = ConfiguredEndpoint(true), [target.ToUpperInvariant()] = ConfiguredEndpoint(true)
-                };
+                report.Snapshot.Results = report.Snapshot.Results.Concat(report.Snapshot.Results).ToArray();
                 break;
             case "identity-missing": context.TargetExecutionKeys = null; break;
+            case "identity-and-context-missing":
+                report.Snapshot.Summary.RecommendedCandidateId = string.Empty;
+                report.Snapshot.Context = null;
+                foreach (var row in report.Snapshot.Results) row.CandidateId = string.Empty;
+                break;
         }
         Assert.False(ResolverScoreSelector.TrySelectRecommended(report.Snapshot, out ResolverSelectionResult? selection, out string? error));
         Assert.Null(selection);
         Assert.Contains("saved", error!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Current-schema built-in recommendations reuse their captured candidate and execution identity.</summary>
+    [Fact]
+    public async Task Selection_CurrentBuiltInRetainsExecutionIdentity() {
+        ResolverExecutionTarget[] targets = ResolverExecutionPlanBuilder.BuildBuiltInTargets(new[] { DnsEndpoint.Cloudflare });
+        ResolverProbeReport report = await ResolverProbeWorkflow.RunAsync(targets, "example.com", DnsRecordType.A, 2000,
+            new ResolverQueryRunOptions(), new ResolverProbePolicy(),
+            builtInOverride: (endpoint, name, type, token) => Task.FromResult(new ResolverQueryAttemptResult {
+                Target = endpoint.ToString(), Response = new DnsResponse { Status = DnsResponseCode.NoError },
+                Elapsed = TimeSpan.FromMilliseconds(1)
+            }));
+        Assert.Equal(3, report.Snapshot.SchemaVersion);
+        Assert.True(ResolverScoreSelector.TrySelectRecommended(report.Snapshot, out var selection, out string? error), error);
+        Assert.Equal(DnsEndpoint.Cloudflare, selection!.BuiltInEndpoint);
+        Assert.Equal(targets[0].CandidateId, selection.CandidateId);
     }
 
     /// <summary>Genuinely older snapshots retain the established label-parser selection behavior.</summary>

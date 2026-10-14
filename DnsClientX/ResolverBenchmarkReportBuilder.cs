@@ -24,7 +24,7 @@ namespace DnsClientX {
 
             policy ??= new ResolverBenchmarkPolicy();
             ResolverBenchmarkCandidate[] candidates = attempts
-                .GroupBy(result => ResolverCandidateIdentity.GroupKey(result.CandidateId, result.Target), StringComparer.OrdinalIgnoreCase)
+                .GroupBy(result => ResolverCandidateIdentity.GroupKey(result.CandidateId, result.Target), StringComparer.Ordinal)
                 .Select(group => {
                     ResolverBenchmarkCandidate candidate = ResolverBenchmarkAggregator.Aggregate(
                         group.First().Target,
@@ -36,7 +36,7 @@ namespace DnsClientX {
                             Succeeded = result.Succeeded,
                             AnswerSignature = result.AnswerSignature
                         }));
-                    candidate.CandidateId = group.First().CandidateId;
+                    candidate.CandidateId = ResolverCandidateIdentity.NormalizeId(group.First().CandidateId);
                     return candidate;
                 })
                 .ToArray();
@@ -56,13 +56,13 @@ namespace DnsClientX {
             report.Snapshot.Summary.RuntimeCapabilityWarnings = report.Summary.RuntimeCapabilityWarnings;
             if (attempts.Count > 0) {
                 report.Attempts = attempts.Select(attempt => {
-                    return new ResolverBenchmarkAttemptReport { Target = attempt.Target, CandidateId = attempt.CandidateId, Name = attempt.Name, RecordType = attempt.RecordType,
+                    return new ResolverBenchmarkAttemptReport { Target = attempt.Target, CandidateId = ResolverCandidateIdentity.NormalizeId(attempt.CandidateId), Name = attempt.Name, RecordType = attempt.RecordType,
                         Status = attempt.Status, Error = attempt.EffectiveError, ElapsedMs = attempt.Elapsed.TotalMilliseconds,
                         TransportElapsedMs = attempt.TransportElapsed?.TotalMilliseconds,
                         Explanation = attempt.Response == null ? null : DnsQueryExplanation.Create(attempt.Response) };
                 }).ToArray();
                 report.Snapshot.Answers = attempts.Where(attempt => !string.IsNullOrWhiteSpace(attempt.Name) && attempt.RecordType.HasValue).Select(attempt => new ResolverAnswerObservation {
-                    Target = attempt.Target, CandidateId = attempt.CandidateId, Name = attempt.Name, RecordType = attempt.RecordType!.Value,
+                    Target = attempt.Target, CandidateId = ResolverCandidateIdentity.NormalizeId(attempt.CandidateId), Name = attempt.Name, RecordType = attempt.RecordType!.Value,
                     Status = attempt.Status, AnswerSignature = attempt.AnswerSignature
                 }).ToArray();
             }
@@ -87,13 +87,13 @@ namespace DnsClientX {
             policy ??= new ResolverBenchmarkPolicy();
 
             ResolverBenchmarkEvaluation evaluation = ResolverBenchmarkScorer.Evaluate(candidates, policy);
-            Dictionary<string, ResolverBenchmarkCandidate> candidateMap = candidates.ToDictionary(candidate => ResolverCandidateIdentity.GroupKey(candidate.CandidateId, candidate.Target), StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, ResolverBenchmarkCandidate> candidateMap = candidates.ToDictionary(candidate => ResolverCandidateIdentity.GroupKey(candidate.CandidateId, candidate.Target), StringComparer.Ordinal);
 
             ResolverBenchmarkReportResult[] results = evaluation.Results
                 .Select(entry => {
                     ResolverBenchmarkCandidate candidate = candidateMap[ResolverCandidateIdentity.GroupKey(entry.CandidateId, entry.Target)];
                     return new ResolverBenchmarkReportResult {
-                        Target = candidate.Target, CandidateId = candidate.CandidateId,
+                        Target = entry.Target, CandidateId = entry.CandidateId,
                         ConnectionMode = candidate.ConnectionMode,
                         Resolver = candidate.Resolver,
                         Transport = candidate.Transport,

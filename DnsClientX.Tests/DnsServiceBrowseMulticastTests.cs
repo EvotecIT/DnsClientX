@@ -13,9 +13,9 @@ public class DnsServiceBrowseMulticastTests {
     private const string Instance = "site._http._tcp.local";
 
     /// <summary>An active non-loopback adapter routes browse queries and drains its selected-interface binding.</summary>
-    [CrossInterfaceFact]
+    [ActiveMulticastFact]
     public async Task ActiveAdapterRoutesBrowseAndReleasesBinding() {
-        IPAddress address = FindOtherInterfaceAddress()!;
+        IPAddress address = FindOtherInterfaceAddress(requireMulticast: true)!;
         using var fixture = new MulticastFixture(address);
         await using var client = fixture.CreateClient();
         using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -248,12 +248,41 @@ public class DnsServiceBrowseMulticastTests {
         Assert.Equal(expected, DnsWireResolveMulticast.IsLocalResponse(packet, IPAddress.Parse("224.0.0.251"), 5353, loopback));
     }
 
-    private static IPAddress? FindOtherInterfaceAddress() => NetworkInterface.GetAllNetworkInterfaces()
+    private static IPAddress? FindOtherInterfaceAddress(bool requireMulticast = false) => NetworkInterface.GetAllNetworkInterfaces()
         .Where(item => item.NetworkInterfaceType != NetworkInterfaceType.Loopback && item.OperationalStatus == OperationalStatus.Up
-            && item.Supports(NetworkInterfaceComponent.IPv4))
+            && item.Supports(NetworkInterfaceComponent.IPv4) && (!requireMulticast || item.SupportsMulticast))
         .SelectMany(item => item.GetIPProperties().UnicastAddresses)
         .Select(item => item.Address)
         .FirstOrDefault(address => address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(address));
+
+    // Hosted VM interfaces may expose IPv4 while suppressing same-host multicast.
+    // Probe the kernel route without ClientX before deciding whether this fixture is executable.
+    private sealed class ActiveMulticastFactAttribute : FactAttribute {
+        public ActiveMulticastFactAttribute() {
+            IPAddress? source = FindOtherInterfaceAddress(requireMulticast: true);
+            if (source == null) {
+                Skip = "Active-adapter proof requires an existing multicast-capable non-loopback IPv4 interface.";
+                return;
+            }
+            IPAddress group = IPAddress.Parse("239.255.42.99");
+            using var receiver = new UdpClient(new IPEndPoint(IPAddress.Any, 0));
+            using var sender = new UdpClient(new IPEndPoint(IPAddress.Any, 0));
+            receiver.Client.ReceiveTimeout = 350;
+            byte[] payload = Guid.NewGuid().ToByteArray();
+            try {
+                receiver.JoinMulticastGroup(group, source);
+                sender.Client.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.MulticastInterface, source.GetAddressBytes());
+                int port = ((IPEndPoint)receiver.Client.LocalEndPoint!).Port;
+                sender.Send(payload, payload.Length, new IPEndPoint(group, port));
+                IPEndPoint remote = new(IPAddress.Any, 0);
+                Assert.Equal(payload, receiver.Receive(ref remote));
+                Assert.Equal(source, remote.Address);
+            } catch (SocketException exception) when (exception.SocketErrorCode is SocketError.AddressNotAvailable
+                or SocketError.NetworkUnreachable or SocketError.TimedOut or SocketError.WouldBlock) {
+                Skip = $"Native UDP multicast loopback on {source} cannot execute the active-adapter fixture: {exception.SocketErrorCode} ({exception.ErrorCode}).";
+            }
+        }
+    }
 
     private sealed class CrossInterfaceFactAttribute : FactAttribute {
         public CrossInterfaceFactAttribute() {

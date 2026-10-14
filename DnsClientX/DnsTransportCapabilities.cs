@@ -156,7 +156,7 @@ namespace DnsClientX {
 
             return attempts
                 .Where(result => !Supports(result.RequestFormat))
-                .GroupBy(result => $"{ResolverCandidateIdentity.GroupKey(result.CandidateId, result.Target)}|{result.RequestFormat}", StringComparer.OrdinalIgnoreCase)
+                .GroupBy(result => $"{ResolverCandidateIdentity.GroupKey(result.CandidateId, result.Target)}|{result.RequestFormat}", StringComparer.Ordinal)
                 .Select(group => group.First())
                 .OrderBy(result => result.Target, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(result => result.RequestFormat.ToString(), StringComparer.Ordinal)
@@ -177,7 +177,7 @@ namespace DnsClientX {
             return attempts
                 .Where(result => !Supports(result.RequestFormat))
                 .Select(result => ResolverCandidateIdentity.GroupKey(result.CandidateId, result.Target))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Distinct(StringComparer.Ordinal)
                 .Count();
         }
 

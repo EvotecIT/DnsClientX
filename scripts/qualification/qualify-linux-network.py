@@ -20,14 +20,13 @@ def main():
     parser.add_argument("--host-network", required=True)
     parser.add_argument("--host-mount", required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--lab-root", type=Path, help="Existing writable directory allowed by the host BIND confinement policy")
     parser.add_argument("--artifacts", type=Path, required=True)
     parser.add_argument("--framework", choices=("net8.0", "net10.0"), required=True)
     args = parser.parse_args()
     namespaces = {name: os.readlink(f"/proc/self/ns/{name}") for name in ("net", "mnt")}
     if os.geteuid() != 0 or namespaces["net"] == args.host_network or namespaces["mnt"] == args.host_mount:
         raise RuntimeError("Fresh private Linux network and mount namespaces are required")
-    if set(os.listdir("/sys/class/net")) != {"lo"}:
-        raise RuntimeError("Expected a fresh network namespace containing only loopback")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     repo = Path(__file__).resolve().parents[2]
@@ -35,9 +34,15 @@ def main():
     def run(*arguments):
         return subprocess.run(list(map(str, arguments)), check=True, text=True, capture_output=True, timeout=20)
 
-    with tempfile.TemporaryDirectory(prefix="network-lab-", dir=output) as temporary:
+    # The inherited sysfs still describes the parent's network namespace.
+    # Only after both namespace identities are verified may mounts be changed.
+    run("mount", "--make-rprivate", "/")
+    run("mount", "-t", "sysfs", "sysfs", "/sys")
+    if set(os.listdir("/sys/class/net")) != {"lo"}:
+        raise RuntimeError("Expected a fresh network namespace containing only loopback")
+
+    with tempfile.TemporaryDirectory(prefix="network-lab-", dir=args.lab_root.resolve() if args.lab_root else output) as temporary:
         lab = Path(temporary)
-        run("mount", "--make-rprivate", "/")
         run("ip", "link", "set", "lo", "up")
         for number in (1, 2):
             name = f"dnsqual{number}"
@@ -98,7 +103,7 @@ host.second IN AAAA 2001:db8::54
                 (output / "namespace-receipt.json").write_text(json.dumps({"namespaces": namespaces,
                     "hostNetwork": args.host_network, "hostMount": args.host_mount,
                     "interfaces": json.loads(run("ip", "-json", "address", "show").stdout),
-                    "evidenceKind": "isolated Linux kernel network; no physical peer"}, indent=2))
+                    "sysfsRemounted": True, "evidenceKind": "isolated Linux kernel network; no physical peer"}, indent=2))
         finally:
             if process is not None:
                 process.terminate()

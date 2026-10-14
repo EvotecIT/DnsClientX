@@ -38,9 +38,9 @@ namespace DnsClientX {
         public int? PortOverride { get; set; }
 
         internal static ResolverScoreRunContext Capture(ResolverQueryRunOptions options, IReadOnlyList<ResolverExecutionTarget> targets) {
-            var keys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var endpoints = new Dictionary<string, DnsResolverEndpoint>(StringComparer.OrdinalIgnoreCase);
-            foreach (var group in targets.GroupBy(target => string.IsNullOrEmpty(target.CandidateId) ? target.DisplayName : target.CandidateId, StringComparer.OrdinalIgnoreCase)) {
+            var keys = new Dictionary<string, string>(StringComparer.Ordinal);
+            var endpoints = new Dictionary<string, DnsResolverEndpoint>(StringComparer.Ordinal);
+            foreach (var group in targets.GroupBy(target => string.IsNullOrEmpty(target.CandidateId) ? target.DisplayName : target.CandidateId, StringComparer.Ordinal)) {
                 string[] identities = group.Select(ResolverCandidateIdentity.ExecutionKey)
                     .Distinct(StringComparer.Ordinal).ToArray();
                 // Keep exactly one saved definition for each configured candidate identity.
@@ -61,19 +61,19 @@ namespace DnsClientX {
             };
         }
 
-        internal bool TryGetExecutionKey(string target, out string? key) {
+        internal bool TryGetExecutionKey(string target, out string? key, bool candidateIdentity = false) {
             key = null;
             if (TargetExecutionKeys == null) return false;
-            var matches = TargetExecutionKeys.Where(pair => string.Equals(pair.Key, target, StringComparison.OrdinalIgnoreCase)).ToArray();
+            var matches = TargetExecutionKeys.Where(pair => string.Equals(pair.Key, target, candidateIdentity ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)).ToArray();
             if (matches.Length != 1 || string.IsNullOrWhiteSpace(matches[0].Value)) return false;
             key = matches[0].Value;
             return true;
         }
 
-        internal bool TryGetExplicitEndpoint(string target, out DnsResolverEndpoint? endpoint) {
+        internal bool TryGetExplicitEndpoint(string target, out DnsResolverEndpoint? endpoint, bool candidateIdentity = false) {
             endpoint = null;
             if (ExplicitEndpoints == null) return false;
-            var matches = ExplicitEndpoints.Where(pair => string.Equals(pair.Key, target, StringComparison.OrdinalIgnoreCase)).ToArray();
+            var matches = ExplicitEndpoints.Where(pair => string.Equals(pair.Key, target, candidateIdentity ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)).ToArray();
             if (matches.Length != 1 || matches[0].Value == null) return false;
             endpoint = matches[0].Value;
             return true;

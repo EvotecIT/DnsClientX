@@ -101,7 +101,7 @@ namespace DnsClientX {
             return new ResolverProbeObservation {
                 SourceIndex = observation?.SourceIndex ?? 0,
                 Target = observation?.Target?.Trim() ?? string.Empty,
-                CandidateId = observation?.CandidateId?.Trim() ?? string.Empty,
+                CandidateId = ResolverCandidateIdentity.NormalizeId(observation?.CandidateId),
                 Resolver = string.IsNullOrWhiteSpace(observation?.Resolver) ? "none" : observation!.Resolver,
                 Transport = string.IsNullOrWhiteSpace(observation?.Transport) ? "none" : observation!.Transport,
                 ElapsedMs = Math.Round(Math.Max(0, observation?.ElapsedMs ?? 0), 2, MidpointRounding.AwayFromZero),

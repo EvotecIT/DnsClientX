@@ -83,7 +83,7 @@ namespace DnsClientX {
 
             return new ResolverBenchmarkCandidate {
                 Target = candidate?.Target?.Trim() ?? string.Empty,
-                CandidateId = candidate?.CandidateId?.Trim() ?? string.Empty,
+                CandidateId = ResolverCandidateIdentity.NormalizeId(candidate?.CandidateId),
                 ConnectionMode = candidate?.ConnectionMode ?? ResolverQueryConnectionMode.Cold,
                 Resolver = string.IsNullOrWhiteSpace(candidate?.Resolver) ? "none" : candidate!.Resolver,
                 Transport = string.IsNullOrWhiteSpace(candidate?.Transport) ? "none" : candidate!.Transport,

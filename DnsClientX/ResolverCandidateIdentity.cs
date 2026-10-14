@@ -22,8 +22,11 @@ namespace DnsClientX {
             return "resolver-v1:" + System.BitConverter.ToString(bytes).Replace("-", string.Empty).ToLowerInvariant();
         }
 
-        // Label fallback reads existing caller-produced observations and schema1/2 snapshots.
+        internal static string NormalizeId(string? candidateId) => candidateId?.Trim() ?? string.Empty;
+
+        // Opaque IDs are case-sensitive. Legacy labels retain case-insensitive matching.
+        // Compare these canonical group keys with StringComparer.Ordinal.
         internal static string GroupKey(string? candidateId, string label) => string.IsNullOrWhiteSpace(candidateId)
-            ? "label:" + label : "id:" + candidateId;
+            ? "label:" + (label ?? string.Empty).Trim().ToUpperInvariant() : "id:" + NormalizeId(candidateId);
     }
 }

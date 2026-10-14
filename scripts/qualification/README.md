@@ -10,7 +10,7 @@ Install BIND test tools (`named`, `dig`, `dnssec-keygen`, `dnssec-signzone`, `dn
 python3 scripts/qualification/qualify-bind.py --framework net10.0 --output /path/to/task-output/bind
 ```
 
-On macOS, add `--tool-directory "$(brew --prefix bind)/bin"`. The script creates private `.test` zones, software signing keys and a synthetic TSIG key in a temporary child of the output directory. BIND runs in the foreground on loopback and an unprivileged port. The script stops the server and removes the keys in `finally`; it retains producer logs and TRX results. No system service or resolver configuration changes.
+On macOS, add `--tool-directory "$(brew --prefix bind)/bin"`. On confined Linux hosts, use `--lab-root` with a dedicated writable directory under the existing BIND data location (for example `/var/lib/bind/dnsclientx-qualification`). This keeps AppArmor enforcement intact. The script creates private `.test` zones, software signing keys and a synthetic TSIG key in a temporary child of that lab root, or the output directory when no lab root is supplied. BIND runs in the foreground on loopback and an unprivileged port. The script stops the server and removes the keys in `finally`; it retains producer logs and TRX results. No system service or resolver configuration changes.
 
 The cases cover RSA signatures anchored by private DS records, NSEC/NSEC3 denial, CNAME/DNAME, wrong and expired anchors, atomic UPDATE prerequisites, multi-frame authenticated AXFR, incremental IXFR and no-change responses. This provides independent implementation evidence; it is not an independently operated deployment or a general server-compatibility claim.
 
@@ -41,7 +41,7 @@ sudo unshare --net --mount --propagation private --fork \
     --framework net10.0 --artifacts "$PWD/artifacts/build" --output "$PWD/artifacts/network"
 ```
 
-Use a disposable Linux environment with BIND, `iproute2` and `util-linux`. The harness refuses the supplied host network/mount namespaces and requires an initially empty network containing only loopback. It creates two virtual adapters and binds its own resolver file over `/etc/resolv.conf` only in the private mount namespace. Tests exercise real OS discovery, suffix fallback, absolute names, IPv6 unicast DNS, multicast interface routing and explicit rediscovery after an adapter/configuration change. The server and resolver bind mount are removed on exit; the kernel removes the private network with the process.
+Use a disposable Linux environment with BIND, `iproute2` and `util-linux`. The harness refuses the supplied host network/mount namespaces and requires an initially empty network containing only loopback. It mounts a fresh sysfs inside that private mount namespace so interface discovery describes the isolated network. It creates two virtual adapters and binds its own resolver file over `/etc/resolv.conf` only in the private mount namespace. Tests exercise real OS discovery, suffix fallback, absolute names, IPv6 unicast DNS, multicast interface routing and explicit rediscovery after an adapter/configuration change. The server and resolver bind mount are removed on exit; the kernel removes the private network with the process.
 
 The Windows live-DNS harness separately exercises NRPT routing on disposable hosted runners. Physical cross-host mDNS, physical link/VPN changes and macOS scoped resolver routing remain qualification gaps recorded in `PLAN.md`.
 
