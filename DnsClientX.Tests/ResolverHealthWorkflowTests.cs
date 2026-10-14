@@ -73,26 +73,29 @@ public sealed class ResolverHealthWorkflowTests {
         Assert.Equal(inputs, profile.ResolverEndpoints);
     }
 
-    /// <summary>Benchmark aggregation cannot safely present distinct executions under one candidate label.</summary>
+    /// <summary>Benchmark profiles score distinct executions even when their readable labels match.</summary>
     [Fact]
-    public async Task Profile_BenchmarkRejectsSameLabelSettingsBeforeAnyDispatch() {
+    public async Task Profile_BenchmarkScoresSameLabelSettingsSeparately() {
         var profile = new ResolverHealthProfile {
             ResolverEndpoints = new[] { false, true }.Select(dnsSec => DnsStamp.Create(new DnsResolverEndpoint {
                 Host = "127.0.0.1", Port = 53, Transport = Transport.Udp, DnsSecOk = dnsSec
             })).ToArray(),
-            Names = new[] { "example.com" }, ProbePolicy = new ResolverProbePolicy { MinSuccessCount = 2 }
+            Names = new[] { "example.com" }, RecordTypes = new[] { DnsRecordType.A },
+            AttemptsPerCombination = 1, ProbePolicy = new ResolverProbePolicy { MinSuccessCount = 2 }
         };
         int dispatched = 0;
-        ArgumentException exception = await Assert.ThrowsAsync<ArgumentException>(() => ResolverHealthWorkflow.RunAsync(profile,
+        ResolverHealthReport report = await ResolverHealthWorkflow.RunAsync(profile,
             includeBenchmark: true, explicitOverride: (endpoint, name, type, token) => {
                 Interlocked.Increment(ref dispatched);
                 return Task.FromResult(new ResolverQueryAttemptResult {
                     Target = ResolverExecutionPlanBuilder.DescribeEndpoint(endpoint),
                     Response = new DnsResponse { Status = DnsResponseCode.NoError }
                 });
-            }));
-        Assert.Contains("separate benchmark profiles", exception.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(0, dispatched);
+            });
+        Assert.Equal(4, dispatched);
+        Assert.Equal(2, report.Benchmark!.Results.Length);
+        Assert.Equal(2, report.Benchmark.Results.Select(row => row.CandidateId).Distinct().Count());
+        Assert.All(report.Benchmark.Results, row => Assert.Equal(1, row.TotalQueries));
     }
 
     /// <summary>Exercises an actual TCP target with a multi-query profile and bounded benchmark.</summary>

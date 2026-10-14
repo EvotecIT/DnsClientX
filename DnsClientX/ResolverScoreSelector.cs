@@ -39,8 +39,21 @@ namespace DnsClientX {
                 error = $"The {summary.Mode} snapshot does not contain a recommended target.";
                 return false;
             }
-            if (snapshot.Results?.Count(row => row != null && string.Equals(row.Target, target, StringComparison.OrdinalIgnoreCase)) > 1) {
-                error = $"Recommended target '{target}' has ambiguous saved candidate rows.";
+            string candidateId = summary.RecommendedCandidateId?.Trim() ?? string.Empty;
+            if (snapshot.SchemaVersion >= 3 && candidateId.Length == 0) {
+                error = $"Recommended target '{target}' lacks its saved candidate identity.";
+                return false;
+            }
+            string lookupKey = candidateId.Length == 0 ? target : candidateId;
+            ResolverScoreEntry[] rows = (snapshot.Results ?? Array.Empty<ResolverScoreEntry>()).Where(row => row != null &&
+                string.Equals(candidateId.Length == 0 ? row.Target : row.CandidateId, lookupKey, candidateId.Length == 0 ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)).ToArray();
+            if (rows.Length > 1 || candidateId.Length > 0 && (rows.Length != 1 ||
+                !string.Equals(rows[0].Target, target, StringComparison.OrdinalIgnoreCase))) {
+                error = $"Recommended target '{target}' has ambiguous or inconsistent saved candidate rows.";
+                return false;
+            }
+            if (candidateId.Length > 0 && snapshot.Context?.TargetExecutionKeys == null) {
+                error = $"Recommended target '{target}' lacks its saved execution identity.";
                 return false;
             }
 
@@ -48,11 +61,15 @@ namespace DnsClientX {
             // since labels intentionally omit TLS, family, timeout, EDNS, and request-format settings.
             DnsResolverEndpoint? savedEndpoint = null;
             if (snapshot.Context?.TargetExecutionKeys != null || snapshot.Context?.ExplicitEndpoints != null) {
-                if (!snapshot.Context.TryGetExecutionKey(target, out string? executionKey)) {
+                if (!snapshot.Context.TryGetExecutionKey(lookupKey, out string? executionKey, candidateId.Length > 0)) {
                     error = $"Recommended target '{target}' has an ambiguous or unavailable saved execution identity.";
                     return false;
                 }
-                if (snapshot.Context.TryGetExplicitEndpoint(target, out savedEndpoint)) {
+                if (candidateId.Length > 0 && candidateId != ResolverCandidateIdentity.FromExecutionKey(executionKey!)) {
+                    error = $"Recommended target '{target}' has an inconsistent saved candidate identity.";
+                    return false;
+                }
+                if (snapshot.Context.TryGetExplicitEndpoint(lookupKey, out savedEndpoint, candidateId.Length > 0)) {
                     try {
                         if (ResolverEndpointClientFactory.GetExecutionKey(savedEndpoint!) != executionKey) {
                             error = $"Recommended target '{target}' has inconsistent saved endpoint metadata.";
@@ -65,7 +82,7 @@ namespace DnsClientX {
                         error = $"Recommended target '{target}' has invalid saved endpoint metadata: {exception.Message}";
                         return false;
                     }
-                } else if (snapshot.Context.ExplicitEndpoints?.Keys.Any(key => string.Equals(key, target, StringComparison.OrdinalIgnoreCase)) == true ||
+                } else if (snapshot.Context.ExplicitEndpoints?.Keys.Any(key => string.Equals(key, lookupKey, candidateId.Length == 0 ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)) == true ||
                     !Enum.TryParse(target, ignoreCase: true, out DnsEndpoint identifiedEndpoint) ||
                     !Enum.IsDefined(typeof(DnsEndpoint), identifiedEndpoint) || executionKey != "builtin:" + identifiedEndpoint) {
                     error = $"Recommended target '{target}' lacks an unambiguous saved endpoint definition.";
@@ -79,6 +96,7 @@ namespace DnsClientX {
                 selection = new ResolverSelectionResult {
                     Mode = summary.Mode,
                     Target = target,
+                    CandidateId = candidateId,
                     Kind = ResolverSelectionKind.BuiltInEndpoint,
                     BuiltInEndpoint = builtInEndpoint,
                     Resolver = summary.RecommendedResolver,
@@ -103,6 +121,7 @@ namespace DnsClientX {
                 selection = new ResolverSelectionResult {
                     Mode = summary.Mode,
                     Target = target,
+                    CandidateId = candidateId,
                     Kind = ResolverSelectionKind.ExplicitEndpoint,
                     ExplicitEndpoint = endpoints[0],
                     Resolver = summary.RecommendedResolver,

@@ -25,6 +25,7 @@ public class DnsSecProviderRequestTests {
         };
         if (savedSelection) {
             ResolverScoreStore.Save(path, new ResolverScoreSnapshot {
+                    SchemaVersion = 2, // Deliberate legacy label-only fixture.
                 Summary = new ResolverScoreSummary { Mode = ResolverScoreMode.Probe,
                     RecommendationAvailable = true, RecommendedTarget = "RootServer",
                     RecommendedResolver = "RootServer", RecommendedTransport = "Udp", RecommendedAverageMs = 5 }

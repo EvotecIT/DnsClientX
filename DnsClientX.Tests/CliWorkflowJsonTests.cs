@@ -62,6 +62,10 @@ public sealed class CliWorkflowJsonTests {
             Assert.Equal(1, json.RootElement.GetProperty("Results").GetArrayLength());
             Assert.True(json.RootElement.GetProperty("Summary").GetProperty("PolicyPassed").GetBoolean());
             Assert.Equal("example.com", json.RootElement.GetProperty("Snapshot").GetProperty("Answers")[0].GetProperty("Name").GetString());
+            string? identity = json.RootElement.GetProperty("Results")[0].GetProperty("CandidateId").GetString();
+            Assert.StartsWith("resolver-v1:", identity);
+            Assert.Equal(identity, json.RootElement.GetProperty("Summary").GetProperty("RecommendedCandidateId").GetString());
+            Assert.Equal(identity, json.RootElement.GetProperty("Snapshot").GetProperty("Answers")[0].GetProperty("CandidateId").GetString());
         } finally { Console.SetOut(original); await server.DisposeAsync(); }
     }
 

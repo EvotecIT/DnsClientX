@@ -19,7 +19,7 @@ namespace DnsClientX {
                 return "none";
             }
 
-            return DnsTerminalText.Escape($"{summary.FastestSuccessTarget} in {durationFormatter(TimeSpan.FromMilliseconds(summary.FastestSuccessMs))} via {summary.FastestSuccessTransport}");
+            return DnsTerminalText.Escape($"{summary.FastestSuccessTarget} in {durationFormatter(TimeSpan.FromMilliseconds(summary.FastestSuccessMs))} via {summary.FastestSuccessTransport}{DescribeIdentitySuffix(summary.FastestSuccessCandidateId)}");
         }
 
         /// <summary>
@@ -34,7 +34,7 @@ namespace DnsClientX {
                 return "none";
             }
 
-            return DnsTerminalText.Escape($"{summary.FastestConsensusTarget} in {durationFormatter(TimeSpan.FromMilliseconds(summary.FastestConsensusMs))} via {summary.FastestConsensusTransport}");
+            return DnsTerminalText.Escape($"{summary.FastestConsensusTarget} in {durationFormatter(TimeSpan.FromMilliseconds(summary.FastestConsensusMs))} via {summary.FastestConsensusTransport}{DescribeIdentitySuffix(summary.FastestConsensusCandidateId)}");
         }
 
         /// <summary>
@@ -73,7 +73,7 @@ namespace DnsClientX {
 
             return summary.MismatchedTargets.Length == 0
                 ? "none"
-                : DnsTerminalText.Escape(string.Join(", ", summary.MismatchedTargets));
+                : DnsTerminalText.Escape(DescribeCandidates(summary.MismatchedTargets, summary.MismatchedCandidateIds));
         }
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace DnsClientX {
 
             return summary.AnswerVariants.Length == 0
                 ? "none"
-                : DnsTerminalText.Escape(string.Join(" | ", summary.AnswerVariants.Select((variant, index) => $"[{index + 1}] {variant.AnswerSet} <- {string.Join(", ", variant.Targets)}")));
+                : DnsTerminalText.Escape(string.Join(" | ", summary.AnswerVariants.Select((variant, index) => $"[{index + 1}] {variant.AnswerSet} <- {DescribeCandidates(variant.Targets, variant.CandidateIds)}")));
         }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace DnsClientX {
                 return "none";
             }
 
-            return DnsTerminalText.Escape($"{summary.RecommendedTarget} in {durationFormatter(TimeSpan.FromMilliseconds(summary.RecommendedAverageMs))} via {summary.RecommendedTransport}");
+            return DnsTerminalText.Escape($"{summary.RecommendedTarget} in {durationFormatter(TimeSpan.FromMilliseconds(summary.RecommendedAverageMs))} via {summary.RecommendedTransport}{DescribeIdentitySuffix(summary.RecommendedCandidateId)}");
         }
 
         /// <summary>
@@ -138,12 +138,15 @@ namespace DnsClientX {
                 $"consensus_percent={summary.ConsensusPercent}",
                 $"distinct_answer_sets={summary.DistinctAnswerSets}",
                 $"fastest_success_target={NormalizeSummaryToken(summary.FastestSuccessTarget)}",
+                $"fastest_success_candidate_id={EncodeSummaryIdentity(summary.FastestSuccessCandidateId)}",
                 $"fastest_success_transport={NormalizeSummaryToken(summary.FastestSuccessTransport)}",
                 $"fastest_success_ms={(int)Math.Round(summary.FastestSuccessMs, MidpointRounding.AwayFromZero)}",
                 $"fastest_consensus_target={NormalizeSummaryToken(summary.FastestConsensusTarget)}",
+                $"fastest_consensus_candidate_id={EncodeSummaryIdentity(summary.FastestConsensusCandidateId)}",
                 $"fastest_consensus_transport={NormalizeSummaryToken(summary.FastestConsensusTransport)}",
                 $"fastest_consensus_ms={(int)Math.Round(summary.FastestConsensusMs, MidpointRounding.AwayFromZero)}",
                 $"recommended_target={NormalizeSummaryToken(summary.RecommendedTarget)}",
+                $"recommended_candidate_id={EncodeSummaryIdentity(summary.RecommendedCandidateId)}",
                 $"recommended_resolver={NormalizeSummaryToken(summary.RecommendedResolver)}",
                 $"recommended_transport={NormalizeSummaryToken(summary.RecommendedTransport)}",
                 $"recommended_ms={(int)Math.Round(summary.RecommendedAverageMs, MidpointRounding.AwayFromZero)}",
@@ -180,6 +183,7 @@ namespace DnsClientX {
                 $"policy_reason={NormalizeSummaryToken(summary.PolicyReason)}",
                 $"runtime_unsupported_candidates={summary.RuntimeUnsupportedCandidateCount}",
                 $"best_target={NormalizeSummaryToken(summary.RecommendedTarget)}",
+                $"best_candidate_id={EncodeSummaryIdentity(summary.RecommendedCandidateId)}",
                 $"best_resolver={NormalizeSummaryToken(summary.RecommendedResolver)}",
                 $"best_transport={NormalizeSummaryToken(summary.RecommendedTransport)}",
                 $"best_avg_ms={(int)Math.Round(summary.RecommendedAverageMs, MidpointRounding.AwayFromZero)}"
@@ -195,7 +199,7 @@ namespace DnsClientX {
             }
 
             string average = result.SuccessCount == 0 ? "n/a" : durationFormatter(TimeSpan.FromMilliseconds(result.AverageMs));
-            return DnsTerminalText.Escape($"  Ranked {rankIndex}: {result.Target} avg {average}, success {result.SuccessPercent}% ({result.SuccessCount}/{result.TotalQueries}), resolver {result.Resolver}");
+            return DnsTerminalText.Escape($"  Ranked {rankIndex}: {result.Target} avg {average}, success {result.SuccessPercent}% ({result.SuccessCount}/{result.TotalQueries}), resolver {result.Resolver}{DescribeIdentitySuffix(result.CandidateId)}");
         }
 
         /// <summary>
@@ -207,12 +211,14 @@ namespace DnsClientX {
             }
 
             ResolverBenchmarkReportResult? best = summary.RecommendationAvailable
-                ? results.FirstOrDefault(result => string.Equals(result.Target, summary.RecommendedTarget, StringComparison.OrdinalIgnoreCase))
+                ? results.FirstOrDefault(result => string.Equals(
+                    ResolverCandidateIdentity.GroupKey(result.CandidateId, result.Target),
+                    ResolverCandidateIdentity.GroupKey(summary.RecommendedCandidateId, summary.RecommendedTarget), StringComparison.Ordinal))
                 : results.FirstOrDefault(result => result.SuccessCount > 0);
 
             return best == null
                 ? "none"
-                : DnsTerminalText.Escape($"{best.Target} in {durationFormatter(TimeSpan.FromMilliseconds(best.AverageMs))} average ({best.SuccessPercent}% success)");
+                : DnsTerminalText.Escape($"{best.Target} in {durationFormatter(TimeSpan.FromMilliseconds(best.AverageMs))} average ({best.SuccessPercent}% success){DescribeIdentitySuffix(best.CandidateId)}");
         }
 
         /// <summary>
@@ -238,7 +244,7 @@ namespace DnsClientX {
 
             string status = result.Succeeded ? "OK" : "FAIL";
             var lines = new List<string> {
-                $"  [{status}] {result.Target} via {result.RequestFormat}",
+                $"  [{status}] {result.Target} via {result.RequestFormat}{DescribeIdentitySuffix(result.CandidateId)}",
                 $"      Resolver: {result.Resolver}",
                 $"      Status: {result.Status}",
                 $"      Transport: {result.Transport}",
@@ -263,7 +269,7 @@ namespace DnsClientX {
 
             string status = result.Succeeded ? "OK" : "FAIL";
             var lines = new List<string> {
-                $"  [{status}] {result.Target} via {result.RequestFormat}",
+                $"  [{status}] {result.Target} via {result.RequestFormat}{DescribeIdentitySuffix(result.CandidateId)}",
                 $"      Resolver: {result.Resolver}",
                 $"      Status: {result.Status}",
                 $"      Transport: {result.Transport}",
@@ -288,7 +294,7 @@ namespace DnsClientX {
 
             string status = result.SuccessCount > 0 ? "OK" : "FAIL";
             return EscapeLines(new[] {
-                $"  [{status}] {result.Target}",
+                $"  [{status}] {DescribeCandidate(result.Target, result.CandidateId)}",
                 $"      Resolver: {result.Resolver}",
                 $"      Transport: {result.Transport}",
                 $"      Success rate: {result.SuccessPercent}% ({result.SuccessCount}/{result.TotalQueries})",
@@ -481,6 +487,20 @@ namespace DnsClientX {
                 ? "supported"
                 : DnsTransportCapabilities.GetUnsupportedMessage(requestFormat);
         }
+
+        private static string DescribeCandidate(string target, string candidateId) =>
+            target + DescribeIdentitySuffix(candidateId);
+
+        private static string DescribeIdentitySuffix(string candidateId) =>
+            string.IsNullOrWhiteSpace(candidateId) ? string.Empty : $" (candidate: {candidateId})";
+
+        private static string DescribeCandidates(string[] targets, string[] candidateIds) =>
+            string.Join(", ", targets.Select((target, index) => DescribeCandidate(target,
+                candidateIds.Length == targets.Length ? candidateIds[index] : string.Empty)));
+
+        // Preserve opaque IDs exactly, while keeping each machine-summary value in one token.
+        private static string EncodeSummaryIdentity(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? "none" : Uri.EscapeDataString(value!);
 
         private static string NormalizeSummaryToken(string? value) {
             if (string.IsNullOrWhiteSpace(value)) {

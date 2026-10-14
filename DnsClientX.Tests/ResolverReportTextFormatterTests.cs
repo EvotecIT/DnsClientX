@@ -5,6 +5,63 @@ namespace DnsClientX.Tests {
     /// Tests shared report text formatting helpers.
     /// </summary>
     public class ResolverReportTextFormatterTests {
+        /// <summary>Reordered rows with colliding labels still describe the selected candidate's latency.</summary>
+        [Fact]
+        public void BenchmarkBestUsesCandidateIdentity() {
+            var rows = new[] {
+                new ResolverBenchmarkReportResult { Target = "same", CandidateId = "first", SuccessCount = 1, SuccessPercent = 100, AverageMs = 42 },
+                new ResolverBenchmarkReportResult { Target = "same", CandidateId = "second", SuccessCount = 1, SuccessPercent = 100, AverageMs = 7 }
+            };
+            var summary = new ResolverBenchmarkReportSummary {
+                RecommendationAvailable = true, RecommendedTarget = "same", RecommendedCandidateId = "second"
+            };
+            Assert.Equal("same in 7 ms average (100% success) (candidate: second)", ResolverReportTextFormatter.DescribeBenchmarkBest(rows, summary, FormatDuration));
+            Assert.Contains("(candidate: second)", ResolverReportTextFormatter.BuildBenchmarkRankedLine(rows[1], 1, FormatDuration));
+            Assert.Contains("same (candidate: first)", ResolverReportTextFormatter.BuildBenchmarkResultLines(rows[0], FormatDuration)[0]);
+            Assert.Contains("best_candidate_id=second", ResolverReportTextFormatter.BuildBenchmarkSummaryLine(summary, 0));
+        }
+
+        /// <summary>Same-label probe responders remain identifiable in every text summary and result surface.</summary>
+        [Fact]
+        public void ProbeTextPreservesCandidateIdentity() {
+            const string first = "resolver-v1:abc";
+            const string second = "resolver-v1:def";
+            var summary = new ResolverProbeReportSummary {
+                FastestSuccessTarget = "same", FastestSuccessCandidateId = first,
+                FastestConsensusTarget = "same", FastestConsensusCandidateId = second,
+                RecommendationAvailable = true, RecommendedTarget = "same", RecommendedCandidateId = second,
+                MismatchedTargets = new[] { "same" }, MismatchedCandidateIds = new[] { first },
+                AnswerVariants = new[] { new ResolverProbeAnswerVariant {
+                    AnswerSet = "example.com A 192.0.2.1", Targets = new[] { "same", "same" }, CandidateIds = new[] { first, second }
+                } }
+            };
+            Assert.Contains($"(candidate: {first})", ResolverReportTextFormatter.DescribeProbeFastestSuccess(summary, FormatDuration));
+            Assert.Contains($"(candidate: {second})", ResolverReportTextFormatter.DescribeProbeFastestConsensus(summary, FormatDuration));
+            Assert.Contains($"(candidate: {second})", ResolverReportTextFormatter.DescribeProbeRecommended(summary, FormatDuration));
+            Assert.Equal($"same (candidate: {first})", ResolverReportTextFormatter.DescribeProbeMismatchedTargets(summary));
+            Assert.Contains($"same (candidate: {first}), same (candidate: {second})", ResolverReportTextFormatter.DescribeProbeAnswerVariants(summary));
+            Assert.Contains(first, ResolverReportTextFormatter.BuildProbeResultLines(new ResolverQueryAttemptResult { Target = "same", CandidateId = first }, FormatDuration)[0]);
+            Assert.Contains(second, ResolverReportTextFormatter.BuildProbeResultLines(new ResolverProbeReportResult { Target = "same", CandidateId = second }, FormatDuration)[0]);
+            string machine = ResolverReportTextFormatter.BuildProbeSummaryLine(summary, 0);
+            Assert.Contains($"fastest_success_candidate_id={Uri.EscapeDataString(first)} ", machine);
+            Assert.Contains($"fastest_consensus_candidate_id={Uri.EscapeDataString(second)} ", machine);
+            Assert.Contains($"recommended_candidate_id={Uri.EscapeDataString(second)} ", machine);
+        }
+
+        /// <summary>Machine IDs round-trip exactly and cannot inject fields through whitespace or control characters.</summary>
+        [Fact]
+        public void SummaryCandidateIdentityIsPercentEncoded() {
+            const string identity = "resolver-v1:abc result=pass\nnext";
+            string encoded = Uri.EscapeDataString(identity);
+            string benchmark = ResolverReportTextFormatter.BuildBenchmarkSummaryLine(new ResolverBenchmarkReportSummary { RecommendedCandidateId = identity }, 1);
+            string probe = ResolverReportTextFormatter.BuildProbeSummaryLine(new ResolverProbeReportSummary { RecommendedCandidateId = identity }, 1);
+            Assert.Contains($"best_candidate_id={encoded} ", benchmark);
+            Assert.Contains($"recommended_candidate_id={encoded} ", probe);
+            Assert.DoesNotContain(" result=pass", benchmark);
+            Assert.DoesNotContain("\n", probe);
+            Assert.Equal(identity, Uri.UnescapeDataString(encoded));
+        }
+
         /// <summary>Probe consensus text cannot emit a control sequence from an answer set.</summary>
         [Fact]
         public void ProbeAnswerVariantsEscapeTerminalControls() {

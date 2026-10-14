@@ -148,6 +148,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public async Task ResolverSelect_PrintsRecommendedExplicitEndpoint() {
             string snapshotPath = WriteSnapshotFile(new ResolverScoreSnapshot {
+                SchemaVersion = 2, // Deliberate legacy label-only fixture.
                 Summary = new ResolverScoreSummary {
                     Mode = ResolverScoreMode.Probe,
                     RecommendationAvailable = true,
@@ -183,6 +184,7 @@ namespace DnsClientX.Tests {
         public async Task ResolverUse_QueryMode_UsesExplicitEndpointSelection() {
             int port = TestUtilities.GetFreeUdpPort();
             string snapshotPath = WriteSnapshotFile(new ResolverScoreSnapshot {
+                SchemaVersion = 2, // Deliberate legacy label-only fixture.
                 Summary = new ResolverScoreSummary {
                     Mode = ResolverScoreMode.Probe,
                     RecommendationAvailable = true,
@@ -227,6 +229,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public async Task ResolverUse_ProbeMode_UsesExplicitEndpointSelection() {
             string snapshotPath = WriteSnapshotFile(new ResolverScoreSnapshot {
+                SchemaVersion = 2, // Deliberate legacy label-only fixture.
                 Summary = new ResolverScoreSummary {
                     Mode = ResolverScoreMode.Probe,
                     RecommendationAvailable = true,
@@ -275,6 +278,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public async Task ResolverUse_BenchmarkMode_UsesBuiltInSelection() {
             string snapshotPath = WriteSnapshotFile(new ResolverScoreSnapshot {
+                SchemaVersion = 2, // Deliberate legacy label-only fixture.
                 Summary = new ResolverScoreSummary {
                     Mode = ResolverScoreMode.Benchmark,
                     RecommendationAvailable = true,
@@ -329,6 +333,7 @@ namespace DnsClientX.Tests {
         [Fact]
         public async Task ResolverSelect_JsonFormat_PrintsBuiltInSelection() {
             string snapshotPath = WriteSnapshotFile(new ResolverScoreSnapshot {
+                SchemaVersion = 2, // Deliberate legacy label-only fixture.
                 Summary = new ResolverScoreSummary {
                     Mode = ResolverScoreMode.Benchmark,
                     RecommendationAvailable = true,

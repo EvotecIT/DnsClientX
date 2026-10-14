@@ -36,6 +36,9 @@ namespace DnsClientX {
         public int? RequiredMinSuccessfulCandidates { get; set; }
         /// <summary>Gets or sets the recommended target.</summary>
         public string RecommendedTarget { get; set; } = "none";
+
+        /// <summary>Gets or sets the stable identity of the recommended configured candidate.</summary>
+        public string RecommendedCandidateId { get; set; } = string.Empty;
         /// <summary>Gets or sets the recommended resolver.</summary>
         public string RecommendedResolver { get; set; } = "none";
         /// <summary>Gets or sets the recommended transport.</summary>

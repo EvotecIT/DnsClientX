@@ -108,6 +108,9 @@ namespace DnsClientX {
         /// </summary>
         public string RecommendedTarget { get; set; } = "none";
 
+        /// <summary>Gets or sets the stable identity of the recommended configured candidate.</summary>
+        public string RecommendedCandidateId { get; set; } = string.Empty;
+
         /// <summary>
         /// Gets or sets the resolver observed for the recommended candidate.
         /// </summary>
@@ -148,6 +151,9 @@ namespace DnsClientX {
         /// </summary>
         public string FastestSuccessTarget { get; set; } = "none";
 
+        /// <summary>Gets or sets the stable identity of the FastestSuccess candidate.</summary>
+        public string FastestSuccessCandidateId { get; set; } = string.Empty;
+
         /// <summary>
         /// Gets or sets the transport observed for the fastest successful candidate.
         /// </summary>
@@ -162,6 +168,9 @@ namespace DnsClientX {
         /// Gets or sets the fastest candidate within the leading consensus group.
         /// </summary>
         public string FastestConsensusTarget { get; set; } = "none";
+
+        /// <summary>Gets or sets the stable identity of the FastestConsensus candidate.</summary>
+        public string FastestConsensusCandidateId { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the transport observed for the fastest consensus candidate.

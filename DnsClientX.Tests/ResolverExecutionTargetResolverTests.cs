@@ -42,6 +42,7 @@ namespace DnsClientX.Tests {
 
             try {
                 ResolverScoreStore.Save(path, new ResolverScoreSnapshot {
+                    SchemaVersion = 2, // Deliberate legacy label-only fixture.
                     Summary = new ResolverScoreSummary {
                         Mode = ResolverScoreMode.Benchmark,
                         RecommendationAvailable = true,
@@ -124,6 +125,7 @@ namespace DnsClientX.Tests {
 
             try {
                 ResolverScoreStore.Save(path, new ResolverScoreSnapshot {
+                    SchemaVersion = 2, // Deliberate legacy label-only fixture.
                     Summary = new ResolverScoreSummary {
                         Mode = ResolverScoreMode.Probe,
                         RecommendationAvailable = true,

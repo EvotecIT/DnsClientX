@@ -15,6 +15,9 @@ namespace DnsClientX {
         /// </summary>
         public string Target { get; init; } = string.Empty;
 
+        /// <summary>Gets or sets the stable configured candidate identity; empty for legacy label-only observations.</summary>
+        public string CandidateId { get; init; } = string.Empty;
+
         /// <summary>
         /// Gets or sets the configured request format used for the attempt.
         /// </summary>
@@ -47,15 +50,21 @@ namespace DnsClientX {
         public string? Error { get; init; }
 
         internal ResolverQueryAttemptResult WithConnectionMode(ResolverQueryConnectionMode mode) => new() {
-            Target = Target, RequestFormat = RequestFormat, Resolver = Resolver, Response = Response,
+            Target = Target, CandidateId = CandidateId, RequestFormat = RequestFormat, Resolver = Resolver, Response = Response,
             Elapsed = Elapsed, TransportElapsed = TransportElapsed, Error = Error, ConnectionMode = mode,
             Name = Name, RecordType = RecordType
         };
 
         internal ResolverQueryAttemptResult WithQuery(string name, DnsRecordType type) => new() {
-            Target = Target, RequestFormat = RequestFormat, Resolver = Resolver, Response = Response,
+            Target = Target, CandidateId = CandidateId, RequestFormat = RequestFormat, Resolver = Resolver, Response = Response,
             Elapsed = Elapsed, TransportElapsed = TransportElapsed, Error = Error, ConnectionMode = ConnectionMode,
             Name = name, RecordType = type
+        };
+
+        internal ResolverQueryAttemptResult WithCandidate(ResolverExecutionTarget target) => new() {
+            Target = target.DisplayName, CandidateId = target.CandidateId, RequestFormat = RequestFormat,
+            Resolver = Resolver, Response = Response, Elapsed = Elapsed, TransportElapsed = TransportElapsed,
+            Error = Error, ConnectionMode = ConnectionMode, Name = Name, RecordType = RecordType
         };
 
         /// <summary>

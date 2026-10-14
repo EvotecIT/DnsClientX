@@ -50,7 +50,10 @@ public sealed class ResolverScoreComparisonContractTests {
         ResolverProbeReport before = await ProbeAsync(first), after = await ProbeAsync(second);
         ResolverScoreComparison comparison = ResolverScoreComparer.Compare(before.Snapshot, after.Snapshot);
         Assert.False(comparison.ScopeComparable);
-        Assert.Null(Assert.Single(comparison.Candidates).AverageMsDelta);
+        Assert.Equal(2, comparison.Candidates.Length);
+        Assert.Contains(comparison.Candidates, candidate => candidate.Change == "Added");
+        Assert.Contains(comparison.Candidates, candidate => candidate.Change == "Removed");
+        Assert.All(comparison.Candidates, candidate => Assert.Null(candidate.AverageMsDelta));
     }
 
     /// <summary>Real probe and benchmark snapshot capture retain endpoint timeouts beyond display labels.</summary>
@@ -66,8 +69,8 @@ public sealed class ResolverScoreComparisonContractTests {
             after.Snapshot.Summary.Mode = before.Snapshot.Summary.Mode;
             after.Snapshot.Summary.MaxConcurrency = before.Snapshot.Summary.MaxConcurrency;
             Assert.Equal(2, server.Queries);
-            Assert.Equal(ResolverEndpointClientFactory.GetExecutionKey(first), before.Snapshot.Context!.TargetExecutionKeys![before.Results[0].Target]);
-            Assert.Equal(ResolverEndpointClientFactory.GetExecutionKey(second), after.Snapshot.Context!.TargetExecutionKeys![after.Results[0].Target]);
+            Assert.Equal(ResolverEndpointClientFactory.GetExecutionKey(first), before.Snapshot.Context!.TargetExecutionKeys![before.Results[0].CandidateId]);
+            Assert.Equal(ResolverEndpointClientFactory.GetExecutionKey(second), after.Snapshot.Context!.TargetExecutionKeys![after.Results[0].CandidateId]);
             Assert.False(ResolverScoreComparer.Compare(before.Snapshot, after.Snapshot).ScopeComparable);
         } finally { await server.DisposeAsync(); }
     }
@@ -118,5 +121,26 @@ public sealed class ResolverScoreComparisonContractTests {
         ResolverProbeReport after = await ProbeAsync(Endpoint("timeout", false), new ResolverQueryRunOptions { BootstrapResolver = second });
         Assert.Equal(ResolverEndpointClientFactory.GetExecutionKey(first), before.Snapshot.Context!.BootstrapEndpoint);
         Assert.False(ResolverScoreComparer.Compare(before.Snapshot, after.Snapshot).ScopeComparable);
+    }
+
+    /// <summary>Different configured private trust boundaries cannot produce a comparable DNSSEC health verdict.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Compare_PrivateTrustAnchorScopeAppliesOnlyDuringValidation(bool validate) {
+        ResolverQueryRunOptions Options(char digest) => new() {
+            RequestDnsSec = true, ValidateDnsSec = validate,
+            DnsSecTrustAnchors = new[] { new DnsSecZoneTrustAnchor("example.com",
+                new DnsSecTrustAnchor(1234, DnsKeyAlgorithm.RSASHA256, 2, new string(digest, 64))) }
+        };
+        ResolverProbeReport before = await ProbeAsync(Endpoint("timeout", false), Options('A'));
+        ResolverProbeReport after = await ProbeAsync(Endpoint("timeout", false), Options('B'));
+        before.Snapshot.Summary.PolicyPassed = true;
+        after.Snapshot.Summary.PolicyPassed = false;
+        ResolverScoreComparison comparison = ResolverScoreComparer.Compare(before.Snapshot, after.Snapshot);
+        Assert.Equal(!validate, comparison.ScopeComparable);
+        Assert.Equal(!validate, comparison.HealthRegression);
+        if (validate) Assert.Null(Assert.Single(comparison.Candidates).AverageMsDelta);
+        else Assert.Equal(0, Assert.Single(comparison.Candidates).AverageMsDelta);
     }
 }

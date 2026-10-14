@@ -11,6 +11,27 @@ namespace DnsClientX.Tests;
 public class DnsServiceBrowseMulticastTests {
     private const string Type = "_http._tcp.local";
     private const string Instance = "site._http._tcp.local";
+
+    /// <summary>An active non-loopback adapter routes browse queries and drains its selected-interface binding.</summary>
+    [ActiveMulticastFact]
+    public async Task ActiveAdapterRoutesBrowseAndReleasesBinding() {
+        IPAddress address = FindOtherInterfaceAddress(requireMulticast: true)!;
+        using var fixture = new MulticastFixture(address);
+        await using var client = fixture.CreateClient();
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await using var browse = client.BrowseServicesContinuousAsync("http", "tcp", cancellationToken: stop.Token).GetAsyncEnumerator();
+        Task<bool> first = browse.MoveNextAsync().AsTask();
+        Assert.Equal(address, (await fixture.ReadQuery(stop.Token)).Address);
+        await fixture.Announce(DnsDiscoveryTestWire.Ptr(Type, Instance), DnsDiscoveryTestWire.Srv(Instance, "host.local", 80));
+        Assert.True(await first);
+        Assert.Equal(Instance, browse.Current.Service.ServiceName);
+        await browse.DisposeAsync();
+        await client.DisposeAsync();
+        fixture.Dispose();
+        using var replacement = new UdpClient();
+        replacement.ExclusiveAddressUse = true;
+        replacement.Client.Bind(new IPEndPoint(IPAddress.Any, fixture.Port));
+    }
     /// <summary>A persistent receiver observes announcements and goodbyes even when no new snapshot query is issued.</summary>
     [Fact]
     public async Task PersistentBrowseYieldsAddedUpdatedAndRemoved() {
@@ -227,12 +248,41 @@ public class DnsServiceBrowseMulticastTests {
         Assert.Equal(expected, DnsWireResolveMulticast.IsLocalResponse(packet, IPAddress.Parse("224.0.0.251"), 5353, loopback));
     }
 
-    private static IPAddress? FindOtherInterfaceAddress() => NetworkInterface.GetAllNetworkInterfaces()
+    private static IPAddress? FindOtherInterfaceAddress(bool requireMulticast = false) => NetworkInterface.GetAllNetworkInterfaces()
         .Where(item => item.NetworkInterfaceType != NetworkInterfaceType.Loopback && item.OperationalStatus == OperationalStatus.Up
-            && item.Supports(NetworkInterfaceComponent.IPv4))
+            && item.Supports(NetworkInterfaceComponent.IPv4) && (!requireMulticast || item.SupportsMulticast))
         .SelectMany(item => item.GetIPProperties().UnicastAddresses)
         .Select(item => item.Address)
         .FirstOrDefault(address => address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(address));
+
+    // Hosted VM interfaces may expose IPv4 while suppressing same-host multicast.
+    // Probe the kernel route without ClientX before deciding whether this fixture is executable.
+    private sealed class ActiveMulticastFactAttribute : FactAttribute {
+        public ActiveMulticastFactAttribute() {
+            IPAddress? source = FindOtherInterfaceAddress(requireMulticast: true);
+            if (source == null) {
+                Skip = "Active-adapter proof requires an existing multicast-capable non-loopback IPv4 interface.";
+                return;
+            }
+            IPAddress group = IPAddress.Parse("239.255.42.99");
+            using var receiver = new UdpClient(new IPEndPoint(IPAddress.Any, 0));
+            using var sender = new UdpClient(new IPEndPoint(IPAddress.Any, 0));
+            receiver.Client.ReceiveTimeout = 350;
+            byte[] payload = Guid.NewGuid().ToByteArray();
+            try {
+                receiver.JoinMulticastGroup(group, source);
+                sender.Client.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.MulticastInterface, source.GetAddressBytes());
+                int port = ((IPEndPoint)receiver.Client.LocalEndPoint!).Port;
+                sender.Send(payload, payload.Length, new IPEndPoint(group, port));
+                IPEndPoint remote = new(IPAddress.Any, 0);
+                Assert.Equal(payload, receiver.Receive(ref remote));
+                Assert.Equal(source, remote.Address);
+            } catch (SocketException exception) when (exception.SocketErrorCode is SocketError.AddressNotAvailable
+                or SocketError.NetworkUnreachable or SocketError.HostUnreachable or SocketError.TimedOut or SocketError.WouldBlock) {
+                Skip = $"Native UDP multicast loopback on {source} cannot execute the active-adapter fixture: {exception.SocketErrorCode} ({exception.ErrorCode}).";
+            }
+        }
+    }
 
     private sealed class CrossInterfaceFactAttribute : FactAttribute {
         public CrossInterfaceFactAttribute() {
@@ -260,7 +310,7 @@ public class DnsServiceBrowseMulticastTests {
                 receiver.Receive(ref remote);
                 Assert.Equal(source, remote.Address);
             } catch (SocketException exception) when (exception.SocketErrorCode is SocketError.AddressNotAvailable
-                or SocketError.TimedOut or SocketError.WouldBlock) {
+                or SocketError.NetworkUnreachable or SocketError.HostUnreachable or SocketError.TimedOut or SocketError.WouldBlock) {
                 Skip = $"Host UDP route {source} -> {destination.Address} cannot deliver the off-link fixture: {exception.SocketErrorCode} ({exception.ErrorCode}).";
             }
         }
@@ -273,15 +323,17 @@ public class DnsServiceBrowseMulticastTests {
         internal int Port { get; }
         internal IPAddress Group => _group;
 
-        internal MulticastFixture() {
-            NetworkInterface loopback = NetworkInterface.GetAllNetworkInterfaces().First(item => item.NetworkInterfaceType == NetworkInterfaceType.Loopback);
-            _interfaceIndex = loopback.GetIPProperties().GetIPv4Properties()!.Index;
+        internal MulticastFixture(IPAddress? source = null) {
+            source ??= IPAddress.Loopback;
+            NetworkInterface network = NetworkInterface.GetAllNetworkInterfaces().First(item =>
+                item.GetIPProperties().UnicastAddresses.Any(address => address.Address.Equals(source)));
+            _interfaceIndex = network.GetIPProperties().GetIPv4Properties()!.Index;
             _socket.ExclusiveAddressUse = false;
             _socket.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             _socket.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
             Port = ((IPEndPoint)_socket.Client.LocalEndPoint!).Port;
-            _socket.JoinMulticastGroup(_group, IPAddress.Loopback);
-            _socket.Client.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.MulticastInterface, IPAddress.Loopback.GetAddressBytes());
+            _socket.JoinMulticastGroup(_group, source);
+            _socket.Client.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.MulticastInterface, source.GetAddressBytes());
             _socket.Client.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.MulticastTimeToLive, 255);
             _socket.MulticastLoopback = true;
         }

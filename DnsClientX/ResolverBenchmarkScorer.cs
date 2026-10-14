@@ -19,6 +19,7 @@ namespace DnsClientX {
             ResolverBenchmarkCandidate[] ranked = normalized
                 .OrderByDescending(result => result.SuccessPercent)
                 .ThenBy(result => result.SuccessCount == 0 ? double.MaxValue : result.AverageMs)
+                .ThenBy(result => result.CandidateId, StringComparer.Ordinal)
                 .ThenBy(result => result.Target, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
@@ -35,7 +36,7 @@ namespace DnsClientX {
             return new ResolverBenchmarkEvaluation {
                 Results = ranked
                     .Select((result, index) => new ResolverBenchmarkEvaluationEntry {
-                        Target = result.Target,
+                        Target = result.Target, CandidateId = result.CandidateId,
                         ConnectionMode = result.ConnectionMode,
                         Resolver = result.Resolver,
                         Transport = result.Transport,
@@ -48,8 +49,8 @@ namespace DnsClientX {
                         MaxMs = result.MaxMs,
                         DistinctAnswerSets = result.DistinctAnswerSets,
                         Rank = index + 1,
-                        IsBest = best != null && string.Equals(result.Target, best.Target, StringComparison.OrdinalIgnoreCase),
-                        IsRecommended = passed && best != null && string.Equals(result.Target, best.Target, StringComparison.OrdinalIgnoreCase)
+                        IsBest = ReferenceEquals(result, best),
+                        IsRecommended = passed && ReferenceEquals(result, best)
                     })
                     .ToArray(),
                 CandidateCount = ranked.Length,
@@ -61,6 +62,7 @@ namespace DnsClientX {
                 PolicyReason = passed ? "none" : reason,
                 RecommendationAvailable = passed && best != null,
                 RecommendedTarget = best?.Target ?? "none",
+                RecommendedCandidateId = best?.CandidateId ?? string.Empty,
                 RecommendedResolver = best?.Resolver ?? "none",
                 RecommendedTransport = best?.Transport ?? "none",
                 RecommendedAverageMs = best?.AverageMs ?? 0
@@ -81,6 +83,7 @@ namespace DnsClientX {
 
             return new ResolverBenchmarkCandidate {
                 Target = candidate?.Target?.Trim() ?? string.Empty,
+                CandidateId = ResolverCandidateIdentity.NormalizeId(candidate?.CandidateId),
                 ConnectionMode = candidate?.ConnectionMode ?? ResolverQueryConnectionMode.Cold,
                 Resolver = string.IsNullOrWhiteSpace(candidate?.Resolver) ? "none" : candidate!.Resolver,
                 Transport = string.IsNullOrWhiteSpace(candidate?.Transport) ? "none" : candidate!.Transport,

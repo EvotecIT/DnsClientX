@@ -3,6 +3,9 @@ namespace DnsClientX {
     public sealed class ResolverAnswerObservation {
         /// <summary>Gets or sets the resolver target.</summary>
         public string Target { get; set; } = string.Empty;
+
+        /// <summary>Gets or sets the stable configured candidate identity; empty for legacy label-only observations.</summary>
+        public string CandidateId { get; set; } = string.Empty;
         /// <summary>Gets or sets the query name.</summary>
         public string Name { get; set; } = string.Empty;
         /// <summary>Gets or sets the query type.</summary>

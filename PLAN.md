@@ -8,9 +8,9 @@ This plan records implemented capabilities, their qualification limits and remai
 
 - UDP with TCP fallback, TCP, TLS, HTTPS wire and JSON, HTTP/2, HTTP/3, QUIC and gRPC, with runtime capability reporting. Modern transports depend on the target runtime and native platform support.
 - Typed records with owner, class, remaining TTL and wire metadata; negative cache lifetimes bound by SOA, alias and denial evidence; response single-flight and process-wide cache management.
-- Reusable query options, ordered and completion-order bounded streams, cancellation/drain, resolver catalogs, probe/benchmark policies, saved scores, health profiles and structured explanations.
+- Reusable query options, ordered and completion-order bounded streams, cancellation/drain, resolver catalogs, probe/benchmark policies, saved scores, health profiles and structured explanations. Stable configured candidate identities distinguish same-label endpoint variants through scoring, reports, comparison and saved selection; schema 3 reuse requires complete saved identity and endpoint evidence; schema 1/2 scores remain readable.
 - Local DNSSEC validation, authenticated denial, iterative root resolution, QNAME minimization and RFC 5011 anchor lifecycle. Explicit zone-qualified DS anchors bind private DNSKEY verification, descendant trust and authenticated cache lifetimes. Portable ECDSA and EdDSA verification belongs to the optional DNSSEC provider.
-- System resolver discovery, supported Windows NRPT routing, explicit bootstrap resolvers, DNS stamps and EDNS options.
+- System resolver discovery, supported Windows NRPT routing, explicit bootstrap resolvers, DNS stamps and EDNS options. Linux discovery preserves the complete ordered `resolv.conf` search list; the last `search` or `domain` directive sets that list.
 - AXFR, IXFR, transfer over TLS, ZONEMD and TSIG multi-message authentication, including authenticated buffering and required first/final signatures.
 - Atomic RFC 2136 UPDATE batches with additions, RRset/value/name deletions, name/RRset prerequisites and complete RRset comparisons. PowerShell confirmation happens before network activity.
 - SVCB encrypted-DNS selection and DDR pinned to the original resolver, with bounded candidates, certificate verification, and dependency-free DoH URI templates that preserve HTTPS authority.
@@ -22,7 +22,13 @@ The modern core has no new production packages. The approved optional dependenci
 
 ## Existing proof and remaining qualification
 
-The separate candidates have controlled .NET 8/.NET 10 regressions, loopback discovery and multicast peers, ephemeral certificate fixtures, private-zone DNSSEC and atomic UPDATE wire fixtures, and local .NET Framework 4.7.2 compilation. Independent Go producers add TSIG AXFR/IXFR, ODoH target/relay and DNSCrypt responder evidence. The combined implementation has broad source, fresh package-consumer, actual module ZIP and legacy-compilation checks. Focused regressions cover private-anchor DNAME boundaries, split-frame authenticated IXFR, serial wraparound, mDNS link admission and server fallback after transport deadlines.
+The implementation has controlled .NET 8/.NET 10 regressions, loopback discovery and multicast peers, ephemeral certificate fixtures, private-zone DNSSEC and atomic UPDATE wire fixtures, and .NET Framework 4.7.2 compilation. Independent Go producers add TSIG AXFR/IXFR, ODoH target/relay and DNSCrypt responder evidence. Source, fresh package-consumer, actual module ZIP and legacy-compilation checks cover the integrated implementation. Focused regressions cover private-anchor DNAME boundaries, split-frame authenticated IXFR, serial wraparound, mDNS link admission and server fallback after transport deadlines.
+
+An isolated BIND lab independently signs and serves private NSEC/NSEC3 zones over IPv4 and IPv6. It qualifies configured DS anchors, signed CNAME/DNAME answers, authenticated denial, wrong/expired-anchor rejection, complete-RRset UPDATE prerequisites, atomic rejection, and TSIG multi-frame AXFR and journal-backed IXFR. BIND and its generated keys are test inputs; no system DNS service or persistent trust store is changed.
+
+Native transport qualification exercises DoQ and HTTP/3 certificate rejection, bounded deadlines, caller cancellation, connection reuse and disposal through public clients. Dedicated jobs cover Windows, Linux and macOS on .NET 8/10. macOS needs MsQuic and, for .NET 8, a compatible OpenSSL library path. Active-interface multicast tests verify selected outbound routing and socket drain, including receives scheduled while disposal closes the socket. A bounded UDP probe establishes native multicast capability before that adapter test; hosts that cannot deliver the probe report an explicit qualification skip. Isolated Linux network/mount namespaces exercise OS resolver discovery, IPv6 DNS, search order, multiple virtual adapters and explicit rediscovery after network changes. Virtual interfaces and same-host multicast do not establish cross-host physical-network acceptance.
+
+Read-only macOS LAN discovery through the actual module ZIP observes existing services over IPv4 and IPv6. Independent UDP queries receive matching answers from non-local peers on both families, and the native Bonjour browser supplies separate service-discovery evidence. This qualifies the observed interface and network; it does not establish physical adapter/link/VPN changes or general public IPv6 reachability.
 
 The administration/privacy candidate also has native Windows TLS 1.3 execution and actual packaged PowerShell tests on Windows PowerShell 5.1/7, Linux and macOS. Hosted consumer jobs qualify the combined module on Windows PowerShell 5.1, minimum PowerShell 7.4 and modern Windows/Linux/macOS hosts. DNSCrypt qualification includes PackageReference consumers and a non-SDK packages.config Windows consumer that verifies native asset delivery and loading.
 
@@ -30,9 +36,9 @@ Live public DDR observations bind trusted certificates to the designating resolv
 
 Remaining independent and platform qualification:
 
-- [ ] Qualify private-zone DNSSEC and UPDATE prerequisites against an independently operated authoritative lab.
-- [ ] Qualify DoQ and HTTP/3 on supported Windows/Linux/macOS native runtimes, including certificate errors, cancellation and connection reuse.
-- [ ] Exercise IPv6, split DNS and search-domain routing on representative hosts, and qualify multicast discovery across physical interfaces and network changes.
+- [ ] Qualify against an independently operated authoritative deployment in addition to the reproducible BIND lab, including server/version diversity and delegated private zones.
+- [ ] Extend observed macOS IPv4/IPv6 LAN multicast evidence to Windows/Linux, multiple physical adapters and real link/VPN changes; controlled changes require a configured authenticated LAN peer.
+- [ ] Extend native split-DNS/search-domain evidence beyond Windows NRPT and isolated Linux resolver files, especially macOS scoped resolvers and representative VPN configurations. Record unsupported platform routing explicitly.
 - [ ] Exercise CLI archives on their native x64/ARM64 architectures through the shared PowerForge publish configuration.
 
 Local source, compiled assemblies, isolated packed candidates, hosted CI, merged source, public packages and installed versions remain separate delivery states. Coordinated release must publish the core and optional providers before downstream users rely on public package availability. Signing, public publication and deployment follow their normal authorized release process.
@@ -49,10 +55,10 @@ Local source, compiled assemblies, isolated packed candidates, hosted CI, merged
 
 ## Next product work
 
-- [ ] Expand independently produced protocol evidence for signed aliases, compact denial, transfers, updates and service discovery.
+- [ ] Expand independently produced protocol evidence for compact denial, delegated private zones and service discovery.
 - [ ] Add privacy-protocol stamp workflows, mobile native assets and optional post-quantum DNSCrypt under their own compatibility and dependency contracts.
 - [ ] Record a complete ordered delegation/trust graph before claiming a full resolution or DNSSEC chain; bind resolver-selection explanations to persisted score, policy and capability evidence.
-- [ ] Distinguish endpoint identities throughout benchmark reports before allowing same-label variants in one profile. Publish performance claims only from repeatable scenarios that separate allocations, throughput and network latency.
+- [ ] Publish performance claims only from repeatable scenarios that separate allocations, throughput and network latency.
 - [ ] Design portable CLI profile overrides with explicit precedence when demonstrated callers need them.
 - [ ] Define one deterministic DNS-only policy evaluator for blocking, static answers and resolver selection; keep packet, browser, proxy and OS startup management outside this library.
 - [ ] Add hosting or rule packages only for demonstrated consumers with a distinct support and approved dependency contract.

@@ -4,6 +4,15 @@ using Xunit;
 namespace DnsClientX.Tests {
     /// <summary>Tests mDNS response correlation independently of multicast socket timing.</summary>
     public class DnsMulticastCorrelationTests {
+        /// <summary>A receive scheduled after browse cancellation reports disposal instead of dereferencing UdpClient's cleared socket.</summary>
+        [Fact]
+        public async System.Threading.Tasks.Task ClosedReceiveReportsDisposal() {
+            using var client = new System.Net.Sockets.UdpClient();
+            client.Dispose();
+            await Assert.ThrowsAsync<System.ObjectDisposedException>(() =>
+                DnsWireResolveMulticast.ReceivePacketAsync(client, new byte[512]));
+        }
+
         /// <summary>Unrelated announcements are not retained merely because mDNS uses transaction ID zero.</summary>
         [Fact]
         public void RejectsUnrelatedAnnouncement() {

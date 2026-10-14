@@ -30,6 +30,9 @@ namespace DnsClientX.Tests {
                 // Omit PersistKeySet so disposal releases the key file/keychain. Use memory-only imports elsewhere.
                 X509KeyStorageFlags keyStorage = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
                     ? X509KeyStorageFlags.DefaultKeySet : X509KeyStorageFlags.EphemeralKeySet;
+                // The OpenSSL QUIC backend exports this generated software key to PKCS#12.
+                // A macOS temporary-keychain import otherwise makes the fixture non-exportable.
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) keyStorage |= X509KeyStorageFlags.Exportable;
 #if NET9_0_OR_GREATER
                 return X509CertificateLoader.LoadPkcs12(pfx, null, keyStorage,
                     Pkcs12LoaderLimits.Defaults);

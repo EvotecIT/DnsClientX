@@ -1,4 +1,53 @@
-# Native DNS qualification
+# DNS interoperability and network qualification
+
+These harnesses use public DnsClientX operations against independent servers and native platform transports. They are test tools; users do not need BIND, Python or ASP.NET Core to install the library.
+
+## Independent authoritative server
+
+Install BIND test tools (`named`, `dig`, `dnssec-keygen`, `dnssec-signzone`, `dnssec-dsfromkey`), then run:
+
+```sh
+python3 scripts/qualification/qualify-bind.py --framework net10.0 --output /path/to/task-output/bind
+```
+
+On macOS, add `--tool-directory "$(brew --prefix bind)/bin"`. On confined Linux hosts, use `--lab-root` with a dedicated writable directory under the existing BIND data location (for example `/var/lib/bind/dnsclientx-qualification`). The lab root must be accessible to the harness execution identity: the ordinary BIND job uses the runner, and the private-network job uses root. This keeps AppArmor enforcement intact. The script creates private `.test` zones, software signing keys and a synthetic TSIG key in a temporary child of that lab root, or the output directory when no lab root is supplied. BIND runs in the foreground on loopback and an unprivileged port. The script stops the server and removes the keys in `finally`; it retains producer logs and TRX results. No system service or resolver configuration changes.
+
+The cases cover RSA signatures anchored by private DS records, NSEC/NSEC3 denial, CNAME/DNAME, wrong and expired anchors, atomic UPDATE prerequisites, multi-frame authenticated AXFR, incremental IXFR and no-change responses. This provides independent implementation evidence; it is not an independently operated deployment or a general server-compatibility claim.
+
+## Native encrypted transports
+
+On Windows, the .NET runtime supplies MsQuic. Linux requires `libmsquic`. macOS uses Homebrew `libmsquic`; .NET 8 also needs an available OpenSSL 3 library:
+
+```sh
+DYLD_FALLBACK_LIBRARY_PATH="$(brew --prefix)/lib:$(brew --prefix openssl@3)/lib" \
+DNSCLIENTX_REQUIRE_QUIC=1 dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj \
+  -c Release -f net8.0 \
+  --filter 'FullyQualifiedName~DnsQuicConnectionPool|FullyQualifiedName~NativeEncryptedDns'
+```
+
+Omit the macOS library variable on Windows/Linux. `DNSCLIENTX_REQUIRE_QUIC=1` makes an unavailable runtime fail the dedicated qualification job. Tests use ephemeral certificates, isolated trust roots and real DoQ/HTTP/3 peers. They check certificate rejection, answers, native protocol use, deadlines, caller cancellation, reuse and disposal. Direct HTTP queries retain their HttpClient deadline exception contract; query workflows classify those failures in their result metadata.
+
+## Isolated Linux OS network
+
+Build before entering the namespaces so restore does not need network access inside the lab:
+
+```sh
+dotnet build DnsClientX.Tests/DnsClientX.Tests.csproj -c Release -f net10.0 --artifacts-path artifacts/build
+sudo install -d -o root -g root -m 0700 /var/lib/bind/dnsclientx-qualification
+host_network=$(readlink /proc/self/ns/net)
+host_mount=$(readlink /proc/self/ns/mnt)
+sudo unshare --net --mount --propagation private --fork \
+  python3 scripts/qualification/qualify-linux-network.py \
+    --host-network "$host_network" --host-mount "$host_mount" \
+    --framework net10.0 --artifacts "$PWD/artifacts/build" --output "$PWD/artifacts/network" \
+    --lab-root /var/lib/bind/dnsclientx-qualification
+```
+
+Use a disposable Linux environment with BIND, `iproute2` and `util-linux`. The root-owned private lab directory matters: [BIND drops filesystem-override capabilities on Linux](https://bind9.readthedocs.io/en/v9.18.39/manpages.html#named-name-server-daemon), so a mode-0700 directory owned by the runner is inaccessible to that root process. The harness refuses the supplied host network/mount namespaces and requires an initially empty network containing only loopback. It mounts a fresh sysfs inside that private mount namespace so interface discovery describes the isolated network. It creates two virtual adapters and binds its own resolver file over `/etc/resolv.conf` only in the private mount namespace. Tests exercise real OS discovery, suffix fallback, absolute names, IPv6 unicast DNS, multicast interface routing and explicit rediscovery after an adapter/configuration change. The server and resolver bind mount are removed on exit; the kernel removes the private network with the process.
+
+The Windows live-DNS harness separately exercises NRPT routing on disposable hosted runners. Physical cross-host mDNS, physical link/VPN changes and macOS scoped resolver routing remain qualification gaps recorded in `PLAN.md`.
+
+## Live providers and Windows NRPT
 
 This non-packable runner exercises public DnsClientX APIs against live DNS providers and native resolver settings. It records signed and deliberately broken DNSSEC outcomes, OS-selected resolver behavior, and DNS-over-QUIC/HTTP/3 answers. Failures retain the native error and runtime support state. Results describe the measured host, network and provider at that time; they are separate from deterministic correctness suites and package-release evidence.
 

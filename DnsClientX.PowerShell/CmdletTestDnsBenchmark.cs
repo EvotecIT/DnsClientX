@@ -17,6 +17,9 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         public string Target { get; set; } = string.Empty;
 
+        /// <summary>Gets or sets the stable configured resolver candidate identity.</summary>
+        public string CandidateId { get; set; } = string.Empty;
+
         /// <summary>
         /// Resolver address observed on the fastest successful attempt for this candidate.
         /// </summary>
@@ -237,6 +240,9 @@ namespace DnsClientX.PowerShell {
         /// Best successful benchmark target under the current run.
         /// </summary>
         public string RecommendedTarget { get; set; } = "none";
+
+        /// <summary>Gets or sets the stable configured resolver candidate identity.</summary>
+        public string RecommendedCandidateId { get; set; } = string.Empty;
 
         /// <summary>
         /// Resolver observed on the recommended target's fastest successful attempt.
@@ -621,6 +627,7 @@ namespace DnsClientX.PowerShell {
         private static DnsBenchmarkResult ToDnsBenchmarkResult(ResolverBenchmarkReportResult result) {
             return new DnsBenchmarkResult {
                 Target = result.Target,
+                CandidateId = result.CandidateId,
                 Resolver = result.Resolver,
                 Transport = result.Transport,
                 Domains = result.Domains,
@@ -670,6 +677,7 @@ namespace DnsClientX.PowerShell {
                 RequiredMinSuccessPercent = summary.RequiredMinSuccessPercent,
                 RequiredMinSuccessfulCandidates = summary.RequiredMinSuccessfulCandidates,
                 RecommendedTarget = summary.RecommendedTarget,
+                RecommendedCandidateId = summary.RecommendedCandidateId,
                 RecommendedResolver = summary.RecommendedResolver,
                 RecommendedTransport = summary.RecommendedTransport,
                 RecommendedAverageMs = summary.RecommendedAverageMs,

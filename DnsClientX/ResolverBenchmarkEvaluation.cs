@@ -56,6 +56,9 @@ namespace DnsClientX {
         /// </summary>
         public string RecommendedTarget { get; set; } = "none";
 
+        /// <summary>Gets or sets the stable identity of the recommended configured candidate.</summary>
+        public string RecommendedCandidateId { get; set; } = string.Empty;
+
         /// <summary>
         /// Gets or sets the resolver observed on the recommended candidate.
         /// </summary>
@@ -101,6 +104,7 @@ namespace DnsClientX {
                     RequiredMinSuccessfulCandidates = policy?.MinSuccessfulCandidates,
                     RecommendationAvailable = RecommendationAvailable,
                     RecommendedTarget = RecommendedTarget,
+                    RecommendedCandidateId = RecommendedCandidateId,
                     RecommendedResolver = RecommendedResolver,
                     RecommendedTransport = RecommendedTransport,
                     RecommendedAverageMs = RecommendedAverageMs,
@@ -109,7 +113,7 @@ namespace DnsClientX {
                     RecommendationReason = RecommendationAvailable ? "none" : (PolicyPassed ? "no successful candidates" : "policy failed")
                 },
                 Results = Array.ConvertAll(Results, result => new ResolverScoreEntry {
-                    Target = result.Target,
+                    Target = result.Target, CandidateId = result.CandidateId,
                     ConnectionMode = result.ConnectionMode,
                     Resolver = result.Resolver,
                     Transport = result.Transport,

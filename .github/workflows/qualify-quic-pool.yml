@@ -1,4 +1,4 @@
-name: Qualify QUIC pool lifetime
+name: Qualify native encrypted DNS
 
 on:
   workflow_dispatch:
@@ -9,7 +9,21 @@ on:
       - 'DnsClientX/ProtocolDnsQuic/DnsQuicConnectionPool.cs'
       - 'DnsClientX/ProtocolDnsQuic/DnsWireResolveQuic.cs'
       - 'DnsClientX/Network/DnsTlsCertificateTrust.cs'
+      - 'DnsClientX/ProtocolDnsHttp3/**'
+      - 'DnsClientX/ProtocolDnsWire/DnsWireResolve.cs'
+      - 'DnsClientX/DnsHttp*.cs'
+      - 'DnsClientX/DnsClientX.cs'
+      - 'DnsClientX/DnsClientX.Http*.cs'
+      - 'DnsClientX/DnsClientX.Resolve.cs'
+      - 'DnsClientX/DnsClientX.Dispose.cs'
+      - 'DnsClientX/Configuration*.cs'
+      - 'DnsClientX/Definitions/DnsResolverEndpoint.cs'
+      - 'DnsClientX/Network/DnsServerResolver.cs'
+      - 'DnsClientX/Network/DnsBootstrapResolver.cs'
       - 'DnsClientX.Tests/DnsQuicConnectionPool*'
+      - 'DnsClientX.Tests/NativeEncryptedDns*'
+      - 'DnsClientX.Tests/TestUtilities.cs'
+      - 'DnsClientX.Tests/DnsClientX.Tests.csproj'
   push:
     branches: [main]
     paths:
@@ -17,7 +31,21 @@ on:
       - 'DnsClientX/ProtocolDnsQuic/DnsQuicConnectionPool.cs'
       - 'DnsClientX/ProtocolDnsQuic/DnsWireResolveQuic.cs'
       - 'DnsClientX/Network/DnsTlsCertificateTrust.cs'
+      - 'DnsClientX/ProtocolDnsHttp3/**'
+      - 'DnsClientX/ProtocolDnsWire/DnsWireResolve.cs'
+      - 'DnsClientX/DnsHttp*.cs'
+      - 'DnsClientX/DnsClientX.cs'
+      - 'DnsClientX/DnsClientX.Http*.cs'
+      - 'DnsClientX/DnsClientX.Resolve.cs'
+      - 'DnsClientX/DnsClientX.Dispose.cs'
+      - 'DnsClientX/Configuration*.cs'
+      - 'DnsClientX/Definitions/DnsResolverEndpoint.cs'
+      - 'DnsClientX/Network/DnsServerResolver.cs'
+      - 'DnsClientX/Network/DnsBootstrapResolver.cs'
       - 'DnsClientX.Tests/DnsQuicConnectionPool*'
+      - 'DnsClientX.Tests/NativeEncryptedDns*'
+      - 'DnsClientX.Tests/TestUtilities.cs'
+      - 'DnsClientX.Tests/DnsClientX.Tests.csproj'
 
 permissions:
   contents: read
@@ -30,7 +58,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         framework: [net8.0, net10.0]
     env:
       DNSCLIENTX_REQUIRE_QUIC: '1'
@@ -48,8 +76,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes libmsquic
           dpkg-query -W libmsquic
-      - name: Verify pool lifetime with native loopback connections
-        run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj -c Release -f ${{ matrix.framework }} --filter FullyQualifiedName~DnsQuicConnectionPool --logger trx --results-directory artifacts/quic-pool
+      - name: Install macOS QUIC platform runtime
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+        run: |
+          brew install libmsquic openssl@3
+          brew list --versions libmsquic openssl@3
+          echo "DYLD_FALLBACK_LIBRARY_PATH=$(brew --prefix)/lib:$(brew --prefix openssl@3)/lib" >> "$GITHUB_ENV"
+      - name: Verify encrypted DNS with native loopback connections
+        run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj -c Release -f ${{ matrix.framework }} --filter "FullyQualifiedName~DnsQuicConnectionPool|FullyQualifiedName~NativeEncryptedDns" --logger trx --results-directory artifacts/quic-pool
       - name: Keep native qualification results
         if: always()
         uses: actions/upload-artifact@v7

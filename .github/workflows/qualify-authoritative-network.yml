@@ -1,0 +1,109 @@
+name: Qualify authoritative DNS and OS networks
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/qualify-authoritative-network.yml'
+      - 'scripts/qualification/**'
+      - 'DnsClientX/**'
+      - 'DnsClientX.Tests/**'
+
+permissions:
+  contents: read
+
+jobs:
+  authoritative:
+    name: BIND interoperability (${{ matrix.os }}, ${{ matrix.framework }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        framework: [net8.0, net10.0]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.x
+            10.x
+      - name: Install independent BIND tools on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes bind9 bind9-utils dnsutils
+          sudo systemctl stop named
+          sudo install -d -o "$(id -u)" -g "$(id -g)" -m 0700 /var/lib/bind/dnsclientx-qualification
+      - name: Install independent BIND tools on macOS
+        if: runner.os == 'macOS'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+        run: brew install bind
+      - name: Qualify private anchors, aliases, denial, UPDATE and authenticated transfers
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            python3 scripts/qualification/qualify-bind.py --framework '${{ matrix.framework }}' --output artifacts/bind --tool-directory "$(brew --prefix bind)/bin"
+          else
+            python3 scripts/qualification/qualify-bind.py --framework '${{ matrix.framework }}' --output artifacts/bind --lab-root /var/lib/bind/dnsclientx-qualification
+          fi
+      - name: Keep independent evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bind-${{ matrix.os }}-${{ matrix.framework }}
+          path: |
+            artifacts/bind/*.log
+            artifacts/bind/producer.json
+            artifacts/bind/results/
+          retention-days: 7
+          if-no-files-found: error
+
+  linux-network:
+    name: Linux OS network (${{ matrix.framework }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [net8.0, net10.0]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.x
+            10.x
+      - name: Install disposable kernel-network lab tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes bind9 bind9-utils dnsutils iproute2 util-linux
+          sudo systemctl stop named
+          sudo install -d -o root -g root -m 0700 /var/lib/bind/dnsclientx-qualification
+      - name: Build before entering isolated namespaces
+        run: dotnet build DnsClientX.Tests/DnsClientX.Tests.csproj -c Release -f ${{ matrix.framework }} --artifacts-path artifacts/build
+      - name: Qualify actual resolver discovery, IPv6, search domains and adapter changes
+        shell: bash
+        run: |
+          host_network=$(readlink /proc/self/ns/net)
+          host_mount=$(readlink /proc/self/ns/mnt)
+          dotnet_path=$(command -v dotnet)
+          sudo env "PATH=$(dirname "$dotnet_path"):$PATH" unshare --net --mount --propagation private --fork \
+            python3 scripts/qualification/qualify-linux-network.py \
+              --host-network "$host_network" --host-mount "$host_mount" \
+              --framework '${{ matrix.framework }}' --artifacts "$PWD/artifacts/build" --output "$PWD/artifacts/network" \
+              --lab-root /var/lib/bind/dnsclientx-qualification
+      - name: Keep OS network evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-network-${{ matrix.framework }}
+          path: |
+            artifacts/network/*.log
+            artifacts/network/namespace-receipt.json
+            artifacts/network/results/
+          retention-days: 7
+          if-no-files-found: error

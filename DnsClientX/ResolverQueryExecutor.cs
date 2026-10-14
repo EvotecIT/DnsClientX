@@ -22,10 +22,10 @@ namespace DnsClientX {
             }
             cancellationToken.ThrowIfCancellationRequested();
             if (target.ExplicitEndpoint != null && explicitOverride != null) {
-                return (await explicitOverride(target.ExplicitEndpoint, name, recordType, cancellationToken).ConfigureAwait(false)).WithQuery(name, recordType);
+                return (await explicitOverride(target.ExplicitEndpoint, name, recordType, cancellationToken).ConfigureAwait(false)).WithQuery(name, recordType).WithCandidate(target);
             }
             if (target.ExplicitEndpoint == null && target.BuiltInEndpoint.HasValue && builtInOverride != null) {
-                return (await builtInOverride(target.BuiltInEndpoint.Value, name, recordType, cancellationToken).ConfigureAwait(false)).WithQuery(name, recordType);
+                return (await builtInOverride(target.BuiltInEndpoint.Value, name, recordType, cancellationToken).ConfigureAwait(false)).WithQuery(name, recordType).WithCandidate(target);
             }
 
             // Start before obtaining the client so first-use setup is included in both modes.
@@ -35,7 +35,7 @@ namespace DnsClientX {
                 return (await ExecuteWithClientAsync(client, target.DisplayName, name, recordType,
                     options.RequestDnsSec || target.ExplicitEndpoint?.DnsSecOk == true,
                     options, stopwatch, retainedClient != null ? options.ConnectionMode : ResolverQueryConnectionMode.Cold,
-                    cancellationToken).ConfigureAwait(false)).WithQuery(name, recordType);
+                    cancellationToken).ConfigureAwait(false)).WithQuery(name, recordType).WithCandidate(target);
             } finally {
                 if (retainedClient == null) {
                     await client.DisposeAsync().ConfigureAwait(false);

@@ -39,6 +39,9 @@ namespace DnsClientX {
         public int ConsensusPercent { get; set; }
         /// <summary>Gets or sets the fastest successful target.</summary>
         public string FastestSuccessTarget { get; set; } = "none";
+
+        /// <summary>Gets or sets the stable identity of the FastestSuccess candidate.</summary>
+        public string FastestSuccessCandidateId { get; set; } = string.Empty;
         /// <summary>Gets or sets the resolver of the fastest successful target.</summary>
         public string FastestSuccessResolver { get; set; } = "none";
         /// <summary>Gets or sets the transport of the fastest successful target.</summary>
@@ -47,6 +50,9 @@ namespace DnsClientX {
         public double FastestSuccessMs { get; set; }
         /// <summary>Gets or sets the fastest consensus target.</summary>
         public string FastestConsensusTarget { get; set; } = "none";
+
+        /// <summary>Gets or sets the stable identity of the FastestConsensus candidate.</summary>
+        public string FastestConsensusCandidateId { get; set; } = string.Empty;
         /// <summary>Gets or sets the resolver of the fastest consensus target.</summary>
         public string FastestConsensusResolver { get; set; } = "none";
         /// <summary>Gets or sets the transport of the fastest consensus target.</summary>
@@ -57,6 +63,9 @@ namespace DnsClientX {
         public bool RecommendationAvailable { get; set; }
         /// <summary>Gets or sets the recommended target.</summary>
         public string RecommendedTarget { get; set; } = "none";
+
+        /// <summary>Gets or sets the stable identity of the recommended configured candidate.</summary>
+        public string RecommendedCandidateId { get; set; } = string.Empty;
         /// <summary>Gets or sets the recommended resolver.</summary>
         public string RecommendedResolver { get; set; } = "none";
         /// <summary>Gets or sets the recommended transport.</summary>
@@ -77,6 +86,9 @@ namespace DnsClientX {
         public string[] RuntimeCapabilityWarnings { get; set; } = System.Array.Empty<string>();
         /// <summary>Gets or sets the targets outside the leading consensus group.</summary>
         public string[] MismatchedTargets { get; set; } = System.Array.Empty<string>();
+
+        /// <summary>Gets or sets configured identities corresponding to <see cref="MismatchedTargets"/>.</summary>
+        public string[] MismatchedCandidateIds { get; set; } = System.Array.Empty<string>();
         /// <summary>Gets or sets the distinct successful answer variants.</summary>
         public ResolverProbeAnswerVariant[] AnswerVariants { get; set; } = System.Array.Empty<ResolverProbeAnswerVariant>();
     }
