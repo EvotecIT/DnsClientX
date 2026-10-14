@@ -503,6 +503,8 @@ foreach (var rule in discovered.PolicyRules) {
 
 Search expansion is enabled by default for system endpoints and can be disabled with `Configuration.UseSystemSearchDomains`. A trailing dot is always treated as absolute, and PTR inputs are never search-expanded.
 
+On Linux, discovery reads the complete ordered search list from `/etc/resolv.conf`. The last `search` or `domain` directive replaces earlier entries, following the [resolver configuration rules](https://man7.org/linux/man-pages/man5/resolv.conf.5.html).
+
 NRPT enforcement is enabled by default for system endpoints and can be deliberately disabled with `Configuration.UseSystemDnsPolicies`. The applied match is available as `DnsResponse.AppliedSystemDnsPolicy`. DnsClientX reads policy directly and does not emulate Windows DirectAccess, VPN activation, or IPsec state; use the operating-system resolver API when those services own the policy.
 
 Persistent TCP/DoT reuse is enabled by default. Set `EnableTcpConnectionReuse = false` only for compatibility diagnostics with a broken server. `MaxTcpQueriesPerConnection` bounds in-flight queries on one connection and defaults to 128. The configured timeout covers capacity, connection, transaction-ID reservation, write, and response waits. Caller cancellation removes only that transaction; late responses are consumed without completing another query.

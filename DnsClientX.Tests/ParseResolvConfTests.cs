@@ -37,5 +37,22 @@ namespace DnsClientX.Tests {
                 File.Delete(path);
             }
         }
+
+        /// <summary>The last search or domain directive replaces the earlier search list.</summary>
+        [Theory]
+        [InlineData("search first.test second.test\ndomain final.test\n", "final.test")]
+        [InlineData("domain first.test\ndomain final.test\n", "final.test")]
+        [InlineData("domain first.test\nsearch second.test final.test\n", "second.test", "final.test")]
+        [InlineData("search first.test\nsearch second.test final.test\n", "second.test", "final.test")]
+        public void LastSearchDirectiveWins(string contents, params string[] expected) {
+            string path = Path.GetTempFileName();
+            try {
+                File.WriteAllText(path, "nameserver 127.0.0.53\n" + contents);
+                SystemDnsConfiguration result = SystemInformation.ParseResolvConf(path);
+                Assert.Equal(expected, result.SearchDomains);
+            } finally {
+                File.Delete(path);
+            }
+        }
     }
 }

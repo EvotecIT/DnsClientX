@@ -108,7 +108,8 @@ namespace DnsClientX {
                     } else if (parts[0].Equals("search", StringComparison.OrdinalIgnoreCase)) {
                         searchDomains.Clear();
                         searchDomains.AddRange(parts.Skip(1));
-                    } else if (parts[0].Equals("domain", StringComparison.OrdinalIgnoreCase) && searchDomains.Count == 0) {
+                    } else if (parts[0].Equals("domain", StringComparison.OrdinalIgnoreCase)) {
+                        searchDomains.Clear();
                         searchDomains.Add(parts[1]);
                     } else if (parts[0].Equals("options", StringComparison.OrdinalIgnoreCase)) {
                         foreach (string option in parts.Skip(1)) {
@@ -226,9 +227,13 @@ namespace DnsClientX {
 
             SystemDnsConfiguration resolvConf = ParseResolvConf("/etc/resolv.conf", DebugPrint);
             if (interfaceServers.Length > 0) {
-                IEnumerable<string> effectiveSearchDomains = searchDomains.Count > 0
-                    ? searchDomains
-                    : resolvConf.SearchDomains;
+                // Linux interface properties expose only one suffix from the global resolver file.
+                // Keep its complete ordered search list instead of replacing it with that suffix.
+                IEnumerable<string> effectiveSearchDomains =
+                    (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && resolvConf.SearchDomains.Count > 0)
+                    || searchDomains.Count == 0
+                        ? resolvConf.SearchDomains
+                        : searchDomains;
                 return new SystemDnsConfiguration(
                     interfaceServers,
                     effectiveSearchDomains,
