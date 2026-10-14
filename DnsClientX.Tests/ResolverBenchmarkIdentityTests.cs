@@ -36,6 +36,10 @@ public sealed class ResolverBenchmarkIdentityTests {
         Assert.Equal(2, report.Snapshot.Results.Length);
         Assert.Equal(2, report.Snapshot.Answers.Select(row => row.CandidateId).Distinct().Count());
         Assert.Equal(targets[0].CandidateId, report.Summary.RecommendedCandidateId);
+        string summaryLine = ResolverReportTextFormatter.BuildBenchmarkSummaryLine(report.Summary, 0);
+        Assert.Contains("best_candidate_id=" + Uri.EscapeDataString(targets[0].CandidateId) + " ", summaryLine);
+        Assert.All(report.Results, row => Assert.Contains(row.CandidateId,
+            ResolverReportTextFormatter.BuildBenchmarkResultLines(row, duration => duration.TotalMilliseconds + " ms")[0]));
         Assert.True(ResolverScoreSelector.TrySelectRecommended(report.Snapshot, out var selected, out string? error), error);
         Assert.Equal(TimeSpan.FromSeconds(1), selected!.ExplicitEndpoint!.Timeout);
 

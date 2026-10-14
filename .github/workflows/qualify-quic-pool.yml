@@ -1,4 +1,4 @@
-name: Qualify QUIC pool lifetime
+name: Qualify native encrypted DNS
 
 on:
   workflow_dispatch:
@@ -9,6 +9,17 @@ on:
       - 'DnsClientX/ProtocolDnsQuic/DnsQuicConnectionPool.cs'
       - 'DnsClientX/ProtocolDnsQuic/DnsWireResolveQuic.cs'
       - 'DnsClientX/Network/DnsTlsCertificateTrust.cs'
+      - 'DnsClientX/ProtocolDnsHttp3/**'
+      - 'DnsClientX/ProtocolDnsWire/DnsWireResolve.cs'
+      - 'DnsClientX/DnsHttp*.cs'
+      - 'DnsClientX/DnsClientX.cs'
+      - 'DnsClientX/DnsClientX.Http*.cs'
+      - 'DnsClientX/DnsClientX.Resolve.cs'
+      - 'DnsClientX/DnsClientX.Dispose.cs'
+      - 'DnsClientX/Configuration*.cs'
+      - 'DnsClientX/Definitions/DnsResolverEndpoint.cs'
+      - 'DnsClientX/Network/DnsServerResolver.cs'
+      - 'DnsClientX/Network/DnsBootstrapResolver.cs'
       - 'DnsClientX.Tests/DnsQuicConnectionPool*'
       - 'DnsClientX.Tests/NativeEncryptedDns*'
       - 'DnsClientX.Tests/TestUtilities.cs'
@@ -20,6 +31,17 @@ on:
       - 'DnsClientX/ProtocolDnsQuic/DnsQuicConnectionPool.cs'
       - 'DnsClientX/ProtocolDnsQuic/DnsWireResolveQuic.cs'
       - 'DnsClientX/Network/DnsTlsCertificateTrust.cs'
+      - 'DnsClientX/ProtocolDnsHttp3/**'
+      - 'DnsClientX/ProtocolDnsWire/DnsWireResolve.cs'
+      - 'DnsClientX/DnsHttp*.cs'
+      - 'DnsClientX/DnsClientX.cs'
+      - 'DnsClientX/DnsClientX.Http*.cs'
+      - 'DnsClientX/DnsClientX.Resolve.cs'
+      - 'DnsClientX/DnsClientX.Dispose.cs'
+      - 'DnsClientX/Configuration*.cs'
+      - 'DnsClientX/Definitions/DnsResolverEndpoint.cs'
+      - 'DnsClientX/Network/DnsServerResolver.cs'
+      - 'DnsClientX/Network/DnsBootstrapResolver.cs'
       - 'DnsClientX.Tests/DnsQuicConnectionPool*'
       - 'DnsClientX.Tests/NativeEncryptedDns*'
       - 'DnsClientX.Tests/TestUtilities.cs'
@@ -63,7 +85,7 @@ jobs:
           brew install libmsquic openssl@3
           brew list --versions libmsquic openssl@3
           echo "DYLD_FALLBACK_LIBRARY_PATH=$(brew --prefix)/lib:$(brew --prefix openssl@3)/lib" >> "$GITHUB_ENV"
-      - name: Verify pool lifetime with native loopback connections
+      - name: Verify encrypted DNS with native loopback connections
         run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj -c Release -f ${{ matrix.framework }} --filter "FullyQualifiedName~DnsQuicConnectionPool|FullyQualifiedName~NativeEncryptedDns" --logger trx --results-directory artifacts/quic-pool
       - name: Keep native qualification results
         if: always()
