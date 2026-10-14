@@ -60,6 +60,9 @@ namespace DnsClientX {
         /// </summary>
         public string FastestSuccessTarget { get; set; } = "none";
 
+        /// <summary>Gets or sets the stable identity of the FastestSuccess candidate.</summary>
+        public string FastestSuccessCandidateId { get; set; } = string.Empty;
+
         /// <summary>
         /// Gets or sets the resolver observed for the fastest successful candidate.
         /// </summary>
@@ -79,6 +82,9 @@ namespace DnsClientX {
         /// Gets or sets the fastest consensus candidate label.
         /// </summary>
         public string FastestConsensusTarget { get; set; } = "none";
+
+        /// <summary>Gets or sets the stable identity of the FastestConsensus candidate.</summary>
+        public string FastestConsensusCandidateId { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the resolver observed for the fastest consensus candidate.
@@ -104,6 +110,9 @@ namespace DnsClientX {
         /// Gets or sets the recommended candidate label.
         /// </summary>
         public string RecommendedTarget { get; set; } = "none";
+
+        /// <summary>Gets or sets the stable identity of the recommended configured candidate.</summary>
+        public string RecommendedCandidateId { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the resolver observed for the recommended candidate.
@@ -159,6 +168,7 @@ namespace DnsClientX {
                     RequireConsensus = policy?.RequireConsensus == true,
                     RecommendationAvailable = RecommendationAvailable,
                     RecommendedTarget = RecommendedTarget,
+                    RecommendedCandidateId = RecommendedCandidateId,
                     RecommendedResolver = RecommendedResolver,
                     RecommendedTransport = RecommendedTransport,
                     RecommendedAverageMs = RecommendedAverageMs,
@@ -167,9 +177,11 @@ namespace DnsClientX {
                     ConsensusTotal = ConsensusTotal,
                     ConsensusPercent = ConsensusPercent,
                     FastestSuccessTarget = FastestSuccessTarget,
+                    FastestSuccessCandidateId = FastestSuccessCandidateId,
                     FastestSuccessTransport = FastestSuccessTransport,
                     FastestSuccessMs = FastestSuccessMs,
                     FastestConsensusTarget = FastestConsensusTarget,
+                    FastestConsensusCandidateId = FastestConsensusCandidateId,
                     FastestConsensusTransport = FastestConsensusTransport,
                     FastestConsensusMs = FastestConsensusMs,
                     RecommendationSource = RecommendationSource,
@@ -177,7 +189,7 @@ namespace DnsClientX {
                     RecommendationReason = RecommendationReason
                 },
                 Results = Array.ConvertAll(Results, result => new ResolverScoreEntry {
-                    Target = result.Target,
+                    Target = result.Target, CandidateId = result.CandidateId,
                     Resolver = result.Resolver,
                     Transport = result.Transport,
                     TotalQueries = 1,

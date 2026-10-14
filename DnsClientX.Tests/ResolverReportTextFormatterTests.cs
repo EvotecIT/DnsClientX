@@ -5,6 +5,19 @@ namespace DnsClientX.Tests {
     /// Tests shared report text formatting helpers.
     /// </summary>
     public class ResolverReportTextFormatterTests {
+        /// <summary>Reordered rows with colliding labels still describe the selected candidate's latency.</summary>
+        [Fact]
+        public void BenchmarkBestUsesCandidateIdentity() {
+            var rows = new[] {
+                new ResolverBenchmarkReportResult { Target = "same", CandidateId = "first", SuccessCount = 1, SuccessPercent = 100, AverageMs = 42 },
+                new ResolverBenchmarkReportResult { Target = "same", CandidateId = "second", SuccessCount = 1, SuccessPercent = 100, AverageMs = 7 }
+            };
+            var summary = new ResolverBenchmarkReportSummary {
+                RecommendationAvailable = true, RecommendedTarget = "same", RecommendedCandidateId = "second"
+            };
+            Assert.Equal("same in 7 ms average (100% success)", ResolverReportTextFormatter.DescribeBenchmarkBest(rows, summary, FormatDuration));
+        }
+
         /// <summary>Probe consensus text cannot emit a control sequence from an answer set.</summary>
         [Fact]
         public void ProbeAnswerVariantsEscapeTerminalControls() {

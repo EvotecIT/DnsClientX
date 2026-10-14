@@ -25,7 +25,7 @@ namespace DnsClientX {
             ResolverProbeObservation[] observations = attempts
                 .Select((result, index) => new ResolverProbeObservation {
                     SourceIndex = index,
-                    Target = result.Target,
+                    Target = result.Target, CandidateId = result.CandidateId,
                     Resolver = result.Resolver,
                     Transport = result.Transport,
                     ElapsedMs = Math.Round(result.Elapsed.TotalMilliseconds, 2, MidpointRounding.AwayFromZero),
@@ -40,7 +40,7 @@ namespace DnsClientX {
                 .Select(result => {
                     ResolverQueryAttemptResult attempt = attempts[result.SourceIndex];
                     return new ResolverProbeReportResult {
-                        Target = result.Target,
+                        Target = result.Target, CandidateId = result.CandidateId,
                         AnswerSignature = attempt.AnswerSignature,
                         Explanation = attempt.Response == null ? null : DnsQueryExplanation.Create(attempt.Response),
                         Resolver = attempt.Resolver,
@@ -72,6 +72,9 @@ namespace DnsClientX {
                 .ThenBy(group => group.Key, StringComparer.Ordinal)
                 .Select(group => group.ToArray())
                 .ToArray();
+            ResolverQueryAttemptResult[] mismatched = groups.Skip(1).SelectMany(group => group)
+                .OrderBy(result => result.Target, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(result => result.CandidateId, StringComparer.Ordinal).ToArray();
 
             ResolverProbeReportSummary summary = new ResolverProbeReportSummary {
                 Name = name ?? string.Empty,
@@ -92,15 +95,18 @@ namespace DnsClientX {
                 ConsensusTotal = evaluation.ConsensusTotal,
                 ConsensusPercent = evaluation.ConsensusPercent,
                 FastestSuccessTarget = evaluation.FastestSuccessTarget,
+                FastestSuccessCandidateId = evaluation.FastestSuccessCandidateId,
                 FastestSuccessResolver = evaluation.FastestSuccessResolver,
                 FastestSuccessTransport = evaluation.FastestSuccessTransport,
                 FastestSuccessMs = evaluation.FastestSuccessMs,
                 FastestConsensusTarget = evaluation.FastestConsensusTarget,
+                FastestConsensusCandidateId = evaluation.FastestConsensusCandidateId,
                 FastestConsensusResolver = evaluation.FastestConsensusResolver,
                 FastestConsensusTransport = evaluation.FastestConsensusTransport,
                 FastestConsensusMs = evaluation.FastestConsensusMs,
                 RecommendationAvailable = evaluation.RecommendationAvailable,
                 RecommendedTarget = evaluation.RecommendedTarget,
+                RecommendedCandidateId = evaluation.RecommendedCandidateId,
                 RecommendedResolver = evaluation.RecommendedResolver,
                 RecommendedTransport = evaluation.RecommendedTransport,
                 RecommendedAverageMs = evaluation.RecommendedAverageMs,
@@ -118,21 +124,17 @@ namespace DnsClientX {
                     .ToArray(),
                 RuntimeUnsupportedCandidateCount = DnsTransportCapabilities.CountUnsupportedTargets(attempts),
                 RuntimeCapabilityWarnings = runtimeCapabilityWarnings,
-                MismatchedTargets = groups.Length <= 1
-                    ? Array.Empty<string>()
-                    : groups
-                        .Skip(1)
-                        .SelectMany(group => group)
-                        .Select(result => result.Target)
-                        .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
-                        .ToArray(),
+                MismatchedTargets = mismatched.Select(result => result.Target).ToArray(),
+                MismatchedCandidateIds = mismatched.Select(result => result.CandidateId).ToArray(),
                 AnswerVariants = groups
-                    .Select(group => new ResolverProbeAnswerVariant {
-                        AnswerSet = DescribeAnswerSet(group[0]),
-                        Targets = group
-                            .Select(result => result.Target)
-                            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
-                            .ToArray()
+                    .Select(group => {
+                        ResolverQueryAttemptResult[] responders = group.OrderBy(result => result.Target, StringComparer.OrdinalIgnoreCase)
+                            .ThenBy(result => result.CandidateId, StringComparer.Ordinal).ToArray();
+                        return new ResolverProbeAnswerVariant {
+                            AnswerSet = DescribeAnswerSet(group[0]),
+                            Targets = responders.Select(result => result.Target).ToArray(),
+                            CandidateIds = responders.Select(result => result.CandidateId).ToArray()
+                        };
                     })
                     .ToArray()
             };
@@ -141,7 +143,7 @@ namespace DnsClientX {
             snapshot.Summary.RuntimeUnsupportedCandidateCount = summary.RuntimeUnsupportedCandidateCount;
             snapshot.Summary.RuntimeCapabilityWarnings = summary.RuntimeCapabilityWarnings;
             snapshot.Answers = attempts.Select(a => new ResolverAnswerObservation {
-                Target = a.Target, Name = name ?? string.Empty, RecordType = recordType,
+                Target = a.Target, CandidateId = a.CandidateId, Name = name ?? string.Empty, RecordType = recordType,
                 Status = a.Status, AnswerSignature = a.AnswerSignature
             }).ToArray();
 

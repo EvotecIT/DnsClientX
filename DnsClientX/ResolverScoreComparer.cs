@@ -22,17 +22,17 @@ namespace DnsClientX {
             });
             string[] reasons = GetScopeReasons(baseline, current).ToArray();
             bool comparable = reasons.Length == 0;
-            Dictionary<string, ResolverScoreEntry[]> before = baseline.Results.GroupBy(e => e.Target, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.ToArray(), StringComparer.OrdinalIgnoreCase);
-            Dictionary<string, ResolverScoreEntry[]> after = current.Results.GroupBy(e => e.Target, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.ToArray(), StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, ResolverScoreEntry[]> before = baseline.Results.GroupBy(e => ResolverCandidateIdentity.GroupKey(e.CandidateId, e.Target), StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.ToArray(), StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, ResolverScoreEntry[]> after = current.Results.GroupBy(e => ResolverCandidateIdentity.GroupKey(e.CandidateId, e.Target), StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.ToArray(), StringComparer.OrdinalIgnoreCase);
             ResolverScoreChange[] candidates = before.Keys.Union(after.Keys, StringComparer.OrdinalIgnoreCase).OrderBy(k => k, StringComparer.OrdinalIgnoreCase).Select(key => {
                 before.TryGetValue(key, out ResolverScoreEntry[]? oldEntries); after.TryGetValue(key, out ResolverScoreEntry[]? newEntries);
                 if (oldEntries?.Length > 1 || newEntries?.Length > 1 ||
-                    oldEntries != null && HasUnavailableIdentity(baseline.Context, key) || newEntries != null && HasUnavailableIdentity(current.Context, key)) {
-                    return new ResolverScoreChange { Target = key, Change = "Ambiguous" };
+                    oldEntries != null && HasUnavailableIdentity(baseline.Context, oldEntries![0]) || newEntries != null && HasUnavailableIdentity(current.Context, newEntries![0])) {
+                    return new ResolverScoreChange { Target = newEntries?.FirstOrDefault()?.Target ?? oldEntries![0].Target, CandidateId = newEntries?.FirstOrDefault()?.CandidateId ?? oldEntries![0].CandidateId, Change = "Ambiguous" };
                 }
                 ResolverScoreEntry? oldEntry = oldEntries?.Single(), newEntry = newEntries?.Single();
                 return new ResolverScoreChange {
-                    Target = key, Baseline = oldEntry, Current = newEntry,
+                    Target = newEntry?.Target ?? oldEntry!.Target, CandidateId = newEntry?.CandidateId ?? oldEntry!.CandidateId, Baseline = oldEntry, Current = newEntry,
                     Change = oldEntry == null ? "Added" : newEntry == null ? "Removed" : SameScore(oldEntry, newEntry) ? "Unchanged" : "Changed",
                     SuccessPercentDelta = !comparable || oldEntry == null || newEntry == null ? null : newEntry.SuccessPercent - oldEntry.SuccessPercent,
                     AverageMsDelta = !comparable || oldEntry == null || newEntry == null || oldEntry.SuccessCount == 0 || newEntry.SuccessCount == 0 ? null : newEntry.AverageMs - oldEntry.AverageMs
@@ -40,14 +40,14 @@ namespace DnsClientX {
             }).ToArray();
             ResolverAnswerObservation[] oldAnswers = baseline.Answers ?? Array.Empty<ResolverAnswerObservation>();
             ResolverAnswerObservation[] newAnswers = current.Answers ?? Array.Empty<ResolverAnswerObservation>();
-            var keys = oldAnswers.Concat(newAnswers).Select(a => (Target: a.Target.ToLowerInvariant(), Name: Canonical(a.Name), a.RecordType)).Distinct();
-            ResolverAnswerChange[] answers = keys.OrderBy(k => k.Target, StringComparer.Ordinal).ThenBy(k => k.Name, StringComparer.Ordinal).ThenBy(k => k.RecordType).Select(key => {
-                ResolverAnswerObservation[] oldValues = oldAnswers.Where(a => a.Target.Equals(key.Target, StringComparison.OrdinalIgnoreCase) && Canonical(a.Name) == key.Name && a.RecordType == key.RecordType).ToArray();
-                ResolverAnswerObservation[] newValues = newAnswers.Where(a => a.Target.Equals(key.Target, StringComparison.OrdinalIgnoreCase) && Canonical(a.Name) == key.Name && a.RecordType == key.RecordType).ToArray();
+            var keys = oldAnswers.Concat(newAnswers).Select(a => (Identity: ResolverCandidateIdentity.GroupKey(a.CandidateId, a.Target).ToLowerInvariant(), Name: Canonical(a.Name), a.RecordType)).Distinct();
+            ResolverAnswerChange[] answers = keys.OrderBy(k => k.Identity, StringComparer.Ordinal).ThenBy(k => k.Name, StringComparer.Ordinal).ThenBy(k => k.RecordType).Select(key => {
+                ResolverAnswerObservation[] oldValues = oldAnswers.Where(a => ResolverCandidateIdentity.GroupKey(a.CandidateId, a.Target).Equals(key.Identity, StringComparison.OrdinalIgnoreCase) && Canonical(a.Name) == key.Name && a.RecordType == key.RecordType).ToArray();
+                ResolverAnswerObservation[] newValues = newAnswers.Where(a => ResolverCandidateIdentity.GroupKey(a.CandidateId, a.Target).Equals(key.Identity, StringComparison.OrdinalIgnoreCase) && Canonical(a.Name) == key.Name && a.RecordType == key.RecordType).ToArray();
                 ResolverAnswerReference? reference = references.FirstOrDefault(r => Canonical(r.Name) == key.Name && r.RecordType == key.RecordType);
                 int matches = reference == null ? 0 : newValues.Count(a => a.Status == reference.Response.Status.ToString() && a.AnswerSignature == referenceSignatures[(key.Name, key.RecordType)]);
                 return new ResolverAnswerChange {
-                    Target = newValues.FirstOrDefault()?.Target ?? oldValues[0].Target, Name = key.Name, RecordType = key.RecordType,
+                    Target = newValues.FirstOrDefault()?.Target ?? oldValues[0].Target, CandidateId = newValues.FirstOrDefault()?.CandidateId ?? oldValues[0].CandidateId, Name = key.Name, RecordType = key.RecordType,
                     Baseline = oldValues, Current = newValues,
                     Changed = oldValues.Length == 0 || newValues.Length == 0 ? null : !Variants(oldValues).SequenceEqual(Variants(newValues), StringComparer.Ordinal),
                     ReferenceSource = reference?.Source,
@@ -68,7 +68,7 @@ namespace DnsClientX {
             if (snapshot.Answers?.Any(a => a == null || string.IsNullOrWhiteSpace(a.Target) || string.IsNullOrWhiteSpace(a.Name) || a.Status == null || a.AnswerSignature == null) == true) throw new ArgumentException("Snapshot answer observations must be complete.");
         }
         private static IEnumerable<string> GetScopeReasons(ResolverScoreSnapshot a, ResolverScoreSnapshot b) {
-            if (a.Results.GroupBy(r => r.Target, StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1) || b.Results.GroupBy(r => r.Target, StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1)) yield return "Candidate labels are ambiguous across multiple resolver observations.";
+            if (a.Results.GroupBy(r => ResolverCandidateIdentity.GroupKey(r.CandidateId, r.Target), StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1) || b.Results.GroupBy(r => ResolverCandidateIdentity.GroupKey(r.CandidateId, r.Target), StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1)) yield return "Candidate labels are ambiguous across multiple resolver observations.";
             if (a.Answers == null || b.Answers == null || a.Answers.Length == 0 || b.Answers.Length == 0) yield return "One snapshot lacks correlated answer observations.";
             if (a.Context == null || b.Context == null) yield return "One snapshot lacks host/runtime/execution context.";
             else {
@@ -80,16 +80,21 @@ namespace DnsClientX {
                 if (string.IsNullOrWhiteSpace(a.Context.Host) || string.IsNullOrWhiteSpace(b.Context.Host) || !string.Equals(a.Context.Host, b.Context.Host, StringComparison.OrdinalIgnoreCase)) yield return "Host differs or is unavailable.";
                 if (string.IsNullOrWhiteSpace(a.Context.Runtime) || string.IsNullOrWhiteSpace(b.Context.Runtime) || string.IsNullOrWhiteSpace(a.Context.OperatingSystem) || string.IsNullOrWhiteSpace(b.Context.OperatingSystem) || string.IsNullOrWhiteSpace(a.Context.Architecture) || string.IsNullOrWhiteSpace(b.Context.Architecture) || a.Context.Runtime != b.Context.Runtime || a.Context.OperatingSystem != b.Context.OperatingSystem || a.Context.Architecture != b.Context.Architecture) yield return "Runtime, OS, or architecture differs or is unavailable.";
                 if (a.Context.RequestDnsSec != b.Context.RequestDnsSec || a.Context.ValidateDnsSec != b.Context.ValidateDnsSec || a.Context.BootstrapEndpoint != b.Context.BootstrapEndpoint || a.Context.ForceDohWirePost != b.Context.ForceDohWirePost || a.Context.RequestNsid != b.Context.RequestNsid || a.Context.MaxRetries != b.Context.MaxRetries || a.Context.RetryDelayMs != b.Context.RetryDelayMs || a.Context.PortOverride != b.Context.PortOverride) yield return "DNSSEC, bootstrap, or query execution settings differ.";
+                if (a.Context.DnsSecTrustAnchorIdentity != b.Context.DnsSecTrustAnchorIdentity ||
+                    (a.Context.ValidateDnsSec || b.Context.ValidateDnsSec) &&
+                    (a.Context.DnsSecTrustAnchorIdentity == null || b.Context.DnsSecTrustAnchorIdentity == null)) {
+                    yield return "Private DNSSEC trust anchors differ or their identity is unavailable.";
+                }
             }
             ResolverScoreSummary x = a.Summary, y = b.Summary;
             if (x.Domains.Length == 0 || y.Domains.Length == 0 || x.RecordTypes.Length == 0 || y.RecordTypes.Length == 0) yield return "Query catalog is unavailable.";
             if (x.Mode != y.Mode || x.TimeoutMs != y.TimeoutMs || x.AttemptsPerCombination != y.AttemptsPerCombination || x.MaxConcurrency != y.MaxConcurrency || x.ConnectionMode != y.ConnectionMode) yield return "Workflow or measurement settings differ.";
             if (!SetEqual(x.Domains.Select(Canonical), y.Domains.Select(Canonical)) || !SetEqual(x.RecordTypes.Select(t => t.ToString()), y.RecordTypes.Select(t => t.ToString()))) yield return "Query catalog differs.";
-            if (!SetEqual(a.Results.Select(r => r.Target.ToLowerInvariant()), b.Results.Select(r => r.Target.ToLowerInvariant()))) yield return "Resolver target catalog differs.";
-            else if (a.Results.Any(r => b.Results.Any(s => string.Equals(r.Target, s.Target, StringComparison.OrdinalIgnoreCase) && (r.Resolver != s.Resolver || r.Transport != s.Transport || r.ConnectionMode != s.ConnectionMode)))) yield return "Observed resolver, transport, or connection mode differs.";
+            if (!SetEqual(a.Results.Select(r => ResolverCandidateIdentity.GroupKey(r.CandidateId, r.Target).ToLowerInvariant()), b.Results.Select(r => ResolverCandidateIdentity.GroupKey(r.CandidateId, r.Target).ToLowerInvariant()))) yield return "Resolver target catalog differs.";
+            else if (a.Results.Any(r => b.Results.Any(s => string.Equals(ResolverCandidateIdentity.GroupKey(r.CandidateId, r.Target), ResolverCandidateIdentity.GroupKey(s.CandidateId, s.Target), StringComparison.OrdinalIgnoreCase) && (r.Resolver != s.Resolver || r.Transport != s.Transport || r.ConnectionMode != s.ConnectionMode)))) yield return "Observed resolver, transport, or connection mode differs.";
             if (x.RequiredMinSuccessCount != y.RequiredMinSuccessCount || x.RequiredMinSuccessPercent != y.RequiredMinSuccessPercent || x.RequiredMinSuccessfulCandidates != y.RequiredMinSuccessfulCandidates || x.RequiredMinConsensusPercent != y.RequiredMinConsensusPercent || x.RequireConsensus != y.RequireConsensus) yield return "Health policy thresholds differ.";
         }
-        private static bool HasUnavailableIdentity(ResolverScoreRunContext? context, string target) => context?.TargetExecutionKeys != null && !context.TryGetExecutionKey(target, out _);
+        private static bool HasUnavailableIdentity(ResolverScoreRunContext? context, ResolverScoreEntry row) => context?.TargetExecutionKeys != null && !context.TryGetExecutionKey(string.IsNullOrEmpty(row.CandidateId) ? row.Target : row.CandidateId, out _);
         private static bool TryGetExecutionKeys(ResolverScoreRunContext context, ResolverScoreEntry[] results, out Dictionary<string, string> keys) {
             keys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (context.TargetExecutionKeys == null) return false;
@@ -97,7 +102,13 @@ namespace DnsClientX {
                 if (string.IsNullOrWhiteSpace(entry.Key) || string.IsNullOrWhiteSpace(entry.Value) || keys.ContainsKey(entry.Key)) return false;
                 keys.Add(entry.Key, entry.Value);
             }
-            foreach (ResolverScoreEntry result in results) if (!keys.ContainsKey(result.Target)) return false;
+            foreach (ResolverScoreEntry result in results) {
+                string lookup = string.IsNullOrEmpty(result.CandidateId) ? result.Target : result.CandidateId;
+                if (!keys.TryGetValue(lookup, out string? executionKey) ||
+                    !string.IsNullOrEmpty(result.CandidateId) && result.CandidateId != ResolverCandidateIdentity.FromExecutionKey(executionKey)) {
+                    return false;
+                }
+            }
             return results.Length > 0 && keys.Count == results.Length;
         }
         private static bool SetEqual(IEnumerable<string> a, IEnumerable<string> b) => new HashSet<string>(a, StringComparer.Ordinal).SetEquals(b);

@@ -7,6 +7,7 @@ namespace DnsClientX {
             if (!Bind(report.Snapshot, options, targets)) return;
             report.Summary.RecommendationAvailable = report.Evaluation.RecommendationAvailable = false;
             report.Summary.RecommendedTarget = report.Evaluation.RecommendedTarget = "none";
+            report.Summary.RecommendedCandidateId = report.Evaluation.RecommendedCandidateId = string.Empty;
             report.Summary.RecommendedResolver = report.Evaluation.RecommendedResolver = "none";
             report.Summary.RecommendedTransport = report.Evaluation.RecommendedTransport = "none";
             report.Summary.RecommendedAverageMs = report.Evaluation.RecommendedAverageMs = 0;
@@ -21,6 +22,7 @@ namespace DnsClientX {
             if (!Bind(report.Snapshot, options, targets)) return;
             report.Summary.RecommendationAvailable = report.Evaluation.RecommendationAvailable = false;
             report.Summary.RecommendedTarget = report.Evaluation.RecommendedTarget = "none";
+            report.Summary.RecommendedCandidateId = report.Evaluation.RecommendedCandidateId = string.Empty;
             report.Summary.RecommendedResolver = report.Evaluation.RecommendedResolver = "none";
             report.Summary.RecommendedTransport = report.Evaluation.RecommendedTransport = "none";
             report.Summary.RecommendedAverageMs = report.Evaluation.RecommendedAverageMs = 0;
@@ -31,9 +33,10 @@ namespace DnsClientX {
         private static bool Bind(ResolverScoreSnapshot snapshot, ResolverQueryRunOptions options, IReadOnlyList<ResolverExecutionTarget> targets) {
             snapshot.Context = ResolverScoreRunContext.Capture(options, targets);
             ResolverScoreSummary summary = snapshot.Summary;
-            if (!summary.RecommendationAvailable || snapshot.Context.TryGetExecutionKey(summary.RecommendedTarget, out _)) return false;
+            if (!summary.RecommendationAvailable || snapshot.Context.TryGetExecutionKey(string.IsNullOrEmpty(summary.RecommendedCandidateId) ? summary.RecommendedTarget : summary.RecommendedCandidateId, out _)) return false;
             summary.RecommendationAvailable = false;
             summary.RecommendedTarget = summary.RecommendedResolver = summary.RecommendedTransport = "none";
+            summary.RecommendedCandidateId = string.Empty;
             summary.RecommendedAverageMs = 0;
             summary.RecommendationSource = "none";
             summary.RecommendationStatus = "unavailable";

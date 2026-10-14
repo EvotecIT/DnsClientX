@@ -12,5 +12,8 @@ namespace DnsClientX {
         /// Gets or sets the targets that produced the answer set.
         /// </summary>
         public string[] Targets { get; set; } = System.Array.Empty<string>();
+
+        /// <summary>Gets or sets configured candidate identities in the same order as <see cref="Targets"/>.</summary>
+        public string[] CandidateIds { get; set; } = System.Array.Empty<string>();
     }
 }

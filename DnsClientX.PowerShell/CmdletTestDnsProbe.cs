@@ -26,6 +26,9 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         public string Target { get; set; } = string.Empty;
 
+        /// <summary>Gets or sets the stable configured resolver candidate identity.</summary>
+        public string CandidateId { get; set; } = string.Empty;
+
         /// <summary>
         /// Resolver address observed for the candidate.
         /// </summary>
@@ -191,6 +194,9 @@ namespace DnsClientX.PowerShell {
         /// </summary>
         public string FastestSuccessTarget { get; set; } = "none";
 
+        /// <summary>Gets or sets the stable configured resolver candidate identity.</summary>
+        public string FastestSuccessCandidateId { get; set; } = string.Empty;
+
         /// <summary>
         /// Resolver observed for the fastest successful candidate.
         /// </summary>
@@ -210,6 +216,9 @@ namespace DnsClientX.PowerShell {
         /// Fastest candidate label within the leading consensus group.
         /// </summary>
         public string FastestConsensusTarget { get; set; } = "none";
+
+        /// <summary>Gets or sets the stable configured resolver candidate identity.</summary>
+        public string FastestConsensusCandidateId { get; set; } = string.Empty;
 
         /// <summary>
         /// Resolver observed for the fastest consensus candidate.
@@ -235,6 +244,9 @@ namespace DnsClientX.PowerShell {
         /// Recommended candidate label.
         /// </summary>
         public string RecommendedTarget { get; set; } = "none";
+
+        /// <summary>Gets or sets the stable configured resolver candidate identity.</summary>
+        public string RecommendedCandidateId { get; set; } = string.Empty;
 
         /// <summary>
         /// Resolver observed for the recommended candidate.
@@ -275,6 +287,15 @@ namespace DnsClientX.PowerShell {
         /// Runtime capability warnings captured during the probe run.
         /// </summary>
         public string[] RuntimeCapabilityWarnings { get; set; } = Array.Empty<string>();
+
+        /// <summary>Gets or sets readable labels of candidates outside the largest answer group.</summary>
+        public string[] MismatchedTargets { get; set; } = Array.Empty<string>();
+
+        /// <summary>Gets or sets configured identities corresponding to <see cref="MismatchedTargets"/>.</summary>
+        public string[] MismatchedCandidateIds { get; set; } = Array.Empty<string>();
+
+        /// <summary>Gets or sets successful answer variants and their responder identities.</summary>
+        public ResolverProbeAnswerVariant[] AnswerVariants { get; set; } = Array.Empty<ResolverProbeAnswerVariant>();
     }
 
     /// <summary>
@@ -612,6 +633,7 @@ namespace DnsClientX.PowerShell {
         private static DnsProbeResult ToDnsProbeResult(ResolverProbeReportResult result) {
             return new DnsProbeResult {
                 Target = result.Target,
+                CandidateId = result.CandidateId,
                 Resolver = result.Resolver,
                 RequestFormat = result.RequestFormat,
                 Transport = result.Transport,
@@ -652,15 +674,18 @@ namespace DnsClientX.PowerShell {
                 ConsensusTotal = summary.ConsensusTotal,
                 ConsensusPercent = summary.ConsensusPercent,
                 FastestSuccessTarget = summary.FastestSuccessTarget,
+                FastestSuccessCandidateId = summary.FastestSuccessCandidateId,
                 FastestSuccessResolver = summary.FastestSuccessResolver,
                 FastestSuccessTransport = summary.FastestSuccessTransport,
                 FastestSuccessMs = summary.FastestSuccessMs,
                 FastestConsensusTarget = summary.FastestConsensusTarget,
+                FastestConsensusCandidateId = summary.FastestConsensusCandidateId,
                 FastestConsensusResolver = summary.FastestConsensusResolver,
                 FastestConsensusTransport = summary.FastestConsensusTransport,
                 FastestConsensusMs = summary.FastestConsensusMs,
                 RecommendationAvailable = summary.RecommendationAvailable,
                 RecommendedTarget = summary.RecommendedTarget,
+                RecommendedCandidateId = summary.RecommendedCandidateId,
                 RecommendedResolver = summary.RecommendedResolver,
                 RecommendedTransport = summary.RecommendedTransport,
                 RecommendedAverageMs = summary.RecommendedAverageMs,
@@ -668,7 +693,10 @@ namespace DnsClientX.PowerShell {
                 RecommendationStatus = summary.RecommendationStatus,
                 RecommendationReason = summary.RecommendationReason,
                 RuntimeUnsupportedCandidateCount = summary.RuntimeUnsupportedCandidateCount,
-                RuntimeCapabilityWarnings = summary.RuntimeCapabilityWarnings
+                RuntimeCapabilityWarnings = summary.RuntimeCapabilityWarnings,
+                MismatchedTargets = summary.MismatchedTargets,
+                MismatchedCandidateIds = summary.MismatchedCandidateIds,
+                AnswerVariants = summary.AnswerVariants
             };
         }
 

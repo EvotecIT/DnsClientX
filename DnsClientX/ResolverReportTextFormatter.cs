@@ -207,7 +207,9 @@ namespace DnsClientX {
             }
 
             ResolverBenchmarkReportResult? best = summary.RecommendationAvailable
-                ? results.FirstOrDefault(result => string.Equals(result.Target, summary.RecommendedTarget, StringComparison.OrdinalIgnoreCase))
+                ? results.FirstOrDefault(result => string.Equals(
+                    ResolverCandidateIdentity.GroupKey(result.CandidateId, result.Target),
+                    ResolverCandidateIdentity.GroupKey(summary.RecommendedCandidateId, summary.RecommendedTarget), StringComparison.OrdinalIgnoreCase))
                 : results.FirstOrDefault(result => result.SuccessCount > 0);
 
             return best == null

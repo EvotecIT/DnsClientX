@@ -13,7 +13,7 @@ namespace DnsClientX {
         /// <summary>
         /// The resolver score snapshot schema version written by this library.
         /// </summary>
-        public const int CurrentSchemaVersion = 2;
+        public const int CurrentSchemaVersion = 3;
 
         /// <summary>
         /// Gets or sets the snapshot schema version.

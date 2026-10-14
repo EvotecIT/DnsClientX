@@ -24,8 +24,11 @@ internal static partial class DnsWireResolveMulticast {
 
     /// <summary>Receives one datagram with packet information; the owning session cancels and drains it by closing its socket.</summary>
     internal static async Task<ReceivedPacket> ReceivePacketAsync(UdpClient client, byte[] receiveBuffer) {
-        IPAddress any = client.Client.AddressFamily == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Any : IPAddress.Any;
-        SocketReceiveMessageFromResult received = await client.Client.ReceiveMessageFromAsync(
+        // UdpClient clears Client during disposal. Retain one socket reference so
+        // cancellation racing a new receive follows the owner's disposal path.
+        Socket socket = client.Client ?? throw new ObjectDisposedException(nameof(UdpClient));
+        IPAddress any = socket.AddressFamily == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Any : IPAddress.Any;
+        SocketReceiveMessageFromResult received = await socket.ReceiveMessageFromAsync(
             new ArraySegment<byte>(receiveBuffer), SocketFlags.None, new IPEndPoint(any, 0)).ConfigureAwait(false);
         var bytes = new byte[received.ReceivedBytes];
         System.Buffer.BlockCopy(receiveBuffer, 0, bytes, 0, bytes.Length);

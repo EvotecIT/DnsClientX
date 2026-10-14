@@ -3,6 +3,12 @@ namespace DnsClientX {
     /// Represents a normalized resolver candidate that can be executed by higher-level adapters.
     /// </summary>
     public sealed class ResolverExecutionTarget {
+        private string? _candidateId;
+
+        /// <summary>Gets the stable opaque identity of this candidate's configured endpoint.</summary>
+        public string CandidateId => System.Threading.LazyInitializer.EnsureInitialized(ref _candidateId,
+            () => ResolverCandidateIdentity.Create(this))!;
+
         /// <summary>
         /// Gets or sets the human-readable display name for the candidate.
         /// </summary>

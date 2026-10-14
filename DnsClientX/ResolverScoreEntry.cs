@@ -11,6 +11,9 @@ namespace DnsClientX {
         /// </summary>
         public string Target { get; set; } = string.Empty;
 
+        /// <summary>Gets or sets the stable configured candidate identity; empty for legacy label-only observations.</summary>
+        public string CandidateId { get; set; } = string.Empty;
+
         /// <summary>
         /// Gets or sets the resolver address observed for the candidate.
         /// </summary>

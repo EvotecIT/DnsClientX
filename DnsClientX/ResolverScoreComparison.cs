@@ -24,6 +24,9 @@ namespace DnsClientX {
     public sealed class ResolverScoreChange {
         /// <summary>Gets or sets the target.</summary>
         public string Target { get; set; } = string.Empty;
+
+        /// <summary>Gets or sets the stable configured candidate identity; empty for legacy label-only observations.</summary>
+        public string CandidateId { get; set; } = string.Empty;
         /// <summary>Gets or sets Added, Removed, Changed, Unchanged, or Ambiguous when the label cannot identify one execution.</summary>
         public string Change { get; set; } = string.Empty;
         /// <summary>Gets or sets the baseline score, unavailable for ambiguous labels.</summary>
@@ -39,6 +42,9 @@ namespace DnsClientX {
     public sealed class ResolverAnswerChange {
         /// <summary>Gets or sets the target.</summary>
         public string Target { get; set; } = string.Empty;
+
+        /// <summary>Gets or sets the stable configured candidate identity; empty for legacy label-only observations.</summary>
+        public string CandidateId { get; set; } = string.Empty;
         /// <summary>Gets or sets the query name.</summary>
         public string Name { get; set; } = string.Empty;
         /// <summary>Gets or sets the query type.</summary>

@@ -1545,6 +1545,10 @@ Resolve-Dns -Name 'google.com' -Type A, AAAA, MX | Format-Table
 
 Benchmarks use `Cold` connections by default: each attempt owns a fresh client. Choose `-ConnectionMode Warm` to retain one client per resolver for the run, or `--benchmark-connections warm` in the CLI. Both modes send each attempt to the resolver with answer caching disabled. Client lifetime does not isolate operating-system caches or TLS session state.
 
+Probe and benchmark rows expose `CandidateId` alongside the readable `Target`. Use `CandidateId` to correlate rows: endpoints with the same host and transport can differ in timeout, TLS identity, address family, request format, EDNS or DNSSEC settings. These variants are scored separately and can coexist in one health profile. The identity describes the configured endpoint; shared run settings remain in the saved context and must also match for performance comparisons.
+
+Saved scores use schema 3 and preserve candidate identities in results, answer observations and recommendations. `Get-DnsResolverSelection` and CLI `--resolver-use` reuse the saved endpoint definition. Schema 1/2 scores remain readable; their missing or ambiguous execution evidence cannot establish comparable performance. A selected raw target string is a display label and may omit endpoint settings; use the structured selection or saved score for reuse.
+
 Latency covers the complete request, including first-use client setup, bootstrap lookups and DNSSEC validation. The core attempt result also exposes `TransportElapsed` when the primary transport execution is measured. This phase includes connection and transport-level address setup, and excludes HTTP bootstrap preparation and subsequent DNSSEC validation; cache hits and root iteration have no separate exchange metric. Reports and saved score summaries include `ConnectionMode` so results from different modes can be identified. Combining observations from different modes produces `Mixed` in reports; execution accepts only `Cold` or `Warm`. Maximum concurrency applies across the entire run.
 
 ```powershell

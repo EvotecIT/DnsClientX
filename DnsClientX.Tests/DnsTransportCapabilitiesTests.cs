@@ -5,6 +5,19 @@ namespace DnsClientX.Tests {
     /// Tests shared runtime transport capability reporting.
     /// </summary>
     public class DnsTransportCapabilitiesTests {
+        /// <summary>Unsupported variants sharing a label are counted individually while repeated attempts count once.</summary>
+        [Fact]
+        public void UnsupportedCandidatesUseConfiguredIdentity() {
+            var first = new ResolverQueryAttemptResult { Target = "same", CandidateId = "first", RequestFormat = (DnsRequestFormat)int.MaxValue };
+            var second = new ResolverQueryAttemptResult { Target = "same", CandidateId = "second", RequestFormat = (DnsRequestFormat)int.MaxValue };
+            var attempts = new[] { first, second, first };
+            Assert.Equal(2, DnsTransportCapabilities.CountUnsupportedTargets(attempts));
+            string[] warnings = DnsTransportCapabilities.GetUnsupportedWarnings(attempts);
+            Assert.Equal(2, warnings.Length);
+            Assert.Contains(warnings, warning => warning.Contains("(first)"));
+            Assert.Contains(warnings, warning => warning.Contains("(second)"));
+        }
+
         /// <summary>
         /// Ensures modern transport support matches the current target framework expectations.
         /// </summary>

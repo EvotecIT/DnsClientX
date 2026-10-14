@@ -25,6 +25,7 @@
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
     <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" Condition="'$(TargetFramework)' != 'net472'" />
         <Reference Include="System.Net.Http" Condition="'$(TargetFramework)' == 'net472'" />
         <PackageReference Include="SemanticComparison" Version="4.1.0" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
