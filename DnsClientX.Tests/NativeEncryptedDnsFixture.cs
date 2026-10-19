@@ -136,6 +136,8 @@ internal sealed class NativeEncryptedDnsFixture : IAsyncDisposable {
                 byte[] query = new byte[(prefix[0] << 8) | prefix[1]];
                 await stream.ReadExactlyAsync(query, _lifetime.Token);
                 Assert.Equal(0, query[0] | query[1]);
+                // Consume the request FIN before disposal can abort the client's write side.
+                Assert.Equal(0, await stream.ReadAsync(new byte[1], _lifetime.Token));
                 byte[] response = await RespondAsync(query, _lifetime.Token);
                 prefix[0] = (byte)(response.Length >> 8);
                 prefix[1] = (byte)response.Length;
