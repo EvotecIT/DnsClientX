@@ -46,9 +46,8 @@ internal sealed class DnsCryptTestServer : IDisposable {
     internal DnsCryptTestServer(ushort system = 2) {
         System = system;
         Certificate = SignedCertificate(system);
-        _tcp = new TcpListener(IPAddress.Loopback, 0); _tcp.Start();
+        (_udp, _tcp) = TestUtilities.BindUdpAndTcp();
         Endpoint = (IPEndPoint)_tcp.LocalEndpoint;
-        _udp = new UdpClient(Endpoint);
         _udpLoop = ServeUdp(); _tcpLoop = ServeTcp();
     }
 
