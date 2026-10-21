@@ -51,7 +51,9 @@ public sealed class BindAuthoritativeTests {
         }) {
             DnsResponse answer = await client.Resolve(query.Item1 + apex, query.Item2,
                 requestDnsSec: true, validateDnsSec: true, retryOnTransient: false, cancellationToken: deadline.Token);
-            Assert.Equal(query.Item3, answer.Status);
+            Assert.True(query.Item3 == answer.Status,
+                $"{query.Item1}{apex} {query.Item2} via {address}: expected {query.Item3}, got {answer.Status}; " +
+                $"{answer.ErrorCode}: {answer.Error}; {answer.DnsSecValidationMessage}; {answer.Exception}");
             Assert.True(answer.DnsSecValidationStatus == DnsSecValidationStatus.Secure,
                 query.Item1 + apex + ": " + answer.DnsSecValidationMessage);
             Assert.NotNull(answer.DnsSecValidationExpiresUtc);
