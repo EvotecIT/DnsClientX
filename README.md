@@ -1,47 +1,73 @@
 # DnsClientX - Modern DNS Client for .NET and PowerShell
 
-DnsClientX is available as NuGet from the Nuget Gallery and as PowerShell module from PSGallery
+**Every DNS transport. One .NET client.** DnsClientX is an async DNS library and PowerShell module for UDP, TCP, DNS over TLS, HTTPS, HTTP/3 and QUIC, with typed records, local DNSSEC validation, multi-resolver strategies, zone transfers, dynamic updates and service discovery. The core has no dependencies on .NET 8 and .NET 10, and it also runs on .NET Standard 2.0 and .NET Framework 4.7.2.
 
-📦 NuGet Package
+[Website](https://domaindetective.dev/dnsclientx/) · [Guides](https://domaindetective.dev/docs/dnsclientx/) · [DNS playground](https://domaindetective.dev/tools/raw-dns-query/) · [.NET API](https://domaindetective.dev/api/dnsclientx/) · [PowerShell cmdlets](https://domaindetective.dev/api/dnsclientx-powershell/) · [Roadmap](https://domaindetective.dev/roadmap/#dnsclientx) · [Discord](https://evo.yt/discord)
 
 [![nuget downloads](https://img.shields.io/nuget/dt/DnsClientX?label=nuget%20downloads)](https://www.nuget.org/packages/DnsClientX)
 [![nuget version](https://img.shields.io/nuget/v/DnsClientX)](https://www.nuget.org/packages/DnsClientX)
-
-💻 PowerShell Module
-
 [![powershell gallery version](https://img.shields.io/powershellgallery/v/DnsClientX.svg)](https://www.powershellgallery.com/packages/DnsClientX)
-[![powershell gallery preview](https://img.shields.io/powershellgallery/v/DnsClientX.svg?label=powershell%20gallery%20preview&colorB=yellow&include_prereleases)](https://www.powershellgallery.com/packages/DnsClientX)
 [![powershell gallery platforms](https://img.shields.io/powershellgallery/p/DnsClientX.svg)](https://www.powershellgallery.com/packages/DnsClientX)
 [![powershell gallery downloads](https://img.shields.io/powershellgallery/dt/DnsClientX.svg)](https://www.powershellgallery.com/packages/DnsClientX)
-
-🛠️ Project Information
-
-[![top language](https://img.shields.io/github/languages/top/evotecit/DnsClientX.svg)](https://github.com/EvotecIT/DnsClientX)
 [![license](https://img.shields.io/github/license/EvotecIT/DnsClientX.svg)](https://github.com/EvotecIT/DnsClientX)
 [![codecov](https://codecov.io/gh/EvotecIT/DnsClientX/branch/main/graph/badge.svg)](https://codecov.io/gh/EvotecIT/DnsClientX)
+[![Discord](https://img.shields.io/discord/508328927853281280?style=flat-square&label=discord%20chat)](https://evo.yt/discord)
 
-👨‍💻 Author & Social
+## Install
+
+```powershell
+dotnet add package DnsClientX
+```
+
+```powershell
+Install-Module DnsClientX -Scope CurrentUser
+```
+
+## Quick start
+
+```csharp
+using DnsClientX;
+
+var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.MX, DnsEndpoint.Cloudflare);
+foreach (var answer in response.Answers) {
+    Console.WriteLine($"{answer.Name} {answer.TTL} {answer.Data}");
+}
+```
+
+```powershell
+Resolve-Dns -Name evotec.pl -Type MX -DnsProvider Cloudflare
+Resolve-Dns -Name evotec.pl -Type A -DnsProvider Cloudflare,Quad9 -ResolverStrategy FirstSuccess
+```
+
+## At a glance
+
+| Area | What you get | Guide |
+| --- | --- | --- |
+| Transports | UDP with TCP fallback, TCP, DoT, DoH wire and JSON over GET or POST, HTTP/2, DoH3, DoQ, gRPC and multicast DNS behind one endpoint syntax | [Transports and endpoints](https://domaindetective.dev/docs/dnsclientx/transports/) |
+| Records | Raw strings or typed objects with owner, class, remaining TTL and the original wire evidence | [.NET guide](https://domaindetective.dev/docs/dnsclientx/csharp/) |
+| DNSSEC | Local chain validation to the IANA root (`Secure`, `Insecure`, `Bogus`, `Indeterminate`), authenticated denial, iterative root resolution, QNAME minimisation and RFC 5011 anchors | [DNSSEC and resolution](https://domaindetective.dev/docs/dnsclientx/dnssec/) |
+| Many resolvers | FirstSuccess, FastestWins, SequentialFallback and RoundRobin with concurrency caps, single-flight caching, probes, benchmarks and saved scores | [Multi-resolver and benchmarking](https://domaindetective.dev/docs/dnsclientx/multi-resolver/) |
+| Zones | AXFR, IXFR, XFR-over-TLS, ZONEMD, TSIG, a BIND master-file parser and atomic RFC 2136 UPDATE batches | [Zones and updates](https://domaindetective.dev/docs/dnsclientx/zones/) |
+| Discovery | DNS-SD over unicast and multicast, continuous mDNS browsing and DDR discovery of verified encrypted resolvers | [Service discovery](https://domaindetective.dev/docs/dnsclientx/discovery/) |
+| Your network | System resolver discovery with Windows NRPT, resolv.conf search lists, EDNS client subnet, DNS stamps and source binding | [Transports and endpoints](https://domaindetective.dev/docs/dnsclientx/transports/) |
+| Browser | A caller-owned `HttpClient` DNS JSON client for Blazor WebAssembly and dependency-injected hosts | [Try it live](https://domaindetective.dev/dnsclientx/) |
+| Surfaces | The .NET library, a PowerShell module with 19 cmdlets for Windows PowerShell 5.1 and PowerShell 7.4+, and a CLI | [PowerShell guide](https://domaindetective.dev/docs/dnsclientx/powershell/) |
+
+> [!NOTE]
+> NuGet and the PowerShell Gallery currently ship DnsClientX 2.1.2. This README documents the `main` branch: the optional `DnsClientX.Odoh`, `DnsClientX.DnsCrypt` and `DnsClientX.DnsSec.EdDsa` packages, the CLI, designated-resolver discovery and the newer cmdlets (`Test-DnsHealth`, `Get-DnsDesignatedResolver`, `Receive-DnsService`, `Get-DnsQueryExplanation`, `Compare-DnsResolverSnapshot`, `Get-DnsCache` and `Clear-DnsCache`) arrive with the next public release. See the [changelog](CHANGELOG.MD) for released versions.
+
+## Used by
+
+- [DomainDetective](https://domaindetective.dev/) resolves every check through DnsClientX, including its [browser tools](https://domaindetective.dev/tools/), where DnsClientX runs as WebAssembly.
+
+DnsClientX is part of the Evotec open-source toolkit, alongside [DomainDetective](https://domaindetective.dev/), [OfficeIMO](https://officeimo.com/), [ChartForgeX](https://chartforgex.com/), [CodeGlyphX](https://codeglyphx.com/), [HtmlForgeX](https://htmlforgex.com/) and [TestimoX](https://testimox.com/).
+
+## Author and social
 
 [![Twitter follow](https://img.shields.io/twitter/follow/PrzemyslawKlys.svg?label=Twitter%20%40PrzemyslawKlys&style=social)](https://twitter.com/PrzemyslawKlys)
 [![Blog](https://img.shields.io/badge/Blog-evotec.xyz-2A6496.svg)](https://evotec.xyz/hub)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-pklys-0077B5.svg?logo=LinkedIn)](https://www.linkedin.com/in/pklys)
 [![Threads](https://img.shields.io/badge/Threads-@PrzemyslawKlys-000000.svg?logo=Threads&logoColor=White)](https://www.threads.net/@przemyslaw.klys)
-[![Discord](https://img.shields.io/discord/508328927853281280?style=flat-square&label=discord%20chat)](https://evo.yt/discord)
-
-## What it's all about
-
-**DnsClientX** is an async C# library for DNS over UDP, TCP, HTTPS (DoH), TLS (DoT), HTTP/3 (DoH3), and QUIC (DoQ). It also has a PowerShell module that can be used to query DNS records. It provides a simple way to query DNS records using multiple DNS providers. It supports multiple DNS record types and parallel queries. It's available for .NET 8, .NET 10, .NET Standard 2.0, and .NET 4.7.2.
-
-## DomainDetective.dev
-
-DnsClientX is also documented as a first-class product inside DomainDetective.dev. Use those pages when you want the guided web experience instead of browsing the repository directly:
-
-- Product overview: [https://domaindetective.dev/products/dnsclientx/](https://domaindetective.dev/products/dnsclientx/)
-- C# guide: [https://domaindetective.dev/docs/dnsclientx/csharp/](https://domaindetective.dev/docs/dnsclientx/csharp/)
-- PowerShell guide: [https://domaindetective.dev/docs/dnsclientx/powershell/](https://domaindetective.dev/docs/dnsclientx/powershell/)
-- DNS playground: [https://domaindetective.dev/tools/raw-dns-query/](https://domaindetective.dev/tools/raw-dns-query/)
-- .NET API reference: [https://domaindetective.dev/api/dnsclientx/](https://domaindetective.dev/api/dnsclientx/)
-- PowerShell API reference: [https://domaindetective.dev/api/dnsclientx-powershell/](https://domaindetective.dev/api/dnsclientx-powershell/)
 
 ## Response Format Options: Typed vs Non-Typed Records
 
@@ -511,14 +537,12 @@ Persistent TCP/DoT reuse is enabled by default. Set `EnableTcpConnectionReuse = 
 
 This direct DNS client does not delegate name resolution to the operating-system resolver service and does not claim parity with every platform-specific resolver feature. Configure a `Configuration` instance before issuing concurrent queries; each query takes a defensive snapshot, but concurrent mutation of shared configuration is not a supported control plane.
 
-## TO DO
+## Roadmap
+
+The [public roadmap](https://domaindetective.dev/roadmap/#dnsclientx) shows what is being worked on now, next and under exploration. Implemented capabilities, their qualification limits and the remaining engineering work are tracked in [PLAN.md](PLAN.md); optional encrypted transports are described in [OPTIONAL-PROTOCOLS.md](OPTIONAL-PROTOCOLS.md).
 
 > [!IMPORTANT]
-> This library is still in development and there are things that need to be done, tested and fixed.
-> If you would like to help, please do so by opening an issue or a pull request.
-> The public API may change while protocol coverage and RFC conformance continue to mature.
-
-- [ ] Complete the interoperability, package, and platform qualification tracked in [PLAN.md](PLAN.md)
+> Protocol coverage and RFC conformance are still maturing, and the public API can change between releases. Issues and pull requests are welcome, especially interoperability reports from real resolvers and authoritative servers.
 
 ## Usage in .NET
 
