@@ -33,7 +33,7 @@ jobs:
                   sudo mkdir -p /usr/local/share/dotnet
                   sudo chown "$(id -un)" /usr/local/share/dotnet
                   echo 'DOTNET_INSTALL_DIR=/usr/local/share/dotnet' >> "$GITHUB_ENV"
-            - uses: EvotecIT/.github/actions/setup-dotnet@6a07f68bbcf97cfce479f930590d4fe4d85ef715
+            - uses: EvotecIT/.github/actions/setup-dotnet@ec7a94defe85925f23fab68a44b4659ca71c3497
               with:
                   dotnet-version: |
                       8.x
