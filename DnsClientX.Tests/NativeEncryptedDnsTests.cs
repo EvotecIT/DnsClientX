@@ -17,11 +17,11 @@ public sealed class NativeEncryptedDnsTests {
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         await using var server = new NativeEncryptedDnsFixture();
         await server.StartAsync(http3);
-        Configuration Configuration(bool trust = true, string identity = "localhost") {
+        Configuration Configuration(bool trust = true, string identity = "localhost", int timeout = 10000) {
             Configuration configuration = http3
                 ? new(new Uri($"https://{(identity == "localhost" ? "localhost" : "127.0.0.1")}:{server.Port}/dns-query"), DnsRequestFormat.DnsOverHttp3)
                 : new("127.0.0.1", DnsRequestFormat.DnsOverQuic) { Port = server.Port };
-            configuration.TimeOut = 1000;
+            configuration.TimeOut = timeout;
             configuration.TlsServerName = identity;
             if (!http3) configuration.ConnectionAddress = System.Net.IPAddress.Loopback;
             configuration.TlsTrustAnchors = trust ? new[] { server.Root } : null;
@@ -29,8 +29,8 @@ public sealed class NativeEncryptedDnsTests {
             return configuration;
         }
         await using var client = new ClientX(Configuration(), enableCache: false);
-        async Task Answer(string name) {
-            DnsResponse answer = await client.Resolve(name, DnsRecordType.A, retryOnTransient: false, cancellationToken: deadline.Token);
+        async Task Answer(string name, ClientX? answeringClient = null) {
+            DnsResponse answer = await (answeringClient ?? client).Resolve(name, DnsRecordType.A, retryOnTransient: false, cancellationToken: deadline.Token);
             Assert.True(answer.Status == DnsResponseCode.NoError, answer.Error + " " + answer.Exception);
             Assert.Contains(answer.Answers, record => record.Data == "192.0.2.42");
             Assert.Equal(http3 ? Transport.Doh : Transport.Quic, answer.UsedTransport);
@@ -46,15 +46,22 @@ public sealed class NativeEncryptedDnsTests {
             Assert.NotEqual(DnsResponseCode.NoError, response.Status);
         }
         Assert.Equal(acceptedQueries, server.QueryCount);
-        if (http3) {
-            // Direct HTTP Resolve preserves HttpClient's deadline exception contract.
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.Resolve("stall-timeout.test", DnsRecordType.A,
-                retryOnTransient: false, cancellationToken: deadline.Token));
-            Assert.False(deadline.IsCancellationRequested);
-        } else {
-            DnsResponse timeout = await client.Resolve("stall-timeout.test", DnsRecordType.A,
+        // Cold native TLS/HTTP/3 setup has its own budget; the deadline contract stays at one second.
+        await using (var timed = new ClientX(Configuration(timeout: 1000), enableCache: false)) {
+            Task<DnsResponse> stalled = timed.Resolve("stall-timeout.test", DnsRecordType.A,
                 retryOnTransient: false, cancellationToken: deadline.Token);
-            Assert.Equal(DnsQueryErrorCode.Timeout, timeout.ErrorCode);
+            await server.WaitForQueryAsync("stall-timeout.test", deadline.Token);
+            if (http3) {
+                // Direct HTTP Resolve preserves HttpClient's deadline exception contract.
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => stalled);
+            } else {
+                DnsResponse timeout = await stalled;
+                Assert.Equal(DnsQueryErrorCode.Timeout, timeout.ErrorCode);
+            }
+            Assert.False(deadline.IsCancellationRequested);
+            int afterTimeout = server.ConnectionCount;
+            await Answer("after-timeout.test", timed);
+            Assert.Equal(afterTimeout, server.ConnectionCount);
         }
         int beforeCancellation = server.ConnectionCount;
         using (var canceled = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token)) {
