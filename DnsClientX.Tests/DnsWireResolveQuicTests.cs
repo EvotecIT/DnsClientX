@@ -106,7 +106,7 @@ namespace DnsClientX.Tests {
             }
         }
 
-        /// <summary>A real stream with completed writes fails the query write and releases both native resources.</summary>
+        /// <summary>A real stream with aborted writes fails the query write and releases both native resources.</summary>
         [NativeQuicTheory]
         [InlineData("example.com")]
         public async Task ResolveWireFormatQuic_ShouldDisposeResources_OnWriteException(string queryName) {
@@ -131,7 +131,7 @@ namespace DnsClientX.Tests {
             QuicConnection? connection = null, peer = null;
             QuicStream? stream = null;
             int connectionDisposes = 0, streamDisposes = 0;
-            bool completedStreamReturned = false;
+            bool abortedStreamReturned = false;
             try {
                 DnsWireResolveQuic.QuicConnectionFactory = async (options, token) => {
                     connection = await QuicConnection.ConnectAsync(options, token);
@@ -140,8 +140,9 @@ namespace DnsClientX.Tests {
                 };
                 DnsWireResolveQuic.StreamFactory = async (owner, token) => {
                     stream = await owner.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, token);
-                    stream.CompleteWrites();
-                    completedStreamReturned = true;
+                    stream.Abort(QuicAbortDirection.Write, 0);
+                    await Assert.ThrowsAsync<QuicException>(() => stream.WritesClosed.WaitAsync(token));
+                    abortedStreamReturned = true;
                     return stream;
                 };
                 DnsWireResolveQuic.ConnectionDisposer = async owner => {
@@ -160,10 +161,9 @@ namespace DnsClientX.Tests {
                     "127.0.0.1", config.Port, queryName, DnsRecordType.A,
                     false, false, false, config, deadline.Token);
                 Assert.NotNull(stream);
-                Assert.True(completedStreamReturned);
+                Assert.True(abortedStreamReturned);
                 Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
-                Assert.True(response.Exception is InvalidOperationException or QuicException,
-                    response.Exception?.ToString() ?? response.Error);
+                Assert.Equal(QuicError.OperationAborted, Assert.IsType<QuicException>(response.Exception).QuicError);
                 Assert.Equal(1, connectionDisposes);
                 Assert.Equal(1, streamDisposes);
                 await Assert.ThrowsAsync<ObjectDisposedException>(() =>
