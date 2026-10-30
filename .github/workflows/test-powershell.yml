@@ -189,9 +189,14 @@ jobs:
                   $providerVersion = $provider[0].BaseName.Substring('DnsClientX.DnsSec.EdDsa.'.Length)
                   $env:NUGET_PACKAGES = Join-Path $env:RUNNER_TEMP 'candidate-nuget-cache'
                   $env:DNSCLIENTX_CANDIDATE_FEED = $feed
-                  dotnet restore Build/PackageConsumer/PackageConsumer.csproj --configfile Build/PackageConsumer/NuGet.Config -p:DnsClientXPackageVersion=$version -p:DnsClientXEdDsaPackageVersion=$providerVersion
+                  $consumerRoot = Join-Path $env:RUNNER_TEMP 'package-consumer'
+                  New-Item -ItemType Directory -Path $consumerRoot | Out-Null
+                  Copy-Item Build/PackageConsumer/Program.cs, Build/PackageConsumer/NuGet.Config, Directory.Build.props -Destination $consumerRoot
+                  $consumer = Join-Path $consumerRoot 'PackageConsumer.csproj'
+                  Copy-Item Build/PackageConsumer/PackageConsumer.csproj.template -Destination $consumer
+                  dotnet restore $consumer --configfile (Join-Path $consumerRoot 'NuGet.Config') -p:DnsClientXPackageVersion=$version -p:DnsClientXEdDsaPackageVersion=$providerVersion
                   if ($LASTEXITCODE) { throw 'Packed consumer restore failed.' }
                   foreach ($framework in @('net8.0', 'net10.0')) {
-                      dotnet run --project Build/PackageConsumer/PackageConsumer.csproj --framework $framework --no-restore -p:DnsClientXPackageVersion=$version -p:DnsClientXEdDsaPackageVersion=$providerVersion
+                      dotnet run --project $consumer --framework $framework --no-restore -p:DnsClientXPackageVersion=$version -p:DnsClientXEdDsaPackageVersion=$providerVersion
                       if ($LASTEXITCODE) { throw "Packed consumer failed on $framework." }
                   }
