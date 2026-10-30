@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -335,10 +336,12 @@ namespace DnsClientX.Tests {
 
                 Assert.Equal(0, exitCode);
                 string text = output.ToString();
-                Assert.Contains("\"Zone\": \"example.com\"", text, StringComparison.Ordinal);
-                Assert.Contains("\"SelectedAuthority\": \"ns1.example.com\"", text, StringComparison.Ordinal);
-                Assert.Contains("\"SelectedServer\": \"127.0.0.1\"", text, StringComparison.Ordinal);
-                Assert.Contains("\"RecordSets\"", text, StringComparison.Ordinal);
+                using JsonDocument document = JsonDocument.Parse(text);
+                JsonElement transfer = document.RootElement;
+                Assert.Equal("example.com", transfer.GetProperty("Zone").GetString());
+                Assert.Equal("ns1.example.com", transfer.GetProperty("SelectedAuthority").GetString());
+                Assert.Equal("127.0.0.1", transfer.GetProperty("SelectedServer").GetString());
+                Assert.Equal(JsonValueKind.Array, transfer.GetProperty("RecordSets").ValueKind);
                 await Task.WhenAll(discoveryTask, axfrTask);
             } finally {
                 Console.SetOut(originalOut);

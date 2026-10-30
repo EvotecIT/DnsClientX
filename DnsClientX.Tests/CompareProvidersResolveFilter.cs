@@ -35,6 +35,9 @@ namespace DnsClientX.Tests {
             using var primaryClient = new ClientX(primaryEndpoint);
             var primaryResult = await GetResponseWithRetry(primaryClient, name, resourceRecordType, filter, primaryEndpoint, output);
             results[primaryEndpoint] = primaryResult;
+            Assert.Equal(DnsResponseCode.NoError, primaryResult.response.Status);
+            Assert.NotEmpty(primaryResult.response.Answers);
+            Assert.All(primaryResult.response.Answers, answer => Assert.Contains(filter, answer.Data));
 
             output.WriteLine($"Primary ({primaryEndpoint}): {primaryResult.response.Answers?.Length ?? 0} records, Status: {primaryResult.response.Status}");
             if (!string.IsNullOrEmpty(primaryResult.error)) {
@@ -63,7 +66,9 @@ namespace DnsClientX.Tests {
                 var result = kvp.Value;
                 var actualCount = result.response.Answers?.Length ?? 0;
 
-                if (actualCount == 0 && expectedCount > 0) {
+                if (result.response.Status != primaryResult.response.Status) {
+                    failedProviders.Add($"{endpoint} ({result.response.Status}, expected {primaryResult.response.Status})");
+                } else if (actualCount == 0 && expectedCount > 0) {
                     failedProviders.Add($"{endpoint} (0 records, expected {expectedCount})");
                 } else if (actualCount != expectedCount) {
                     inconsistentProviders.Add($"{endpoint} ({actualCount} records, expected {expectedCount})");
@@ -91,7 +96,7 @@ namespace DnsClientX.Tests {
             }
 
             // For providers that did return results, validate content consistency
-            var successfulResults = results.Where(r => (r.Value.response.Answers?.Length ?? 0) == expectedCount).ToList();
+            var successfulResults = results.Where(r => r.Value.response.Status == primaryResult.response.Status && (r.Value.response.Answers?.Length ?? 0) == expectedCount).ToList();
             if (successfulResults.Count > 1 && expectedCount > 0) {
                 var reference = successfulResults.First().Value.response.Answers.OrderBy(a => a.Data).ToArray();
                 foreach (var kvp in successfulResults.Skip(1)) {
@@ -99,9 +104,10 @@ namespace DnsClientX.Tests {
                     var result = kvp.Value;
                     var sorted = result.response.Answers.OrderBy(a => a.Data).ToArray();
                     for (int i = 0; i < reference.Length; i++) {
-                        if (reference[i].Data != sorted[i].Data) {
-                            output.WriteLine($"⚠️  Content mismatch in {endpoint}: expected '{reference[i].Data}', got '{sorted[i].Data}'");
-                        }
+                        Assert.Equal(reference[i].Name, sorted[i].Name);
+                        Assert.Equal(reference[i].Type, sorted[i].Type);
+                        Assert.Equal(reference[i].Data, sorted[i].Data);
+                        Assert.Equal(reference[i].DataStrings, sorted[i].DataStrings);
                     }
                 }
             }
@@ -165,6 +171,9 @@ namespace DnsClientX.Tests {
 
             using var Client = new ClientX(primaryEndpoint);
             DnsResponse aAnswersPrimary = await Client.ResolveFilter(name, resourceRecordType, filter);
+            Assert.Equal(DnsResponseCode.NoError, aAnswersPrimary.Status);
+            Assert.NotEmpty(aAnswersPrimary.Answers);
+            Assert.All(aAnswersPrimary.Answers, answer => Assert.Contains(filter, answer.Data));
 
             foreach (var endpointCompare in EndpointTestHelpers.AllEndpoints()) {
                 if (endpointCompare == primaryEndpoint) {
@@ -179,6 +188,8 @@ namespace DnsClientX.Tests {
 
                 using var ClientToCompare = new ClientX(endpointCompare);
                 DnsResponse aAnswersToCompare = await ClientToCompare.ResolveFilter(name, resourceRecordType, filter);
+                Assert.Equal(aAnswersPrimary.Status, aAnswersToCompare.Status);
+                Assert.NotEmpty(aAnswersToCompare.Questions);
 
                 var sortedAAnswers = aAnswersPrimary.Answers.OrderBy(a => a.Name).ThenBy(a => a.Type)
                     .ThenBy(a => a.Data).ToArray();
@@ -261,6 +272,13 @@ namespace DnsClientX.Tests {
             using var Client = new ClientX(primaryEndpoint);
 
             DnsResponse[] aAnswersPrimary = await Client.ResolveFilter(names, resourceRecordType, filter);
+            Assert.Equal(names.Length, aAnswersPrimary.Length);
+            Assert.Equal(names.OrderBy(name => name), aAnswersPrimary.Select(response => Assert.Single(response.Questions).Name).OrderBy(name => name));
+            Assert.All(aAnswersPrimary, response => {
+                Assert.Equal(DnsResponseCode.NoError, response.Status);
+                Assert.NotEmpty(response.Answers);
+                Assert.All(response.Answers, answer => Assert.Contains(filter, answer.Data));
+            });
 
             foreach (var endpointCompare in EndpointTestHelpers.AllEndpoints()) {
                 if (endpointCompare == primaryEndpoint) {
@@ -273,8 +291,12 @@ namespace DnsClientX.Tests {
 
                 using var ClientToCompare = new ClientX(endpointCompare);
                 DnsResponse[] aAnswersToCompare = await ClientToCompare.ResolveFilter(names, resourceRecordType, filter);
+                Assert.Equal(names.Length, aAnswersToCompare.Length);
+                Assert.Equal(names.OrderBy(name => name), aAnswersToCompare.Select(response => Assert.Single(response.Questions).Name).OrderBy(name => name));
 
                 for (int j = 0; j < aAnswersPrimary.Length; j++) {
+                    Assert.Equal(aAnswersPrimary[j].Status, aAnswersToCompare[j].Status);
+                    Assert.Equal(Assert.Single(aAnswersPrimary[j].Questions).Name, Assert.Single(aAnswersToCompare[j].Questions).Name);
                     var sortedAAnswers = aAnswersPrimary[j].Answers.OrderBy(a => a.Name).ThenBy(a => a.Type)
                         .ThenBy(a => a.Data).ToArray();
                     var sortedAAnswersCompared = aAnswersToCompare[j].Answers.OrderBy(a => a.Name).ThenBy(a => a.Type)

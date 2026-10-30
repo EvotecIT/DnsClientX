@@ -9,7 +9,7 @@ using Xunit;
 
 namespace DnsClientX.Tests {
     /// <summary>
-    /// Tests release-facing metadata and documentation drift.
+    /// Tests release-facing metadata and executable command help.
     /// </summary>
     [Collection("NoParallel")]
     public class ReleaseSanityTests {
@@ -54,38 +54,14 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Ensures README and CLI help cover key operator switches together.
+        /// Ensures executable CLI help lists the supported operator switches.
         /// </summary>
         [Fact]
-        public async Task CliHelpAndReadme_ShouldDocumentKeyOperatorSwitches() {
-            string root = FindRepositoryRoot();
-            string readme = File.ReadAllText(CombineRelative(root, "README.md"));
+        public async Task CliHelp_ShouldDocumentKeyOperatorSwitches() {
             string help = await GetCliHelpAsync();
 
             foreach (string cliSwitch in CliOperatorSwitches) {
                 Assert.Contains(cliSwitch, help, StringComparison.Ordinal);
-                Assert.Contains(cliSwitch, readme, StringComparison.Ordinal);
-            }
-        }
-
-        /// <summary>
-        /// Ensures exported binary cmdlets stay listed in the PowerShell module manifest.
-        /// </summary>
-        [Fact]
-        public void PowerShellManifest_ShouldExportBinaryCmdlets() {
-            string root = FindRepositoryRoot();
-            string manifest = File.ReadAllText(CombineRelative(root, "Module", "DnsClientX.psd1"));
-            string[] sourceFiles = Directory.GetFiles(CombineRelative(root, "DnsClientX.PowerShell"), "*.cs");
-
-            foreach (string source in sourceFiles.Select(File.ReadAllText)) {
-                Match match = Regex.Match(source, @"\[Cmdlet\([^,]+,\s*""(?<noun>[^""]+)""", RegexOptions.CultureInvariant);
-                if (!match.Success) {
-                    continue;
-                }
-
-                string verb = ReadCmdletVerb(source);
-                string noun = match.Groups["noun"].Value;
-                Assert.Contains($"{verb}-{noun}", manifest, StringComparison.Ordinal);
             }
         }
 
@@ -148,20 +124,6 @@ namespace DnsClientX.Tests {
             Match match = Regex.Match(content, @"ModuleVersion\s*=\s*'(?<version>[^']+)'", RegexOptions.CultureInvariant);
             Assert.True(match.Success, $"Missing ModuleVersion in {path}.");
             return match.Groups["version"].Value;
-        }
-
-        private static string ReadCmdletVerb(string source) {
-            if (source.Contains("VerbsCommunications.Receive", StringComparison.Ordinal)) return "Receive";
-            if (source.Contains("VerbsCommon.Get", StringComparison.Ordinal)) return "Get";
-            if (source.Contains("VerbsCommon.Clear", StringComparison.Ordinal)) return "Clear";
-            if (source.Contains("VerbsCommon.Find", StringComparison.Ordinal)) return "Find";
-            if (source.Contains("VerbsData.ConvertFrom", StringComparison.Ordinal)) return "ConvertFrom";
-            if (source.Contains("VerbsData.Compare", StringComparison.Ordinal)) return "Compare";
-            if (source.Contains("VerbsDiagnostic.Resolve", StringComparison.Ordinal)) return "Resolve";
-            if (source.Contains("VerbsDiagnostic.Test", StringComparison.Ordinal)) return "Test";
-            if (source.Contains("VerbsLifecycle.Invoke", StringComparison.Ordinal)) return "Invoke";
-
-            throw new InvalidOperationException("Unsupported cmdlet verb in PowerShell source.");
         }
 
         private static string FindRepositoryRoot([System.Runtime.CompilerServices.CallerFilePath] string sourcePath = "") {

@@ -61,6 +61,12 @@ namespace DnsClientX.Tests {
                 item => item.RequestFormat == DnsRequestFormat.DnsOverGrpc).Name, StringComparison.OrdinalIgnoreCase);
             Assert.False(Assert.Single(report,
                 item => item.RequestFormat == DnsRequestFormat.ObliviousDnsOverHttps).Supported);
+            DnsTransportCapabilityInfo http3 = Assert.Single(report, entry => entry.RequestFormat == DnsRequestFormat.DnsOverHttp3);
+            DnsTransportCapabilityInfo quic = Assert.Single(report, entry => entry.RequestFormat == DnsRequestFormat.DnsOverQuic);
+            Assert.Equal(DnsTransportCapabilities.SupportsDnsOverHttp3, http3.Supported);
+            Assert.Equal(DnsTransportCapabilities.SupportsDnsOverQuic, quic.Supported);
+            Assert.Equal("DnsClientX", http3.Package);
+            Assert.Equal("DnsClientX", quic.Package);
         }
 
         /// <summary>
@@ -85,22 +91,6 @@ namespace DnsClientX.Tests {
 #else
             Assert.False(DnsTransportCapabilities.SupportsZoneTransferOverTls);
 #endif
-        }
-
-        /// <summary>
-        /// Ensures the user-facing capability report exposes modern transport entries.
-        /// </summary>
-        [Fact]
-        public void GetCapabilityReport_ContainsModernEntries() {
-            DnsTransportCapabilityInfo[] report = DnsTransportCapabilities.GetCapabilityReport();
-
-            DnsTransportCapabilityInfo http3 = Assert.Single(report, entry => entry.RequestFormat == DnsRequestFormat.DnsOverHttp3);
-            DnsTransportCapabilityInfo quic = Assert.Single(report, entry => entry.RequestFormat == DnsRequestFormat.DnsOverQuic);
-
-            Assert.Equal(DnsTransportCapabilities.SupportsDnsOverHttp3, http3.Supported);
-            Assert.Equal(DnsTransportCapabilities.SupportsDnsOverQuic, quic.Supported);
-            Assert.Equal("DnsClientX", http3.Package);
-            Assert.Equal("DnsClientX", quic.Package);
         }
 
         private static bool GetRuntimeQuicSupport() {

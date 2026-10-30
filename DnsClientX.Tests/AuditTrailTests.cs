@@ -16,7 +16,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures that no audit entries are created when auditing is disabled.
         /// </summary>
-        [Fact]
+        [RealDnsFact]
         public async Task ShouldNotRecordWhenDisabled() {
             using var client = new ClientX();
             var response = await client.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
@@ -26,7 +26,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures that responses are recorded when auditing is enabled.
         /// </summary>
-        [Fact]
+        [RealDnsFact]
         public async Task ShouldRecordResponseWhenEnabled() {
             using var client = new ClientX { EnableAudit = true };
             var response = await client.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
@@ -98,35 +98,52 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures transient retries create one audit entry per attempt.
         /// </summary>
-        [Fact]
-        public async Task ShouldRecordRetryAttemptsWhenEnabled() {
+        [Theory]
+        [InlineData(2)]
+        [InlineData(3)]
+        public async Task ShouldRecordRetryAttemptsWhenEnabled(int attempts) {
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP) { EnableAudit = true };
             int calls = 0;
             client.ResolverOverride = (name, type, ct) => {
                 calls++;
                 return Task.FromResult(new DnsResponse {
                     Questions = new[] { new DnsQuestion { Name = name, Type = type, OriginalName = name, RequestFormat = DnsRequestFormat.DnsOverUDP } },
-                    Status = calls == 1 ? DnsResponseCode.ServerFailure : DnsResponseCode.NoError,
+                    Status = calls < attempts ? DnsResponseCode.ServerFailure : DnsResponseCode.NoError,
                     UsedTransport = Transport.Udp
                 });
             };
 
-            DnsResponse response = await client.Resolve("example.com", DnsRecordType.A, retryOnTransient: true, maxRetries: 2, retryDelayMs: 1);
+            DateTimeOffset started = DateTimeOffset.UtcNow;
+            DnsResponse response = await client.Resolve("example.com", DnsRecordType.A, retryOnTransient: true, maxRetries: attempts, retryDelayMs: 1);
+            DateTimeOffset completed = DateTimeOffset.UtcNow;
 
-            Assert.Equal(2, calls);
+            Assert.Equal(attempts, calls);
             Assert.Equal(DnsResponseCode.NoError, response.Status);
-            Assert.Equal(2, client.AuditTrail.Count);
+            Assert.Equal(attempts - 1, response.RetryCount);
+            Assert.Equal(attempts, client.AuditTrail.Count);
 
             var entries = client.AuditTrail.ToArray();
-            Assert.Equal(1, entries[0].AttemptNumber);
-            Assert.Equal(2, entries[1].AttemptNumber);
-            Assert.Equal(DnsResponseCode.ServerFailure, entries[0].Response?.Status);
-            Assert.NotNull(entries[0].Exception);
-            Assert.Contains("transient response", entries[0].RetryReason, StringComparison.OrdinalIgnoreCase);
-            Assert.Equal(DnsResponseCode.NoError, entries[1].Response?.Status);
-            Assert.Null(entries[1].Exception);
-            Assert.Null(entries[1].RetryReason);
-            Assert.All(entries, entry => Assert.Equal(Transport.Udp, entry.UsedTransport));
+            Assert.Equal(Enumerable.Range(1, attempts), entries.Select(entry => entry.AttemptNumber));
+            Assert.All(entries.Take(attempts - 1), entry => {
+                Assert.Equal(DnsResponseCode.ServerFailure, entry.Response?.Status);
+                Assert.NotNull(entry.Exception);
+                Assert.Contains("transient response", entry.RetryReason, StringComparison.OrdinalIgnoreCase);
+            });
+            Assert.Same(response, entries[attempts - 1].Response);
+            Assert.Null(entries[attempts - 1].Exception);
+            Assert.Null(entries[attempts - 1].RetryReason);
+            Assert.All(entries, entry => {
+                Assert.Equal("example.com", entry.Name);
+                Assert.Equal(DnsRecordType.A, entry.RecordType);
+                Assert.InRange(entry.StartedAtUtc, started, completed);
+                Assert.True(entry.Duration >= TimeSpan.Zero);
+                Assert.Equal(client.EndpointConfiguration.SelectionStrategy, entry.SelectionStrategy);
+                Assert.Equal("127.0.0.1", entry.ResolverHost);
+                Assert.Equal(53, entry.ResolverPort);
+                Assert.Equal(DnsRequestFormat.DnsOverUDP, entry.RequestFormat);
+                Assert.Equal(Transport.Udp, entry.UsedTransport);
+                Assert.False(entry.ServedFromCache);
+            });
         }
 
         /// <summary>

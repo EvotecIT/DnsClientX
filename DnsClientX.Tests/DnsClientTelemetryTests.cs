@@ -11,8 +11,12 @@ namespace DnsClientX.Tests {
         [Fact]
         public async Task PublishesQueryCompletion() {
             DnsQueryTelemetryEventArgs? observed = null;
+            int completed = 0;
             EventHandler<DnsQueryTelemetryEventArgs> handler = (_, args) => {
-                if (args.Name == "telemetry.example") observed = args;
+                if (args.Name == "telemetry.example") {
+                    Interlocked.Increment(ref completed);
+                    observed = args;
+                }
             };
             DnsClientTelemetry.QueryCompleted += handler;
             try {
@@ -25,6 +29,7 @@ namespace DnsClientX.Tests {
                 await client.Resolve("telemetry.example", retryOnTransient: false);
 
                 Assert.NotNull(observed);
+                Assert.Equal(1, completed);
                 Assert.Equal(DnsRecordType.A, observed!.Type);
                 Assert.Equal(DnsResponseCode.NoError, observed.Status);
                 Assert.Null(observed.Exception);

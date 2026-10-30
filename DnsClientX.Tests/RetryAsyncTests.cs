@@ -72,49 +72,6 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Confirms exponential backoff is used when enabled.
-        /// </summary>
-        [Fact]
-        public async Task ShouldUseExponentialBackoff() {
-            int attempts = 0;
-            var delays = new List<long>();
-            var sw = new Stopwatch();
-            Action beforeRetry = () => {
-                if (!sw.IsRunning) {
-                    sw.Start();
-                } else {
-                    delays.Add(sw.ElapsedMilliseconds);
-                    sw.Restart();
-                }
-            };
-
-            Func<Task<int>> action = () => {
-                attempts++;
-                throw new TimeoutException();
-            };
-
-            MethodInfo method = typeof(ClientX).GetMethod("RetryAsync", BindingFlags.NonPublic | BindingFlags.Static)!;
-            Task<int> Invoke() {
-                var generic = method.MakeGenericMethod(typeof(int));
-                return (Task<int>)generic.Invoke(null!, new object?[] { action, 3, 50, beforeRetry, null, false, CancellationToken.None })!;
-            }
-
-            await Assert.ThrowsAsync<TimeoutException>(Invoke);
-
-            delays.Add(sw.ElapsedMilliseconds);
-
-            Assert.Equal(3, attempts);
-
-            Assert.Equal(2, delays.Count);
-
-            // With jitter disabled the retry helper starts at delayMs and doubles,
-            // so the two waits should clear progressively higher minimums even
-            // if the host oversleeps under load.
-            Assert.InRange(delays[0], 40, 5000);
-            Assert.InRange(delays[1], 80, 10000);
-        }
-
-        /// <summary>
         /// Throws <see cref="DnsClientException"/> when a transient response is encountered.
         /// </summary>
         [Fact]

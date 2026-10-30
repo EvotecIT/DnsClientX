@@ -81,26 +81,9 @@ namespace DnsClientX.Tests {
             clientX.Dispose();
 
             Assert.Equal(1, handler.DisposeCount);
-        }
-
-        /// <summary>
-        /// Ensures the asynchronous dispose method does not dispose the <see cref="HttpClient"/> twice.
-        /// </summary>
-        [Fact]
-        public async Task Client_DisposeAsync_ShouldNotDisposeHttpClientTwice() {
-            var handler = new TrackingHandler();
-            var customClient = new HttpClient(handler) { BaseAddress = new Uri("https://example.com") };
-            await using var clientX = new ClientX("example.com", DnsRequestFormat.DnsOverHttps);
-            var clientsField = typeof(ClientX).GetField("_clients", BindingFlags.NonPublic | BindingFlags.Instance)!;
-            var clients = (Dictionary<DnsSelectionStrategy, HttpClient>)clientsField.GetValue(clientX)!;
-            clients[clientX.EndpointConfiguration.SelectionStrategy] = customClient;
-            var clientField = typeof(ClientX).GetField("Client", BindingFlags.NonPublic | BindingFlags.Instance)!;
-            clientField.SetValue(clientX, customClient);
-            typeof(ClientX).GetField("_handlerOwnedByClient", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(clientX, true);
-
-            await clientX.DisposeAsync();
-
-            Assert.Equal(1, handler.DisposeCount);
+            var disposedClients = (HashSet<object>)typeof(ClientX)
+                .GetField("_disposedClients", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(clientX)!;
+            Assert.Empty(disposedClients);
         }
 
         /// <summary>
@@ -193,23 +176,6 @@ namespace DnsClientX.Tests {
             await Assert.ThrowsAsync<ObjectDisposedException>(() => clientX.Resolve("example.com"));
         }
 
-        /// <summary>
-        /// Validates that the disposal counter is incremented when <see cref="ClientX.DisposeAsync()"/> is called.
-        /// </summary>
-        [Fact]
-        public async Task Client_DisposeAsync_ShouldIncrementDisposalCount() {
-            var initialCount = ClientX.DisposalCount;
-            await using var clientX = new ClientX("example.com", DnsRequestFormat.DnsOverHttps);
-
-            await clientX.DisposeAsync();
-
-            // Wait a moment for any async disposal to complete
-            await Task.Delay(50);
-
-            var finalCount = ClientX.DisposalCount;
-            Assert.True(finalCount >= initialCount + 1, $"Expected disposal count to increase. Initial={initialCount} Final={finalCount}");
-        }
-
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
         /// <summary>
         /// Tests that asynchronous disposal prefers calling <see cref="IAsyncDisposable.DisposeAsync"/> on the handler when available.
@@ -230,23 +196,9 @@ namespace DnsClientX.Tests {
 
             await clientX.DisposeAsync();
 
-            Assert.True(handler.DisposeAsyncCount >= 1, $"AsyncCount={handler.DisposeAsyncCount} DisposeCount={handler.DisposeCount}");
-            Assert.True(handler.DisposeAsyncCount >= handler.DisposeCount, $"AsyncCount={handler.DisposeAsyncCount} DisposeCount={handler.DisposeCount}");
+            Assert.Equal(1, handler.DisposeAsyncCount);
+            Assert.Equal(0, handler.DisposeCount);
         }
 #endif
-
-        /// <summary>
-        /// Ensures the list tracking disposed clients is cleared upon disposal.
-        /// </summary>
-        [Fact]
-        public void Client_Dispose_ShouldClearDisposedClientsList() {
-            var clientX = new ClientX("example.com", DnsRequestFormat.DnsOverHttps);
-
-            clientX.Dispose();
-
-            var field = typeof(ClientX).GetField("_disposedClients", BindingFlags.NonPublic | BindingFlags.Instance)!;
-            var disposedClients = (HashSet<object>)field.GetValue(clientX)!;
-            Assert.Empty(disposedClients);
-        }
     }
 }

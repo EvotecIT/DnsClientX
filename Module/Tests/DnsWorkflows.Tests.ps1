@@ -19,6 +19,7 @@ Describe 'PowerShell DNS workflows against a loopback peer' {
         $response = [pscustomobject]@{ DnsName = 'property.test' } |
             Resolve-Dns -Server 127.0.0.1 -Port $dnsPeer.Port -FullResponse -RetryCount 1
         $response.GetType().FullName | Should -Be 'DnsClientX.DnsResponse'
+        $response.RetryCount | Should -Be 0
         $response.Questions[0].Name.TrimEnd('.') | Should -Be 'property.test'
     }
 

@@ -14,6 +14,8 @@ namespace DnsClientX.Tests {
         [InlineData("www.example.com", ".", true)]
         [InlineData("www.example.com", "evil.com", false)]
         [InlineData("notexample.com", "example.com", false)]
+        [InlineData("example.com", "example.com", true)]
+        [InlineData("www.other.test", "example.com", false)]
         public void RrsigSignerMustContainRrsetOwner(string owner, string signer, bool expected) {
             Assert.Equal(expected, DnsSecValidationEngine.IsNameWithinZone(owner, signer));
         }
@@ -96,15 +98,6 @@ namespace DnsClientX.Tests {
             Assert.True(valid);
             Assert.True(terminal);
             Assert.Null(error);
-        }
-
-        /// <summary>Denial signers may authenticate only names at or below their own zone.</summary>
-        [Theory]
-        [InlineData("www.example.com", "example.com", true)]
-        [InlineData("example.com", "example.com", true)]
-        [InlineData("www.other.test", "example.com", false)]
-        public void DenialSignerMustContainQueriedName(string name, string signer, bool expected) {
-            Assert.Equal(expected, DnsSecValidationEngine.IsNameWithinZone(name, signer));
         }
 
         /// <summary>An ancestor zone cannot deny a name below an authenticated delegation cut.</summary>

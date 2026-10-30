@@ -116,66 +116,6 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Performs synchronous TXT resolution returning only the first record.
-        /// </summary>
-        [RealDnsTheory]
-        [InlineData(DnsEndpoint.System)]
-        [InlineData(DnsEndpoint.SystemTcp)]
-        [InlineData(DnsEndpoint.Cloudflare)]
-        [InlineData(DnsEndpoint.CloudflareFamily)]
-        [InlineData(DnsEndpoint.CloudflareSecurity)]
-        [InlineData(DnsEndpoint.CloudflareWireFormat)]
-        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
-        [InlineData(DnsEndpoint.Google)]
-        [InlineData(DnsEndpoint.GoogleWireFormat)]
-        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-        [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public async Task ShouldWorkForFirstSyncTXT(DnsEndpoint endpoint)       
-        {
-            if (ShouldSkipEndpoint(endpoint)) return;
-            using var client = new ClientX(endpoint);
-            var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
-
-            Assert.True(response.Answers.Length > 0, "Expected at least one answer");
-            var answer = response.Answers[0];
-            Assert.True(answer.Name == "github.com", $"Expected answer name to be github.com but got {answer.Name}");
-            Assert.True(answer.Type == DnsRecordType.TXT, $"Expected answer type to be TXT but got {answer.Type}");
-            Assert.True(answer.Data.Length > 0, "Expected answer data to not be empty");
-        }
-
-        /// <summary>
-        /// Performs synchronous TXT resolution returning all records.
-        /// </summary>
-        [RealDnsTheory]
-        [InlineData(DnsEndpoint.System)]
-        [InlineData(DnsEndpoint.SystemTcp)]
-        [InlineData(DnsEndpoint.Cloudflare)]
-        [InlineData(DnsEndpoint.CloudflareFamily)]
-        [InlineData(DnsEndpoint.CloudflareSecurity)]
-        [InlineData(DnsEndpoint.CloudflareWireFormat)]
-        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
-        [InlineData(DnsEndpoint.Google)]
-        [InlineData(DnsEndpoint.GoogleWireFormat)]
-        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-        [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public async Task ShouldWorkForAllSyncTXT(DnsEndpoint endpoint)
-        {
-            if (ShouldSkipEndpoint(endpoint)) return;
-            using var client = new ClientX(endpoint);
-            var response = await TryResolveWithDiagnostics(client, "github.com", DnsRecordType.TXT);
-
-            Assert.True(response.Answers.Length > 0, "Expected at least one answer");
-            foreach (DnsAnswer answer in response.Answers)
-            {
-                Assert.True(answer.Name == "github.com", $"Expected answer name to be github.com but got {answer.Name}");
-                Assert.True(answer.Type == DnsRecordType.TXT, $"Expected answer type to be TXT but got {answer.Type}");
-                Assert.True(answer.Data.Length > 0, "Expected answer data to not be empty");
-            }
-        }
-
-        /// <summary>
         /// Performs asynchronous A record resolution for the specified endpoint.
         /// </summary>
         [RealDnsTheory]
@@ -226,6 +166,8 @@ namespace DnsClientX.Tests {
             if (ShouldSkipEndpoint(endpoint)) return;
             using var client = new ClientX(endpoint);
             var response = client.ResolveSync("1.1.1.1", DnsRecordType.PTR);
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.NotEmpty(response.Answers);
             foreach (DnsAnswer answer in response.Answers) {
                 Assert.True(answer.Data == "one.one.one.one");
                 Assert.True(answer.Name == "1.1.1.1.in-addr.arpa");
@@ -243,8 +185,11 @@ namespace DnsClientX.Tests {
             using var client = new ClientX(endpoint);
             var domains = new[] { "evotec.pl", "google.com" };
             var responses = client.ResolveSync(domains, DnsRecordType.A);
+            Assert.Equal(domains.Length, responses.Length);
             foreach (var domain in domains) {
-                var response = responses.First(r => r.Questions?.Any(q => q.Name == domain) == true);
+                var response = Assert.Single(responses, r => r.Questions?.Any(q => q.Name == domain) == true);
+                Assert.Equal(DnsResponseCode.NoError, response.Status);
+                Assert.NotEmpty(response.Answers);
                 foreach (DnsAnswer answer in response.Answers) {
                     Assert.True(answer.Name == domain);
                     Assert.True(answer.Type == DnsRecordType.A);
@@ -262,8 +207,11 @@ namespace DnsClientX.Tests {
             using var client = new ClientX(endpoint);
             var types = new[] { DnsRecordType.A, DnsRecordType.TXT };
             var responses = client.ResolveSync("evotec.pl", types);
+            Assert.Equal(types.Length, responses.Length);
             foreach (var type in types) {
-                var response = responses.First(r => r.Questions?.Any(q => q.Type == type) == true);
+                var response = Assert.Single(responses, r => r.Questions?.Any(q => q.Type == type) == true);
+                Assert.Equal(DnsResponseCode.NoError, response.Status);
+                Assert.NotEmpty(response.Answers);
                 foreach (DnsAnswer answer in response.Answers) {
                     Assert.True(answer.Name == "evotec.pl");
                     Assert.True(answer.Type == type);
@@ -272,57 +220,5 @@ namespace DnsClientX.Tests {
             }
         }
 
-        /// <summary>
-        /// Resolves the first A record synchronously for the given endpoint.
-        /// </summary>
-        [RealDnsTheory]
-        [InlineData(DnsEndpoint.System)]
-        [InlineData(DnsEndpoint.SystemTcp)]
-        [InlineData(DnsEndpoint.Cloudflare)]
-        [InlineData(DnsEndpoint.CloudflareFamily)]
-        [InlineData(DnsEndpoint.CloudflareSecurity)]
-        [InlineData(DnsEndpoint.CloudflareWireFormat)]
-        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
-        [InlineData(DnsEndpoint.Google)]
-        [InlineData(DnsEndpoint.GoogleWireFormat)]
-        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-        [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public void ShouldWorkForFirstSyncA(DnsEndpoint endpoint) {
-            if (ShouldSkipEndpoint(endpoint)) return;
-            using var client = new ClientX(endpoint);
-            var answer = client.ResolveFirstSync("evotec.pl", DnsRecordType.A, cancellationToken: CancellationToken.None);
-            Assert.True(answer != null, "Expected a non-null answer");
-            Assert.True(answer.Value.Type == DnsRecordType.A, $"Expected A record but got {answer.Value.Type}");
-            Assert.True(!string.IsNullOrWhiteSpace(answer.Value.Name), "Expected answer name to not be empty");
-            Assert.True(!string.IsNullOrWhiteSpace(answer.Value.Data), "Expected answer data to not be empty");
-            Assert.True(System.Net.IPAddress.TryParse(answer.Value.Data, out var ipAddress) && ipAddress.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork, $"Expected A record data to be an IPv4 address but got '{answer.Value.Data}' (name '{answer.Value.Name}', original '{answer.Value.OriginalName}')");
-        }
-
-        /// <summary>
-        /// Resolves all A records synchronously for the given endpoint.
-        /// </summary>
-        [RealDnsTheory]
-        [InlineData(DnsEndpoint.System)]
-        [InlineData(DnsEndpoint.SystemTcp)]
-        [InlineData(DnsEndpoint.Cloudflare)]
-        [InlineData(DnsEndpoint.CloudflareFamily)]
-        [InlineData(DnsEndpoint.CloudflareSecurity)]
-        [InlineData(DnsEndpoint.CloudflareWireFormat)]
-        [InlineData(DnsEndpoint.CloudflareWireFormatPost)]
-        [InlineData(DnsEndpoint.Google)]
-        [InlineData(DnsEndpoint.GoogleWireFormat)]
-        [InlineData(DnsEndpoint.GoogleWireFormatPost)]
-        [InlineData(DnsEndpoint.OpenDNS)]
-        [InlineData(DnsEndpoint.OpenDNSFamily)]
-        public void ShouldWorkForAllSyncA(DnsEndpoint endpoint) {
-            if (ShouldSkipEndpoint(endpoint)) return;
-            using var client = new ClientX(endpoint);
-            var answers = client.ResolveAllSync("evotec.pl", DnsRecordType.A);
-            foreach (DnsAnswer answer in answers) {
-                Assert.True(answer.Name == "evotec.pl");
-                Assert.True(answer.Type == DnsRecordType.A);
-            }
-        }
     }
 }

@@ -74,15 +74,6 @@ namespace DnsClientX {
             }
         }
 
-        // Retained for internal binary/source compatibility with older tests and custom builds.
-        // Production response parsing uses the bounded message-aware formatter directly.
-        internal static string ProcessRecordData(byte[] dnsMessage, int recordStart, DnsRecordType type,
-            byte[] rdata, ushort rdLength, long messageStart) {
-            if (rdata == null) throw new ArgumentNullException(nameof(rdata));
-            if (rdLength > rdata.Length) throw new DnsClientException("RDATA length exceeds the supplied buffer.");
-            return DnsWireRecordFormatter.Format(rdata, type, 0, rdLength);
-        }
-
         private static DnsResponse ParseMessage(byte[] message, DnsMessage? query, bool requireResponse, bool multicast) {
             if (message.Length < 12) throw new DnsClientException("DNS message is shorter than its 12-byte header.");
             if (message.Length > ushort.MaxValue) throw new DnsClientException("DNS message exceeds the 65535-octet protocol limit.");

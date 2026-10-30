@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Globalization;
 
 namespace DnsClientX.Tests;
 
@@ -133,31 +134,74 @@ public class RecordDataConsistencyTests {
     /// <summary>Real JSON and wire parsers expose the same data for textual and generic RDATA.</summary>
     [Theory]
     [MemberData(nameof(ProviderRecords))]
-    public async Task JsonWireAndGenericRdataAgree(DnsRecordType type, byte[] rdata, string presentation) {
-        DnsResponse wire = await DnsWire.DeserializeDnsWireFormat(null, false, WireResponse(type, rdata));
-        string expected = wire.Answers[0].Data;
-        foreach (string raw in new[] { presentation, "\\# " + rdata.Length + " " + BitConverter.ToString(rdata).Replace("-", " ") }) {
-            string json = "{\"Status\":0,\"Answer\":[{\"name\":\"example.com.\",\"type\":" + (ushort)type
-                + ",\"TTL\":60,\"data\":" + JsonSerializer.Serialize(raw) + "}]}";
-            using var http = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/dns-json") };
-            DnsResponse response = await http.DeserializeResponse();
-            Assert.Equal(expected, response.Answers[0].Data);
-            Assert.Equal(raw, response.Answers[0].DataRaw);
-            if (type is DnsRecordType.TXT or DnsRecordType.SPF)
-                Assert.Equal(wire.Answers[0].DataStringsEscaped, response.Answers[0].DataStringsEscaped);
-            Assert.Equal(TypedValue(wire.Answers[0]), TypedValue(response.Answers[0]));
-            response.TypedAnswers = new[] { response.Answers[0].TypedRecord! };
-            using var cache = new DnsResponseCache();
-            cache.Set("record", response, TimeSpan.FromMinutes(1));
-            response.Answers[0].DataRaw = "changed";
-            Assert.True(cache.TryGet("record", out var cached));
-            Assert.Equal(expected, cached.Answers[0].Data);
-            Assert.Equal(raw, cached.Answers[0].DataRaw);
+    public async Task JsonWireAndGenericRdataAgree(DnsRecordType type, byte[] rdata, string presentation,
+        string? expectedWire, string? culture) {
+        CultureInfo originalCulture = CultureInfo.CurrentCulture;
+        try {
+            if (culture != null) CultureInfo.CurrentCulture = new CultureInfo(culture);
+            DnsResponse wire = await DnsWire.DeserializeDnsWireFormat(null, false, WireResponse(type, rdata));
+            if (expectedWire != null) {
+                Assert.Equal(expectedWire, wire.Answers[0].DataRaw);
+                if (type == DnsRecordType.DS) {
+                    var ds = Assert.IsType<DsRecord>(wire.Answers[0].TypedRecord);
+                    Assert.Equal(20326, ds.KeyTag);
+                    Assert.Equal(DnsKeyAlgorithm.RSASHA256, ds.Algorithm);
+                    Assert.Equal(2, ds.DigestType);
+                    Assert.Equal("E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D", ds.Digest);
+                } else if (type == DnsRecordType.DNAME) {
+                    Assert.Equal("target.example.com", Assert.IsType<DnameRecord>(wire.Answers[0].TypedRecord).Target);
+                } else if (type == DnsRecordType.LOC) {
+                    var loc = Assert.IsType<LocRecord>(wire.Answers[0].TypedRecord);
+                    Assert.Equal(0d, loc.Latitude);
+                    Assert.Equal(0d, loc.Longitude);
+                    Assert.Equal(0d, loc.AltitudeMeters);
+                    Assert.Equal(1d, loc.SizeMeters);
+                    Assert.Equal(10000d, loc.HorizontalPrecisionMeters);
+                    Assert.Equal(10d, loc.VerticalPrecisionMeters);
+                }
+            }
+            string expected = wire.Answers[0].Data;
+            foreach (string raw in new[] { presentation, "\\# " + rdata.Length + " " + BitConverter.ToString(rdata).Replace("-", " ") }) {
+                string json = "{\"Status\":0,\"Answer\":[{\"name\":\"example.com.\",\"type\":" + (ushort)type
+                    + ",\"TTL\":60,\"data\":" + JsonSerializer.Serialize(raw) + "}]}";
+                using var http = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/dns-json") };
+                DnsResponse response = await http.DeserializeResponse();
+                Assert.Equal(expected, response.Answers[0].Data);
+                Assert.Equal(raw, response.Answers[0].DataRaw);
+                if (type is DnsRecordType.TXT or DnsRecordType.SPF)
+                    Assert.Equal(wire.Answers[0].DataStringsEscaped, response.Answers[0].DataStringsEscaped);
+                Assert.Equal(TypedValue(wire.Answers[0]), TypedValue(response.Answers[0]));
+                response.TypedAnswers = new[] { response.Answers[0].TypedRecord! };
+                using var cache = new DnsResponseCache();
+                cache.Set("record", response, TimeSpan.FromMinutes(1));
+                response.Answers[0].DataRaw = "changed";
+                Assert.True(cache.TryGet("record", out var cached));
+                Assert.Equal(expected, cached.Answers[0].Data);
+                Assert.Equal(raw, cached.Answers[0].DataRaw);
+            }
+        } finally {
+            CultureInfo.CurrentCulture = originalCulture;
         }
     }
 
     /// <summary>Provider fixtures cover name, scalar, encoded, and quoted fields.</summary>
     public static IEnumerable<object[]> ProviderRecords() {
+        foreach (object[] record in RecordPresentations()) {
+            string? expected = (DnsRecordType)record[0] == DnsRecordType.LOC
+                ? "0 0 0.000 N 0 0 0.000 E 0.00m 1.00m 10000.00m 10.00m" : null;
+            yield return new object[] { record[0], record[1], record[2], expected!, null! };
+        }
+        yield return new object[] { DnsRecordType.DNAME, Name("target", "example", "com"),
+            "target.example.com.", "target.example.com.", null! };
+        const string ds = "20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D";
+        const string digest = "E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D";
+        byte[] rdata = new byte[] { 0x4F, 0x66, 8, 2 }.Concat(Enumerable.Range(0, digest.Length / 2)
+            .Select(index => Convert.ToByte(digest.Substring(index * 2, 2), 16))).ToArray();
+        foreach (string culture in new[] { "en-US", "tr-TR" })
+            yield return new object[] { DnsRecordType.DS, rdata, ds, ds, culture };
+    }
+
+    private static IEnumerable<object[]> RecordPresentations() {
         byte[] name = Name("Target", "Example");
         foreach (DnsRecordType type in new[] { DnsRecordType.NS, DnsRecordType.CNAME, DnsRecordType.DNAME, DnsRecordType.PTR,
             DnsRecordType.MB, DnsRecordType.MD, DnsRecordType.MF, DnsRecordType.MG, DnsRecordType.MR })

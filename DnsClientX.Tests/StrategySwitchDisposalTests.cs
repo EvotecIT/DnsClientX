@@ -14,9 +14,16 @@ namespace DnsClientX.Tests {
 [Collection("DisposalTests")]
 public class StrategySwitchDisposalTests {
         private class JsonResponseHandler : HttpMessageHandler {
+            internal int Requests { get; private set; }
+            internal int DisposeCount { get; private set; }
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
+                Requests++;
                 var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"Status\":0}") };
                 return Task.FromResult(response);
+            }
+            protected override void Dispose(bool disposing) {
+                if (disposing) DisposeCount++;
+                base.Dispose(disposing);
             }
         }
 
@@ -34,21 +41,22 @@ public class StrategySwitchDisposalTests {
         [Fact]
         public async Task MultipleStrategySwitches_ShouldIncreaseDisposalCount() {
             var initialCount = ClientX.DisposalCount;
-            var handler = new JsonResponseHandler();
+            var handlers = new List<JsonResponseHandler>();
             using (var client = new ClientX("https://example.com/dns-query", DnsRequestFormat.DnsOverHttpsJSON)) {
-                var httpClient = new HttpClient(handler) { BaseAddress = client.EndpointConfiguration.BaseUri };
-                InjectClient(client, httpClient);
-
-                await client.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
-                client.EndpointConfiguration.SelectionStrategy = DnsSelectionStrategy.Random;
-                await client.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
-                client.EndpointConfiguration.SelectionStrategy = DnsSelectionStrategy.Failover;
-                await client.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
+                foreach (var strategy in new[] { client.EndpointConfiguration.SelectionStrategy,
+                    DnsSelectionStrategy.Random, DnsSelectionStrategy.Failover }) {
+                    client.EndpointConfiguration.SelectionStrategy = strategy;
+                    var handler = new JsonResponseHandler();
+                    handlers.Add(handler);
+                    InjectClient(client, new HttpClient(handler) { BaseAddress = client.EndpointConfiguration.BaseUri });
+                    var response = await client.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
+                    Assert.Equal(DnsResponseCode.NoError, response.Status);
+                    Assert.Equal(1, handler.Requests);
+                    Assert.All(handlers, item => Assert.Equal(0, item.DisposeCount));
+                }
             }
-
-            // Wait a moment for any async disposal to complete
-            await Task.Delay(50);
-
+            Assert.Equal(3, handlers.Count);
+            Assert.All(handlers, handler => Assert.Equal(1, handler.DisposeCount));
             var finalCount = ClientX.DisposalCount;
             var diff = finalCount - initialCount;
             Assert.Equal(1, diff);

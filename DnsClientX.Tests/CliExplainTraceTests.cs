@@ -76,10 +76,12 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Ensures the CLI explain mode prints resolver diagnostics for a successful query.
+        /// Ensures explain and trace retain query diagnostics and trace audit details.
         /// </summary>
-        [Fact]
-        public async Task ExplainOption_PrintsDiagnostics() {
+        [Theory]
+        [InlineData("--explain")]
+        [InlineData("--trace")]
+        public async Task ExplainAndTraceOptions_PrintDiagnostics(string diagnosticSwitch) {
             int port = TestUtilities.GetFreeUdpPort();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             Task serverTask = RunUdpServerAsync(port, cts.Token);
@@ -91,7 +93,7 @@ namespace DnsClientX.Tests {
                 SystemInformation.SetDnsServerProvider(() => new List<string> { "127.0.0.1" });
                 Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", port.ToString());
 
-                int exitCode = await InvokeCliAsync("--explain", "example.com");
+                int exitCode = await InvokeCliAsync(diagnosticSwitch, "example.com");
 
                 Assert.Equal(0, exitCode);
                 string text = output.ToString();
@@ -101,43 +103,16 @@ namespace DnsClientX.Tests {
                 Assert.Contains("Actual transport: Udp", text);
                 Assert.Contains("Cache enabled: False", text);
                 Assert.Contains("Attempts recorded: 1", text);
+                Assert.Contains("Retries: 0", text);
                 Assert.Contains("Final source: network", text);
                 Assert.Contains("DNSSEC requested: False", text);
                 Assert.Contains("Elapsed:", text);
-            } finally {
-                Console.SetOut(originalOut);
-                Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", null);
-                SystemInformation.SetDnsServerProvider(null);
-            }
-
-            await serverTask;
-        }
-
-        /// <summary>
-        /// Ensures the CLI trace mode prints audit-oriented diagnostic details.
-        /// </summary>
-        [Fact]
-        public async Task TraceOption_PrintsAuditDetails() {
-            int port = TestUtilities.GetFreeUdpPort();
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            Task serverTask = RunUdpServerAsync(port, cts.Token);
-
-            using var output = new StringWriter();
-            TextWriter originalOut = Console.Out;
-            try {
-                Console.SetOut(output);
-                SystemInformation.SetDnsServerProvider(() => new List<string> { "127.0.0.1" });
-                Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", port.ToString());
-
-                int exitCode = await InvokeCliAsync("--trace", "example.com");
-
-                Assert.Equal(0, exitCode);
-                string text = output.ToString();
-                Assert.Contains("Explain:", text);
-                Assert.Contains("Trace:", text);
-                Assert.Contains("Audit entries:", text);
-                Assert.Contains("Used transport: Udp", text);
-                Assert.Contains("Attempt 1: example.com A via DnsOverUDP/Udp", text);
+                if (diagnosticSwitch == "--trace") {
+                    Assert.Contains("Trace:", text);
+                    Assert.Contains("Audit entries:", text);
+                    Assert.Contains("Used transport: Udp", text);
+                    Assert.Contains("Attempt 1: example.com A via DnsOverUDP/Udp", text);
+                }
             } finally {
                 Console.SetOut(originalOut);
                 Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", null);
@@ -151,7 +126,7 @@ namespace DnsClientX.Tests {
         /// Ensures the CLI explain formatter summarizes retry reasons and resolver attempts.
         /// </summary>
         [Fact]
-        public async Task WriteExplain_PrintsRetrySummary() {
+        public async Task WriteExplain_WithTrace_PrintsRetrySummary() {
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP) { EnableAudit = true };
             int calls = 0;
             client.ResolverOverride = (name, type, ct) => {
@@ -181,7 +156,7 @@ namespace DnsClientX.Tests {
                     DnsRecordType.A,
                     false,
                     false,
-                    false,
+                    true,
                     null,
                     null
                 });
@@ -193,41 +168,6 @@ namespace DnsClientX.Tests {
             Assert.Contains("Resolvers tried:", text);
             Assert.Contains("Retry reasons:", text);
             Assert.Contains("transient response", text);
-        }
-
-        /// <summary>
-        /// Ensures the CLI trace formatter includes retry reasons for earlier attempts.
-        /// </summary>
-        [Fact]
-        public async Task WriteTrace_PrintsRetryReason() {
-            using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP) { EnableAudit = true };
-            int calls = 0;
-            client.ResolverOverride = (name, type, ct) => {
-                calls++;
-                return Task.FromResult(new DnsResponse {
-                    Questions = new[] { new DnsQuestion { Name = name, Type = type, OriginalName = name, RequestFormat = DnsRequestFormat.DnsOverUDP } },
-                    Status = calls == 1 ? DnsResponseCode.ServerFailure : DnsResponseCode.NoError,
-                    UsedTransport = Transport.Udp
-                });
-            };
-
-            DnsResponse response = await client.Resolve("example.com", DnsRecordType.A, retryOnTransient: true, maxRetries: 2, retryDelayMs: 1);
-
-            var assembly = Assembly.Load("DnsClientX.Cli");
-            Type programType = assembly.GetType("DnsClientX.Cli.Program")!;
-            MethodInfo writeTrace = programType.GetMethod("WriteTrace", BindingFlags.NonPublic | BindingFlags.Static)!;
-
-            using var output = new StringWriter();
-            TextWriter originalOut = Console.Out;
-            try {
-                Console.SetOut(output);
-                ResolverSingleOperationResult result = CreateOperationResult(client, response, TimeSpan.FromMilliseconds(5));
-                writeTrace.Invoke(null, new object[] { result });
-            } finally {
-                Console.SetOut(originalOut);
-            }
-
-            string text = output.ToString();
             Assert.Contains("Attempt 1:", text);
             Assert.Contains("Attempt 2:", text);
             Assert.Contains("retry: transient response", text);
@@ -331,8 +271,10 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures benchmark mode compares multiple built-in endpoints across domains, record types, and repeated attempts.
         /// </summary>
-        [Fact]
-        public async Task BenchmarkOption_PrintsRankedSummaryAcrossEndpoints() {
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task BenchmarkOption_PrintsRankedSummaryAcrossEndpoints(bool summaryOnly) {
             SetProbeOverride((endpoint, domain, ct) => Task.FromResult((
                 new DnsResponse {
                     Status = DnsResponseCode.NoError,
@@ -355,27 +297,37 @@ namespace DnsClientX.Tests {
             TextWriter originalOut = Console.Out;
             try {
                 Console.SetOut(output);
-                int exitCode = await InvokeCliAsync(
-                    "--benchmark",
-                    "--endpoint", "Cloudflare,Quad9",
-                    "--domain", "example.com,microsoft.com",
-                    "--type", "A,AAAA",
-                    "--benchmark-attempts", "2");
+                var args = new List<string> {
+                    "--benchmark", "--endpoint", "Cloudflare,Quad9",
+                    "--domain", summaryOnly ? "example.com" : "example.com,microsoft.com",
+                    "--type", summaryOnly ? "A" : "A,AAAA",
+                    "--benchmark-attempts", summaryOnly ? "1" : "2"
+                };
+                if (summaryOnly) args.Add("--benchmark-summary-only");
+                int exitCode = await InvokeCliAsync(args.ToArray());
 
                 Assert.Equal(0, exitCode);
                 string text = output.ToString();
                 Assert.Contains("Benchmark:", text);
-                Assert.Contains("Domains: example.com, microsoft.com", text);
-                Assert.Contains("Types: A, AAAA", text);
-                Assert.Contains("Attempts per combination: 2", text);
+                Assert.Contains(summaryOnly ? "Domains: example.com" : "Domains: example.com, microsoft.com", text);
+                Assert.Contains(summaryOnly ? "Types: A" : "Types: A, AAAA", text);
+                Assert.Contains(summaryOnly ? "Attempts per combination: 1" : "Attempts per combination: 2", text);
                 Assert.Contains("Timeout (ms): 2000", text);
                 Assert.Contains("Concurrency: 4", text);
                 Assert.Contains("Candidates: 2", text);
-                Assert.Contains("Queries per candidate: 8", text);
-                Assert.Contains("[OK] Cloudflare", text);
-                Assert.Contains("[OK] Quad9", text);
-                Assert.Contains("Ranked 1: Cloudflare avg 10 ms, success 100% (8/8), resolver Cloudflare.test:443", text);
-                Assert.Contains("Ranked 2: Quad9 avg 20 ms, success 100% (8/8), resolver Quad9.test:443", text);
+                Assert.Contains(summaryOnly ? "Queries per candidate: 1" : "Queries per candidate: 8", text);
+                if (summaryOnly) {
+                    Assert.Contains("Detail mode: summary-only", text);
+                    Assert.Contains("Benchmark Summary:", text);
+                    Assert.DoesNotContain("[OK] Cloudflare", text);
+                    Assert.DoesNotContain("[OK] Quad9", text);
+                } else {
+                    Assert.Contains("[OK] Cloudflare", text);
+                    Assert.Contains("[OK] Quad9", text);
+                }
+                int queries = summaryOnly ? 1 : 8;
+                Assert.Contains($"Ranked 1: Cloudflare avg 10 ms, success 100% ({queries}/{queries}), resolver Cloudflare.test:443", text);
+                Assert.Contains($"Ranked 2: Quad9 avg 20 ms, success 100% ({queries}/{queries}), resolver Quad9.test:443", text);
                 Assert.Contains("Best endpoint: Cloudflare in 10 ms average (100% success)", text);
             } finally {
                 Console.SetOut(originalOut);
@@ -441,63 +393,16 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Ensures benchmark mode supports summary-only output for automation-friendly logs.
-        /// </summary>
-        [Fact]
-        public async Task BenchmarkOption_SummaryOnly_SuppressesPerCandidateRows() {
-            SetProbeOverride((endpoint, domain, ct) => Task.FromResult((
-                new DnsResponse {
-                    Status = DnsResponseCode.NoError,
-                    UsedTransport = endpoint == DnsEndpoint.Quad9 ? Transport.Tcp : Transport.Doh,
-                    Answers = new[] {
-                        new DnsAnswer {
-                            Name = domain,
-                            Type = DnsRecordType.A,
-                            TTL = 60,
-                            DataRaw = endpoint == DnsEndpoint.Quad9 ? "9.9.9.9" : "1.1.1.1"
-                        }
-                    }
-                },
-                endpoint == DnsEndpoint.Quad9 ? TimeSpan.FromMilliseconds(20) : TimeSpan.FromMilliseconds(10),
-                $"{endpoint}.test:443",
-                endpoint == DnsEndpoint.Quad9 ? DnsRequestFormat.DnsOverTCP : GetRequestFormat(endpoint)
-            )));
-
-            using var output = new StringWriter();
-            TextWriter originalOut = Console.Out;
-            try {
-                Console.SetOut(output);
-                int exitCode = await InvokeCliAsync(
-                    "--benchmark",
-                    "--benchmark-summary-only",
-                    "--endpoint", "Cloudflare,Quad9",
-                    "--domain", "example.com",
-                    "--type", "A",
-                    "--benchmark-attempts", "1");
-
-                Assert.Equal(0, exitCode);
-                string text = output.ToString();
-                Assert.Contains("Benchmark:", text);
-                Assert.Contains("Detail mode: summary-only", text);
-                Assert.Contains("Benchmark Summary:", text);
-                Assert.DoesNotContain("[OK] Cloudflare", text);
-                Assert.DoesNotContain("[OK] Quad9", text);
-                Assert.Contains("Ranked 1: Cloudflare avg 10 ms, success 100% (1/1), resolver Cloudflare.test:443", text);
-            } finally {
-                Console.SetOut(originalOut);
-                SetProbeOverride(null);
-            }
-        }
-
-        /// <summary>
         /// Ensures benchmark mode respects the configured concurrency limit.
         /// </summary>
         [Fact]
         public async Task BenchmarkOption_RespectsConcurrencyLimit() {
+            int calls = 0;
             int active = 0;
             int maxActive = 0;
 
             SetProbeOverride(async (endpoint, domain, ct) => {
+                Interlocked.Increment(ref calls);
                 int current = Interlocked.Increment(ref active);
                 int observed;
                 while ((observed = maxActive) < current && Interlocked.CompareExchange(ref maxActive, current, observed) != observed) {
@@ -544,6 +449,8 @@ namespace DnsClientX.Tests {
                 string text = output.ToString();
                 Assert.Contains("Timeout (ms): 1500", text);
                 Assert.Contains("Concurrency: 2", text);
+                Assert.Equal(4, calls);
+                Assert.Equal(0, active);
                 Assert.True(maxActive <= 2, $"Expected benchmark concurrency to stay at or below 2, but observed {maxActive}.");
             } finally {
                 Console.SetOut(originalOut);
@@ -672,8 +579,10 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures probe mode accepts explicit custom endpoint transports.
         /// </summary>
-        [Fact]
-        public async Task ProbeOption_CustomEndpoint_PrintsTransportSummary() {
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task ProbeOption_CustomEndpoint_PrintsTransportSummary(bool summaryOnly) {
             SetProbeEndpointOverride((endpoint, domain, ct) => Task.FromResult((
                 new DnsResponse {
                     Status = DnsResponseCode.NoError,
@@ -695,13 +604,15 @@ namespace DnsClientX.Tests {
             TextWriter originalOut = Console.Out;
             try {
                 Console.SetOut(output);
-                int exitCode = await InvokeCliAsync("--probe", "--probe-endpoint", "tcp@1.1.1.1:53");
+                int exitCode = await InvokeCliAsync(summaryOnly
+                    ? new[] { "--probe", "--probe-summary-only", "--probe-summary-line", "--probe-endpoint", "tcp@1.1.1.1:53" }
+                    : new[] { "--probe", "--probe-endpoint", "tcp@1.1.1.1:53" });
 
                 Assert.Equal(0, exitCode);
                 string text = output.ToString();
                 Assert.Contains("Endpoint profile: custom", text);
                 Assert.Contains("Candidates: 1", text);
-                Assert.Contains("[OK] tcp@1.1.1.1:53 via DnsOverTCP", text);
+                if (!summaryOnly) Assert.Contains("[OK] tcp@1.1.1.1:53 via DnsOverTCP", text);
                 Assert.Contains("Successful probes: 1/1", text);
                 Assert.Contains("Fastest success: tcp@1.1.1.1:53", text);
                 Assert.Contains("Fastest consensus responder: tcp@1.1.1.1:53", text);
@@ -712,6 +623,15 @@ namespace DnsClientX.Tests {
                 Assert.Contains("Answer variants: [1] (no answers) <- tcp@1.1.1.1:53", text);
                 Assert.Contains("Recommended endpoint: tcp@1.1.1.1:53 in 9 ms via Tcp", text);
                 Assert.Contains("Policy result: pass", text);
+                if (summaryOnly) {
+                    Assert.Contains("recommended_target=tcp_1_1_1_1_53", text);
+                    Assert.Contains("recommended_resolver=1_1_1_1_53", text);
+                    Assert.Contains("recommended_transport=tcp", text);
+                    Assert.Contains("recommended_ms=9", text);
+                    Assert.Contains("recommended_status=selected", text);
+                    Assert.Contains("recommendation_source=single_success_fallback", text);
+                    Assert.Contains("why_not_recommended=none", text);
+                }
             } finally {
                 Console.SetOut(originalOut);
                 SetProbeEndpointOverride(null);
@@ -719,10 +639,12 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Ensures probe summary-only mode keeps the aggregate output but suppresses per-endpoint rows.
+        /// Ensures probe summary-line mode emits a stable machine-readable line for successful runs.
         /// </summary>
-        [Fact]
-        public async Task ProbeOption_SummaryOnly_SuppressesPerEndpointRows() {
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task ProbeOption_SummaryOnly_PreservesAggregateAndOptionalSummaryLine(bool summaryLine) {
             SetProbeOverride((endpoint, domain, ct) => Task.FromResult((
                 new DnsResponse {
                     Status = DnsResponseCode.NoError,
@@ -745,7 +667,9 @@ namespace DnsClientX.Tests {
             TextWriter originalOut = Console.Out;
             try {
                 Console.SetOut(output);
-                int exitCode = await InvokeCliAsync("--probe", "--probe-summary-only", "-e", "Cloudflare");
+                int exitCode = await InvokeCliAsync(summaryLine
+                    ? new[] { "--probe", "--probe-summary-only", "--probe-summary-line", "-e", "Cloudflare" }
+                    : new[] { "--probe", "--probe-summary-only", "-e", "Cloudflare" });
 
                 Assert.Equal(0, exitCode);
                 string text = output.ToString();
@@ -756,114 +680,36 @@ namespace DnsClientX.Tests {
                 Assert.Contains("Policy result: pass", text);
                 Assert.DoesNotContain("[OK] Cloudflare via", text);
                 Assert.DoesNotContain("[OK] CloudflareQuic via", text);
-            } finally {
-                Console.SetOut(originalOut);
-                SetProbeOverride(null);
-            }
-        }
-
-        /// <summary>
-        /// Ensures probe summary-line mode emits a stable machine-readable line for successful runs.
-        /// </summary>
-        [Fact]
-        public async Task ProbeOption_SummaryLine_PrintsStableKeyValueOutput() {
-            SetProbeOverride((endpoint, domain, ct) => Task.FromResult((
-                new DnsResponse {
-                    Status = DnsResponseCode.NoError,
-                    UsedTransport = endpoint == DnsEndpoint.CloudflareQuic ? Transport.Quic : Transport.Doh,
-                    Answers = new[] {
-                        new DnsAnswer {
-                            Name = domain,
-                            Type = DnsRecordType.A,
-                            TTL = 60,
-                            DataRaw = "1.1.1.1"
-                        }
-                    }
-                },
-                TimeSpan.FromMilliseconds(12),
-                $"{endpoint}.test:443",
-                GetRequestFormat(endpoint)
-            )));
-
-            using var output = new StringWriter();
-            TextWriter originalOut = Console.Out;
-            try {
-                Console.SetOut(output);
-                int exitCode = await InvokeCliAsync("--probe", "--probe-summary-only", "--probe-summary-line", "-e", "Cloudflare");
-
-                Assert.Equal(0, exitCode);
-                string text = output.ToString();
-                Assert.Contains("PROBE_SUMMARY", text);
-                Assert.Contains("summary_version=1", text);
-                Assert.Contains("result=pass", text);
-                Assert.Contains("exit_code=0", text);
-                Assert.Contains("successful=3", text);
-                Assert.Contains("total=3", text);
-                Assert.Contains("success_percent=100", text);
-                Assert.Contains("consensus_count=3", text);
-                Assert.Contains("consensus_total=3", text);
-                Assert.Contains("consensus_percent=100", text);
-                Assert.Contains("distinct_answer_sets=1", text);
-                Assert.Contains("fastest_success_target=cloudflare", text);
-                Assert.Contains("fastest_success_transport=doh", text);
-                Assert.Contains("fastest_success_ms=12", text);
-                Assert.Contains("fastest_consensus_target=cloudflare", text);
-                Assert.Contains("fastest_consensus_transport=doh", text);
-                Assert.Contains("fastest_consensus_ms=12", text);
-                Assert.Contains("recommended_target=cloudflare", text);
-                Assert.Contains("recommended_resolver=cloudflare_test_443", text);
-                Assert.Contains("recommended_transport=doh", text);
-                Assert.Contains("recommended_ms=12", text);
-                Assert.Contains("recommended_status=selected", text);
-                Assert.Contains("recommendation_source=unanimous_agreement", text);
-                Assert.Contains("why_not_recommended=none", text);
-                Assert.Contains("policy_reason=none", text);
-            } finally {
-                Console.SetOut(originalOut);
-                SetProbeOverride(null);
-            }
-        }
-
-        /// <summary>
-        /// Ensures the machine-readable summary identifies single-success fallback recommendations.
-        /// </summary>
-        [Fact]
-        public async Task ProbeOption_SummaryLine_UsesSingleSuccessRecommendationSource() {
-            SetProbeEndpointOverride((endpoint, domain, ct) => Task.FromResult((
-                new DnsResponse {
-                    Status = DnsResponseCode.NoError,
-                    UsedTransport = endpoint.Transport
-                },
-                TimeSpan.FromMilliseconds(9),
-                $"{endpoint.Host}:{endpoint.Port}",
-                endpoint.Transport switch {
-                    Transport.Tcp => DnsRequestFormat.DnsOverTCP,
-                    Transport.Dot => DnsRequestFormat.DnsOverTLS,
-                    Transport.Quic => DnsRequestFormat.DnsOverQuic,
-                    Transport.Grpc => DnsRequestFormat.DnsOverGrpc,
-                    Transport.Multicast => DnsRequestFormat.Multicast,
-                    _ => DnsRequestFormat.DnsOverUDP
+                if (summaryLine) {
+                    Assert.Contains("PROBE_SUMMARY", text);
+                    Assert.Contains("summary_version=1", text);
+                    Assert.Contains("result=pass", text);
+                    Assert.Contains("exit_code=0", text);
+                    Assert.Contains("successful=3", text);
+                    Assert.Contains("total=3", text);
+                    Assert.Contains("success_percent=100", text);
+                    Assert.Contains("consensus_count=3", text);
+                    Assert.Contains("consensus_total=3", text);
+                    Assert.Contains("consensus_percent=100", text);
+                    Assert.Contains("distinct_answer_sets=1", text);
+                    Assert.Contains("fastest_success_target=cloudflare", text);
+                    Assert.Contains("fastest_success_transport=doh", text);
+                    Assert.Contains("fastest_success_ms=12", text);
+                    Assert.Contains("fastest_consensus_target=cloudflare", text);
+                    Assert.Contains("fastest_consensus_transport=doh", text);
+                    Assert.Contains("fastest_consensus_ms=12", text);
+                    Assert.Contains("recommended_target=cloudflare", text);
+                    Assert.Contains("recommended_resolver=cloudflare_test_443", text);
+                    Assert.Contains("recommended_transport=doh", text);
+                    Assert.Contains("recommended_ms=12", text);
+                    Assert.Contains("recommended_status=selected", text);
+                    Assert.Contains("recommendation_source=unanimous_agreement", text);
+                    Assert.Contains("why_not_recommended=none", text);
+                    Assert.Contains("policy_reason=none", text);
                 }
-            )));
-
-            using var output = new StringWriter();
-            TextWriter originalOut = Console.Out;
-            try {
-                Console.SetOut(output);
-                int exitCode = await InvokeCliAsync("--probe", "--probe-summary-only", "--probe-summary-line", "--probe-endpoint", "tcp@1.1.1.1:53");
-
-                Assert.Equal(0, exitCode);
-                string text = output.ToString();
-                Assert.Contains("recommended_target=tcp_1_1_1_1_53", text);
-                Assert.Contains("recommended_resolver=1_1_1_1_53", text);
-                Assert.Contains("recommended_transport=tcp", text);
-                Assert.Contains("recommended_ms=9", text);
-                Assert.Contains("recommended_status=selected", text);
-                Assert.Contains("recommendation_source=single_success_fallback", text);
-                Assert.Contains("why_not_recommended=none", text);
             } finally {
                 Console.SetOut(originalOut);
-                SetProbeEndpointOverride(null);
+                SetProbeOverride(null);
             }
         }
 
@@ -925,8 +771,10 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures probe summary-line mode reports policy failures in a parseable form.
         /// </summary>
-        [Fact]
-        public async Task ProbeOption_SummaryLine_PrintsPolicyFailureState() {
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task ProbeOption_MinSuccessCount_PreservesHumanAndMachinePolicyFailure(bool summaryLine) {
             SetProbeEndpointOverride((endpoint, domain, ct) => Task.FromResult((
                 endpoint.Host == "1.1.1.1"
                     ? new DnsResponse {
@@ -955,41 +803,45 @@ namespace DnsClientX.Tests {
             TextWriter originalOut = Console.Out;
             try {
                 Console.SetOut(output);
-                int exitCode = await InvokeCliAsync(
-                    "--probe",
-                    "--probe-summary-only",
-                    "--probe-summary-line",
-                    "--probe-min-success", "2",
+                var args = new List<string> {
+                    "--probe", "--probe-min-success", "2",
                     "--probe-endpoint", "udp@1.1.1.1:53",
                     "--probe-endpoint", "udp@1.0.0.1:53",
-                    "--probe-endpoint", "tcp@1.0.0.2:53");
+                    "--probe-endpoint", "tcp@1.0.0.2:53"
+                };
+                if (summaryLine) args.AddRange(new[] { "--probe-summary-only", "--probe-summary-line" });
+                int exitCode = await InvokeCliAsync(args.ToArray());
 
                 Assert.Equal(3, exitCode);
                 string text = output.ToString();
-                Assert.Contains("PROBE_SUMMARY", text);
-                Assert.Contains("result=fail", text);
-                Assert.Contains("exit_code=3", text);
-                Assert.Contains("successful=1", text);
-                Assert.Contains("total=3", text);
-                Assert.Contains("success_percent=33", text);
-                Assert.Contains("consensus_count=1", text);
-                Assert.Contains("consensus_total=1", text);
-                Assert.Contains("consensus_percent=100", text);
-                Assert.Contains("distinct_answer_sets=1", text);
-                Assert.Contains("fastest_success_target=udp_1_1_1_1_53", text);
-                Assert.Contains("fastest_success_transport=udp", text);
-                Assert.Contains("fastest_success_ms=5", text);
-                Assert.Contains("fastest_consensus_target=udp_1_1_1_1_53", text);
-                Assert.Contains("fastest_consensus_transport=udp", text);
-                Assert.Contains("fastest_consensus_ms=5", text);
-                Assert.Contains("recommended_target=none", text);
-                Assert.Contains("recommended_resolver=none", text);
-                Assert.Contains("recommended_transport=none", text);
-                Assert.Contains("recommended_ms=0", text);
-                Assert.Contains("recommended_status=blocked_by_policy", text);
-                Assert.Contains("recommendation_source=none", text);
-                Assert.Contains("why_not_recommended=policy_failed", text);
-                Assert.Contains("policy_reason=successful_probes_1_3_below_required_count_2", text);
+                Assert.Contains("Successful probes: 1/3", text);
+                Assert.Contains("Policy result: fail (successful probes 1/3 below required count 2)", text);
+                if (summaryLine) {
+                    Assert.Contains("PROBE_SUMMARY", text);
+                    Assert.Contains("result=fail", text);
+                    Assert.Contains("exit_code=3", text);
+                    Assert.Contains("successful=1", text);
+                    Assert.Contains("total=3", text);
+                    Assert.Contains("success_percent=33", text);
+                    Assert.Contains("consensus_count=1", text);
+                    Assert.Contains("consensus_total=1", text);
+                    Assert.Contains("consensus_percent=100", text);
+                    Assert.Contains("distinct_answer_sets=1", text);
+                    Assert.Contains("fastest_success_target=udp_1_1_1_1_53", text);
+                    Assert.Contains("fastest_success_transport=udp", text);
+                    Assert.Contains("fastest_success_ms=5", text);
+                    Assert.Contains("fastest_consensus_target=udp_1_1_1_1_53", text);
+                    Assert.Contains("fastest_consensus_transport=udp", text);
+                    Assert.Contains("fastest_consensus_ms=5", text);
+                    Assert.Contains("recommended_target=none", text);
+                    Assert.Contains("recommended_resolver=none", text);
+                    Assert.Contains("recommended_transport=none", text);
+                    Assert.Contains("recommended_ms=0", text);
+                    Assert.Contains("recommended_status=blocked_by_policy", text);
+                    Assert.Contains("recommendation_source=none", text);
+                    Assert.Contains("why_not_recommended=policy_failed", text);
+                    Assert.Contains("policy_reason=successful_probes_1_3_below_required_count_2", text);
+                }
             } finally {
                 Console.SetOut(originalOut);
                 SetProbeEndpointOverride(null);
@@ -1187,56 +1039,6 @@ namespace DnsClientX.Tests {
                 string text = output.ToString();
                 Assert.Contains("Answer consensus: 2/3 successful probes agree", text);
                 Assert.Contains("Policy result: fail (consensus 67% below required 80%)", text);
-            } finally {
-                Console.SetOut(originalOut);
-                SetProbeEndpointOverride(null);
-            }
-        }
-
-        /// <summary>
-        /// Ensures probe mode can enforce a minimum successful responder count.
-        /// </summary>
-        [Fact]
-        public async Task ProbeOption_MinSuccessCount_FailsWhenTooFewRespondersSucceed() {
-            SetProbeEndpointOverride((endpoint, domain, ct) => Task.FromResult((
-                endpoint.Host == "1.1.1.1"
-                    ? new DnsResponse {
-                        Status = DnsResponseCode.NoError,
-                        UsedTransport = endpoint.Transport,
-                        Answers = new[] {
-                            new DnsAnswer {
-                                Name = domain,
-                                Type = DnsRecordType.A,
-                                TTL = 60,
-                                DataRaw = "1.1.1.1"
-                            }
-                        }
-                    }
-                    : new DnsResponse {
-                        Status = DnsResponseCode.ServerFailure,
-                        Error = "probe failed",
-                        UsedTransport = endpoint.Transport
-                    },
-                endpoint.Host == "1.1.1.1" ? TimeSpan.FromMilliseconds(5) : TimeSpan.FromMilliseconds(7),
-                $"{endpoint.Host}:{endpoint.Port}",
-                endpoint.Transport == Transport.Tcp ? DnsRequestFormat.DnsOverTCP : DnsRequestFormat.DnsOverUDP
-            )));
-
-            using var output = new StringWriter();
-            TextWriter originalOut = Console.Out;
-            try {
-                Console.SetOut(output);
-                int exitCode = await InvokeCliAsync(
-                    "--probe",
-                    "--probe-min-success", "2",
-                    "--probe-endpoint", "udp@1.1.1.1:53",
-                    "--probe-endpoint", "udp@1.0.0.1:53",
-                    "--probe-endpoint", "tcp@1.0.0.2:53");
-
-                Assert.Equal(3, exitCode);
-                string text = output.ToString();
-                Assert.Contains("Successful probes: 1/3", text);
-                Assert.Contains("Policy result: fail (successful probes 1/3 below required count 2)", text);
             } finally {
                 Console.SetOut(originalOut);
                 SetProbeEndpointOverride(null);

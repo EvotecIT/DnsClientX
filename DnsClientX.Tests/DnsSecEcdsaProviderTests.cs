@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Security.Cryptography;
 using DnsClientX.DnsSec.EdDsa;
 
 namespace DnsClientX.Tests;
@@ -76,8 +77,15 @@ public class DnsSecEcdsaProviderTests {
     [Fact]
     public void ConfiguredProviderRejectionDoesNotFallBack() {
         var provider = new RejectingVerifier();
-        var key = new DnsSecKey("example.net", 257, 3, (byte)DnsKeyAlgorithm.RSASHA256, Array.Empty<byte>());
-        Assert.False(DnsSecCrypto.Verify(key, Array.Empty<byte>(), Array.Empty<byte>(), provider));
+        using RSA rsa = RSA.Create(2048);
+        RSAParameters parameters = rsa.ExportParameters(false);
+        byte[] publicKey = new[] { checked((byte)parameters.Exponent!.Length) }
+            .Concat(parameters.Exponent).Concat(parameters.Modulus!).ToArray();
+        var key = new DnsSecKey("example.net", 257, 3, (byte)DnsKeyAlgorithm.RSASHA256, publicKey);
+        byte[] data = { 1, 3, 3, 7, 9 };
+        byte[] signature = rsa.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        Assert.True(DnsSecCrypto.Verify(key, data, signature));
+        Assert.False(DnsSecCrypto.Verify(key, data, signature, provider));
         Assert.True(provider.Called);
     }
 

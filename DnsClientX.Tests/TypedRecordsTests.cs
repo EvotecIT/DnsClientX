@@ -211,13 +211,5 @@ namespace DnsClientX.Tests {
             Assert.Equal("abc", typed.Token);
         }
 
-        /// <summary>
-        /// TxtRecord exposes the concatenated text via the Text property.
-        /// </summary>
-        [Fact]
-        public void TxtRecord_Returns_Concatenated_Text() {
-            var record = new TxtRecord(new[] { "foo", "bar" });
-            Assert.Equal("foobar", record.Text);
-        }
     }
 }

@@ -27,7 +27,7 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Verifies that the provided HTTP call delegate is invoked.
+        /// Verifies the custom gRPC request envelope and a correlated successful DNS reply.
         /// </summary>
         [Fact]
         public async Task ResolveWireFormatGrpc_UsesProvidedCallFunc() {
@@ -35,15 +35,31 @@ namespace DnsClientX.Tests {
             var prevSend = DnsWireResolveGrpc.SendAsync;
             try {
                 byte[]? captured = null;
-                DnsWireResolveGrpc.ClientFactory = _ => new HttpClient();
-                DnsWireResolveGrpc.SendAsync = (_, request, _) => {
-                    captured = request.Content?.ReadAsByteArrayAsync().Result;
+                DnsWireResolveGrpc.ClientFactory = uri => new HttpClient { BaseAddress = uri };
+                DnsWireResolveGrpc.SendAsync = async (_, request, _) => {
+                    Assert.Equal(HttpMethod.Post, request.Method);
+                    Assert.Equal("/DnsResolver/QueryDns", request.RequestUri!.OriginalString);
+                    Assert.Equal(new Version(2, 0), request.Version);
+                    Assert.Equal(HttpVersionPolicy.RequestVersionOrHigher, request.VersionPolicy);
+                    Assert.Equal("trailers", Assert.Single(request.Headers.TE).Value);
+                    Assert.Equal("application/grpc", request.Content!.Headers.ContentType!.MediaType);
+                    captured = await request.Content.ReadAsByteArrayAsync();
+                    Assert.True(captured.Length > 5);
+                    Assert.Equal(0, captured[0]);
+                    int length = (captured[1] << 24) | (captured[2] << 16) | (captured[3] << 8) | captured[4];
+                    Assert.Equal(captured.Length - 5, length);
+                    var query = new byte[length];
+                    Buffer.BlockCopy(captured, 5, query, 0, length);
+                    Assert.True(DnsWireMessageParser.TryParseQuestion(query, 0, out var question));
+                    Assert.Equal("example.com", question.Name);
+                    Assert.Equal((ushort)DnsRecordType.A, question.Type);
+                    Assert.Equal((ushort)1, question.Class);
                     var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
-                        Content = new ByteArrayContent(TestUtilities.CreateGrpcResponseFromRequest(captured!))
+                        Content = new ByteArrayContent(TestUtilities.CreateGrpcResponseFromRequest(captured))
                     };
                     response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/grpc");
                     response.TrailingHeaders.TryAddWithoutValidation("grpc-status", "0");
-                    return Task.FromResult(response);
+                    return response;
                 };
                 var config = new Configuration("dummy", DnsRequestFormat.DnsOverGrpc);
                 var response = await DnsWireResolveGrpc.ResolveWireFormatGrpc("dummy", 443, "example.com", DnsRecordType.A, false, false, false, config, CancellationToken.None);

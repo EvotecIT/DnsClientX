@@ -28,10 +28,10 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// DNS over TLS requests should set the DO bit when requested.
+        /// Serialized messages should set the DO bit when requested.
         /// </summary>
         [Fact]
-        public void DotRequest_ShouldIncludeDoBit_WhenRequested() {
+        public void Message_ShouldIncludeDoBit_WhenRequested() {
             var message = new DnsMessage("example.com", DnsRecordType.A, true);
             byte[] data = message.SerializeDnsWireFormat();
             AssertDoBit(data, "example.com");
@@ -102,14 +102,5 @@ namespace DnsClientX.Tests {
         }
 #endif
 
-        /// <summary>
-        /// DOQ requests should include the DO bit when enabled.
-        /// </summary>
-        [Fact]
-        public void DoqRequest_ShouldIncludeDoBit_WhenRequested() {
-            var message = new DnsMessage("example.com", DnsRecordType.A, true);
-            byte[] data = message.SerializeDnsWireFormat();
-            AssertDoBit(data, "example.com");
-        }
     }
 }

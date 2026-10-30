@@ -21,6 +21,7 @@ on:
       - 'DnsClientX/Network/DnsServerResolver.cs'
       - 'DnsClientX/Network/DnsBootstrapResolver.cs'
       - 'DnsClientX.Tests/DnsQuicConnectionPool*'
+      - 'DnsClientX.Tests/DnsWireResolveQuicTests.cs'
       - 'DnsClientX.Tests/NativeEncryptedDns*'
       - 'DnsClientX.Tests/TestUtilities.cs'
       - 'DnsClientX.Tests/DnsClientX.Tests.csproj'
@@ -43,6 +44,7 @@ on:
       - 'DnsClientX/Network/DnsServerResolver.cs'
       - 'DnsClientX/Network/DnsBootstrapResolver.cs'
       - 'DnsClientX.Tests/DnsQuicConnectionPool*'
+      - 'DnsClientX.Tests/DnsWireResolveQuicTests.cs'
       - 'DnsClientX.Tests/NativeEncryptedDns*'
       - 'DnsClientX.Tests/TestUtilities.cs'
       - 'DnsClientX.Tests/DnsClientX.Tests.csproj'
@@ -86,7 +88,7 @@ jobs:
           brew list --versions libmsquic openssl@3
           echo "DYLD_FALLBACK_LIBRARY_PATH=$(brew --prefix)/lib:$(brew --prefix openssl@3)/lib" >> "$GITHUB_ENV"
       - name: Verify encrypted DNS with native loopback connections
-        run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj -c Release -f ${{ matrix.framework }} --filter "FullyQualifiedName~DnsQuicConnectionPool|FullyQualifiedName~NativeEncryptedDns" --logger trx --results-directory artifacts/quic-pool
+        run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj -c Release -f ${{ matrix.framework }} --filter "FullyQualifiedName~DnsQuicConnectionPool|FullyQualifiedName~NativeEncryptedDns|FullyQualifiedName~DnsWireResolveQuicTests.ResolveWireFormatQuic_ShouldDisposeResources_OnWriteException" --logger trx --results-directory artifacts/quic-pool
       - name: Keep native qualification results
         if: always()
         uses: actions/upload-artifact@v7

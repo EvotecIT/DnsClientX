@@ -5,6 +5,19 @@ namespace DnsClientX.Tests {
     /// Compares <see cref="ClientX.ResolveAll(string,DnsRecordType,bool,bool,bool,int,int,System.Threading.CancellationToken)"/> results across providers.
     /// </summary>
     public class CompareProviders(ITestOutputHelper output) {
+        // Other apex types may legitimately be NODATA; retired/reverse PTR rows may be NXDOMAIN.
+        private static void AssertReference(string name, DnsRecordType type, DnsResponseCode status, DnsAnswer[] answers) {
+            Assert.Contains(status, new[] { DnsResponseCode.NoError, DnsResponseCode.NXDomain });
+            bool positive = type is DnsRecordType.A or DnsRecordType.SOA or DnsRecordType.CNAME
+                or DnsRecordType.MX or DnsRecordType.NS or DnsRecordType.TXT
+                or DnsRecordType.NAPTR or DnsRecordType.TLSA || name == "1.1.1.1";
+            if (positive || type != DnsRecordType.PTR) {
+                Assert.Equal(DnsResponseCode.NoError, status);
+            }
+            if (positive) { Assert.NotEmpty(answers); }
+            if (status == DnsResponseCode.NXDomain) { Assert.Empty(answers); }
+        }
+
         /// <summary>
         /// Performs a ResolveAll comparison across various providers.
         /// </summary>
@@ -50,6 +63,7 @@ namespace DnsClientX.Tests {
             using var primaryClient = new ClientX(primaryEndpoint);
             var primaryAnswers = await GetAnswersWithRetry(primaryClient, name, resourceRecordType, primaryEndpoint, output);
             results[primaryEndpoint] = primaryAnswers;
+            AssertReference(name, resourceRecordType, primaryAnswers.status, primaryAnswers.answers);
 
             output.WriteLine($"Primary ({primaryEndpoint}): {primaryAnswers.answers.Length} records, Status: {primaryAnswers.status}");
             if (!string.IsNullOrEmpty(primaryAnswers.error)) {
@@ -76,7 +90,9 @@ namespace DnsClientX.Tests {
             foreach (var kvp in results.Where(r => r.Key != primaryEndpoint)) {
                 var endpoint = kvp.Key;
                 var result = kvp.Value;
-                if (result.answers.Length == 0 && expectedCount > 0) {
+                if (result.status != primaryAnswers.status) {
+                    failedProviders.Add($"{endpoint} ({result.status}, expected {primaryAnswers.status})");
+                } else if (result.answers.Length == 0 && expectedCount > 0) {
                     failedProviders.Add($"{endpoint} (0 records, expected {expectedCount})");
                 } else if (result.answers.Length != expectedCount) {
                     inconsistentProviders.Add($"{endpoint} ({result.answers.Length} records, expected {expectedCount})");
@@ -104,7 +120,7 @@ namespace DnsClientX.Tests {
             }
 
             // For providers that did return results, validate content consistency
-            var successfulResults = results.Where(r => r.Value.answers.Length == expectedCount).ToList();
+            var successfulResults = results.Where(r => r.Value.status == primaryAnswers.status && r.Value.answers.Length == expectedCount).ToList();
             if (successfulResults.Count > 1) {
                 var reference = successfulResults.First().Value.answers.OrderBy(a => a.Data).ToArray();
                 foreach (var kvp in successfulResults.Skip(1)) {
@@ -112,9 +128,10 @@ namespace DnsClientX.Tests {
                     var result = kvp.Value;
                     var sorted = result.answers.OrderBy(a => a.Data).ToArray();
                     for (int i = 0; i < reference.Length; i++) {
-                        if (reference[i].Data != sorted[i].Data) {
-                            output.WriteLine($"⚠️  Content mismatch in {endpoint}: expected '{reference[i].Data}', got '{sorted[i].Data}'");
-                        }
+                        Assert.Equal(reference[i].Name, sorted[i].Name);
+                        Assert.Equal(reference[i].Type, sorted[i].Type);
+                        Assert.Equal(reference[i].Data, sorted[i].Data);
+                        Assert.Equal(reference[i].DataStrings, sorted[i].DataStrings);
                     }
                 }
             }
@@ -191,7 +208,9 @@ namespace DnsClientX.Tests {
             var primaryEndpoint = DnsEndpoint.Cloudflare;
 
             using var Client = new ClientX(primaryEndpoint);
+            DnsResponse primaryEnvelope = await Client.Resolve(name, resourceRecordType);
             DnsAnswer[] aAnswersPrimary = await Client.ResolveAll(name, resourceRecordType);
+            AssertReference(name, resourceRecordType, primaryEnvelope.Status, aAnswersPrimary);
 
             foreach (var endpointCompare in EndpointTestHelpers.AllEndpoints()) {
                 if (endpointCompare == primaryEndpoint) {
@@ -202,7 +221,9 @@ namespace DnsClientX.Tests {
                 }
                 output.WriteLine("Provider: " + endpointCompare.ToString());
                 using var clientToCompare = new ClientX(endpointCompare);
+                DnsResponse comparedEnvelope = await clientToCompare.Resolve(name, resourceRecordType);
                 DnsAnswer[] aAnswersToCompare = await clientToCompare.ResolveAll(name, resourceRecordType);
+                Assert.Equal(primaryEnvelope.Status, comparedEnvelope.Status);
 
                 var sortedAAnswers = aAnswersPrimary.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();
                 var sortedAAnswersCompared = aAnswersToCompare.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();
@@ -244,13 +265,17 @@ namespace DnsClientX.Tests {
         [InlineData("github.com", DnsRecordType.TXT, DnsEndpoint.Cloudflare, DnsEndpoint.OpenDNSFamily)]
         public async Task CompareRecordTextMultiline(string name, DnsRecordType resourceRecordType, DnsEndpoint primaryEndpoint, DnsEndpoint endpointCompare) {
             using var Client = new ClientX(primaryEndpoint);
+            DnsResponse primaryEnvelope = await Client.Resolve(name, resourceRecordType);
             DnsAnswer[] aAnswersPrimary = await Client.ResolveAll(name, resourceRecordType);
+            AssertReference(name, resourceRecordType, primaryEnvelope.Status, aAnswersPrimary);
             using var ClientToCompare = new ClientX(endpointCompare);
             DnsAnswer[] aAnswersToCompare = await ClientToCompare.ResolveAll(name, resourceRecordType);
 
             // we focus only on SPF1 TXT records
             aAnswersPrimary = aAnswersPrimary.Where(a => a.Type == DnsRecordType.TXT && a.Data.StartsWith("v=spf1")).ToArray();
             aAnswersToCompare = aAnswersToCompare.Where(a => a.Type == DnsRecordType.TXT && a.Data.StartsWith("v=spf1")).ToArray();
+            Assert.NotEmpty(aAnswersPrimary);
+            Assert.NotEmpty(aAnswersToCompare);
 
             var sortedAAnswers = aAnswersPrimary.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();
             var sortedAAnswersCompared = aAnswersToCompare.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();
@@ -268,6 +293,7 @@ namespace DnsClientX.Tests {
                 for (int j = 0; j < sortedAAnswers[i].DataStrings.Length; j++) {
                     Assert.True((bool)(sortedAAnswers[i].DataStrings[j] == sortedAAnswersCompared[i].DataStrings[j]));
                 }
+                Assert.Equal(sortedAAnswers[i].DataStringsEscaped.Length, sortedAAnswersCompared[i].DataStringsEscaped.Length);
                 for (int j = 0; j < sortedAAnswers[i].DataStringsEscaped.Length; j++) {
                     Assert.True((bool)(sortedAAnswers[i].DataStringsEscaped[j] == sortedAAnswersCompared[i].DataStringsEscaped[j]));
                 }

@@ -67,31 +67,15 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures empty filters still keep alias and requested type answers when enabled.
         /// </summary>
-        [Fact]
-        public async Task ResolveFilter_IncludeAliases_EmptyFilter_ReturnsAliasAndType() {
+        [Theory]
+        [InlineData("")]
+        [InlineData(null)]
+        public async Task ResolveFilter_IncludeAliases_EmptyFilter_ReturnsAliasAndType(string? filter) {
             using var client = new ClientX(DnsEndpoint.Cloudflare);
             client.ResolverOverride = (name, type, ct) => Task.FromResult(CreateResponse(name));
 
             var options = new ResolveFilterOptions(true);
-            var response = await client.ResolveFilter("example.com", DnsRecordType.TXT, string.Empty, options, retryOnTransient: false);
-
-            Assert.NotNull(response.Answers);
-            Assert.Equal(2, response.Answers.Length);
-            Assert.Contains(response.Answers, answer => answer.Type == DnsRecordType.CNAME);
-            Assert.Contains(response.Answers, answer => answer.Type == DnsRecordType.TXT);
-        }
-
-        /// <summary>
-        /// Ensures null filters are treated as empty when alias inclusion is enabled.
-        /// </summary>
-        [Fact]
-        public async Task ResolveFilter_IncludeAliases_NullFilter_TreatedAsEmpty() {
-            using var client = new ClientX(DnsEndpoint.Cloudflare);
-            client.ResolverOverride = (name, type, ct) => Task.FromResult(CreateResponse(name));
-
-            var options = new ResolveFilterOptions(true);
-            string? filter = null;
-#pragma warning disable CS8604 // Null is allowed for robustness testing.
+#pragma warning disable CS8604 // The null row preserves the public null-as-empty contract.
             var response = await client.ResolveFilter("example.com", DnsRecordType.TXT, filter, options, retryOnTransient: false);
 #pragma warning restore CS8604
 

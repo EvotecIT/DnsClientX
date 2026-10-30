@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -157,7 +158,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Verifies that a reusable request can load a recommended resolver from a saved selection snapshot.
         /// </summary>
-        [Fact]
+        [RealDnsFact]
         public async Task QueryDns_RequestWithResolverSelectionPath_UsesRecommendedResolver() {
             string snapshotPath = Path.GetTempFileName();
 
@@ -174,38 +175,23 @@ namespace DnsClientX.Tests {
                     }
                 });
 
-                ClientX.QueryDnsRequestOverride = (request, names, type, ct) => Task.FromResult(names.Select(name => new DnsResponse {
-                    Questions = new[] {
-                        new DnsQuestion {
-                            Name = name,
-                            OriginalName = name,
-                            Type = type,
-                            HostName = "Cloudflare"
-                        }
-                    },
-                    Answers = new[] {
-                        new DnsAnswer {
-                            Name = name,
-                            Type = type,
-                            TTL = 30,
-                            DataRaw = "127.0.0.1"
-                        }
-                    },
-                    Status = DnsResponseCode.NoError
-                }).ToArray());
-
                 var request = new ResolveDnsRequest {
                     Names = new[] { "example.com" },
                     RecordTypes = new[] { DnsRecordType.A },
-                    ResolverSelectionPath = snapshotPath
+                    ResolverSelectionPath = snapshotPath,
+                    RetryCount = 1,
+                    TimeOutMilliseconds = 5000
                 };
 
                 var responses = await ClientX.QueryDns(request);
 
                 Assert.Single(responses);
-                Assert.Equal("Cloudflare", responses[0].Questions[0].HostName);
+                Assert.Equal(DnsResponseCode.NoError, responses[0].Status);
+                Assert.NotEmpty(responses[0].Answers);
+                DnsQuestion question = Assert.Single(responses[0].Questions);
+                Assert.Contains(question.HostName, new[] { "1.1.1.1", "1.0.0.1" });
+                Assert.Equal(DnsRequestFormat.DnsOverHttpsJSON, question.RequestFormat);
             } finally {
-                ClientX.QueryDnsRequestOverride = null;
                 File.Delete(snapshotPath);
             }
         }
@@ -217,57 +203,58 @@ namespace DnsClientX.Tests {
         public async Task QueryDns_RequestWithExplicitResolverSelection_UsesSingleTargetExecutionPath() {
             string snapshotPath = Path.GetTempFileName();
 
+            using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var closeOnTimeout = deadline.Token.Register(() => server.Dispose());
+            int port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
+            Task responder = ReplyOnceAsync();
+            async Task ReplyOnceAsync() {
+                UdpReceiveResult packet = await server.ReceiveAsync();
+                byte[] reply = TestUtilities.CreateResponseFromQuery(packet.Buffer);
+                reply[7] = 1;
+                byte[] answer = { 0xc0, 0x0c, 0, 1, 0, 1, 0, 0, 0, 30, 0, 4, 127, 0, 0, 1 };
+                reply = reply.Concat(answer).ToArray();
+                await server.SendAsync(reply, reply.Length, packet.RemoteEndPoint);
+            }
+
             try {
                 ResolverScoreStore.Save(snapshotPath, new ResolverScoreSnapshot {
                     SchemaVersion = 2, // Deliberate legacy label-only fixture.
                     Summary = new ResolverScoreSummary {
                         Mode = ResolverScoreMode.Probe,
                         RecommendationAvailable = true,
-                        RecommendedTarget = "udp@127.0.0.1:53",
-                        RecommendedResolver = "127.0.0.1:53",
+                        RecommendedTarget = $"udp@127.0.0.1:{port}",
+                        RecommendedResolver = $"127.0.0.1:{port}",
                         RecommendedTransport = "Udp",
                         RecommendedAverageMs = 5
                     }
                 });
 
                 DnsMultiResolver.ResolveOverride = (_, _, _, _) => throw new InvalidOperationException("Multi-resolver path should not be used.");
-                ClientX.QueryDnsRequestOverride = (request, names, type, ct) => {
-                    Assert.Empty(request.DnsProviders);
-                    Assert.Empty(request.ResolverEndpoints);
-                    return Task.FromResult(names.Select(name => new DnsResponse {
-                        Questions = new[] {
-                            new DnsQuestion {
-                                Name = name,
-                                OriginalName = name,
-                                Type = type,
-                                HostName = "127.0.0.1"
-                            }
-                        },
-                        Answers = new[] {
-                            new DnsAnswer {
-                                Name = name,
-                                Type = type,
-                                TTL = 30,
-                                DataRaw = "127.0.0.1"
-                            }
-                        },
-                        Status = DnsResponseCode.NoError
-                    }).ToArray());
-                };
-
                 var request = new ResolveDnsRequest {
                     Names = new[] { "example.com" },
                     RecordTypes = new[] { DnsRecordType.A },
-                    ResolverSelectionPath = snapshotPath
+                    ResolverSelectionPath = snapshotPath,
+                    RetryCount = 1,
+                    TimeOutMilliseconds = 2000
                 };
 
-                DnsResponse[] responses = await ClientX.QueryDns(request);
+                DnsResponse[] responses = await ClientX.QueryDns(request, deadline.Token);
+                await responder;
+                Assert.Empty(request.DnsProviders);
+                Assert.Empty(request.ResolverEndpoints);
 
                 Assert.Single(responses);
-                Assert.Equal("127.0.0.1", responses[0].Questions[0].HostName);
+                Assert.Equal(DnsResponseCode.NoError, responses[0].Status);
+                DnsQuestion question = Assert.Single(responses[0].Questions);
+                Assert.Equal("127.0.0.1", question.HostName);
+                Assert.Equal(port, question.Port);
+                Assert.Equal(DnsRequestFormat.DnsOverUDP, question.RequestFormat);
+                Assert.Equal("127.0.0.1", Assert.Single(responses[0].Answers).Data);
             } finally {
                 DnsMultiResolver.ResolveOverride = null;
-                ClientX.QueryDnsRequestOverride = null;
+                deadline.Cancel();
+                try { await responder; } catch (Exception) when (deadline.IsCancellationRequested) { }
                 File.Delete(snapshotPath);
             }
         }

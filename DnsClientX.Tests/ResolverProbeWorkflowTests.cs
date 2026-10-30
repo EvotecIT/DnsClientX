@@ -11,8 +11,10 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures the probe workflow composes execution and report building into one shared entry point.
         /// </summary>
-        [Fact]
-        public async Task RunAsync_ComposesExecutionAndReportBuilding() {
+        [Theory]
+        [InlineData(1000)]
+        [InlineData(1500)]
+        public async Task RunAsync_ComposesExecutionAndReportBuilding(int timeoutMs) {
             ResolverExecutionTarget[] targets = {
                 new ResolverExecutionTarget {
                     DisplayName = "System",
@@ -33,9 +35,9 @@ namespace DnsClientX.Tests {
                 targets,
                 "example.com",
                 DnsRecordType.A,
-                timeoutMs: 1500,
+                timeoutMs: timeoutMs,
                 new ResolverQueryRunOptions {
-                    TimeoutMs = 1500
+                    TimeoutMs = timeoutMs
                 },
                 new ResolverProbePolicy {
                     MinSuccessCount = 1
@@ -46,10 +48,14 @@ namespace DnsClientX.Tests {
                 cancellationToken: CancellationToken.None);
 
             Assert.Equal(2, report.Results.Length);
+            Assert.All(report.Results, result => Assert.True(result.Succeeded));
+            Assert.Equal(new[] { "System", "tcp@1.1.1.1:53" }, report.Snapshot.Answers.Select(answer => answer.Target));
+            Assert.All(report.Snapshot.Answers, answer => Assert.Equal("NoError", answer.Status));
+            Assert.Equal(2, progress.Count);
             Assert.Equal(2, report.Summary.CandidateCount);
             Assert.True(report.Evaluation.PolicyPassed);
             Assert.Equal("example.com", report.Summary.Name);
-            Assert.Equal(1500, report.Summary.TimeoutMs);
+            Assert.Equal(timeoutMs, report.Summary.TimeoutMs);
             Assert.Equal((1, 2), progress[0]);
             Assert.Equal((2, 2), progress[1]);
         }

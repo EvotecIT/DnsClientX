@@ -45,21 +45,22 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task QueryAsync_ShouldDisposePooledClientWithResolver() {
-            int initialCount = ClientX.DisposalCount;
-            int port = TestUtilities.GetFreeUdpPort();
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var udpTask = RunUdpServerAsync(port, cts.Token);
+            var server = new ResolverBenchmarkTcpFixture();
+            try {
+                var endpoint = new DnsResolverEndpoint { Host = "127.0.0.1", Port = server.Port, Transport = Transport.Tcp };
+                using var resolver = new DnsMultiResolver(new[] { endpoint });
+                DnsResponse first = await resolver.QueryAsync("example.com", DnsRecordType.A);
+                DnsResponse second = await resolver.QueryAsync("example.net", DnsRecordType.A);
 
-            var endpoint = new DnsResolverEndpoint { Host = "127.0.0.1", Port = port, Transport = Transport.Udp };
-            var resolver = new DnsMultiResolver(new[] { endpoint });
-
-            DnsResponse response = await resolver.QueryAsync("example.com", DnsRecordType.A, cts.Token);
-
-            await udpTask;
-            resolver.Dispose();
-
-            Assert.Equal(DnsResponseCode.NoError, response.Status);
-            Assert.True(ClientX.DisposalCount - initialCount >= 1, $"Initial={initialCount} Final={ClientX.DisposalCount}");
+                Assert.Equal(DnsResponseCode.NoError, first.Status);
+                Assert.Equal(DnsResponseCode.NoError, second.Status);
+                Assert.Equal(2, server.Queries);
+                Assert.Equal(1, server.Connections);
+                resolver.Dispose();
+                await server.WaitForClosureAsync(1);
+            } finally {
+                await server.DisposeAsync();
+            }
         }
 
         /// <summary>
@@ -109,6 +110,7 @@ namespace DnsClientX.Tests {
             byte[] query = await udpTask;
 
             Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.Equal(0, query[3] & 0x10); // CD is separate from the OPT DO bit.
             AssertDoBitWithoutCd(query, "example.com");
         }
     }

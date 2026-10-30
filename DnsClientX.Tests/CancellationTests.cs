@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Net;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -79,25 +81,38 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task QueryDns_ShouldDisposeClient_WhenCancelled() {
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
+            using var alreadyCancelled = new CancellationTokenSource();
+            alreadyCancelled.Cancel();
+            await Assert.ThrowsAsync<TaskCanceledException>(() => ClientX.QueryDns(
+                "example.com", DnsRecordType.A, cancellationToken: alreadyCancelled.Token));
 
-            // Use a local snapshot to avoid interference from other tests that also touch the global counter.
-            var initialCount = ClientX.DisposalCount;
+            using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var request = new ResolveDnsRequest {
+                Names = new[] { "example.com" },
+                RecordTypes = new[] { DnsRecordType.A },
+                Servers = new[] { "127.0.0.1" },
+                Port = ((IPEndPoint)server.Client.LocalEndPoint!).Port,
+                RequestFormat = DnsRequestFormat.DnsOverUDP,
+                TimeOutMilliseconds = 5000,
+                RetryCount = 1
+            };
+            Task<DnsResponse[]> query = ClientX.QueryDns(request, cts.Token);
+            try {
+                Task<UdpReceiveResult> receive = server.ReceiveAsync();
+                Assert.Same(receive, await Task.WhenAny(receive, Task.Delay(TimeSpan.FromSeconds(3))));
+                UdpReceiveResult packet = await receive;
+                cts.Cancel();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => query);
 
-            using var cts = new CancellationTokenSource();
-            cts.Cancel();
-
-            await Assert.ThrowsAsync<TaskCanceledException>(() => ClientX.QueryDns("example.com", DnsRecordType.A, cancellationToken: cts.Token));
-
-            // Wait a moment for any async disposal to complete
-            await Task.Delay(50);
-
-            var finalCount = ClientX.DisposalCount;
-            Assert.True(
-                finalCount - initialCount >= 1,
-                $"Expected disposal count to increase by at least one. Initial={initialCount} Final={finalCount}");
+                // The local port belongs to this operation, unlike the process-wide disposal counter.
+                using var rebound = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                rebound.ExclusiveAddressUse = true;
+                rebound.Bind(packet.RemoteEndPoint);
+            } finally {
+                cts.Cancel();
+                try { await query; } catch (OperationCanceledException) { }
+            }
         }
 
         /// <summary>

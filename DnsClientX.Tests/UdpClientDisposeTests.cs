@@ -11,26 +11,17 @@ namespace DnsClientX.Tests {
     /// </summary>
     [Collection("NoParallel")]
     public class UdpClientDisposeTests {
-        private static byte[] CreateDnsHeader() {
-            byte[] bytes = new byte[12];
-            ushort id = 0x1234;
-            bytes[0] = (byte)(id >> 8);
-            bytes[1] = (byte)(id & 0xFF);
-            ushort flags = 0x8180;
-            bytes[2] = (byte)(flags >> 8);
-            bytes[3] = (byte)(flags & 0xFF);
-            return bytes;
-        }
-
         private static int GetFreePort() {
             using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
             return ((IPEndPoint)socket.LocalEndPoint!).Port;
         }
 
-        private static async Task<int> RunUdpServerCapturePortAsync(int port, byte[] response, CancellationToken token) {
+        private static async Task<int> RunUdpServerCapturePortAsync(int port, CancellationToken token) {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
+            using var registration = token.Register(udp.Dispose);
             UdpReceiveResult result = await udp.ReceiveAsync();
+            byte[] response = TestUtilities.CreateResponseFromQuery(result.Buffer);
             IPAddress responseAddress = result.RemoteEndPoint.Address.IsIPv4MappedToIPv6
                 ? result.RemoteEndPoint.Address.MapToIPv4()
                 : result.RemoteEndPoint.Address;
@@ -45,12 +36,11 @@ namespace DnsClientX.Tests {
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldDisposeClient() {
             int port = GetFreePort();
-            var response = CreateDnsHeader();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var udpTask = RunUdpServerCapturePortAsync(port, response, cts.Token);
+            var udpTask = RunUdpServerCapturePortAsync(port, cts.Token);
 
             var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port };
-            await DnsWireResolveUdp.ResolveWireFormatUdp(
+            DnsResponse response = await DnsWireResolveUdp.ResolveWireFormatUdp(
                 "127.0.0.1",
                 port,
                 "example.com",
@@ -62,13 +52,16 @@ namespace DnsClientX.Tests {
                 1,
                 cts.Token);
 
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
             int clientPort = await udpTask;
 
             Exception? ex = null;
             for (int attempt = 0; attempt < 10; attempt++) {
                 UdpClient? testClient = null;
                 try {
-                    testClient = new UdpClient(new IPEndPoint(IPAddress.Loopback, clientPort));
+                    testClient = new UdpClient(AddressFamily.InterNetwork);
+                    testClient.Client.ExclusiveAddressUse = true;
+                    testClient.Client.Bind(new IPEndPoint(IPAddress.Loopback, clientPort));
                     ex = null;
                     break;
                 } catch (SocketException e) {

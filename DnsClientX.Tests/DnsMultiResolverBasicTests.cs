@@ -16,11 +16,17 @@ namespace DnsClientX.Tests {
             var eps = EndpointParser.TryParseMany(new []{ "1.1.1.1:53", "8.8.8.8:53" }, out var errors);
             Assert.Empty(errors);
             var opts = new MultiResolverOptions { Strategy = MultiResolverStrategy.FirstSuccess, MaxParallelism = 2 };
-            var mr = new DnsMultiResolver(eps, opts);
+            using var mr = new DnsMultiResolver(eps, opts);
 
             string[] names = new[] { "example.com", "cloudflare.com", "nonexistent.name.invalid." };
             var res = await mr.QueryBatchAsync(names, DnsRecordType.A, CancellationToken.None);
             Assert.Equal(names.Length, res.Length);
+            Assert.All(res.Take(2), response => {
+                Assert.Equal(DnsResponseCode.NoError, response.Status);
+                Assert.NotEmpty(response.Answers);
+            });
+            Assert.Equal(DnsResponseCode.NXDomain, res[2].Status);
+            Assert.Empty(res[2].Answers);
             Assert.Equal("example.com", res[0].Questions[0].OriginalName);
             Assert.Equal("cloudflare.com", res[1].Questions[0].OriginalName);
             Assert.Equal("nonexistent.name.invalid.", res[2].Questions[0].OriginalName);

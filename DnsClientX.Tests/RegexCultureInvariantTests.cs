@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Linq;
-using System.Reflection;
+using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Xunit;
@@ -40,10 +40,8 @@ namespace DnsClientX.Tests {
         [Theory]
         [InlineData("en-US")]
         [InlineData("tr-TR")]
-        public void FilterAnswersRegex_ConsistentAcrossCultures(string culture) {
-            var client = new ClientX();
-            MethodInfo method = typeof(ClientX).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
-                .Single(m => m.Name == "FilterAnswersRegex" && m.GetParameters().Length == 3);
+        public async Task FilterAnswersRegex_ConsistentAcrossCultures(string culture) {
+            using var client = new ClientX();
             var answers = new[] {
                 new DnsAnswer {
                     Name = "example.com",
@@ -52,13 +50,16 @@ namespace DnsClientX.Tests {
                     DataRaw = "value=test"
                 }
             };
-            var regex = new Regex("value", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-
+            answers = answers.Concat(new[] {
+                new DnsAnswer { Name = "example.com", Type = DnsRecordType.TXT, TTL = 300, DataRaw = "VALUE=I" }
+            }).ToArray();
+            client.ResolverOverride = (name, type, ct) => Task.FromResult(new DnsResponse { Answers = answers });
             var original = Thread.CurrentThread.CurrentCulture;
             try {
                 Thread.CurrentThread.CurrentCulture = new CultureInfo(culture);
-                var result = (DnsAnswer[])method.Invoke(client, new object[] { answers, regex, DnsRecordType.TXT })!;
-                Assert.Single(result);
+                var regex = new Regex("value=(test|i)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+                var result = (await client.ResolveFilter("example.com", DnsRecordType.TXT, regex, retryOnTransient: false)).Answers;
+                Assert.Equal(new[] { "value=test", "VALUE=I" }, result.Select(answer => answer.DataRaw));
             } finally {
                 Thread.CurrentThread.CurrentCulture = original;
             }
@@ -68,16 +69,16 @@ namespace DnsClientX.Tests {
         /// Ensures substring filtering yields the same results regardless of culture.
         /// </summary>
         [Theory]
-        [InlineData("en-US")]
-        [InlineData("tr-TR")]
-        public void FilterAnswers_ConsistentAcrossCultures(string culture) {
-            var client = new ClientX();
-            MethodInfo method = typeof(ClientX).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
-                .Single(m => m.Name == "FilterAnswers" && m.GetParameters().Length == 3);
+        [InlineData("en-US", DnsRecordType.CNAME, "examplei.com")]
+        [InlineData("tr-TR", DnsRecordType.CNAME, "examplei.com")]
+        [InlineData("en-US", DnsRecordType.TXT, "EXAMPLEI.COM")]
+        [InlineData("tr-TR", DnsRecordType.TXT, "EXAMPLEI.COM")]
+        public async Task FilterAnswers_ConsistentAcrossCultures(string culture, DnsRecordType type, string expectedData) {
+            using var client = new ClientX();
             var answers = new[] {
                 new DnsAnswer {
                     Name = "example.com",
-                    Type = DnsRecordType.CNAME,
+                    Type = type,
                     TTL = 300,
                     DataRaw = "EXAMPLEI.COM"
                 }
@@ -86,8 +87,11 @@ namespace DnsClientX.Tests {
             var original = Thread.CurrentThread.CurrentCulture;
             try {
                 Thread.CurrentThread.CurrentCulture = new CultureInfo(culture);
-                var result = (DnsAnswer[])method.Invoke(client, new object[] { answers, "i.com", DnsRecordType.CNAME })!;
-                Assert.Single(result);
+                client.ResolverOverride = (name, type, ct) => Task.FromResult(new DnsResponse { Answers = answers });
+                var result = (await client.ResolveFilter("example.com", type, "i.com", retryOnTransient: false)).Answers;
+                var answer = Assert.Single(result);
+                Assert.Equal(expectedData, answer.Data);
+                Assert.Equal("EXAMPLEI.COM", answer.DataRaw);
             } finally {
                 Thread.CurrentThread.CurrentCulture = original;
             }

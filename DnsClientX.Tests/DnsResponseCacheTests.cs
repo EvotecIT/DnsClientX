@@ -129,30 +129,19 @@ namespace DnsClientX.Tests {
             Assert.False(cache.TryGet("a", out _));
         }
 
-        /// <summary>
-        /// Calling <see cref="DnsResponseCache.Cleanup"/> should remove expired entries.
-        /// </summary>
-        [Fact]
-        public void ShouldCleanupExpiredEntries() {
-            var cache = new DnsResponseCache();
-            var response = new DnsResponse { Status = DnsResponseCode.NoError };
-            cache.Set("a", response, TimeSpan.FromMilliseconds(10));
-            cache.Set("b", response, TimeSpan.FromMilliseconds(10));
-            Thread.Sleep(20);
-            cache.Cleanup();
-            Assert.False(cache.TryGet("a", out _));
-            Assert.False(cache.TryGet("b", out _));
-        }
-
         /// <summary>Repeated sub-capacity expiration must release retained key bookkeeping.</summary>
-        [Fact]
-        public async Task ExpirationBoundsAllCacheStorage() {
+        [Theory]
+        [InlineData(4, 8, 1, 30)]
+        [InlineData(1, 2, 10, 20)]
+        public async Task ExpirationBoundsAllCacheStorage(int batches, int items, int ttlMs, int waitMs) {
             using var cache = new DnsResponseCache(TimeSpan.FromHours(1), cleanupThreshold: 16);
             var response = new DnsResponse { Status = DnsResponseCode.NoError };
-            for (int batch = 0; batch < 4; batch++) {
-                for (int item = 0; item < 8; item++) cache.Set($"{batch}:{item}", response, TimeSpan.FromMilliseconds(1));
-                await Task.Delay(30);
+            for (int batch = 0; batch < batches; batch++) {
+                string Key(int item) => items == 2 ? (item == 0 ? "a" : "b") : $"{batch}:{item}";
+                for (int item = 0; item < items; item++) cache.Set(Key(item), response, TimeSpan.FromMilliseconds(ttlMs));
+                await Task.Delay(waitMs);
                 cache.Cleanup();
+                for (int item = 0; item < items; item++) Assert.False(cache.TryGet(Key(item), out _));
             }
             Assert.Equal(0, StorageCount(cache, "_cache"));
             Assert.Equal(0, StorageCount(cache, "_insertionOrder"));
@@ -164,16 +153,6 @@ namespace DnsClientX.Tests {
         private static int StorageCount(DnsResponseCache cache, string field) {
             object storage = typeof(DnsResponseCache).GetField(field, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(cache)!;
             return (int)storage.GetType().GetProperty("Count")!.GetValue(storage)!;
-        }
-
-        /// <summary>
-        /// Verifies that constructing <see cref="ClientX"/> with caching enabled sets the property.
-        /// </summary>
-        [Fact]
-        public void ClientConstructorEnablesCache() {
-            using var client = new ClientX(enableCache: true);
-            PropertyInfo property = typeof(ClientX).GetProperty("CacheEnabled")!;
-            Assert.True((bool)property.GetValue(client)!);
         }
 
         private class JsonResponseHandler : HttpMessageHandler {
@@ -242,8 +221,10 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>Concurrent exact-key misses share one network operation and return isolated clones.</summary>
-        [Fact]
-        public async Task ExactKeyMissesUseSingleFlightWithExplicitProvenance() {
+        [Theory]
+        [InlineData(10)]
+        [InlineData(32)]
+        public async Task ExactKeyMissesUseSingleFlightWithExplicitProvenance(int callers) {
             ClientX.ResetResponseCacheForTests();
             const string json = "{\"Status\":0,\"Question\":[{\"name\":\"single.example\",\"type\":1}],\"Answer\":[{\"name\":\"single.example\",\"type\":1,\"TTL\":60,\"data\":\"192.0.2.1\"}]}";
             var handler = new GatedJsonResponseHandler(json);
@@ -251,7 +232,7 @@ namespace DnsClientX.Tests {
                 DnsRequestFormat.DnsOverHttpsJSON, enableCache: true);
             InjectClient(client, new HttpClient(handler) { BaseAddress = client.EndpointConfiguration.BaseUri });
 
-            Task<DnsResponse>[] tasks = Enumerable.Range(0, 32)
+            Task<DnsResponse>[] tasks = Enumerable.Range(0, callers)
                 .Select(_ => client.Resolve("single.example", retryOnTransient: false))
                 .ToArray();
             await handler.Entered;
@@ -259,6 +240,8 @@ namespace DnsClientX.Tests {
             handler.Release();
             DnsResponse[] responses = await Task.WhenAll(tasks);
 
+            Assert.True(client.CacheEnabled);
+            Assert.Equal(callers, responses.Length);
             Assert.Equal(1, handler.RequestCount);
             Assert.Contains(responses, response => response.ResponseSource == DnsResponseSource.Network);
             Assert.Contains(responses, response => response.ResponseSource == DnsResponseSource.CoalescedNetwork);

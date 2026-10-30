@@ -109,10 +109,23 @@ namespace DnsClientX.Tests {
         /// <summary>Stale reuse reports its lookup failure without changing a successful query into SERVFAIL.</summary>
         [Fact]
         public async Task StaleLookupRetainsDiagnosticProvenance() {
-            var configuration = new Configuration("diagnostic.local", DnsRequestFormat.DnsOverUDP) { DnsServerResolutionSuccessTtl = TimeSpan.Zero };
-            DnsServerResolver.ResolveHostAddressesAsync = _ => Task.FromResult(new[] { IPAddress.Loopback });
-            await DnsServerResolver.ResolveAsync("diagnostic.local", configuration, default);
-            DnsServerResolver.ResolveHostAddressesAsync = _ => throw new InvalidOperationException("lookup unavailable");
+            var configuration = new Configuration("diagnostic.local", DnsRequestFormat.DnsOverUDP) {
+                DnsServerResolutionSuccessTtl = TimeSpan.Zero,
+                DnsServerResolutionFailureTtl = TimeSpan.FromSeconds(2),
+                DnsServerResolutionStaleTtl = TimeSpan.FromMinutes(1)
+            };
+            int calls = 0;
+            DnsServerResolver.ResolveHostAddressesAsync = _ => {
+                calls++;
+                return Task.FromResult(new[] { IPAddress.Loopback });
+            };
+            var first = await DnsServerResolver.ResolveAsync("diagnostic.local", configuration, default);
+            Assert.Equal(IPAddress.Loopback, first.Address);
+            Assert.Null(first.Error);
+            DnsServerResolver.ResolveHostAddressesAsync = _ => {
+                calls++;
+                throw new InvalidOperationException("lookup unavailable");
+            };
             var stale = await DnsServerResolver.ResolveAsync("diagnostic.local", configuration, default);
             Assert.Equal(IPAddress.Loopback, stale.Address);
             Assert.Null(stale.Error);
@@ -125,6 +138,8 @@ namespace DnsClientX.Tests {
             Assert.Equal(IPAddress.Loopback, cached.Address);
             Assert.Equal(DnsQueryErrorCode.None, cached.ErrorCode);
             Assert.Null(cached.Exception);
+            Assert.Null(cached.Error);
+            Assert.Equal(2, calls);
             Assert.True(configuration.ServerResolution.ServedFromCache);
             Assert.True(configuration.ServerResolution.UsedStaleAddress);
             Assert.Equal("lookup unavailable", configuration.ServerResolution.Error);
@@ -230,23 +245,6 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Ensures a custom resolver delegate is honored.
-        /// </summary>
-        [Fact]
-        public async Task ResolveAsync_UsesCustomResolver() {
-            DnsServerResolver.ResolveHostAddressesAsync = _ => Task.FromResult(new[] { IPAddress.Loopback });
-
-            var (address, error) = await DnsServerResolver.ResolveAsync(
-                "custom.local",
-                1000,
-                CancellationToken.None);
-
-            Assert.NotNull(address);
-            Assert.Null(error);
-            Assert.Equal(IPAddress.Loopback, address);
-        }
-
-        /// <summary>
         /// Ensures address-family preference is honored and cached independently by family.
         /// </summary>
         [Fact]
@@ -264,48 +262,11 @@ namespace DnsClientX.Tests {
                 "dual-stack.local", 1000, CancellationToken.None,
                 preferredAddressFamily: System.Net.Sockets.AddressFamily.InterNetwork);
 
+            Assert.Null(ipv6.Error);
+            Assert.Null(ipv4.Error);
             Assert.Equal(IPAddress.Parse("2001:db8::1"), ipv6.Address);
             Assert.Equal(IPAddress.Parse("192.0.2.1"), ipv4.Address);
             Assert.Equal(2, calls);
-        }
-
-        /// <summary>
-        /// Ensures stale cached addresses can be reused when resolution fails.
-        /// </summary>
-        [Fact]
-        public async Task ResolveAsync_UsesStaleAddressOnFailure() {
-            var callCount = 0;
-            DnsServerResolver.ResolveHostAddressesAsync = _ => {
-                callCount++;
-                if (callCount == 1) {
-                    return Task.FromResult(new[] { IPAddress.Loopback });
-                }
-                throw new InvalidOperationException("resolver failure");
-            };
-
-            var first = await DnsServerResolver.ResolveAsync(
-                "stale.local",
-                1000,
-                CancellationToken.None,
-                TimeSpan.Zero,
-                TimeSpan.FromSeconds(2),
-                true,
-                TimeSpan.FromMinutes(1));
-
-            Assert.NotNull(first.Address);
-            Assert.Equal(IPAddress.Loopback, first.Address);
-
-            var second = await DnsServerResolver.ResolveAsync(
-                "stale.local",
-                1000,
-                CancellationToken.None,
-                TimeSpan.Zero,
-                TimeSpan.FromSeconds(2),
-                true,
-                TimeSpan.FromMinutes(1));
-
-            Assert.NotNull(second.Address);
-            Assert.Equal(IPAddress.Loopback, second.Address);
         }
 
         /// <summary>

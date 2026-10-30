@@ -305,10 +305,7 @@ namespace DnsClientX {
         /// <param name="filter">The filter string to search for.</param>
         /// <param name="type">The DNS record type being filtered.</param>
         /// <returns>Filtered array of DNS answers.</returns>
-        private DnsAnswer[] FilterAnswers(DnsAnswer[] answers, string filter, DnsRecordType type) {
-            return FilterAnswers(answers, filter, type, false);
-        }
-
+        /// <param name="includeAliases">Whether alias records are included without matching the filter.</param>
         private DnsAnswer[] FilterAnswers(DnsAnswer[] answers, string filter, DnsRecordType type, bool includeAliases) {
             filter ??= string.Empty;
             var filteredAnswers = new List<DnsAnswer>();
@@ -343,10 +340,7 @@ namespace DnsClientX {
         /// <param name="regexFilter">The regex filter to match against.</param>
         /// <param name="type">The DNS record type being filtered.</param>
         /// <returns>Filtered array of DNS answers.</returns>
-        private DnsAnswer[] FilterAnswersRegex(DnsAnswer[] answers, Regex regexFilter, DnsRecordType type) {
-            return FilterAnswersRegex(answers, regexFilter, type, false);
-        }
-
+        /// <param name="includeAliases">Whether alias records are included without matching the filter.</param>
         private DnsAnswer[] FilterAnswersRegex(DnsAnswer[] answers, Regex regexFilter, DnsRecordType type, bool includeAliases) {
             var filteredAnswers = new List<DnsAnswer>();
 
@@ -380,10 +374,7 @@ namespace DnsClientX {
         /// <param name="filter">The filter string to search for.</param>
         /// <param name="type">The DNS record type being filtered.</param>
         /// <returns>True if any answer contains a match.</returns>
-        private bool HasMatchingAnswers(DnsAnswer[] answers, string filter, DnsRecordType type) {
-            return HasMatchingAnswers(answers, filter, type, false);
-        }
-
+        /// <param name="includeAliases">Whether alias records count as matches without matching the filter.</param>
         private bool HasMatchingAnswers(DnsAnswer[] answers, string filter, DnsRecordType type, bool includeAliases) {
             if (answers == null) {
                 return false;
@@ -418,10 +409,7 @@ namespace DnsClientX {
         /// <param name="regexFilter">The regex filter to match against.</param>
         /// <param name="type">The DNS record type being filtered.</param>
         /// <returns>True if any answer contains a match.</returns>
-        private bool HasMatchingAnswersRegex(DnsAnswer[] answers, Regex regexFilter, DnsRecordType type) {
-            return HasMatchingAnswersRegex(answers, regexFilter, type, false);
-        }
-
+        /// <param name="includeAliases">Whether alias records count as matches without matching the filter.</param>
         private bool HasMatchingAnswersRegex(DnsAnswer[] answers, Regex regexFilter, DnsRecordType type, bool includeAliases) {
             if (answers == null) {
                 return false;

@@ -14,20 +14,16 @@ namespace DnsClientX.Tests {
     /// </summary>
     [Collection("NoParallel")]
     public class CliDnssecFlagTests {
-        private static byte[] CreateDnsHeader() {
-            byte[] bytes = new byte[12];
-            ushort id = 0x1234;
-            bytes[0] = (byte)(id >> 8);
-            bytes[1] = (byte)(id & 0xFF);
-            ushort flags = 0x8180;
-            bytes[2] = (byte)(flags >> 8);
-            bytes[3] = (byte)(flags & 0xFF);
-            return bytes;
-        }
 
-        private static async Task<byte[]> RunUdpServerAsync(int port, byte[] response, CancellationToken token) {
+        private static async Task<byte[]> RunUdpServerAsync(int port, CancellationToken token) {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
+            using var cancellation = token.Register(udp.Dispose);
+#if NET5_0_OR_GREATER
+            UdpReceiveResult result = await udp.ReceiveAsync(token);
+#else
             UdpReceiveResult result = await udp.ReceiveAsync();
+#endif
+            byte[] response = TestUtilities.CreateResponseFromQuery(result.Buffer);
             await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
             return result.Buffer;
         }
@@ -59,9 +55,8 @@ namespace DnsClientX.Tests {
 
             SystemInformation.SetDnsServerProvider(() => new List<string> { "127.0.0.1" });
 
-            var response = CreateDnsHeader();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var udpTask = RunUdpServerAsync(port, response, cts.Token);
+            var udpTask = RunUdpServerAsync(port, cts.Token);
 
             try {
                 var assembly = Assembly.Load("DnsClientX.Cli");

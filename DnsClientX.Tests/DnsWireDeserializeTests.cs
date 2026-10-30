@@ -25,12 +25,18 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task DeserializeDnsWireFormat_BytesOnly_DoesNotThrow() {
-            Type wireType = typeof(ClientX).Assembly.GetType("DnsClientX.DnsWire")!;
-            MethodInfo method = wireType.GetMethod("DeserializeDnsWireFormat", BindingFlags.Static | BindingFlags.NonPublic)!;
             var bytes = new byte[] { 0x00, 0x01, 0x81, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-            var task = (Task<DnsResponse>)method.Invoke(null, new object?[] { null, false, bytes })!;
-            DnsResponse response = await task;
+            DnsResponse response = await DnsWire.DeserializeDnsWireFormat(null, false, bytes);
             Assert.NotNull(response);
+            Assert.Equal((ushort)1, response.TransactionId);
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.True(response.IsResponse);
+            Assert.True(response.IsRecursionDesired);
+            Assert.True(response.IsRecursionAvailable);
+            Assert.Empty(response.Questions);
+            Assert.Empty(response.Answers);
+            Assert.Empty(response.Authorities);
+            Assert.Empty(response.Additional);
         }
     }
 }

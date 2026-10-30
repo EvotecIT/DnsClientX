@@ -35,18 +35,20 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Resolves host addresses from SRV records using the helper method.
         /// </summary>
-        [Fact]
-        public async Task ShouldResolveHostAddresses() {
+        [Theory]
+        [InlineData(0, 0, 389, "10.0.0.1", "::1")]
+        [InlineData(1, 5, 443, "1.1.1.1", null)]
+        public async Task ShouldResolveHostAddresses(int priority, int weight, int port, string ipv4, string? ipv6) {
             var srvResponse = new DnsResponse {
                 Answers = new[] {
-                    new DnsAnswer { Name = "_ldap._tcp.example.com", Type = DnsRecordType.SRV, DataRaw = "0 0 389 host.example.com." }
+                    new DnsAnswer { Name = "_ldap._tcp.example.com", Type = DnsRecordType.SRV, DataRaw = $"{priority} {weight} {port} host.example.com." }
                 }
             };
             var aResponse = new DnsResponse {
-                Answers = new[] { new DnsAnswer { Name = "host.example.com", Type = DnsRecordType.A, DataRaw = "10.0.0.1" } }
+                Answers = new[] { new DnsAnswer { Name = "host.example.com", Type = DnsRecordType.A, DataRaw = ipv4 } }
             };
             var aaaaResponse = new DnsResponse {
-                Answers = new[] { new DnsAnswer { Name = "host.example.com", Type = DnsRecordType.AAAA, DataRaw = "::1" } }
+                Answers = ipv6 == null ? Array.Empty<DnsAnswer>() : new[] { new DnsAnswer { Name = "host.example.com", Type = DnsRecordType.AAAA, DataRaw = ipv6 } }
             };
 
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP);
@@ -60,9 +62,14 @@ namespace DnsClientX.Tests {
             var records = await client.ResolveServiceAsync("ldap", "tcp", "example.com", resolveHosts: true);
             Assert.Single(records);
             var r = records[0];
+            Assert.Equal("host.example.com", r.Target);
+            Assert.Equal(port, r.Port);
+            Assert.Equal(priority, r.Priority);
+            Assert.Equal(weight, r.Weight);
             Assert.NotNull(r.Addresses);
-            Assert.Contains(IPAddress.Parse("10.0.0.1"), r.Addresses!);
-            Assert.Contains(IPAddress.Parse("::1"), r.Addresses!);
+            Assert.Equal(ipv6 == null ? 1 : 2, r.Addresses!.Length);
+            Assert.Contains(IPAddress.Parse(ipv4), r.Addresses!);
+            if (ipv6 != null) Assert.Contains(IPAddress.Parse(ipv6), r.Addresses!);
         }
 
         /// <summary>

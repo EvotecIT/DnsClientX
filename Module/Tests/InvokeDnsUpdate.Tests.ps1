@@ -1,10 +1,6 @@
 Import-Module "$PSScriptRoot/../DnsClientX.psd1" -Force
 
 Describe 'Invoke-DnsUpdate cmdlet' {
-    It 'Cmdlet is available' {
-        Get-Command Invoke-DnsUpdate | Should -Not -BeNullOrEmpty
-    }
-
     It 'Supports WhatIf for a complete atomic batch without contacting the server' {
         $operation = [DnsClientX.DnsUpdateOperation]::Add('www.example.test', [DnsClientX.DnsRecordType]::A, '192.0.2.1', 60)
         $prerequisite = [DnsClientX.DnsUpdatePrerequisite]::RrsetAbsent('www.example.test', [DnsClientX.DnsRecordType]::A)

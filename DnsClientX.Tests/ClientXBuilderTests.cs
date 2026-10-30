@@ -58,18 +58,6 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Ensures hostnames are validated when building with a predefined endpoint.
-        /// </summary>
-        [Fact]
-        public void BuildShouldValidateHostnames() {
-            using var client = new ClientXBuilder()
-                .WithEndpoint(DnsEndpoint.Cloudflare)
-                .Build();
-
-            Assert.NotNull(client.EndpointConfiguration.Hostname);
-        }
-
-        /// <summary>
         /// Confirms that invalid hostnames throw an <see cref="ArgumentException"/> immediately.
         /// </summary>
         [Fact]
