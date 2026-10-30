@@ -138,7 +138,4 @@ Describe 'Resolve-Dns binding' {
             Should -Throw -ExceptionType ([System.ArgumentOutOfRangeException]) -ExpectedMessage '*TimeOutMilliseconds*'
     }
 
-    It 'exports benchmark cmdlet from the manifest' {
-        (Get-Command Test-DnsBenchmark -ErrorAction Stop).Name | Should -Be 'Test-DnsBenchmark'
-    }
 }

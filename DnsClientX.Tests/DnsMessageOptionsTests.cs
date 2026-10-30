@@ -6,15 +6,17 @@ namespace DnsClientX.Tests {
     /// </summary>
     public class DnsMessageOptionsTests {
         private static void AssertEcsOption(byte[] query, string name) {
-            int offset = 12;
-            foreach (var label in name.Split('.')) {
-                offset += 1 + label.Length;
-            }
-            offset += 1 + 2 + 2;
-            Assert.Equal(0, query[offset]);
-            offset += 1;
-            ushort type = (ushort)((query[offset] << 8) | query[offset + 1]);
-            Assert.Equal((ushort)DnsRecordType.OPT, type);
+            var reader = new DnsWireReader(query, 12);
+            Assert.Equal(name + ".", reader.ReadName());
+            reader.Skip(4);
+            Assert.Equal(".", reader.ReadName());
+            Assert.Equal((ushort)DnsRecordType.OPT, reader.ReadUInt16());
+            reader.Skip(6);
+            Assert.Equal(11, reader.ReadUInt16());
+            Assert.Equal(8, reader.ReadUInt16());
+            Assert.Equal(7, reader.ReadUInt16());
+            Assert.Equal(new byte[] { 0, 1, 24, 0, 192, 0, 2 }, reader.ReadBytes(7));
+            Assert.True(reader.IsAtEnd);
         }
 
         /// <summary>

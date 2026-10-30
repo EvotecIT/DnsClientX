@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Concurrent;
-using System.Diagnostics;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -57,35 +57,11 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Ensures FirstSuccess returns as soon as the first successful response is available.
-        /// </summary>
-        [Fact]
-        public async Task FirstSuccess_Picks_First_Valid_Response() {
-            try {
-                var eps = new[] {
-                    new DnsResolverEndpoint { Host="s1", Port=53, Transport=Transport.Udp },
-                    new DnsResolverEndpoint { Host="s2", Port=53, Transport=Transport.Udp }
-                };
-                var opts = new MultiResolverOptions { Strategy = MultiResolverStrategy.FirstSuccess, MaxParallelism = 2 };
-                DnsMultiResolver.ResolveOverride = async (ep, name, type, ct) => {
-                    if (ep.Host == "s1") {
-                        await Task.Delay(50, ct);
-                        return Ok(name, type);
-                    }
-                    await Task.Delay(200, ct);
-                    return Ok(name, type);
-                };
-                var mr = new DnsMultiResolver(eps, opts);
-                var res = await mr.QueryAsync("example.com", DnsRecordType.A);
-                Assert.Equal(DnsResponseCode.NoError, res.Status);
-            } finally { DnsMultiResolver.ResolveOverride = null; }
-        }
-
-        /// <summary>
         /// Ensures FirstSuccess backfills its parallel window immediately after a failed endpoint completes.
         /// </summary>
         [Fact]
         public async Task FirstSuccess_StartsNextQueuedEndpoint_AsSoonAsFailureCompletes() {
+            var slowGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             try {
                 var eps = new[] {
                     new DnsResolverEndpoint { Host="slow-fail", Port=53, Transport=Transport.Udp },
@@ -93,7 +69,6 @@ namespace DnsClientX.Tests {
                     new DnsResolverEndpoint { Host="late-success", Port=53, Transport=Transport.Udp }
                 };
                 var opts = new MultiResolverOptions { Strategy = MultiResolverStrategy.FirstSuccess, MaxParallelism = 2 };
-                var slowGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 var successStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
                 DnsMultiResolver.ResolveOverride = async (ep, name, type, ct) => {
@@ -122,50 +97,21 @@ namespace DnsClientX.Tests {
                     return Ok(name, type);
                 };
 
-                var mr = new DnsMultiResolver(eps, opts);
+                using var mr = new DnsMultiResolver(eps, opts);
                 var queryTask = mr.QueryAsync("example.com", DnsRecordType.A);
 
                 var startedTask = await Task.WhenAny(successStarted.Task, Task.Delay(TimeSpan.FromSeconds(1)));
                 Assert.Same(successStarted.Task, startedTask);
 
-                slowGate.TrySetResult(true);
+                Assert.Same(queryTask, await Task.WhenAny(queryTask, Task.Delay(TimeSpan.FromSeconds(3))));
                 var res = await queryTask;
                 Assert.Equal(DnsResponseCode.NoError, res.Status);
-            } finally { DnsMultiResolver.ResolveOverride = null; }
-        }
-
-        /// <summary>
-        /// Ensures FastestWins warms endpoints and reuses the fastest endpoint for subsequent queries.
-        /// </summary>
-        [Fact]
-        public async Task FastestWins_Warms_And_Uses_Cached_Fastest() {
-            try {
-                DnsMultiResolver.ClearFastestCache();
-                var eps = new[] {
-                    new DnsResolverEndpoint { Host="fast", Port=53, Transport=Transport.Udp },
-                    new DnsResolverEndpoint { Host="slow", Port=53, Transport=Transport.Udp }
-                };
-                var opts = new MultiResolverOptions { Strategy = MultiResolverStrategy.FastestWins, MaxParallelism = 2, FastestCacheDuration = TimeSpan.FromMinutes(5) };
-                var calls = new ConcurrentDictionary<string,int>();
-                DnsMultiResolver.ResolveOverride = async (ep, name, type, ct) => {
-                    calls.AddOrUpdate(ep.Host ?? string.Empty, 1, (_, v) => v + 1);
-                    if (ep.Host == "slow") await Task.Delay(500, ct); else await Task.Delay(1, ct);
-                    return Ok(name, type);
-                };
-                var mr = new DnsMultiResolver(eps, opts);
-                var r1 = await mr.QueryAsync("a.com", DnsRecordType.A);
-                Assert.Equal(DnsResponseCode.NoError, r1.Status);
-                // Second query should hit only the cached fastest endpoint
-                var prevFast = calls.TryGetValue("fast", out var v1) ? v1 : 0;
-                var prevSlow = calls.TryGetValue("slow", out var v2) ? v2 : 0;
-                var r2 = await mr.QueryAsync("b.com", DnsRecordType.A);
-                Assert.Equal(DnsResponseCode.NoError, r2.Status);
-                Assert.True(calls.TryGetValue("fast", out var vFast) && vFast > prevFast);
-                // Ensure the cached call did not heavily favor the slow endpoint
-                if (calls.TryGetValue("slow", out var vSlow)) {
-                    Assert.True(vSlow <= vFast);
-                }
-            } finally { DnsMultiResolver.ResolveOverride = null; DnsMultiResolver.ClearFastestCache(); }
+                Assert.Equal("late-success", res.UsedEndpoint!.Host);
+                Assert.False(slowGate.Task.IsCompleted);
+            } finally {
+                slowGate.TrySetResult(true);
+                DnsMultiResolver.ResolveOverride = null;
+            }
         }
 
         /// <summary>
@@ -173,28 +119,42 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task FastestWins_DoesNotWaitForSlowLoser() {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            Task<DnsResponse>? query = null;
             try {
                 DnsMultiResolver.ClearFastestCache();
                 var endpoints = new[] {
                     new DnsResolverEndpoint { Host = "fast", Port = 53, Transport = Transport.Udp },
                     new DnsResolverEndpoint { Host = "slow", Port = 53, Transport = Transport.Udp }
                 };
+                var slowStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 DnsMultiResolver.ResolveOverride = async (endpoint, name, type, token) => {
-                    if (endpoint.Host == "slow") await Task.Delay(TimeSpan.FromSeconds(5), token);
-                    else await Task.Delay(10, token);
+                    if (endpoint.Host == "slow") {
+                        slowStarted.TrySetResult(true);
+                        await Task.Delay(Timeout.Infinite, token);
+                    } else {
+                        await Task.WhenAny(slowStarted.Task, Task.Delay(Timeout.Infinite, token));
+                        token.ThrowIfCancellationRequested();
+                    }
                     return Ok(name, type);
                 };
                 using var resolver = new DnsMultiResolver(endpoints,
                     new MultiResolverOptions { Strategy = MultiResolverStrategy.FastestWins, MaxParallelism = 2 });
-                var stopwatch = Stopwatch.StartNew();
-                DnsResponse response = await resolver.QueryAsync("example.com", DnsRecordType.A);
-                stopwatch.Stop();
-
+                query = resolver.QueryAsync("example.com", DnsRecordType.A, deadline.Token);
+                Assert.Same(query, await Task.WhenAny(query, Task.Delay(TimeSpan.FromSeconds(3))));
+                DnsResponse response = await query;
                 Assert.Equal(DnsResponseCode.NoError, response.Status);
-                Assert.InRange(stopwatch.ElapsedMilliseconds, 0, 1000);
+                Assert.Equal("fast", response.UsedEndpoint!.Host);
             } finally {
-                DnsMultiResolver.ResolveOverride = null;
-                DnsMultiResolver.ClearFastestCache();
+                try {
+                    deadline.Cancel();
+                    if (query != null) {
+                        try { await query; } catch (OperationCanceledException) { }
+                    }
+                } finally {
+                    DnsMultiResolver.ResolveOverride = null;
+                    DnsMultiResolver.ClearFastestCache();
+                }
             }
         }
 
@@ -229,8 +189,10 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures FastestWins cache differentiates endpoints that share a URL but use different request formats.
         /// </summary>
-        [Fact]
-        public async Task FastestWins_CacheKey_Separates_RequestFormats() {
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task FastestWins_CacheKey_Separates_RequestFormats(bool separateFormats) {
             try {
                 DnsMultiResolver.ClearFastestCache();
                 var jsonEndpoint = new DnsResolverEndpoint {
@@ -248,13 +210,18 @@ namespace DnsClientX.Tests {
                     RequestFormat = DnsRequestFormat.DnsOverHttps
                 };
 
+                if (!separateFormats) {
+                    jsonEndpoint = new DnsResolverEndpoint { Host = "slow", Port = 53, Transport = Transport.Udp };
+                    wireEndpoint = new DnsResolverEndpoint { Host = "fast", Port = 53, Transport = Transport.Udp };
+                }
                 var calls = new ConcurrentDictionary<string, int>();
-                string Key(DnsResolverEndpoint ep) => ep.RequestFormat?.ToString() ?? string.Empty;
+                string Key(DnsResolverEndpoint ep) => separateFormats ? ep.RequestFormat!.ToString()! : ep.Host!;
+                string slowKey = Key(jsonEndpoint), fastKey = Key(wireEndpoint);
 
                 DnsMultiResolver.ResolveOverride = async (ep, name, type, ct) => {
                     calls.AddOrUpdate(Key(ep), 1, (_, value) => value + 1);
-                    if (ep.RequestFormat == DnsRequestFormat.DnsOverHttpsJSON) {
-                        // Keep the JSON resolver pending until the wire resolver wins and cancels it.
+                    if (Key(ep) == slowKey) {
+                        // Keep the losing resolver pending until the winner cancels it.
                         // A short delay can lose the race on a busy CI runner.
                         await Task.Delay(Timeout.Infinite, ct);
                     } else {
@@ -264,23 +231,25 @@ namespace DnsClientX.Tests {
                     return Ok(name, type);
                 };
 
-                var first = new DnsMultiResolver(
+                using var first = new DnsMultiResolver(
                     new[] { jsonEndpoint, wireEndpoint },
                     new MultiResolverOptions { Strategy = MultiResolverStrategy.FastestWins, MaxParallelism = 2, FastestCacheDuration = TimeSpan.FromMinutes(5) });
-                var firstResponse = await first.QueryAsync("example.com", DnsRecordType.A);
+                var firstResponse = await first.QueryAsync(separateFormats ? "example.com" : "a.com", DnsRecordType.A);
                 Assert.Equal(DnsResponseCode.NoError, firstResponse.Status);
 
-                int jsonBefore = calls.TryGetValue(DnsRequestFormat.DnsOverHttpsJSON.ToString(), out var jsonCount) ? jsonCount : 0;
-                int wireBefore = calls.TryGetValue(DnsRequestFormat.DnsOverHttps.ToString(), out var wireCount) ? wireCount : 0;
+                int jsonBefore = calls.TryGetValue(slowKey, out var jsonCount) ? jsonCount : 0;
+                int wireBefore = calls.TryGetValue(fastKey, out var wireCount) ? wireCount : 0;
 
-                var second = new DnsMultiResolver(
+                using var second = new DnsMultiResolver(
                     new[] { wireEndpoint, jsonEndpoint },
                     new MultiResolverOptions { Strategy = MultiResolverStrategy.FastestWins, MaxParallelism = 2, FastestCacheDuration = TimeSpan.FromMinutes(5) });
-                var secondResponse = await second.QueryAsync("example.org", DnsRecordType.A);
+                var secondResponse = await second.QueryAsync(separateFormats ? "example.org" : "b.com", DnsRecordType.A);
 
                 Assert.Equal(DnsResponseCode.NoError, secondResponse.Status);
-                Assert.Equal(jsonBefore, calls.TryGetValue(DnsRequestFormat.DnsOverHttpsJSON.ToString(), out jsonCount) ? jsonCount : 0);
-                Assert.True((calls.TryGetValue(DnsRequestFormat.DnsOverHttps.ToString(), out wireCount) ? wireCount : 0) > wireBefore);
+                Assert.Equal(jsonBefore, calls.TryGetValue(slowKey, out jsonCount) ? jsonCount : 0);
+                Assert.Equal(wireBefore + 1, calls.TryGetValue(fastKey, out wireCount) ? wireCount : 0);
+                Assert.Same(wireEndpoint, firstResponse.UsedEndpoint);
+                Assert.Same(wireEndpoint, secondResponse.UsedEndpoint);
             } finally { DnsMultiResolver.ResolveOverride = null; DnsMultiResolver.ClearFastestCache(); }
         }
 
@@ -295,15 +264,19 @@ namespace DnsClientX.Tests {
                     new DnsResolverEndpoint { Host="ok", Port=53, Transport=Transport.Udp }
                 };
                 var opts = new MultiResolverOptions { Strategy = MultiResolverStrategy.SequentialFallback };
+                var calls = new List<string>();
                 DnsMultiResolver.ResolveOverride = (ep, name, type, ct) => {
+                    calls.Add(ep.Host!);
                     if (ep.Host == "bad") {
                         return Task.FromResult(new DnsResponse { Questions = new[]{ new DnsQuestion { Name=name, Type=type, OriginalName=name } }, Status = DnsResponseCode.ServerFailure, Error = "fail", ErrorCode = DnsQueryErrorCode.ServFail });
                     }
                     return Task.FromResult(Ok(name, type));
                 };
-                var mr = new DnsMultiResolver(eps, opts);
+                using var mr = new DnsMultiResolver(eps, opts);
                 var res = await mr.QueryAsync("example.com", DnsRecordType.A);
                 Assert.Equal(DnsResponseCode.NoError, res.Status);
+                Assert.Equal(new[] { "bad", "ok" }, calls);
+                Assert.Equal("ok", res.UsedEndpoint!.Host);
             } finally { DnsMultiResolver.ResolveOverride = null; }
         }
 

@@ -7,7 +7,7 @@ namespace DnsClientX.Tests {
         /// Queries a domain known to fail and verifies the response is returned with an error status.
         /// </summary>
         /// <param name="endpoint">The endpoint used for the query.</param>
-        [Theory]
+        [RealDnsTheory]
         [InlineData(DnsEndpoint.System)]
         [InlineData(DnsEndpoint.SystemTcp)]
         [InlineData(DnsEndpoint.Cloudflare)]
@@ -25,12 +25,6 @@ namespace DnsClientX.Tests {
         [InlineData(DnsEndpoint.OpenDNSFamily)]
         public async Task ShouldDeliverResponseOnFailedQueries(DnsEndpoint endpoint) {
             using var client = new ClientX(endpoint);
-            client.ResolverOverride = (name, type, ct) => Task.FromResult(new DnsResponse {
-                Answers = Array.Empty<DnsAnswer>(),
-                Status = DnsResponseCode.ServerFailure,
-                Questions = new[] { new DnsQuestion { Name = name, Type = type } }
-            });
-
             var response = await client.Resolve("spf-a.anotherexample.com", DnsRecordType.A, retryOnTransient: false);
 
             Assert.Empty(response.Answers);

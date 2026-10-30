@@ -29,8 +29,6 @@ namespace DnsClientX {
         internal static Func<QuicStream, ValueTask> StreamDisposer { get; set; } = static stream => stream.DisposeAsync();
         internal static Func<QuicConnection, long, CancellationToken, ValueTask> ConnectionCloser { get; set; } =
             static (connection, errorCode, token) => connection.CloseAsync(errorCode, token);
-        internal static int ConnectionDisposeCount;
-        internal static int StreamDisposeCount;
 
         internal static async Task<DnsResponse> ResolveWireFormatQuic(string dnsServer, int port, string name,
             DnsRecordType type, bool requestDnsSec, bool validateDnsSec, bool debug,

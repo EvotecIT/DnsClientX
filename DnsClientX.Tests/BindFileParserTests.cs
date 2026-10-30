@@ -7,30 +7,37 @@ namespace DnsClientX.Tests {
     /// Tests for the <see cref="BindFileParser"/> helper.
     /// </summary>
     public class BindFileParserTests {
-        /// <summary>
-        /// Ensures that zone files are parsed and default values are applied.
-        /// </summary>
-        [Fact]
-        public void ParseZoneFile_ReadsRecordsAndAppliesDefaults() {
+
+        /// <summary>Parses compatibility zone files with inherited/explicit TTLs and mixed record types.</summary>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void ParseZoneFile_ReadsRecordsAndAppliesDefaults(bool basicZone) {
             string file = Path.GetTempFileName();
-            File.WriteAllLines(file, new[] {
-                "$TTL 1800",
-                "example.com. IN A 1.1.1.1",
-                "www 60 IN CNAME example.com.",
-                "badttl -1 IN A 1.1.1.1"
-            });
-
-            var records = BindFileParser.ParseZoneFile(file);
-
-            Assert.Equal(2, records.Count);
-            Assert.Equal("example.com", records[0].Name);
-            Assert.Equal(1800, records[0].TTL);
-            Assert.Equal(DnsRecordType.A, records[0].Type);
-            Assert.Equal("1.1.1.1", records[0].DataRaw);
-            Assert.Equal("www", records[1].Name);
-            Assert.Equal(60, records[1].TTL);
-            Assert.Equal(DnsRecordType.CNAME, records[1].Type);
-            Assert.Equal("example.com.", records[1].DataRaw);
+            try {
+                File.WriteAllText(file, basicZone
+                    ? "$TTL 3600\n@ IN SOA ns.example.com. admin.example.com. 2024010101 7200 3600 1209600 3600\n@ IN NS ns.example.com.\nwww 600 IN A 203.0.113.10\nmail IN MX 10 mail.example.com.\n"
+                    : "$TTL 1800\nexample.com. IN A 1.1.1.1\nwww 60 IN CNAME example.com.\nbadttl -1 IN A 1.1.1.1\n");
+                var records = BindFileParser.ParseZoneFile(file);
+                Assert.Equal(basicZone ? 4 : 2, records.Count);
+                if (basicZone) {
+                    Assert.Equal(DnsRecordType.SOA, records[0].Type);
+                    Assert.Equal(3600, records[0].TTL);
+                    Assert.Equal(DnsRecordType.NS, records[1].Type);
+                    Assert.Equal(DnsRecordType.A, records[2].Type);
+                    Assert.Equal(600, records[2].TTL);
+                    Assert.Equal(DnsRecordType.MX, records[3].Type);
+                } else {
+                    Assert.Equal("example.com", records[0].Name);
+                    Assert.Equal(1800, records[0].TTL);
+                    Assert.Equal(DnsRecordType.A, records[0].Type);
+                    Assert.Equal("1.1.1.1", records[0].DataRaw);
+                    Assert.Equal("www", records[1].Name);
+                    Assert.Equal(60, records[1].TTL);
+                    Assert.Equal(DnsRecordType.CNAME, records[1].Type);
+                    Assert.Equal("example.com.", records[1].DataRaw);
+                }
+            } finally { File.Delete(file); }
         }
 
         /// <summary>

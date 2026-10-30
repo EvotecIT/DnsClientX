@@ -14,7 +14,7 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task RefreshConcurrentCalls_ShouldReturnConsistentResults() {
-            // Use a custom provider but assert consistency rather than specific values (avoids env differences).
+            // Isolate OS discovery and retain an independent expected resolver list.
             var expected = new List<string> { "1.1.1.1", "8.8.8.8" };
             SystemInformation.SetDnsServerProvider(() => new List<string>(expected));
             try {
@@ -22,11 +22,8 @@ namespace DnsClientX.Tests {
                     .Select(_ => Task.Run(() => SystemInformation.GetDnsFromActiveNetworkCard(refresh: true)));
                 var results = await Task.WhenAll(tasks);
 
-                var first = results.First();
-                foreach (var result in results) {
-                    Assert.Equal(first, result);
-                }
-                Assert.NotEmpty(first);
+                Assert.Equal(20, results.Length);
+                Assert.All(results, result => Assert.Equal(expected, result));
             } finally {
                 SystemInformation.SetDnsServerProvider(null);
             }

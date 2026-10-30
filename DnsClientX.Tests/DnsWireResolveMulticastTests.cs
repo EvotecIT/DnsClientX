@@ -1,62 +1,58 @@
 using System;
+using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
-    /// <summary>
-    /// Tests for resolving DNS queries using multicast.
-    /// </summary>
+    /// <summary>Opt-in multicast resolution on an explicitly selected loopback interface.</summary>
     public class DnsWireResolveMulticastTests {
-        private static byte[] CreateDnsHeader() {
-            byte[] bytes = new byte[12];
-            ushort id = 0x1234;
-            bytes[0] = (byte)(id >> 8);
-            bytes[1] = (byte)(id & 0xFF);
-            ushort flags = 0x8180;
-            bytes[2] = (byte)(flags >> 8);
-            bytes[3] = (byte)(flags & 0xFF);
-            return bytes;
-        }
-
-        private static async Task<byte[]> RunMulticastServerAsync(byte[] response, CancellationToken token) {
-            using var server = new UdpClient(AddressFamily.InterNetwork);
-            server.ExclusiveAddressUse = false;
-            server.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            server.Client.Bind(new IPEndPoint(IPAddress.Any, 5353));
-            server.JoinMulticastGroup(IPAddress.Parse("224.0.0.251"));
-            UdpReceiveResult result = await server.ReceiveAsync();
-            await server.SendAsync(response, response.Length, result.RemoteEndPoint);
-            return result.Buffer;
-        }
-
-        /// <summary>
-        /// Validates multicast resolution when networking is available.
-        /// </summary>
-        [Fact(Skip="Multicast networking not available in test environment")]
+        /// <summary>A real correlated multicast reply retains the original query and transport metadata.</summary>
+        [RealDnsFact]
         public async Task ResolveWireFormatMulticast_ShouldReturnResponse() {
-            var response = CreateDnsHeader();
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var serverTask = RunMulticastServerAsync(response, cts.Token);
-
-            var config = new Configuration("224.0.0.251", DnsRequestFormat.Multicast);
-            DnsResponse dnsResponse = await DnsWireResolveMulticast.ResolveWireFormatMulticast(
-                "224.0.0.251",
-                5353,
-                "example.local",
-                DnsRecordType.A,
-                requestDnsSec: false,
-                validateDnsSec: false,
-                debug: false,
-                config,
-                cts.Token);
-            byte[] query = await serverTask;
-
-            Assert.NotNull(dnsResponse);
-            Assert.NotEmpty(query);
-            Assert.Equal(DnsRequestFormat.Multicast, dnsResponse.Questions[0].RequestFormat);
+            IPAddress group = IPAddress.Parse("239.255.42.100");
+            int interfaceIndex = NetworkInterface.GetAllNetworkInterfaces().First(item =>
+                item.GetIPProperties().UnicastAddresses.Any(address => address.Address.Equals(IPAddress.Loopback)))
+                .GetIPProperties().GetIPv4Properties()!.Index;
+            using var server = new UdpClient(new IPEndPoint(IPAddress.Any, 0));
+            int port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
+            server.JoinMulticastGroup(group, IPAddress.Loopback);
+            using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var registration = stop.Token.Register(server.Dispose);
+            async Task<byte[]> ReplyAsync() {
+                UdpReceiveResult packet = await server.ReceiveAsync();
+                byte[] response = DnsDiscoveryTestWire.Response(packet.Buffer,
+                    DnsDiscoveryTestWire.Address("example.local", "192.0.2.1"));
+                await server.SendAsync(response, response.Length, packet.RemoteEndPoint);
+                return packet.Buffer;
+            }
+            Task<byte[]> reply = ReplyAsync();
+            try {
+                var config = new Configuration(group.ToString(), DnsRequestFormat.Multicast) {
+                    Port = port, MulticastInterfaceIndex = interfaceIndex, TimeOut = 1000
+                };
+                DnsResponse response = await DnsWireResolveMulticast.ResolveWireFormatMulticast(
+                    group.ToString(), port, "example.local", DnsRecordType.A,
+                    false, false, false, config, stop.Token);
+                byte[] query = await reply;
+                Assert.NotNull(response);
+                Assert.NotEmpty(query);
+                Assert.Equal(DnsRequestFormat.Multicast, response.Questions[0].RequestFormat);
+                Assert.Equal(DnsResponseCode.NoError, response.Status);
+                Assert.Equal("192.0.2.1", Assert.Single(response.Answers).Data);
+                Assert.Equal(0, query[0] | query[1]);
+                Assert.True(DnsWireMessageParser.TryParseQuestion(query, 0, out var question));
+                Assert.Equal("example.local", question.Name);
+                Assert.Equal((ushort)DnsRecordType.A, question.Type);
+            } finally {
+                stop.Cancel();
+                try { await reply; }
+                catch (Exception exception) when (stop.IsCancellationRequested
+                    && exception is OperationCanceledException or SocketException or ObjectDisposedException) { }
+            }
         }
     }
 }

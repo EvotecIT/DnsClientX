@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -6,132 +7,65 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DnsClientX.Tests {
-    /// <summary>
-    /// Tests UDP retry logic and proper resource disposal.
-    /// </summary>
+    /// <summary>Tests UDP retry bounds and the lifetime of every timed-out attempt.</summary>
     public class DnsWireUdpRetryLimitTests {
-        private static int GetFreePort() {
-            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
-            return ((IPEndPoint)socket.LocalEndPoint!).Port;
-        }
-
-        private static async Task<int> RunUdpServerNoReplyAsync(int port, int expected, CancellationToken token) {
-            using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
-            int count = 0;
-            while (count < expected && !token.IsCancellationRequested) {
-#if NET5_0_OR_GREATER
-                var receiveTask = udp.ReceiveAsync(token).AsTask();
-#else
-                var receiveTask = udp.ReceiveAsync();
-#endif
-                var completed = await Task.WhenAny(receiveTask, Task.Delay(Timeout.Infinite, token));
-                if (completed == receiveTask) {
-                    await receiveTask;
-                    count++;
+        private static async Task<(DnsResponse Response, int[] Ports)> CaptureAttemptsAsync() {
+            using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            int port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
+            using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var stop = CancellationTokenSource.CreateLinkedTokenSource(guard.Token);
+            using var registration = stop.Token.Register(server.Dispose);
+            async Task<int[]> ReceiveAsync() {
+                var ports = new List<int>();
+                try {
+                    while (true) {
+                        var packet = await server.ReceiveAsync();
+                        ports.Add(packet.RemoteEndPoint.Port);
+                    }
+                } catch (Exception exception) when (stop.IsCancellationRequested
+                    && exception is ObjectDisposedException or SocketException) {
+                    return ports.ToArray();
                 }
             }
-            return count;
+            Task<int[]> receive = ReceiveAsync();
+            try {
+                var configuration = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
+                    Port = port, TimeOut = 100
+                };
+                DnsResponse response = await DnsWireResolveUdp.ResolveWireFormatUdp(
+                    "127.0.0.1", port, "example.com", DnsRecordType.A,
+                    false, false, false, configuration, 2, guard.Token);
+                // Keep observing after completion: a third packet must not disappear behind
+                // a receiver that stopped as soon as the expected two attempts arrived.
+                await Task.Delay(100, guard.Token);
+                stop.Cancel();
+                return (response, await receive);
+            } finally {
+                stop.Cancel();
+                await receive;
+            }
         }
 
-        private static async Task<int[]> RunUdpServerCapturePortsAsync(int port, int expected, CancellationToken token) {
-            using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
-            var ports = new int[expected];
-            int index = 0;
-            while (index < expected && !token.IsCancellationRequested) {
-#if NET5_0_OR_GREATER
-                var receiveTask = udp.ReceiveAsync(token).AsTask();
-#else
-                var receiveTask = udp.ReceiveAsync();
-#endif
-                var completed = await Task.WhenAny(receiveTask, Task.Delay(Timeout.Infinite, token));
-                if (completed == receiveTask) {
-                    var result = await receiveTask;
-                    ports[index++] = result.RemoteEndPoint.Port;
-                }
-            }
-            if (index < expected) {
-                Array.Resize(ref ports, index);
-            }
-            return ports;
-        }
-
-        /// <summary>
-        /// Ensures retry logic respects the configured maximum retry count.
-        /// </summary>
+        /// <summary>Two configured attempts send exactly two packets and retain timeout diagnostics.</summary>
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldRespectMaxRetries() {
-            int port = GetFreePort();
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var serverTask = RunUdpServerNoReplyAsync(port, 2, cts.Token);
-
-            // Give the client a slightly larger timeout so retries have time to
-            // fire on slower systems.
-            var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
-                Port = port,
-                TimeOut = 100
-            };
-            DnsResponse response = await DnsWireResolveUdp.ResolveWireFormatUdp(
-                "127.0.0.1",
-                port,
-                "example.com",
-                DnsRecordType.A,
-                requestDnsSec: false,
-                validateDnsSec: false,
-                debug: false,
-                config,
-                2,
-                cts.Token);
-
-            int attempts = await serverTask;
-            cts.Cancel();
-
-            Assert.InRange(attempts, 1, 2);
+            var (response, ports) = await CaptureAttemptsAsync();
+            Assert.Equal(2, ports.Length); // Also rejects a third attempt after resolver completion.
             Assert.NotEqual(DnsResponseCode.NoError, response.Status);
             Assert.Equal(DnsQueryErrorCode.Timeout, response.ErrorCode);
             Assert.IsType<TimeoutException>(response.Exception);
         }
 
-        /// <summary>
-        /// Validates that the UDP client is disposed on each retry attempt.
-        /// </summary>
+        /// <summary>Both timed-out attempts release their local bindings before returning.</summary>
         [Fact]
         public async Task ResolveWireFormatUdp_ShouldDisposeClientOnEachRetry() {
-            int port = GetFreePort();
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var serverTask = RunUdpServerCapturePortsAsync(port, 2, cts.Token);
-
-            var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
-                Port = port,
-                TimeOut = 100
-            };
-            await DnsWireResolveUdp.ResolveWireFormatUdp(
-                "127.0.0.1",
-                port,
-                "example.com",
-                DnsRecordType.A,
-                requestDnsSec: false,
-                validateDnsSec: false,
-                debug: false,
-                config,
-                2,
-                cts.Token);
-
-            int[] clientPorts = await serverTask;
-            cts.Cancel();
-
-            foreach (int clientPort in clientPorts) {
-                UdpClient? testClient = null;
-                Exception? ex = null;
-                try {
-                    testClient = new UdpClient(new IPEndPoint(IPAddress.Loopback, clientPort));
-                } catch (Exception e) {
-                    ex = e;
-                } finally {
-                    testClient?.Dispose();
-                }
-
-                Assert.Null(ex);
+            var (response, ports) = await CaptureAttemptsAsync();
+            Assert.Equal(2, ports.Length);
+            Assert.Equal(DnsQueryErrorCode.Timeout, response.ErrorCode);
+            foreach (int port in ports) {
+                using var replacement = new UdpClient(AddressFamily.InterNetwork);
+                replacement.Client.ExclusiveAddressUse = true;
+                replacement.Client.Bind(new IPEndPoint(IPAddress.Loopback, port));
             }
         }
     }

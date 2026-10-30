@@ -30,7 +30,8 @@ $fixture = Join-Path $PSScriptRoot '../scripts/qualification/privacy-packages-le
 $consumerRoot = New-Item -ItemType Directory -Path (Join-Path $OutputRoot 'consumer')
 $packageRoot = Join-Path $OutputRoot 'packages'
 $binaryRoot = Join-Path $OutputRoot 'bin'
-Copy-Item -LiteralPath (Join-Path $fixture 'LegacyPrivacyPackages.csproj'), (Join-Path $fixture 'Program.cs') -Destination $consumerRoot
+Copy-Item -LiteralPath (Join-Path $fixture 'Program.cs') -Destination $consumerRoot
+Copy-Item -LiteralPath (Join-Path $fixture 'LegacyPrivacyPackages.csproj.template') -Destination (Join-Path $consumerRoot 'LegacyPrivacyPackages.csproj')
 
 $configuration = [xml] '<packages />'
 $references = [xml] '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"><ItemGroup /></Project>'

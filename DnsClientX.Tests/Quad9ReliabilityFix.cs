@@ -105,32 +105,5 @@ namespace DnsClientX.Tests {
             }
         }
 
-        /// <summary>
-        /// Outputs troubleshooting information about Quad9 reliability in automated scenarios.
-        /// </summary>
-        [RealDnsFact]
-        public void ExplainQuad9Issues() {
-            output.WriteLine("Quad9 Reliability Issues Explanation:");
-            output.WriteLine(new string('=', 40));
-            output.WriteLine("");
-            output.WriteLine("❌ PROBLEM: Quad9 DNS providers show 43-70% reliability in automated tests");
-            output.WriteLine("");
-            output.WriteLine("🔍 ROOT CAUSE:");
-            output.WriteLine("  • Rate limiting - blocks rapid successive requests");
-            output.WriteLine("  • Anti-DDoS protection - treats automation as suspicious");
-            output.WriteLine("  • Connection handling - drops/resets connections aggressively");
-            output.WriteLine("");
-            output.WriteLine("✅ SOLUTIONS:");
-            output.WriteLine("  1. Use retry logic with exponential backoff for Quad9");
-            output.WriteLine("  2. Create fresh connections (don't reuse HTTP clients)");
-            output.WriteLine("  3. Add delays between requests");
-            output.WriteLine("  4. For automated testing, prefer:");
-            output.WriteLine("     • Cloudflare DNS (1.1.1.1) - Most reliable");
-            output.WriteLine("     • Google DNS (8.8.8.8) - Very reliable");
-            output.WriteLine("     • OpenDNS - Generally reliable");
-            output.WriteLine("");
-            output.WriteLine("📝 NOTE: This is a Quad9 server-side limitation, not a DnsClientX bug.");
-            output.WriteLine("         Manual/interactive usage may have better success rates.");
-        }
     }
 }

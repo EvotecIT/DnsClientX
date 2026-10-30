@@ -66,7 +66,7 @@ jobs:
 
             - name: Run tests (.NET 10.0)
               if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net10.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --collect:"XPlat Code Coverage" --blame-hang --blame-hang-timeout 60s --blame-hang-dump-type none
+              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net10.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --blame-hang --blame-hang-timeout 60s --blame-hang-dump-type none
               env:
                   DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
 
@@ -111,19 +111,6 @@ jobs:
                   name: test-results-windows
                   path: '**/*.trx'
 
-            - name: Upload coverage reports
-              uses: actions/upload-artifact@v7
-              if: always()
-              with:
-                  name: coverage-reports-windows
-                  path: '**/coverage.cobertura.xml'
-
-            - name: Upload coverage to Codecov
-              uses: codecov/codecov-action@v7
-              with:
-                  files: '**/coverage.cobertura.xml'
-                  fail_ci_if_error: false
-
     test-ubuntu:
         name: 'Ubuntu'
         runs-on: ubuntu-latest
@@ -152,7 +139,7 @@ jobs:
 
             - name: Run tests (.NET 10.0)
               if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net10.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --collect:"XPlat Code Coverage" --blame-hang --blame-hang-timeout 60s --blame-hang-dump-type none
+              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net10.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --blame-hang --blame-hang-timeout 60s --blame-hang-dump-type none
               env:
                   DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
 
@@ -197,19 +184,6 @@ jobs:
                   name: test-results-ubuntu
                   path: '**/*.trx'
 
-            - name: Upload coverage reports
-              uses: actions/upload-artifact@v7
-              if: always()
-              with:
-                  name: coverage-reports-ubuntu
-                  path: '**/coverage.cobertura.xml'
-
-            - name: Upload coverage to Codecov
-              uses: codecov/codecov-action@v7
-              with:
-                  files: '**/coverage.cobertura.xml'
-                  fail_ci_if_error: false
-
     test-macos:
         name: 'macOS'
         runs-on: macos-latest
@@ -238,7 +212,7 @@ jobs:
 
             - name: Run tests (.NET 10.0)
               if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net10.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --collect:"XPlat Code Coverage" --blame-hang --blame-hang-timeout 60s --blame-hang-dump-type none
+              run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net10.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --blame-hang --blame-hang-timeout 60s --blame-hang-dump-type none
               env:
                   DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
 
@@ -283,19 +257,6 @@ jobs:
                   name: test-results-macos
                   path: '**/*.trx'
 
-            - name: Upload coverage reports
-              uses: actions/upload-artifact@v7
-              if: always()
-              with:
-                  name: coverage-reports-macos
-                  path: '**/coverage.cobertura.xml'
-
-            - name: Upload coverage to Codecov
-              uses: codecov/codecov-action@v7
-              with:
-                  files: '**/coverage.cobertura.xml'
-                  fail_ci_if_error: false
-
     test-real-dns:
         name: 'Windows Real DNS'
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_real_dns_tests }}
@@ -326,6 +287,7 @@ jobs:
               run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net10.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --blame-hang --blame-hang-timeout 60s --blame-hang-dump-type none
               env:
                   DNSCLIENTX_RUN_REAL_DNS_TESTS: '1'
+                  DNSCLIENTX_RUN_MODERN_TRANSPORT_TESTS: '1'
                   DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
 
             - name: Upload live-host test results

@@ -10,7 +10,6 @@
 [![powershell gallery platforms](https://img.shields.io/powershellgallery/p/DnsClientX.svg)](https://www.powershellgallery.com/packages/DnsClientX)
 [![powershell gallery downloads](https://img.shields.io/powershellgallery/dt/DnsClientX.svg)](https://www.powershellgallery.com/packages/DnsClientX)
 [![license](https://img.shields.io/github/license/EvotecIT/DnsClientX.svg)](https://github.com/EvotecIT/DnsClientX)
-[![codecov](https://codecov.io/gh/EvotecIT/DnsClientX/branch/main/graph/badge.svg)](https://codecov.io/gh/EvotecIT/DnsClientX)
 [![Discord](https://img.shields.io/discord/508328927853281280?style=flat-square&label=discord%20chat)](https://evo.yt/discord)
 
 ## Install
@@ -181,7 +180,6 @@ For name, mail, routing, and authority records such as NS, CNAME, MX, SOA, and S
 
 [![Test .NET](https://github.com/EvotecIT/DnsClientX/actions/workflows/test-dotnet.yml/badge.svg)](https://github.com/EvotecIT/DnsClientX/actions/workflows/test-dotnet.yml)
 [![Test PowerShell](https://github.com/EvotecIT/DnsClientX/actions/workflows/test-powershell.yml/badge.svg)](https://github.com/EvotecIT/DnsClientX/actions/workflows/test-powershell.yml)
-[![codecov](https://codecov.io/gh/EvotecIT/DnsClientX/branch/main/graph/badge.svg)](https://codecov.io/gh/EvotecIT/DnsClientX)
 
 **Cross-Platform Testing:** All tests run simultaneously across Windows, Linux, and macOS to ensure compatibility.
 

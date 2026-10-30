@@ -54,7 +54,11 @@ jobs:
           @"
           <configuration><packageSources><clear/><add key="candidate" value="$feedXml"/><add key="nuget" value="https://api.nuget.org/v3/index.json"/></packageSources><packageSourceMapping><packageSource key="candidate"><package pattern="DnsClientX"/><package pattern="DnsClientX.*"/></packageSource><packageSource key="nuget"><package pattern="*"/></packageSource></packageSourceMapping></configuration>
           "@ | Set-Content $config -Encoding utf8
-          $consumer = './scripts/qualification/privacy-packages/PrivacyPackages.csproj'
+          $consumerRoot = Join-Path $taskRoot 'consumer'
+          New-Item -ItemType Directory -Path $consumerRoot | Out-Null
+          Copy-Item ./scripts/qualification/privacy-packages/Program.cs, ./Directory.Build.props -Destination $consumerRoot
+          $consumer = Join-Path $consumerRoot 'PrivacyPackages.csproj'
+          Copy-Item ./scripts/qualification/privacy-packages/PrivacyPackages.csproj.template -Destination $consumer
           dotnet restore $consumer --configfile $config --packages $cache --artifacts-path $artifacts -p:CandidateVersion=$version
           if ($LASTEXITCODE) { throw 'Isolated candidate restore failed.' }
           foreach ($framework in 'net8.0', 'net10.0') {

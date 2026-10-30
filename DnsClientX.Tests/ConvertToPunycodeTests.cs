@@ -41,10 +41,11 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Trailing dots should be preserved when converting.
         /// </summary>
-        [Fact]
-        public void PreservesTrailingDot() {
-            const string input = "example.com.";
-            Assert.Equal(input, Invoke(input));
+        [Theory]
+        [InlineData("example.com.", "example.com.")]
+        [InlineData("www.bücher.de.", "www.xn--bcher-kva.de.")]
+        public void PreservesTrailingDot(string input, string expected) {
+            Assert.Equal(expected, Invoke(input));
         }
     }
 }

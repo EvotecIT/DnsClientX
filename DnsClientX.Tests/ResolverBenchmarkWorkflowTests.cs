@@ -11,8 +11,10 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures the benchmark workflow composes execution and report building into one shared entry point.
         /// </summary>
-        [Fact]
-        public async Task RunAsync_ComposesExecutionAndReportBuilding() {
+        [Theory]
+        [InlineData(1000)]
+        [InlineData(1200)]
+        public async Task RunAsync_ComposesExecutionAndReportBuilding(int timeoutMs) {
             ResolverExecutionTarget[] targets = {
                 new ResolverExecutionTarget {
                     DisplayName = "Cloudflare",
@@ -27,9 +29,9 @@ namespace DnsClientX.Tests {
                 new[] { DnsRecordType.A },
                 attemptsPerCombination: 2,
                 maxConcurrency: 2,
-                timeoutMs: 1200,
+                timeoutMs: timeoutMs,
                 new ResolverQueryRunOptions {
-                    TimeoutMs = 1200
+                    TimeoutMs = timeoutMs
                 },
                 new ResolverBenchmarkPolicy {
                     MinSuccessfulCandidates = 1
@@ -54,9 +56,13 @@ namespace DnsClientX.Tests {
                 cancellationToken: CancellationToken.None);
 
             Assert.Single(report.Results);
+            Assert.Equal(4, report.Attempts.Length);
+            Assert.All(report.Attempts, attempt => Assert.Equal("Cloudflare", attempt.Target));
+            Assert.Equal(2, report.Attempts.Count(attempt => attempt.Name == "example.com" && attempt.RecordType == DnsRecordType.A));
+            Assert.Equal(2, report.Attempts.Count(attempt => attempt.Name == "example.net" && attempt.RecordType == DnsRecordType.A));
             Assert.Equal(1, report.Summary.CandidateCount);
             Assert.True(report.Evaluation.PolicyPassed);
-            Assert.Equal(1200, report.Summary.TimeoutMs);
+            Assert.Equal(timeoutMs, report.Summary.TimeoutMs);
             Assert.Equal((1, 4), progress[0]);
             Assert.Equal((4, 4), progress[progress.Count - 1]);
         }

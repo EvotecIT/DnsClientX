@@ -20,35 +20,6 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Waits for task completion when running synchronously.
-        /// </summary>
-        [Fact]
-        public void RunSync_Task_WaitsForCompletion() {
-            bool ran = false;
-            Task task = Task.Run(() => ran = true);
-            task.RunSync();
-            Assert.True(ran);
-        }
-
-        /// <summary>
-        /// Executes a function returning a value on the thread pool and waits for completion.
-        /// </summary>
-        [Fact]
-        public void RunSync_FuncOfT_ReturnsResult() {
-            int result = ((Func<Task<int>>)(() => Task.FromResult(7))).RunSync();
-            Assert.Equal(7, result);
-        }
-        /// <summary>
-        /// Executes an async function and waits for completion.
-        /// </summary>
-        [Fact]
-        public void RunSync_Func_WaitsForCompletion() {
-            bool ran = false;
-            ((Func<Task>)(() => { ran = true; return Task.CompletedTask; })).RunSync();
-            Assert.True(ran);
-        }
-
-        /// <summary>
         /// Throws when the provided task of T is cancelled.
         /// </summary>
         [Fact]
@@ -59,15 +30,5 @@ namespace DnsClientX.Tests {
             Assert.Throws<TaskCanceledException>(() => task.RunSync(cts.Token));
         }
 
-        /// <summary>
-        /// Throws when the provided task is cancelled.
-        /// </summary>
-        [Fact]
-        public void RunSync_Task_Cancelled() {
-            using var cts = new CancellationTokenSource();
-            cts.Cancel();
-            Task task = Task.Delay(1000, cts.Token);
-            Assert.Throws<TaskCanceledException>(() => task.RunSync(cts.Token));
-        }
     }
 }

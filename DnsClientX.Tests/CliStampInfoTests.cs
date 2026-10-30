@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -57,10 +58,12 @@ namespace DnsClientX.Tests {
 
                 Assert.Equal(0, exitCode);
                 string text = output.ToString();
-                Assert.Contains("\"Transport\": \"Doh\"", text, StringComparison.Ordinal);
-                Assert.Contains("\"RequestFormat\": \"DnsOverHttps\"", text, StringComparison.Ordinal);
-                Assert.Contains("\"Host\": \"mozilla.cloudflare-dns.com\"", text, StringComparison.Ordinal);
-                Assert.Contains("\"DnsSecOk\": true", text, StringComparison.Ordinal);
+                using JsonDocument document = JsonDocument.Parse(text);
+                JsonElement stamp = document.RootElement;
+                Assert.Equal("Doh", stamp.GetProperty("Transport").GetString());
+                Assert.Equal("DnsOverHttps", stamp.GetProperty("RequestFormat").GetString());
+                Assert.Equal("mozilla.cloudflare-dns.com", stamp.GetProperty("Host").GetString());
+                Assert.True(stamp.GetProperty("DnsSecOk").GetBoolean());
             } finally {
                 Console.SetOut(originalOut);
             }

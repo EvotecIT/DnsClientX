@@ -84,48 +84,25 @@ public class DnsQuicConnectionPoolTests {
         Assert.Equal(0, calls);
     }
 
-    /// <summary>Disposal cancels and drains an admitted connection attempt.</summary>
-    [Fact]
-    public async Task ClosingPoolCancelsAndDrainsAnActiveConnectionFactory() {
-        var pool = new DnsQuicConnectionPool();
-        using var caller = new CancellationTokenSource();
-        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var drained = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Task pending = pool.GetAsync("endpoint", new QuicClientConnectionOptions(), async (_, token) => {
-            entered.TrySetResult(true);
-            try { await Task.Delay(Timeout.Infinite, token); }
-            finally { drained.TrySetResult(true); }
-            throw new InvalidOperationException("Canceled connection must not be published.");
-        }, caller.Token).AsTask();
-        Assert.Same(entered.Task, await Task.WhenAny(entered.Task, Task.Delay(5000)));
-        Task closing = pool.DisposeAsync().AsTask();
-        try {
-            Assert.Same(closing, await Task.WhenAny(closing, Task.Delay(3000)));
-            await closing;
-            await Assert.ThrowsAsync<ObjectDisposedException>(() => pending);
-            Assert.True(drained.Task.IsCompleted);
-        } finally {
-            caller.Cancel();
-            try { await pending; } catch (Exception) { }
-            await closing;
-        }
-    }
-
     /// <summary>Same-endpoint waiters are rejected and concurrent disposers wait for the same drain.</summary>
     [Fact]
     public async Task ClosingPoolRejectsQueuedWaitersAndSharesItsDrain() {
         var pool = new DnsQuicConnectionPool();
+        using var caller = new CancellationTokenSource();
         var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var canceled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var drained = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         int secondFactoryCalls = 0;
         Task first = pool.GetAsync("endpoint", new QuicClientConnectionOptions(), async (_, token) => {
             using var registration = token.Register(() => canceled.TrySetResult(true));
             entered.TrySetResult(true);
-            await release.Task;
-            token.ThrowIfCancellationRequested();
-            throw new InvalidOperationException("Canceled connection must not be published.");
-        }, default).AsTask();
+            try {
+                await release.Task;
+                token.ThrowIfCancellationRequested();
+                throw new InvalidOperationException("Canceled connection must not be published.");
+            } finally { drained.TrySetResult(true); }
+        }, caller.Token).AsTask();
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Task queued = pool.GetAsync("endpoint", new QuicClientConnectionOptions(), (_, _) => {
             Interlocked.Increment(ref secondFactoryCalls);
@@ -140,8 +117,11 @@ public class DnsQuicConnectionPoolTests {
             Assert.Equal(0, secondFactoryCalls);
             release.TrySetResult(true);
             await Assert.ThrowsAsync<ObjectDisposedException>(() => first);
-            await closing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Same(closing, await Task.WhenAny(closing, Task.Delay(3000)));
+            await closing;
+            Assert.True(drained.Task.IsCompleted);
         } finally {
+            caller.Cancel();
             release.TrySetResult(true);
             try { await first; } catch (Exception) { }
             try { await queued; } catch (Exception) { }

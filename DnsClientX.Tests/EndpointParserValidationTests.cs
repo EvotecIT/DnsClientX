@@ -28,17 +28,6 @@ namespace DnsClientX.Tests {
             Assert.Equal(Transport.Udp, eps[0].Transport);
         }
 
-        /// <summary>
-        /// A valid DoH HTTPS URL parses into a DoH endpoint with correct host.
-        /// </summary>
-        [Fact]
-        public void DohHttps_Parses() {
-            var eps = EndpointParser.TryParseMany(new [] { "https://dns.google/dns-query" }, out var errors);
-            Assert.Empty(errors);
-            Assert.Single(eps);
-            Assert.Equal(Transport.Doh, eps[0].Transport);
-            Assert.Equal("dns.google", eps[0].Host);
-        }
     }
 }
 

@@ -35,7 +35,8 @@ namespace DnsClientX.Tests {
             Assert.Equal(53, endpoints[2].Port);
             Assert.Equal(Transport.Udp, endpoints[2].Transport);
 
-            Assert.NotNull(endpoints[3].DohUrl);
+            Assert.Equal("dns.google", endpoints[3].Host);
+            Assert.Equal(new Uri("https://dns.google/dns-query"), endpoints[3].DohUrl);
             Assert.Equal(Transport.Doh, endpoints[3].Transport);
         }
 

@@ -15,6 +15,17 @@ $required = @('Resolve-Dns', 'Find-DnsService', 'Get-DnsService', 'Receive-DnsSe
 foreach ($name in $required) {
     if (-not $module.ExportedCommands.ContainsKey($name)) { throw "Packaged module does not export $name." }
 }
+$binaryCommands = @(
+    foreach ($type in [DnsClientX.PowerShell.CmdletResolveDnsQuery].Assembly.GetExportedTypes()) {
+        foreach ($attribute in $type.GetCustomAttributes([System.Management.Automation.CmdletAttribute], $false)) {
+            "$($attribute.VerbName)-$($attribute.NounName)"
+        }
+    }
+)
+if ($binaryCommands.Count -eq 0) { throw 'Packaged binary contains no discoverable cmdlets.' }
+foreach ($name in $binaryCommands) {
+    if (-not $module.ExportedCmdlets.ContainsKey($name)) { throw "Packaged module does not export compiled cmdlet $name." }
+}
 function Assert-PackagedAssemblies {
     $prefix = [IO.Path]::GetFullPath($manifest.Directory.FullName) + [IO.Path]::DirectorySeparatorChar
     $comparison = [StringComparison]::Ordinal

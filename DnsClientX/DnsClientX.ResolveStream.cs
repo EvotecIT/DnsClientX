@@ -118,33 +118,5 @@ namespace DnsClientX {
             }
         }
 
-        internal async IAsyncEnumerable<DnsResponse> ResolveStream(
-            IEnumerable<string> names,
-            IEnumerable<DnsRecordType> types,
-            bool requestDnsSec = false,
-            bool validateDnsSec = false,
-            bool returnAllTypes = false,
-            bool retryOnTransient = true,
-            int maxRetries = 3,
-            int retryDelayMs = 200,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default) {
-            var nameEnumerator = names.GetEnumerator();
-            try {
-                while (nameEnumerator.MoveNext()) {
-                    string name = nameEnumerator.Current!;
-                    var typeEnumerator = types.GetEnumerator();
-                    try {
-                        while (typeEnumerator.MoveNext()) {
-                            DnsRecordType type = typeEnumerator.Current;
-                            yield return await Resolve(name, type, requestDnsSec, validateDnsSec, returnAllTypes, retryOnTransient, maxRetries, retryDelayMs, cancellationToken: cancellationToken).ConfigureAwait(false);
-                        }
-                    } finally {
-                        typeEnumerator.Dispose();
-                    }
-                }
-            } finally {
-                nameEnumerator.Dispose();
-            }
-        }
     }
 }

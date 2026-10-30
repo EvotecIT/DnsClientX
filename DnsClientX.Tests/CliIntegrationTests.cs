@@ -10,10 +10,10 @@ namespace DnsClientX.Tests {
     [Collection("DisposalTests")]
     public class CliIntegrationTests {
         /// <summary>
-        /// Ensures the CLI can execute without leaving open sockets.
+        /// Ensures a live system-resolver query completes and disposes its client.
         /// </summary>
-        [Fact]
-        public async Task CliRunsWithoutLeavingSockets() {
+        [RealDnsFact]
+        public async Task Cli_UsesSystemResolverAndDisposesClient() {
             var initialCount = ClientX.DisposalCount;
             var assembly = Assembly.Load("DnsClientX.Cli");
             Type programType = assembly.GetType("DnsClientX.Cli.Program")!;
@@ -30,7 +30,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// The --type option should be case-insensitive.
         /// </summary>
-        [Theory]
+        [RealDnsTheory]
         [InlineData("--type")]
         [InlineData("--TYPE")]
         public async Task TypeOption_IsCaseInsensitive(string option) {
@@ -51,8 +51,8 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Validates that the --wire-post switch executes successfully.
         /// </summary>
-        [Fact]
-        public async Task WirePostOption_Executes() {
+        [RealDnsFact]
+        public async Task WirePostOption_SystemResolverQueryCompletes() {
             var initialCount = ClientX.DisposalCount;
             var assembly = Assembly.Load("DnsClientX.Cli");
             Type programType = assembly.GetType("DnsClientX.Cli.Program")!;
@@ -69,7 +69,7 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures that retry statistics are printed to stdout.
         /// </summary>
-        [Fact]
+        [RealDnsFact]
         public async Task Cli_DisplaysRetryCount() {
             var initialCount = ClientX.DisposalCount;
 
@@ -86,6 +86,7 @@ namespace DnsClientX.Tests {
                 Assert.Equal(0, exitCode);
                 string output = sw.ToString();
                 Assert.Contains("retries", output, StringComparison.OrdinalIgnoreCase);
+                Assert.Matches(@"retries \d+", output);
             } finally {
                 Console.SetOut(original);
             }
@@ -127,6 +128,11 @@ namespace DnsClientX.Tests {
                 Assert.Equal(8053, runOptions.PortOverride);
                 Assert.True(runOptions.RequestNsid);
                 Assert.Equal("1.1.1.1", runOptions.BootstrapResolver!.Host);
+                using var client = ResolverQueryExecutor.CreateClient(new ResolverExecutionTarget {
+                    BuiltInEndpoint = DnsEndpoint.Cloudflare, DisplayName = "Cloudflare"
+                }, runOptions);
+                Assert.Equal(DnsRequestFormat.DnsOverHttpsWirePost, client.EndpointConfiguration.RequestFormat);
+                Assert.True(client.EndpointConfiguration.EdnsOptions!.RequestNsid);
             } finally {
                 Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", originalPort);
             }
@@ -147,7 +153,6 @@ namespace DnsClientX.Tests {
             Assert.False(success);
             Assert.Contains("not supported in the CLI", parameters[2]?.ToString(), StringComparison.OrdinalIgnoreCase);
         }
-
 
         /// <summary>The CLI forwards the selected connection lifetime to the core benchmark owner.</summary>
         [Theory]

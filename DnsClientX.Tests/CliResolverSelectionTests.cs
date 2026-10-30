@@ -4,8 +4,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
-using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -356,9 +356,11 @@ namespace DnsClientX.Tests {
 
                 Assert.Equal(0, exitCode);
                 string text = output.ToString();
-                Assert.Contains("\"Kind\": \"BuiltInEndpoint\"", text, StringComparison.Ordinal);
-                Assert.Contains("\"BuiltInEndpoint\": \"Cloudflare\"", text, StringComparison.Ordinal);
-                Assert.Contains("\"Target\": \"Cloudflare\"", text, StringComparison.Ordinal);
+                using JsonDocument document = JsonDocument.Parse(text);
+                JsonElement selection = document.RootElement;
+                Assert.Equal("BuiltInEndpoint", selection.GetProperty("Kind").GetString());
+                Assert.Equal("Cloudflare", selection.GetProperty("BuiltInEndpoint").GetString());
+                Assert.Equal("Cloudflare", selection.GetProperty("Target").GetString());
             } finally {
                 Console.SetOut(originalOut);
                 File.Delete(snapshotPath);

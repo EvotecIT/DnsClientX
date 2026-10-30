@@ -9,6 +9,7 @@ namespace DnsClientX.Tests;
 /// <summary>
 /// Tests for helper methods dealing with DNS root trust anchors.
 /// </summary>
+[Collection("NoParallel")]
 public class RootAnchorHelperTests
 {
     /// <summary>Bundled anchors expose IANA lifecycle metadata for consumers and validation.</summary>
@@ -63,24 +64,27 @@ public class RootAnchorHelperTests
     /// </summary>
     [Fact]
     public async Task FetchLatestAsync_Failure_ReturnsEmptyArrayAndLogsWarning()
-        {
-            using var client = new HttpClient(new ThrowingHandler());
-            RootAnchorHelper.ClientOverride = client;
-            LogEventArgs? logged = null;
-            EventHandler<LogEventArgs> handler = (_, e) => logged = e;
-            Settings.Logger.OnWarningMessage += handler;
+    {
+        using var client = new HttpClient(new ThrowingHandler());
+        HttpClient? originalClient = RootAnchorHelper.ClientOverride;
+        RootAnchorHelper.ClientOverride = client;
+        LogEventArgs? logged = null;
+        EventHandler<LogEventArgs> handler = (_, e) => {
+            if (e.Message.IndexOf("root trust anchors", StringComparison.OrdinalIgnoreCase) >= 0) logged = e;
+        };
+        Settings.Logger.OnWarningMessage += handler;
 
-            try
-            {
-                RootDsRecord[] records = await RootAnchorHelper.FetchLatestAsync();
-                Assert.Empty(records);
-                // In some environments the logger may be configured to swallow warnings; tolerate that as long as we got no data.
-                Assert.True(logged == null || logged.Message.Contains("root trust anchors", StringComparison.OrdinalIgnoreCase));
-            }
-            finally
-            {
-                Settings.Logger.OnWarningMessage -= handler;
-                RootAnchorHelper.ClientOverride = null;
+        try
+        {
+            RootDsRecord[] records = await RootAnchorHelper.FetchLatestAsync();
+            Assert.Empty(records);
+            Assert.NotNull(logged);
+            Assert.Contains("root trust anchors", logged.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Settings.Logger.OnWarningMessage -= handler;
+            RootAnchorHelper.ClientOverride = originalClient;
         }
     }
 }

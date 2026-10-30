@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -23,10 +24,11 @@ namespace DnsClientX.Tests {
             return await task;
         }
 
-        private static async Task RunUdpServerAsync(int port, byte[] response, CancellationToken token) {
+        private static async Task RunUdpServerAsync(int port, byte[] response, CancellationToken token, Action<byte[]>? observe = null) {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
 #if NET5_0_OR_GREATER
             UdpReceiveResult result = await udp.ReceiveAsync(token);
+            observe?.Invoke(result.Buffer);
             response = (byte[])response.Clone();
             response[0] = result.Buffer[0];
             response[1] = result.Buffer[1];
@@ -38,6 +40,7 @@ namespace DnsClientX.Tests {
                 throw new OperationCanceledException(token);
             }
             UdpReceiveResult result = receiveTask.Result;
+            observe?.Invoke(result.Buffer);
             response = (byte[])response.Clone();
             response[0] = result.Buffer[0];
             response[1] = result.Buffer[1];
@@ -218,14 +221,19 @@ namespace DnsClientX.Tests {
             stream.WriteByte((byte)(value & 0xFF));
         }
 
-        /// <summary>
-        /// Ensures JSON query output emits a structured response payload.
-        /// </summary>
-        [Fact]
-        public async Task JsonFormat_PrintsStructuredResponse() {
+        /// <summary>JSON stays one complete response and record-type flags reach the actual wire query.</summary>
+        [Theory]
+        [InlineData(null)]
+        [InlineData("--type")]
+        [InlineData("--TYPE")]
+        public async Task JsonFormat_PrintsStructuredResponse(string? typeOption) {
             int port = TestUtilities.GetFreeUdpPort();
+            DnsRecordType expectedType = typeOption == null ? DnsRecordType.A : DnsRecordType.TXT;
+            DnsRecordType? observedType = null;
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            Task serverTask = RunUdpServerAsync(port, BuildQueryOutputResponse(), cts.Token);
+            Task serverTask = RunUdpServerAsync(port,
+                typeOption == null ? BuildQueryOutputResponse() : BuildTxtResponse(), cts.Token,
+                query => observedType = ParseQuestion(query).QuestionType);
 
             using var output = new StringWriter();
             TextWriter originalOut = Console.Out;
@@ -233,23 +241,25 @@ namespace DnsClientX.Tests {
                 Console.SetOut(output);
                 SystemInformation.SetDnsServerProvider(() => new List<string> { "127.0.0.1" });
                 Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", port.ToString());
-
-                int exitCode = await InvokeCliAsync("--format", "json", "example.com");
+                int exitCode = await InvokeCliAsync(typeOption == null
+                    ? new[] { "--format", "json", "example.com" }
+                    : new[] { "--format", "json", typeOption, "TXT", "example.com" });
 
                 Assert.Equal(0, exitCode);
-                string text = output.ToString();
-                Assert.Contains("\"Status\": \"NoError\"", text, StringComparison.Ordinal);
-                Assert.Contains("\"Answer\"", text, StringComparison.Ordinal);
-                Assert.Contains("\"Authority\"", text, StringComparison.Ordinal);
-                Assert.Contains("\"Additional\"", text, StringComparison.Ordinal);
-                Assert.Contains("\"data\": \"203.0.113.10\"", text, StringComparison.Ordinal);
+                await serverTask;
+                Assert.Equal(expectedType, observedType);
+                using JsonDocument document = JsonDocument.Parse(output.ToString());
+                JsonElement response = document.RootElement;
+                Assert.Equal("NoError", response.GetProperty("Status").GetString());
+                Assert.Equal(1, response.GetProperty("Answer").GetArrayLength());
+                Assert.Equal(typeOption == null ? 1 : 0, response.GetProperty("Authority").GetArrayLength());
+                Assert.Equal(typeOption == null ? 1 : 0, response.GetProperty("Additional").GetArrayLength());
+                if (typeOption == null) Assert.Equal("203.0.113.10", response.GetProperty("Answer")[0].GetProperty("data").GetString());
             } finally {
                 Console.SetOut(originalOut);
                 Environment.SetEnvironmentVariable("DNSCLIENTX_CLI_PORT", null);
                 SystemInformation.SetDnsServerProvider(null);
             }
-
-            await serverTask;
         }
 
         /// <summary>

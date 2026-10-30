@@ -11,55 +11,53 @@ namespace DnsClientX.Tests {
     /// </summary>
     [Collection("NoParallel")]
     public class EdnsDoBitTests {
-        private static byte[] CreateDnsHeader() {
-            byte[] bytes = new byte[12];
-            ushort id = 0x1234;
-            bytes[0] = (byte)(id >> 8);
-            bytes[1] = (byte)(id & 0xFF);
-            ushort flags = 0x8180;
-            bytes[2] = (byte)(flags >> 8);
-            bytes[3] = (byte)(flags & 0xFF);
-            return bytes;
+        private static async Task<byte[]> RunUdpServerAsync(UdpClient udp, CancellationToken token,
+            Dictionary<(string Name, DnsRecordType Type), DnsResponse>? signedResponses = null) {
+            using var stop = token.Register(udp.Dispose);
+            byte[]? firstQuery = null;
+            try {
+                while (true) {
+                    UdpReceiveResult result = await udp.ReceiveAsync();
+                    firstQuery ??= result.Buffer;
+                    byte[] response;
+                    if (signedResponses == null) {
+                        response = TestUtilities.CreateResponseFromQuery(result.Buffer);
+                    } else {
+                        var reader = new DnsWireReader(result.Buffer, 12);
+                        string name = DnsWireNameCodec.Canonical(reader.ReadName());
+                        var type = (DnsRecordType)reader.ReadUInt16();
+                        reader.ReadUInt16();
+                        response = DnsSecSignedFixture.SerializeResponse(result.Buffer, reader.Position,
+                            signedResponses[(name, type)]);
+                    }
+                    await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
+                    if (signedResponses == null) return result.Buffer;
+                }
+            } catch (Exception ex) when (token.IsCancellationRequested &&
+                ex is ObjectDisposedException or SocketException or OperationCanceledException) {
+                return firstQuery ?? throw new OperationCanceledException(token);
+            }
         }
 
-        private static int GetFreeTcpPort() {
-            TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
-            listener.Start();
-            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            listener.Stop();
-            return port;
-        }
-
-        private static int GetFreeUdpPort() {
-            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
-            return ((IPEndPoint)socket.LocalEndPoint!).Port;
-        }
-
-        private static async Task<byte[]> RunUdpServerAsync(int port, byte[] response, CancellationToken token) {
-            using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
-            UdpReceiveResult result = await udp.ReceiveAsync();
-            await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
-            return result.Buffer;
-        }
-
-        private static async Task<byte[]> RunTcpServerAsync(int port, byte[] response, CancellationToken token) {
-            TcpListener listener = new TcpListener(IPAddress.Loopback, port);
-            listener.Start();
-            using TcpClient client = await listener.AcceptTcpClientAsync();
-            NetworkStream stream = client.GetStream();
-            byte[] lengthBuffer = new byte[2];
-            await TestUtilities.ReadExactlyAsync(stream, lengthBuffer, 2, token);
-            if (BitConverter.IsLittleEndian) Array.Reverse(lengthBuffer);
-            int length = BitConverter.ToUInt16(lengthBuffer, 0);
-            byte[] queryBuffer = new byte[length];
-            await TestUtilities.ReadExactlyAsync(stream, queryBuffer, length, token);
-            byte[] prefix = BitConverter.GetBytes((ushort)response.Length);
-            if (BitConverter.IsLittleEndian) Array.Reverse(prefix);
-            await stream.WriteAsync(prefix, 0, prefix.Length, token);
-            await stream.WriteAsync(response, 0, response.Length, token);
-            listener.Stop();
-            return queryBuffer;
+        private static async Task<byte[]> RunTcpServerAsync(TcpListener listener, CancellationToken token) {
+            using var stop = token.Register(listener.Stop);
+            try {
+                using TcpClient client = await listener.AcceptTcpClientAsync();
+                using var close = token.Register(client.Dispose);
+                using NetworkStream stream = client.GetStream();
+                byte[] lengthBuffer = new byte[2];
+                await TestUtilities.ReadExactlyAsync(stream, lengthBuffer, 2, token);
+                int length = (lengthBuffer[0] << 8) | lengthBuffer[1];
+                byte[] queryBuffer = new byte[length];
+                await TestUtilities.ReadExactlyAsync(stream, queryBuffer, length, token);
+                byte[] response = TestUtilities.CreateResponseFromQuery(queryBuffer);
+                byte[] prefix = { (byte)(response.Length >> 8), (byte)response.Length };
+                await stream.WriteAsync(prefix, 0, prefix.Length, token);
+                await stream.WriteAsync(response, 0, response.Length, token);
+                return queryBuffer;
+            } finally {
+                listener.Stop();
+            }
         }
 
         private static void AssertDoBit(byte[] query, string name) {
@@ -133,26 +131,32 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldIncludeDoBit_WhenRequested() {
-            int port = GetFreeUdpPort();
-            var response = CreateDnsHeader();
+            using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            int port = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var udpTask = RunUdpServerAsync(port, response, cts.Token);
+            var udpTask = RunUdpServerAsync(udp, cts.Token);
+            try {
+                var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port };
+                DnsResponse response = await DnsWireResolveUdp.ResolveWireFormatUdp(
+                    "127.0.0.1",
+                    port,
+                    "example.com",
+                    DnsRecordType.A,
+                    requestDnsSec: true,
+                    validateDnsSec: false,
+                    debug: false,
+                    config,
+                    1,
+                    cts.Token);
+                byte[] query = await udpTask;
+                Assert.Equal(DnsResponseCode.NoError, response.Status);
+                Assert.Empty(response.Error);
 
-            var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port };
-            await DnsWireResolveUdp.ResolveWireFormatUdp(
-                "127.0.0.1",
-                port,
-                "example.com",
-                DnsRecordType.A,
-                requestDnsSec: true,
-                validateDnsSec: false,
-                debug: false,
-                config,
-                1,
-                cts.Token);
-            byte[] query = await udpTask;
-
-            AssertDoBit(query, "example.com");
+                AssertDoBit(query, "example.com");
+            } finally {
+                cts.Cancel();
+                await udpTask;
+            }
         }
 
         /// <summary>
@@ -160,25 +164,32 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task TcpRequest_ShouldIncludeDoBit_WhenRequested() {
-            int port = GetFreeTcpPort();
-            var response = CreateDnsHeader();
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var tcpTask = RunTcpServerAsync(port, response, cts.Token);
+            var tcpTask = RunTcpServerAsync(listener, cts.Token);
+            try {
+                var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTCP) { Port = port };
+                DnsResponse response = await DnsWireResolveTcp.ResolveWireFormatTcp(
+                    "127.0.0.1",
+                    port,
+                    "example.com",
+                    DnsRecordType.A,
+                    requestDnsSec: true,
+                    validateDnsSec: false,
+                    debug: false,
+                    config,
+                    cts.Token);
+                byte[] query = await tcpTask;
+                Assert.Equal(DnsResponseCode.NoError, response.Status);
+                Assert.Empty(response.Error);
 
-            var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverTCP) { Port = port };
-            await DnsWireResolveTcp.ResolveWireFormatTcp(
-                "127.0.0.1",
-                port,
-                "example.com",
-                DnsRecordType.A,
-                requestDnsSec: true,
-                validateDnsSec: false,
-                debug: false,
-                config,
-                cts.Token);
-            byte[] query = await tcpTask;
-
-            AssertDoBit(query, "example.com");
+                AssertDoBit(query, "example.com");
+            } finally {
+                cts.Cancel();
+                await tcpTask;
+            }
         }
 
         /// <summary>
@@ -186,17 +197,34 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldIncludeDoBit_WhenValidateDnsSecTrue() {
-            int port = GetFreeUdpPort();
-            var response = CreateDnsHeader();
+            using var fixture = new DnsSecSignedFixture();
+            var signedResponses = new Dictionary<(string Name, DnsRecordType Type), DnsResponse> {
+                [("example.com.", DnsRecordType.A)] = fixture.Signed("example.com", DnsRecordType.A, new byte[] { 192, 0, 2, 1 }),
+                [(".", DnsRecordType.DNSKEY)] = await fixture.LookupAsync(".", DnsRecordType.DNSKEY, CancellationToken.None),
+                [(fixture.Zone.Name, DnsRecordType.DNSKEY)] = await fixture.LookupAsync(fixture.Zone.Name, DnsRecordType.DNSKEY, CancellationToken.None),
+                [(fixture.Zone.Name, DnsRecordType.DS)] = await fixture.LookupAsync(fixture.Zone.Name, DnsRecordType.DS, CancellationToken.None)
+            };
+            using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            int port = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var udpTask = RunUdpServerAsync(port, response, cts.Token);
+            var udpTask = RunUdpServerAsync(udp, cts.Token, signedResponses);
 
             using var client = new ClientX("127.0.0.1", DnsRequestFormat.DnsOverUDP, useTcpFallback: false);
             client.EndpointConfiguration.Port = port;
+            client.EndpointConfiguration.Rfc5011TrustAnchorStorePath = fixture.AnchorPath;
 
-            await client.Resolve("example.com", DnsRecordType.A, requestDnsSec: false, validateDnsSec: true, retryOnTransient: false, cancellationToken: cts.Token);
+            DnsResponse response;
+            try {
+                response = await client.Resolve("example.com", DnsRecordType.A, requestDnsSec: false, validateDnsSec: true, retryOnTransient: false, cancellationToken: cts.Token);
+            } finally {
+                cts.Cancel();
+                await udpTask;
+            }
 
             byte[] query = await udpTask;
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.Empty(response.Error);
+            Assert.Equal(DnsSecValidationStatus.Secure, response.DnsSecValidationStatus);
 
             AssertDoAndCdBits(query, "example.com");
         }
@@ -206,26 +234,32 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldUseCustomBufferSize() {
-            int port = GetFreeUdpPort();
-            var response = CreateDnsHeader();
+            using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            int port = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var udpTask = RunUdpServerAsync(port, response, cts.Token);
+            var udpTask = RunUdpServerAsync(udp, cts.Token);
+            try {
+                var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port, EnableEdns = true, UdpBufferSize = 1234 };
+                DnsResponse response = await DnsWireResolveUdp.ResolveWireFormatUdp(
+                    "127.0.0.1",
+                    port,
+                    "example.com",
+                    DnsRecordType.A,
+                    requestDnsSec: false,
+                    validateDnsSec: false,
+                    debug: false,
+                    config,
+                    1,
+                    cts.Token);
+                byte[] query = await udpTask;
+                Assert.Equal(DnsResponseCode.NoError, response.Status);
+                Assert.Empty(response.Error);
 
-            var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port, EnableEdns = true, UdpBufferSize = 1234 };
-            await DnsWireResolveUdp.ResolveWireFormatUdp(
-                "127.0.0.1",
-                port,
-                "example.com",
-                DnsRecordType.A,
-                requestDnsSec: false,
-                validateDnsSec: false,
-                debug: false,
-                config,
-                1,
-                cts.Token);
-            byte[] query = await udpTask;
-
-            AssertBufferSize(query, "example.com", 1234);
+                AssertBufferSize(query, "example.com", 1234);
+            } finally {
+                cts.Cancel();
+                await udpTask;
+            }
         }
 
         /// <summary>
@@ -233,29 +267,35 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldUseBufferSize_FromEdnsOptions() {
-            int port = GetFreeUdpPort();
-            var response = CreateDnsHeader();
+            using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            int port = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var udpTask = RunUdpServerAsync(port, response, cts.Token);
+            var udpTask = RunUdpServerAsync(udp, cts.Token);
+            try {
+                var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
+                    Port = port,
+                    EdnsOptions = new EdnsOptions { EnableEdns = true, UdpBufferSize = 1234 }
+                };
+                DnsResponse response = await DnsWireResolveUdp.ResolveWireFormatUdp(
+                    "127.0.0.1",
+                    port,
+                    "example.com",
+                    DnsRecordType.A,
+                    requestDnsSec: false,
+                    validateDnsSec: false,
+                    debug: false,
+                    config,
+                    1,
+                    cts.Token);
+                byte[] query = await udpTask;
+                Assert.Equal(DnsResponseCode.NoError, response.Status);
+                Assert.Empty(response.Error);
 
-            var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) {
-                Port = port,
-                EdnsOptions = new EdnsOptions { EnableEdns = true, UdpBufferSize = 1234 }
-            };
-            await DnsWireResolveUdp.ResolveWireFormatUdp(
-                "127.0.0.1",
-                port,
-                "example.com",
-                DnsRecordType.A,
-                requestDnsSec: false,
-                validateDnsSec: false,
-                debug: false,
-                config,
-                1,
-                cts.Token);
-            byte[] query = await udpTask;
-
-            AssertBufferSize(query, "example.com", 1234);
+                AssertBufferSize(query, "example.com", 1234);
+            } finally {
+                cts.Cancel();
+                await udpTask;
+            }
         }
 
         /// <summary>
@@ -263,26 +303,32 @@ namespace DnsClientX.Tests {
         /// </summary>
         [Fact]
         public async Task UdpRequest_ShouldNotSetDoBit_WhenDnssecNotRequested() {
-            int port = GetFreeUdpPort();
-            var response = CreateDnsHeader();
+            using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            int port = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var udpTask = RunUdpServerAsync(port, response, cts.Token);
+            var udpTask = RunUdpServerAsync(udp, cts.Token);
+            try {
+                var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port, EnableEdns = true };
+                DnsResponse response = await DnsWireResolveUdp.ResolveWireFormatUdp(
+                    "127.0.0.1",
+                    port,
+                    "example.com",
+                    DnsRecordType.A,
+                    requestDnsSec: false,
+                    validateDnsSec: false,
+                    debug: false,
+                    config,
+                    1,
+                    cts.Token);
+                byte[] query = await udpTask;
+                Assert.Equal(DnsResponseCode.NoError, response.Status);
+                Assert.Empty(response.Error);
 
-            var config = new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = port, EnableEdns = true };
-            await DnsWireResolveUdp.ResolveWireFormatUdp(
-                "127.0.0.1",
-                port,
-                "example.com",
-                DnsRecordType.A,
-                requestDnsSec: false,
-                validateDnsSec: false,
-                debug: false,
-                config,
-                1,
-                cts.Token);
-            byte[] query = await udpTask;
-
-            AssertNoDoBit(query, "example.com");
+                AssertNoDoBit(query, "example.com");
+            } finally {
+                cts.Cancel();
+                await udpTask;
+            }
         }
     }
 }

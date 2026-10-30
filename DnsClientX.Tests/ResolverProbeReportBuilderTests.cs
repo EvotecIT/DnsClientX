@@ -25,7 +25,13 @@ namespace DnsClientX.Tests {
             Assert.Equal(3, report.Summary.CandidateCount);
             Assert.Equal(2, report.Summary.DistinctAnswerSets);
             Assert.Equal(67, report.Summary.ConsensusPercent);
-            Assert.Single(report.Summary.TransportCoverage);
+            Assert.Equal(2, report.Summary.TransportCoverage.Length);
+            var udp = Assert.Single(report.Summary.TransportCoverage, coverage => coverage.Transport == "Udp");
+            Assert.Equal(2, udp.TotalCount);
+            Assert.Equal(2, udp.SuccessfulCount);
+            var tcp = Assert.Single(report.Summary.TransportCoverage, coverage => coverage.Transport == "Tcp");
+            Assert.Equal(1, tcp.TotalCount);
+            Assert.Equal(1, tcp.SuccessfulCount);
             Assert.Equal(2, report.Summary.AnswerVariants.Length);
             Assert.Contains("udp@9.9.9.9:53", report.Summary.MismatchedTargets);
             Assert.Equal("udp@1.1.1.1:53", report.Summary.FastestSuccessTarget);
@@ -79,6 +85,7 @@ namespace DnsClientX.Tests {
                 Response = succeeded
                     ? new DnsResponse {
                         Status = DnsResponseCode.NoError,
+                        UsedTransport = requestFormat == DnsRequestFormat.DnsOverTCP ? Transport.Tcp : Transport.Udp,
                         Answers = new[] {
                             new DnsAnswer {
                                 Name = name,

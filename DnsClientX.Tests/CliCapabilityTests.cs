@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -54,9 +55,11 @@ namespace DnsClientX.Tests {
 
                 Assert.Equal(0, exitCode);
                 string text = output.ToString();
-                Assert.Contains("\"RequestFormat\": \"DnsOverHttp3\"", text, StringComparison.Ordinal);
-                Assert.Contains("\"RequestFormat\": \"DnsOverQuic\"", text, StringComparison.Ordinal);
-                Assert.Contains("\"Supported\":", text, StringComparison.Ordinal);
+                using JsonDocument document = JsonDocument.Parse(text);
+                Assert.Contains(document.RootElement.EnumerateArray(), item => item.GetProperty("RequestFormat").GetString() == "DnsOverHttp3");
+                Assert.Contains(document.RootElement.EnumerateArray(), item => item.GetProperty("RequestFormat").GetString() == "DnsOverQuic");
+                Assert.All(document.RootElement.EnumerateArray(), item =>
+                    Assert.Contains(item.GetProperty("Supported").ValueKind, new[] { JsonValueKind.True, JsonValueKind.False }));
             } finally {
                 Console.SetOut(originalOut);
             }

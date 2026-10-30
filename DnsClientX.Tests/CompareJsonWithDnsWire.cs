@@ -23,6 +23,9 @@ namespace DnsClientX.Tests {
             using var ClientWire = new ClientX(endpointCompare);
             DnsAnswer[] aAnswersWire = await ClientWire.ResolveAll(name, resourceRecordType);
 
+            Assert.NotEmpty(aAnswers);
+            Assert.NotEmpty(aAnswersWire);
+
             // Sort the arrays by Name, Type, and Data
             var sortedAAnswers = aAnswers.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();
             var sortedAAnswersWire = aAnswersWire.OrderBy(a => a.Name).ThenBy(a => a.Type).ThenBy(a => a.Data).ToArray();

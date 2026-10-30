@@ -1,5 +1,5 @@
 using System.Linq;
-using System.Reflection;
+using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using Xunit;
 
@@ -14,12 +14,12 @@ namespace DnsClientX.Tests {
         /// Ensures substring filtering preserves the complete matching resource record.
         /// </summary>
         [Fact]
-        public void FilterAnswers_ReturnsMatchingLine() {
-            var client = new ClientX();
-            var method = typeof(ClientX).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
-                .Single(m => m.Name == "FilterAnswers" && m.GetParameters().Length == 3);
-            var answers = new[] { CreateTxt("line1\nline2") };
-            var result = (DnsAnswer[])method.Invoke(client, new object[] { answers, "line2", DnsRecordType.TXT })!;
+        public async Task FilterAnswers_ReturnsMatchingLine() {
+            using var client = new ClientX();
+            client.ResolverOverride = (name, type, ct) => Task.FromResult(new DnsResponse {
+                Answers = new[] { CreateTxt("line1\nline2") }
+            });
+            var result = (await client.ResolveFilter("example.com", DnsRecordType.TXT, "line2", retryOnTransient: false)).Answers;
             Assert.Single(result);
             Assert.Equal("line1\nline2", result[0].Data);
         }
@@ -28,12 +28,12 @@ namespace DnsClientX.Tests {
         /// Ensures regex filtering preserves the complete matching resource record.
         /// </summary>
         [Fact]
-        public void FilterAnswersRegex_ReturnsMatchingLine() {
-            var client = new ClientX();
-            var method = typeof(ClientX).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
-                .Single(m => m.Name == "FilterAnswersRegex" && m.GetParameters().Length == 3);
-            var answers = new[] { CreateTxt("line1\nline2") };
-            var result = (DnsAnswer[])method.Invoke(client, new object[] { answers, new Regex("line2$"), DnsRecordType.TXT })!;
+        public async Task FilterAnswersRegex_ReturnsMatchingLine() {
+            using var client = new ClientX();
+            client.ResolverOverride = (name, type, ct) => Task.FromResult(new DnsResponse {
+                Answers = new[] { CreateTxt("line1\nline2") }
+            });
+            var result = (await client.ResolveFilter("example.com", DnsRecordType.TXT, new Regex("line2$"), retryOnTransient: false)).Answers;
             Assert.Single(result);
             Assert.Equal("line1\nline2", result[0].Data);
         }

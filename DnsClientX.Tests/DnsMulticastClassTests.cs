@@ -25,8 +25,9 @@ public class DnsMulticastClassTests {
             Assert.Equal((ushort)0x8001, answer.Class);
             Assert.Null(answer.CacheFlush);
         }
-        var ordinary = multicast.Answers[0];
+        var ordinary = (await DnsWire.DeserializeDnsMulticastResponse(message)).Answers[0];
         ordinary.CacheFlush = false;
+        Assert.NotEqual(ordinary.CacheFlush, multicast.Answers[0].CacheFlush);
         Assert.Single(new[] { ordinary, multicast.Answers[0] }.Distinct());
     }
 

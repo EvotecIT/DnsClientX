@@ -1,11 +1,11 @@
 using System.Linq;
-using System.Reflection;
+using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using Xunit;
 
 namespace DnsClientX.Tests {
     /// <summary>
-    /// Tests filtering helpers when answers contain empty data strings.
+    /// Tests public filtering when answers contain empty data strings.
     /// </summary>
     public class ResolveFilterNullDataTests {
         private static DnsAnswer CreateAnswer(string dataRaw, DnsRecordType type) {
@@ -18,55 +18,61 @@ namespace DnsClientX.Tests {
         }
 
         /// <summary>
-        /// Ensures answers with empty data are ignored by <c>FilterAnswers</c>.
+        /// Ensures answers with empty data are ignored by scalar substring filtering.
         /// </summary>
         [Fact]
-        public void FilterAnswers_ShouldIgnoreEmptyData() {
-            var client = new ClientX();
-            MethodInfo method = typeof(ClientX).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
-                .Single(m => m.Name == "FilterAnswers" && m.GetParameters().Length == 3);
-            var answers = new[] { CreateAnswer(string.Empty, DnsRecordType.A) };
-            var result = (DnsAnswer[])method.Invoke(client, new object[] { answers, "test", DnsRecordType.A })!;
+        public async Task FilterAnswers_ShouldIgnoreEmptyData() {
+            using var client = new ClientX();
+            client.ResolverOverride = (name, type, ct) => Task.FromResult(new DnsResponse {
+                Answers = new[] { CreateAnswer(string.Empty, DnsRecordType.A) }
+            });
+            var result = (await client.ResolveFilter("example.com", DnsRecordType.A, "test", retryOnTransient: false)).Answers;
             Assert.Empty(result);
         }
 
         /// <summary>
-        /// Ensures answers with empty data are ignored by <c>FilterAnswersRegex</c>.
+        /// Ensures answers with empty data are ignored by scalar regex filtering.
         /// </summary>
-        [Fact]
-        public void FilterAnswersRegex_ShouldIgnoreEmptyData() {
-            var client = new ClientX();
-            MethodInfo method = typeof(ClientX).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
-                .Single(m => m.Name == "FilterAnswersRegex" && m.GetParameters().Length == 3);
-            var answers = new[] { CreateAnswer(string.Empty, DnsRecordType.A) };
-            var result = (DnsAnswer[])method.Invoke(client, new object[] { answers, new Regex("test", RegexOptions.CultureInvariant), DnsRecordType.A })!;
+        [Theory]
+        [InlineData("test")]
+        [InlineData(".*")]
+        public async Task FilterAnswersRegex_ShouldIgnoreEmptyData(string pattern) {
+            using var client = new ClientX();
+            client.ResolverOverride = (name, type, ct) => Task.FromResult(new DnsResponse {
+                Answers = new[] { CreateAnswer(string.Empty, DnsRecordType.A) }
+            });
+            var result = (await client.ResolveFilter("example.com", DnsRecordType.A, new Regex(pattern, RegexOptions.CultureInvariant), retryOnTransient: false)).Answers;
             Assert.Empty(result);
         }
 
         /// <summary>
-        /// Validates <c>HasMatchingAnswers</c> returns false when data is empty.
+        /// Validates batch substring filtering omits responses when data is empty.
         /// </summary>
-        [Fact]
-        public void HasMatchingAnswers_ShouldReturnFalseForEmptyData() {
-            var client = new ClientX();
-            MethodInfo method = typeof(ClientX).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
-                .Single(m => m.Name == "HasMatchingAnswers" && m.GetParameters().Length == 3);
-            var answers = new[] { CreateAnswer(string.Empty, DnsRecordType.A) };
-            var result = (bool)method.Invoke(client, new object[] { answers, "test", DnsRecordType.A })!;
-            Assert.False(result);
+        [Theory]
+        [InlineData("test")]
+        [InlineData("")]
+        public async Task HasMatchingAnswers_ShouldReturnFalseForEmptyData(string filter) {
+            using var client = new ClientX();
+            client.ResolverOverride = (name, type, ct) => Task.FromResult(new DnsResponse {
+                Answers = new[] { CreateAnswer(string.Empty, DnsRecordType.A) }
+            });
+            var result = await client.ResolveFilter(new[] { "example.com" }, DnsRecordType.A, filter, retryOnTransient: false);
+            Assert.Empty(result);
         }
 
         /// <summary>
-        /// Validates <c>HasMatchingAnswersRegex</c> returns false when data is empty.
+        /// Validates batch regex filtering omits responses when data is empty.
         /// </summary>
-        [Fact]
-        public void HasMatchingAnswersRegex_ShouldReturnFalseForEmptyData() {
-            var client = new ClientX();
-            MethodInfo method = typeof(ClientX).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
-                .Single(m => m.Name == "HasMatchingAnswersRegex" && m.GetParameters().Length == 3);
-            var answers = new[] { CreateAnswer(string.Empty, DnsRecordType.A) };
-            var result = (bool)method.Invoke(client, new object[] { answers, new Regex("test", RegexOptions.CultureInvariant), DnsRecordType.A })!;
-            Assert.False(result);
+        [Theory]
+        [InlineData("test")]
+        [InlineData(".*")]
+        public async Task HasMatchingAnswersRegex_ShouldReturnFalseForEmptyData(string pattern) {
+            using var client = new ClientX();
+            client.ResolverOverride = (name, type, ct) => Task.FromResult(new DnsResponse {
+                Answers = new[] { CreateAnswer(string.Empty, DnsRecordType.A) }
+            });
+            var result = await client.ResolveFilter(new[] { "example.com" }, DnsRecordType.A, new Regex(pattern, RegexOptions.CultureInvariant), retryOnTransient: false);
+            Assert.Empty(result);
         }
     }
 }
