@@ -141,10 +141,10 @@ namespace DnsClientX.Tests {
                 for (int item = 0; item < items; item++) cache.Set(Key(item), response, TimeSpan.FromMilliseconds(ttlMs));
                 await Task.Delay(waitMs);
                 cache.Cleanup();
+                Assert.Equal(0, StorageCount(cache, "_cache"));
+                Assert.Equal(0, StorageCount(cache, "_insertionOrder"));
                 for (int item = 0; item < items; item++) Assert.False(cache.TryGet(Key(item), out _));
             }
-            Assert.Equal(0, StorageCount(cache, "_cache"));
-            Assert.Equal(0, StorageCount(cache, "_insertionOrder"));
             Parallel.For(0, 1000, item => cache.Set((item % 100).ToString(), response, TimeSpan.FromMinutes(1)));
             Assert.InRange(StorageCount(cache, "_cache"), 1, 16);
             Assert.Equal(StorageCount(cache, "_cache"), StorageCount(cache, "_insertionOrder"));

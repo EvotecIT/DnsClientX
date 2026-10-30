@@ -16,10 +16,18 @@ namespace DnsClientX.Tests {
         /// <summary>
         /// Ensures that no audit entries are created when auditing is disabled.
         /// </summary>
-        [RealDnsFact]
+        [Fact]
         public async Task ShouldNotRecordWhenDisabled() {
-            using var client = new ClientX();
+            const string json = "{\"Status\":0,\"Question\":[{\"name\":\"example.com\",\"type\":1}],\"Answer\":[{\"name\":\"example.com\",\"type\":1,\"TTL\":60,\"data\":\"192.0.2.1\"}]}";
+            var handler = new CountingHandler(json);
+            using var client = new ClientX(new Uri("https://audit-off.test/dns-query"), DnsRequestFormat.DnsOverHttpsJSON);
+            InjectClient(client, new HttpClient(handler) { BaseAddress = client.EndpointConfiguration.BaseUri });
+
+            Assert.False(client.EnableAudit);
             var response = await client.Resolve("example.com", DnsRecordType.A, retryOnTransient: false);
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+            Assert.Equal("192.0.2.1", Assert.Single(response.Answers).DataRaw);
+            Assert.Equal(1, handler.Calls);
             Assert.Empty(client.AuditTrail);
         }
 
