@@ -62,82 +62,96 @@ Single provider (classic)
 
 ### EXAMPLE 3
 ```powershell
+Resolve-Dns -Name 'example.com' -Type A -DnsProvider CleanBrowsingFamily
+```
+
+Select CleanBrowsing's family filtering profile over DNS-over-HTTPS.
+
+### EXAMPLE 4
+```powershell
+Resolve-Dns -Name 'example.com' -Type A -ResolverEndpoint 'doh@https://dns.nextdns.io/abc123'
+```
+
+Use a personal NextDNS configuration. Replace abc123 with the configuration ID from your NextDNS setup page; the generic NextDNS preset does not select that profile.
+
+### EXAMPLE 5
+```powershell
 Resolve-Dns -Name "example.com" -Type A -DnsProvider Cloudflare,Google -ResolverStrategy FirstSuccess
 ```
 
 FirstSuccess across providers
 
-### EXAMPLE 4
+### EXAMPLE 6
 ```powershell
 Resolve-Dns -Name "example.com" -Type A -DnsProvider Cloudflare,Google -ResolverStrategy FastestWins -FastestCacheMinutes 10 -ResponseCache
 ```
 
 FastestWins with cache
 
-### EXAMPLE 5
+### EXAMPLE 7
 ```powershell
 Resolve-Dns -Name @('a.com','b.com') -Type A -DnsProvider System,Cloudflare,Quad9 -ResolverStrategy RoundRobin -MaxParallelism 16 -PerEndpointMaxInFlight 4
 ```
 
 RoundRobin with per-endpoint cap
 
-### EXAMPLE 6
+### EXAMPLE 8
 ```powershell
 Resolve-Dns -Name 'example.com' -Type TXT -ResolverEndpoint '1.1.1.1:53','https://dns.google/dns-query' -ResolverStrategy FirstSuccess
 ```
 
 Mixed endpoints (UDP + DoH)
 
-### EXAMPLE 7
+### EXAMPLE 9
 ```powershell
 Resolve-Dns -Name 'example.com' -Type A -ResolverEndpoint 'doq@dns.quad9.net:853','doh3@https://dns.quad9.net/dns-query' -ResolverStrategy FirstSuccess
 ```
 
 Modern endpoints (DoQ + DoH3) through the shared endpoint parser
 
-### EXAMPLE 8
+### EXAMPLE 10
 ```powershell
 Resolve-Dns -Name 'example.com' -Type MX -DnsProvider Cloudflare,Google -ResponseCache -MaxCacheTtlSeconds 3600
 ```
 
 Enable TTL-based response cache with bounds
 
-### EXAMPLE 9
+### EXAMPLE 11
 ```powershell
 Resolve-Dns -Name 'example.com' -Type A -Server 'dns.google' -RequestFormat DnsOverHttps -Port 443 -UserAgent 'DnsClientX/PowerShell' -HttpVersion 2.0
 ```
 
 Query a specific server over DoH with explicit transport settings
 
-### EXAMPLE 10
+### EXAMPLE 12
 ```powershell
 Resolve-Dns -Name 'example.com' -Type A -DnsProvider Quad9ECS -EnableEdns -ClientSubnet '192.0.2.0/24' -RequestNsid -FullResponse
 ```
 
 Send EDNS client subnet and request NSID metadata
 
-### EXAMPLE 11
+### EXAMPLE 13
 ```powershell
 Resolve-Dns -Name 'example.com' -Type A -ResolverSelectionPath '.\resolver-score.json'
 ```
 
 Reuse the recommended resolver from a saved selection snapshot
 
-### EXAMPLE 12
+### EXAMPLE 14
 ```powershell
 'example.com','example.net' | Resolve-Dns -Type A | Where-Object Type -EQ A
 ```
 
 Resolve names from a pipeline and filter individual answers
 
-### EXAMPLE 13
+### EXAMPLE 15
 ```powershell
 Resolve-Dns -Name 'example.com','example.net' -Type A,AAAA -Stream -CompletionOrder -MaxConcurrency 4
 ```
 
 Stream a bounded batch in completion order
 
-### EXAMPLE 14
+### EXAMPLE 16
 ```powershell
 Resolve-Dns -Name 'example.com' -Type MX -TypedRecordMetadata | Select-Object Name,TTL,Value
 ```
@@ -257,7 +271,7 @@ If not specified, the default provider System (UDP) is used.
 Type: DnsEndpoint[]
 Parameter Sets: Name, Pattern
 Aliases: None
-Possible values: System, SystemTcp, Cloudflare, CloudflareSecurity, CloudflareFamily, CloudflareWireFormat, CloudflareWireFormatPost, CloudflareJsonPost, Google, GoogleWireFormat, GoogleWireFormatPost, GoogleJsonPost, Quad9, Quad9ECS, Quad9Unsecure, OpenDNS, OpenDNSFamily, CloudflareQuic, Quad9Http3, Quad9Quic, GoogleQuic, AdGuard, AdGuardFamily, AdGuardNonFiltering, NextDNS, DnsCryptCloudflare, DnsCryptQuad9, DnsCryptRelay, RootServer, CloudflareOdoh, Custom
+Possible values: System, SystemTcp, Cloudflare, CloudflareSecurity, CloudflareFamily, CloudflareWireFormat, CloudflareWireFormatPost, CloudflareJsonPost, Google, GoogleWireFormat, GoogleWireFormatPost, GoogleJsonPost, Quad9, Quad9ECS, Quad9Unsecure, OpenDNS, OpenDNSFamily, CloudflareQuic, Quad9Http3, Quad9Quic, GoogleQuic, AdGuard, AdGuardFamily, AdGuardNonFiltering, NextDNS, DnsCryptCloudflare, DnsCryptQuad9, DnsCryptRelay, RootServer, CloudflareOdoh, Custom, CleanBrowsingSecurity, CleanBrowsingAdult, CleanBrowsingFamily, ControlD, ControlDMalware, ControlDAds, ControlDFamily, ComodoSecureDns, DnsWatch
 
 Required: False
 Position: named
@@ -682,7 +696,7 @@ This enables strategy control (FirstSuccess/FastestWins/SequentialFallback) and 
 Type: DnsEndpoint[]
 Parameter Sets: Name, Pattern
 Aliases: DnsProviders
-Possible values: System, SystemTcp, Cloudflare, CloudflareSecurity, CloudflareFamily, CloudflareWireFormat, CloudflareWireFormatPost, CloudflareJsonPost, Google, GoogleWireFormat, GoogleWireFormatPost, GoogleJsonPost, Quad9, Quad9ECS, Quad9Unsecure, OpenDNS, OpenDNSFamily, CloudflareQuic, Quad9Http3, Quad9Quic, GoogleQuic, AdGuard, AdGuardFamily, AdGuardNonFiltering, NextDNS, DnsCryptCloudflare, DnsCryptQuad9, DnsCryptRelay, RootServer, CloudflareOdoh, Custom
+Possible values: System, SystemTcp, Cloudflare, CloudflareSecurity, CloudflareFamily, CloudflareWireFormat, CloudflareWireFormatPost, CloudflareJsonPost, Google, GoogleWireFormat, GoogleWireFormatPost, GoogleJsonPost, Quad9, Quad9ECS, Quad9Unsecure, OpenDNS, OpenDNSFamily, CloudflareQuic, Quad9Http3, Quad9Quic, GoogleQuic, AdGuard, AdGuardFamily, AdGuardNonFiltering, NextDNS, DnsCryptCloudflare, DnsCryptQuad9, DnsCryptRelay, RootServer, CloudflareOdoh, Custom, CleanBrowsingSecurity, CleanBrowsingAdult, CleanBrowsingFamily, ControlD, ControlDMalware, ControlDAds, ControlDFamily, ComodoSecureDns, DnsWatch
 
 Required: False
 Position: named

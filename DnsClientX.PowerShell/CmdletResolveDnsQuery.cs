@@ -22,6 +22,14 @@ namespace DnsClientX.PowerShell {
     ///  <code>Resolve-Dns -Name "example.com" -Type A -DnsProvider Cloudflare</code>
     /// </example>
     /// <example>
+    ///  <para>Select CleanBrowsing's family filtering profile over DNS-over-HTTPS.</para>
+    ///  <code>Resolve-Dns -Name 'example.com' -Type A -DnsProvider CleanBrowsingFamily</code>
+    /// </example>
+    /// <example>
+    ///  <para>Use a personal NextDNS configuration. Replace abc123 with the configuration ID from your NextDNS setup page; the generic NextDNS preset does not select that profile.</para>
+    ///  <code>Resolve-Dns -Name 'example.com' -Type A -ResolverEndpoint 'doh@https://dns.nextdns.io/abc123'</code>
+    /// </example>
+    /// <example>
     ///  <para>FirstSuccess across providers</para>
     ///  <code>Resolve-Dns -Name "example.com" -Type A -DnsProvider Cloudflare,Google -ResolverStrategy FirstSuccess</code>
     /// </example>

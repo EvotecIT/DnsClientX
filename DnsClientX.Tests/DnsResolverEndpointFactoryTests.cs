@@ -7,6 +7,57 @@ namespace DnsClientX.Tests {
     /// Tests for converting built-in providers to multi-resolver endpoints and endpoint formatting.
     /// </summary>
     public class DnsResolverEndpointFactoryTests {
+        /// <summary>Single-provider and multi-resolver queries select the published DoH filtering profiles.</summary>
+        [Theory]
+        [InlineData(DnsEndpoint.AdGuard, "https://dns.adguard-dns.com/dns-query")]
+        [InlineData(DnsEndpoint.AdGuardFamily, "https://family.adguard-dns.com/dns-query")]
+        [InlineData(DnsEndpoint.AdGuardNonFiltering, "https://unfiltered.adguard-dns.com/dns-query")]
+        [InlineData(DnsEndpoint.CleanBrowsingSecurity, "https://doh.cleanbrowsing.org/doh/security-filter/")]
+        [InlineData(DnsEndpoint.CleanBrowsingAdult, "https://doh.cleanbrowsing.org/doh/adult-filter/")]
+        [InlineData(DnsEndpoint.CleanBrowsingFamily, "https://doh.cleanbrowsing.org/doh/family-filter/")]
+        [InlineData(DnsEndpoint.ControlD, "https://freedns.controld.com/p0")]
+        [InlineData(DnsEndpoint.ControlDMalware, "https://freedns.controld.com/p1")]
+        [InlineData(DnsEndpoint.ControlDAds, "https://freedns.controld.com/p2")]
+        [InlineData(DnsEndpoint.ControlDFamily, "https://freedns.controld.com/family")]
+        public void From_PublicDohProfile_UsesPublishedUrl(DnsEndpoint provider, string expectedUrl) {
+            var configuration = new Configuration(provider);
+            var endpoint = Assert.Single(DnsResolverEndpointFactory.From(provider));
+            using var client = ResolverEndpointClientFactory.CreateClient(endpoint);
+
+            Assert.Equal(new Uri(expectedUrl), configuration.BaseUri);
+            Assert.Equal(new Uri(expectedUrl), client.EndpointConfiguration.BaseUri);
+            Assert.Equal(DnsRequestFormat.DnsOverHttps, configuration.RequestFormat);
+            Assert.Equal(DnsRequestFormat.DnsOverHttps, client.EndpointConfiguration.RequestFormat);
+            Assert.Equal(Transport.Doh, endpoint.Transport);
+            Assert.Equal(443, endpoint.Port);
+        }
+
+        /// <summary>Plain-DNS profiles retain their published redundant IPv4/IPv6 addresses without claiming encryption.</summary>
+        [Theory]
+        [InlineData(DnsEndpoint.ComodoSecureDns, new[] { "8.26.56.26", "8.20.247.20" })]
+        [InlineData(DnsEndpoint.DnsWatch, new[] {
+            "84.200.69.80", "84.200.70.40", "2001:1608:10:25::1c04:b12f", "2001:1608:10:25::9249:d69b"
+        })]
+        public void From_PublicPlainDnsProfile_PreservesAddressesAndTransport(DnsEndpoint provider, string[] expectedHosts) {
+            var configuration = new Configuration(provider);
+            var endpoints = DnsResolverEndpointFactory.From(provider);
+
+            Assert.Equal(expectedHosts, configuration.Hostnames);
+            Assert.Equal(expectedHosts, endpoints.Select(endpoint => endpoint.Host));
+            Assert.Equal(expectedHosts[0], configuration.Hostname);
+            Assert.Equal(DnsRequestFormat.DnsOverUDP, configuration.RequestFormat);
+            Assert.Equal(53, configuration.Port);
+            Assert.Null(configuration.BaseUri);
+            Assert.All(endpoints, endpoint => {
+                using var client = ResolverEndpointClientFactory.CreateClient(endpoint);
+                Assert.Equal(Transport.Udp, endpoint.Transport);
+                Assert.Equal(DnsRequestFormat.DnsOverUDP, client.EndpointConfiguration.RequestFormat);
+                Assert.Equal(endpoint.Host, client.EndpointConfiguration.Hostname);
+                Assert.Equal(53, client.EndpointConfiguration.Port);
+                Assert.Null(client.EndpointConfiguration.BaseUri);
+            });
+        }
+
         /// <summary>
         /// Cloudflare providers map to DoH endpoints on port 443.
         /// </summary>

@@ -726,21 +726,6 @@ namespace DnsClientX {
                     throw new NotSupportedException("Google Public DNS does not publish a JSON-over-POST endpoint. Use GoogleWireFormatPost for RFC 8484 POST.");
                 case DnsEndpoint.GoogleQuic:
                     throw new NotSupportedException("Google Public DNS does not publish a DNS-over-QUIC resolver endpoint. Use Google DoH, DoH3, or DoT.");
-                case DnsEndpoint.AdGuard:
-                    hostnames = new List<string> { "dns.adguard.com" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttps;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.AdGuardFamily:
-                    hostnames = new List<string> { "dns-family.adguard.com" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttps;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.AdGuardNonFiltering:
-                    hostnames = new List<string> { "dns-unfiltered.adguard.com" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttps;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
                 case DnsEndpoint.NextDNS:
                     hostnames = new List<string> { "dns.nextdns.io" };
                     RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
@@ -782,7 +767,14 @@ namespace DnsClientX {
                 case DnsEndpoint.DnsCryptRelay:
                     throw new NotSupportedException("DNSCrypt v2 is intentionally reserved for an optional protocol package; the core package does not implement its cryptography.");
                 default:
-                    throw new ArgumentException("Invalid endpoint", nameof(endpoint));
+                    var preset = DnsProviderPresets.Get(endpoint);
+                    if (!preset.HasValue) {
+                        throw new ArgumentException("Invalid endpoint", nameof(endpoint));
+                    }
+                    hostnames = new List<string>(preset.Value.Hosts);
+                    RequestFormat = preset.Value.DohPath == null ? DnsRequestFormat.DnsOverUDP : DnsRequestFormat.DnsOverHttps;
+                    baseUriFormat = preset.Value.DohPath == null ? null : "https://{0}" + preset.Value.DohPath;
+                    break;
             }
 
             if (endpoint == DnsEndpoint.Custom && hostnames.Count == 0) {

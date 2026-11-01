@@ -6,6 +6,18 @@ namespace DnsClientX.Tests {
     /// Tests custom resolver endpoint client creation helpers.
     /// </summary>
     public class ResolverEndpointClientFactoryTests {
+        /// <summary>A personal DoH profile and device path survive parsing and client creation without a default-path replacement.</summary>
+        [Fact]
+        public void CreateClient_PreservesPersonalDohProfilePath() {
+            var endpoints = EndpointParser.TryParseMany(new[] { "doh@https://dns.nextdns.io/abc123/Workstation" }, out var errors);
+            Assert.Empty(errors);
+            using var client = ResolverEndpointClientFactory.CreateClient(Assert.Single(endpoints));
+
+            Assert.Equal(new Uri("https://dns.nextdns.io/abc123/Workstation"), client.EndpointConfiguration.BaseUri);
+            Assert.Equal(DnsRequestFormat.DnsOverHttps, client.EndpointConfiguration.RequestFormat);
+            Assert.Equal(443, client.EndpointConfiguration.Port);
+        }
+
         /// <summary>Omitted ports follow the effective protocol; explicitly assigned ports remain authoritative.</summary>
         [Theory]
         [InlineData(Transport.Udp, 53)]

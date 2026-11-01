@@ -33,7 +33,7 @@ namespace DnsClientX.Tests {
         [InlineData("https://8.8.8.8/resolve", DnsRequestFormat.DnsOverHttpsJSON)]
         //[InlineData("https://9.9.9.10/dns-query", DnsRequestFormat.DnsOverHttps)]
         [InlineData("https://doh.opendns.com/dns-query", DnsRequestFormat.DnsOverHttps)]
-        [InlineData("https://dns.adguard.com/dns-query", DnsRequestFormat.DnsOverHttps)]
+        [InlineData("https://dns.adguard-dns.com/dns-query", DnsRequestFormat.DnsOverHttps)]
         public async Task ShouldWorkForA(string baseUri, DnsRequestFormat requestFormat) {
             Uri uri = new Uri(baseUri);
             var response = await ClientX.QueryDns("evotec.pl", DnsRecordType.A, uri, requestFormat);
