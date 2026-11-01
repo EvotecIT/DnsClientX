@@ -1,4 +1,11 @@
-﻿## Unreleased - 2026.07.20
+﻿## Unreleased
+
+- Add CleanBrowsing Security, Adult, and Family DoH presets, and Control D Unfiltered, Malware, Ads & Tracking, and Family DoH presets.
+- Add Comodo Secure DNS and DNS.WATCH plain-DNS presets, including DNS.WATCH's IPv6 resolvers.
+- Refresh AdGuard presets to the current `adguard-dns.com` hostnames and share their endpoint definitions with multi-resolver queries.
+- Document personal NextDNS profile URLs and distinguish generic resolution, filtering policy, and encrypted transports.
+
+## Unreleased - 2026.07.20
 ### 2.1.0 DNS correctness, policy, transfer, and performance release
 
 - Adds persistent pipelined DNS-over-TCP and DNS-over-TLS sessions, exact-key single-flight caching, controlled load tests, and allocation/latency benchmark scenarios.

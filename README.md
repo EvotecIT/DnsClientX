@@ -100,7 +100,7 @@ The main `Resolve` APIs accept `typedRecords: true`. Supported records are retur
 
 ## Supported DNS Providers
 
-It provides querying multiple DNS Providers.
+Select a built-in resolver profile by name, or supply an explicit endpoint for another address, transport, or personal filtering configuration. The table describes the transport selected by each preset, rather than every protocol offered by that provider.
 
 | Endpoint                 | DoH | DoQ | DoT | UDP | TCP | DnsCrypt | ODoH |
 | ------------------------ | --- | --- | --- | --- | --- | -------- | ---- |
@@ -127,12 +127,73 @@ It provides querying multiple DNS Providers.
 | Quad9Unsecure            | ✓   |     |     |     |     |          |      |
 | OpenDNS                  | ✓   |     |     |     |     |          |      |
 | OpenDNSFamily            | ✓   |     |     |     |     |          |      |
+| NextDNS                  | ✓   |     |     |     |     |          |      |
+| CleanBrowsingSecurity    | ✓   |     |     |     |     |          |      |
+| CleanBrowsingAdult       | ✓   |     |     |     |     |          |      |
+| CleanBrowsingFamily      | ✓   |     |     |     |     |          |      |
+| ControlD                 | ✓   |     |     |     |     |          |      |
+| ControlDMalware          | ✓   |     |     |     |     |          |      |
+| ControlDAds              | ✓   |     |     |     |     |          |      |
+| ControlDFamily           | ✓   |     |     |     |     |          |      |
+| ComodoSecureDns          |     |     |     | ✓   |     |          |      |
+| DnsWatch                 |     |     |     | ✓   |     |          |      |
 | DnsCryptCloudflare       |     |     |     |     |     | ❌        |      |
 | DnsCryptQuad9            |     |     |     |     |     | ❌        |      |
 | DnsCryptRelay            |     |     |     |     |     | ❌        |      |
 | RootServer               |     |     |     | ✓   | ✓   |          |      |
 
 `CloudflareQuic`, `GoogleQuic`, `CloudflareJsonPost`, `GoogleJsonPost`, `CloudflareOdoh`, and the DNSCrypt preset names are retained for source compatibility and always throw when passed to the built-in endpoint constructor. The core implements DoQ for published endpoints such as `Quad9Quic` without extra transport packages on modern .NET. Create explicit caller-owned configurations through [DnsClientX.Odoh](DnsClientX.Odoh/README.md) or [DnsClientX.DnsCrypt](DnsClientX.DnsCrypt/README.md) to use privacy transports.
+
+### Filtering profiles
+
+Choose the profile whose policy you want applied to your queries. A provider's unfiltered service and family service can return different answers by design.
+
+| Preset | Policy and endpoint |
+| --- | --- |
+| `CleanBrowsingSecurity` | Malicious-domain filtering, without adult-content filtering or SafeSearch; `https://doh.cleanbrowsing.org/doh/security-filter/` |
+| `CleanBrowsingAdult` | Adult-content and security filtering with SafeSearch; `https://doh.cleanbrowsing.org/doh/adult-filter/` |
+| `CleanBrowsingFamily` | Also blocks mixed-content sites and proxy/VPN domains, and enforces SafeSearch; `https://doh.cleanbrowsing.org/doh/family-filter/` |
+| `ControlD` | Unfiltered; `https://freedns.controld.com/p0` |
+| `ControlDMalware` | Malware filtering; `https://freedns.controld.com/p1` |
+| `ControlDAds` | Ads and tracking filtering; `https://freedns.controld.com/p2` |
+| `ControlDFamily` | Family-friendly filtering; `https://freedns.controld.com/family` |
+| `ComodoSecureDns` | Plain DNS to `8.26.56.26` and `8.20.247.20` |
+| `DnsWatch` | Plain DNS to `84.200.69.80`, `84.200.70.40`, `2001:1608:10:25::1c04:b12f`, and `2001:1608:10:25::9249:d69b` |
+
+`ComodoSecureDns` and `DnsWatch` use UDP port 53 with the usual TCP fallback; queries are not encrypted. `DnsWatch` selects its first IPv4 address by default; the other IPv4 and IPv6 addresses are available through `DnsSelectionStrategy` and multi-resolver expansion. Use explicit endpoints when you need to restrict queries to IPv4 or IPv6.
+
+CleanBrowsing's `185.228.168.9` / `185.228.169.9` pair selects its Security filter. Control D's `76.76.2.0` / `76.76.10.0` pair is unfiltered. OpenDNS FamilyShield uses `208.67.222.123` / `208.67.220.123`, represented by `OpenDNSFamily`.
+
+Provider policies and addresses are documented by [CleanBrowsing](https://cleanbrowsing.org/filters), [Control D](https://docs.controld.com/docs/free-dns), [Comodo](https://www.comodo.com/secure-dns/switch/), [DNS.WATCH](https://dns.watch/), and [OpenDNS](https://www.opendns.com/setupguide/).
+
+```csharp
+var response = await ClientX.QueryDns("example.com", DnsRecordType.A, DnsEndpoint.CleanBrowsingFamily);
+```
+
+```powershell
+Resolve-Dns -Name example.com -Type A -DnsProvider CleanBrowsingFamily
+Resolve-Dns -Name example.com -Type A -DnsProvider ControlDAds
+DnsClientX.Cli --endpoint ControlDMalware --type A example.com
+```
+
+### Personal NextDNS profiles
+
+The `NextDNS` preset is a generic resolver and does not select your personal filtering configuration. For example, switching from `-DnsProvider NextDNS` to `-ResolverEndpoint 'doh@https://dns.nextdns.io/abc123'` selects configuration `abc123`. Replace that example ID with the one from your NextDNS setup page. The complete URL path is preserved, including an optional device name.
+
+```powershell
+Resolve-Dns -Name example.com -Type A -ResolverEndpoint 'doh@https://dns.nextdns.io/abc123'
+DnsClientX.Cli --resolver 'doh@https://dns.nextdns.io/abc123' --type A example.com
+```
+
+```csharp
+var endpoints = EndpointParser.TryParseMany(
+    new[] { "doh@https://dns.nextdns.io/abc123" }, out var errors);
+if (errors.Count != 0) throw new ArgumentException(string.Join("; ", errors));
+using var client = ResolverEndpointClientFactory.CreateClient(endpoints[0]);
+var response = await client.Resolve("example.com", DnsRecordType.A);
+```
+
+For DoT, use the profile hostname supplied by NextDNS, such as `dot@abc123.dns.nextdns.io:853`. The shared explicit-endpoint syntax also accepts personal Control D or other provider URLs; no provider-specific parameter is required. NextDNS's own client uses the same [profile-specific DoH URL shape](https://github.com/nextdns/nextdns/blob/master/run.go).
 
 If you want to learn about DNS:
 - https://www.cloudflare.com/learning/dns/what-is-dns/
@@ -418,9 +479,9 @@ Different DNS providers have distinct characteristics:
 | Google              | `dns.google`                          | RFC 8484 wire  |
 | Quad9               | `dns.quad9.net`                     | Wire           |
 | OpenDNS             | `208.67.222.222` / `208.67.220.220` | Wire           |
-| AdGuard             | `dns.adguard.com`                   | Wire           |
-| AdGuardFamily       | `dns-family.adguard.com`            | Wire           |
-| AdGuardNonFiltering | `dns-unfiltered.adguard.com`        | Wire           |
+| AdGuard             | `dns.adguard-dns.com`               | Wire           |
+| AdGuardFamily       | `family.adguard-dns.com`            | Wire           |
+| AdGuardNonFiltering | `unfiltered.adguard-dns.com`        | Wire           |
 
 These differences can result in:
 - Varying response times (typically 10-500ms)

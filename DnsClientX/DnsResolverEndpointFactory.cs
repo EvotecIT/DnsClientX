@@ -98,15 +98,6 @@ namespace DnsClientX {
                     AddDoh("208.67.222.123", "/dns-query", DnsRequestFormat.DnsOverHttps);
                     AddDoh("208.67.220.123", "/dns-query", DnsRequestFormat.DnsOverHttps);
                     break;
-                case DnsEndpoint.AdGuard:
-                    AddDoh("dns.adguard.com", "/dns-query", DnsRequestFormat.DnsOverHttps);
-                    break;
-                case DnsEndpoint.AdGuardFamily:
-                    AddDoh("dns-family.adguard.com", "/dns-query", DnsRequestFormat.DnsOverHttps);
-                    break;
-                case DnsEndpoint.AdGuardNonFiltering:
-                    AddDoh("dns-unfiltered.adguard.com", "/dns-query", DnsRequestFormat.DnsOverHttps);
-                    break;
                 case DnsEndpoint.NextDNS:
                     AddDoh("dns.nextdns.io", "/dns-query", DnsRequestFormat.DnsOverHttpsJSON);
                     break;
@@ -130,7 +121,18 @@ namespace DnsClientX {
                 case DnsEndpoint.DnsCryptRelay:
                     throw new NotSupportedException("DNSCrypt v2 is reserved for an optional protocol package.");
                 case DnsEndpoint.Custom:
+                    break;
                 default:
+                    var preset = DnsProviderPresets.Get(endpoint);
+                    if (preset.HasValue) {
+                        foreach (string host in preset.Value.Hosts) {
+                            if (preset.Value.DohPath == null) {
+                                AddHost(host, 53, Transport.Udp, DnsRequestFormat.DnsOverUDP);
+                            } else {
+                                AddDoh(host, preset.Value.DohPath, DnsRequestFormat.DnsOverHttps);
+                            }
+                        }
+                    }
                     break;
             }
 

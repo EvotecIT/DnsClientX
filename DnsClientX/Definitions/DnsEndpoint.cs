@@ -137,9 +137,9 @@ namespace DnsClientX {
         [Description("AdGuard non-filtering DNS-over-HTTPS endpoint.")]
         AdGuardNonFiltering,
         /// <summary>
-        /// NextDNS DNS-over-HTTPS endpoint.
+        /// Generic NextDNS DNS-over-HTTPS endpoint. Use an explicit profile URL for personal filtering settings.
         /// </summary>
-        [Description("NextDNS DNS-over-HTTPS endpoint.")]
+        [Description("Generic NextDNS DNS-over-HTTPS endpoint; personal filtering requires an explicit profile URL.")]
         NextDNS,
         /// <summary>
         /// Reserved for a future optional DNSCrypt v2 package.
@@ -172,7 +172,34 @@ namespace DnsClientX {
         /// overrides.
         /// </summary>
         [Description("Custom DNS endpoint configured via overrides.")]
-        Custom
+        Custom,
+        /// <summary>CleanBrowsing security DoH profile, blocking malicious domains without adult-content filtering.</summary>
+        [Description("CleanBrowsing Security DNS-over-HTTPS endpoint; blocks malicious domains without adult filtering.")]
+        CleanBrowsingSecurity,
+        /// <summary>CleanBrowsing adult-content DoH profile, including security filtering and SafeSearch.</summary>
+        [Description("CleanBrowsing Adult DNS-over-HTTPS endpoint; adult-content and security filtering with SafeSearch.")]
+        CleanBrowsingAdult,
+        /// <summary>CleanBrowsing family DoH profile, also blocking mixed-content sites and proxy/VPN domains.</summary>
+        [Description("CleanBrowsing Family DNS-over-HTTPS endpoint; family filtering with SafeSearch.")]
+        CleanBrowsingFamily,
+        /// <summary>Control D's unfiltered public DoH profile.</summary>
+        [Description("Control D unfiltered DNS-over-HTTPS endpoint.")]
+        ControlD,
+        /// <summary>Control D's malware-blocking public DoH profile.</summary>
+        [Description("Control D malware-blocking DNS-over-HTTPS endpoint.")]
+        ControlDMalware,
+        /// <summary>Control D's public DoH profile for blocking ads and tracking.</summary>
+        [Description("Control D ads-and-tracking DNS-over-HTTPS endpoint.")]
+        ControlDAds,
+        /// <summary>Control D's family-friendly public DoH profile.</summary>
+        [Description("Control D family-friendly DNS-over-HTTPS endpoint.")]
+        ControlDFamily,
+        /// <summary>Comodo Secure DNS public IPv4 resolvers over plain UDP, with TCP fallback.</summary>
+        [Description("Comodo Secure DNS IPv4 resolvers over plain UDP with TCP fallback; not encrypted.")]
+        ComodoSecureDns,
+        /// <summary>DNS.WATCH public IPv4 and IPv6 resolvers over plain UDP, with TCP fallback.</summary>
+        [Description("DNS.WATCH IPv4/IPv6 resolvers over plain UDP with TCP fallback; not encrypted.")]
+        DnsWatch
     }
 
     /// <summary>

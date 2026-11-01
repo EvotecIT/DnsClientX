@@ -363,6 +363,15 @@
             <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint[]</maml:name>
@@ -411,6 +420,15 @@
             <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint[]</maml:name>
@@ -471,6 +489,15 @@
           <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
         </command:parameterValueGroup>
         <dev:type>
           <maml:name>DnsEndpoint[]</maml:name>
@@ -516,6 +543,15 @@
           <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
         </command:parameterValueGroup>
         <dev:type>
           <maml:name>DnsEndpoint[]</maml:name>
@@ -902,6 +938,15 @@
             <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint</maml:name>
@@ -1010,6 +1055,15 @@
             <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint</maml:name>
@@ -1130,6 +1184,15 @@
             <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint</maml:name>
@@ -1268,6 +1331,15 @@
           <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
         </command:parameterValueGroup>
         <dev:type>
           <maml:name>DnsEndpoint</maml:name>
@@ -1479,13 +1551,13 @@
       <command:noun>DnsDesignatedResolver</command:noun>
       <maml:description>
         <maml:para>Discovers encrypted resolvers designated by an explicit IP DNS resolver.</maml:para>
-        <maml:para>Returns bounded RFC 9462 candidates with explicit certificate verification outcomes.
+        <maml:para>Returns bounded RFC 9462 candidates with explicit certificate verification outcomes.&#xD;
 Discovery does not switch resolvers. Only a verified, unexpired candidate can create an encrypted configuration.</maml:para>
       </maml:description>
     </command:details>
     <maml:description>
       <maml:para>Discovers encrypted resolvers designated by an explicit IP DNS resolver.</maml:para>
-      <maml:para>Returns bounded RFC 9462 candidates with explicit certificate verification outcomes.
+      <maml:para>Returns bounded RFC 9462 candidates with explicit certificate verification outcomes.&#xD;
 Discovery does not switch resolvers. Only a verified, unexpired candidate can create an encrypted configuration.</maml:para>
     </maml:description>
     <command:syntax>
@@ -1683,8 +1755,8 @@ Discovery does not switch resolvers. Only a verified, unexpired candidate can cr
       </command:example>
       <command:example>
         <maml:title>EXAMPLE 2</maml:title>
-        <dev:code>$candidate = Get-DnsDesignatedResolver -Server 192.0.2.53 | Where-Object Verification -eq Verified | Select-Object -First 1
-            if ($null -eq $candidate) { throw 'No verified designated resolver was found.' }
+        <dev:code>$candidate = Get-DnsDesignatedResolver -Server 192.0.2.53 | Where-Object Verification -eq Verified | Select-Object -First 1&#xD;
+            if ($null -eq $candidate) { throw 'No verified designated resolver was found.' }&#xD;
             Resolve-Dns -Name example.com -Configuration ($candidate.CreateConfiguration())</dev:code>
         <dev:remarks>
           <maml:para>Use a verified designation for a query.</maml:para>
@@ -1970,6 +2042,15 @@ Discovery does not switch resolvers. Only a verified, unexpired candidate can cr
             <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint</maml:name>
@@ -2078,6 +2159,15 @@ Discovery does not switch resolvers. Only a verified, unexpired candidate can cr
             <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint</maml:name>
@@ -2216,6 +2306,15 @@ Discovery does not switch resolvers. Only a verified, unexpired candidate can cr
             <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint</maml:name>
@@ -2378,6 +2477,15 @@ Discovery does not switch resolvers. Only a verified, unexpired candidate can cr
           <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
         </command:parameterValueGroup>
         <dev:type>
           <maml:name>DnsEndpoint</maml:name>
@@ -2771,6 +2879,15 @@ Discovery does not switch resolvers. Only a verified, unexpired candidate can cr
             <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint</maml:name>
@@ -2966,6 +3083,15 @@ Discovery does not switch resolvers. Only a verified, unexpired candidate can cr
           <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
         </command:parameterValueGroup>
         <dev:type>
           <maml:name>DnsEndpoint</maml:name>
@@ -3617,13 +3743,13 @@ Discovery does not switch resolvers. Only a verified, unexpired candidate can cr
       <command:noun>DnsService</command:noun>
       <maml:description>
         <maml:para>Continuously reports additions, changes, goodbyes and expirations of multicast DNS services.</maml:para>
-        <maml:para>Uses a bounded persistent RFC 6762 multicast browse session. Stopping the pipeline
+        <maml:para>Uses a bounded persistent RFC 6762 multicast browse session. Stopping the pipeline&#xD;
 cancels and drains its receiver. Each output is an independent service snapshot with its observed change.</maml:para>
       </maml:description>
     </command:details>
     <maml:description>
       <maml:para>Continuously reports additions, changes, goodbyes and expirations of multicast DNS services.</maml:para>
-      <maml:para>Uses a bounded persistent RFC 6762 multicast browse session. Stopping the pipeline
+      <maml:para>Uses a bounded persistent RFC 6762 multicast browse session. Stopping the pipeline&#xD;
 cancels and drains its receiver. Each output is an independent service snapshot with its observed change.</maml:para>
     </maml:description>
     <command:syntax>
@@ -3905,6 +4031,15 @@ cancels and drains its receiver. Each output is an independent service snapshot 
             <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint[]</maml:name>
@@ -3915,7 +4050,7 @@ cancels and drains its receiver. Each output is an independent service snapshot 
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>DnsSecSignatureVerifier</maml:name>
           <maml:description>
-            <maml:para>Optional typed signature verifier for DNSSEC algorithms supplied by an installed provider.
+            <maml:para>Optional typed signature verifier for DNSSEC algorithms supplied by an installed provider.&#xD;
 Specify this object or DnsSecVerifierPath. The verifier remains caller-owned.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">IDnsSecSignatureVerifier</command:parameterValue>
@@ -4115,8 +4250,8 @@ Specify this object or DnsSecVerifierPath. The verifier remains caller-owned.</m
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>ParseTypedTxtRecords</maml:name>
           <maml:description>
-            <maml:para>Gets or sets a value indicating whether TXT records should be
-parsed into specialized types (DMARC, SPF, etc.) when TypedRecords is
+            <maml:para>Gets or sets a value indicating whether TXT records should be&#xD;
+parsed into specialized types (DMARC, SPF, etc.) when TypedRecords is&#xD;
 specified. When false, returns simple TXT records.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
@@ -4267,6 +4402,15 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint[]</maml:name>
@@ -4633,8 +4777,8 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>Configuration</maml:name>
           <maml:description>
-            <maml:para>Complete resolver configuration, including an optional provider or verified DDR transport.
-Its endpoint, security policy and timeout are retained; explicitly specified query options can override query settings.
+            <maml:para>Complete resolver configuration, including an optional provider or verified DDR transport.&#xD;
+Its endpoint, security policy and timeout are retained; explicitly specified query options can override query settings.&#xD;
 The caller retains optional provider ownership.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">Configuration</command:parameterValue>
@@ -4647,7 +4791,7 @@ The caller retains optional provider ownership.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>DnsSecSignatureVerifier</maml:name>
           <maml:description>
-            <maml:para>Optional typed signature verifier for DNSSEC algorithms supplied by an installed provider.
+            <maml:para>Optional typed signature verifier for DNSSEC algorithms supplied by an installed provider.&#xD;
 Specify this object or DnsSecVerifierPath. The verifier remains caller-owned.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">IDnsSecSignatureVerifier</command:parameterValue>
@@ -4757,8 +4901,8 @@ Specify this object or DnsSecVerifierPath. The verifier remains caller-owned.</m
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>ParseTypedTxtRecords</maml:name>
           <maml:description>
-            <maml:para>Gets or sets a value indicating whether TXT records should be
-parsed into specialized types (DMARC, SPF, etc.) when TypedRecords is
+            <maml:para>Gets or sets a value indicating whether TXT records should be&#xD;
+parsed into specialized types (DMARC, SPF, etc.) when TypedRecords is&#xD;
 specified. When false, returns simple TXT records.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
@@ -5085,6 +5229,15 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint[]</maml:name>
@@ -5095,7 +5248,7 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>DnsSecSignatureVerifier</maml:name>
           <maml:description>
-            <maml:para>Optional typed signature verifier for DNSSEC algorithms supplied by an installed provider.
+            <maml:para>Optional typed signature verifier for DNSSEC algorithms supplied by an installed provider.&#xD;
 Specify this object or DnsSecVerifierPath. The verifier remains caller-owned.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">IDnsSecSignatureVerifier</command:parameterValue>
@@ -5283,8 +5436,8 @@ Specify this object or DnsSecVerifierPath. The verifier remains caller-owned.</m
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>ParseTypedTxtRecords</maml:name>
           <maml:description>
-            <maml:para>Gets or sets a value indicating whether TXT records should be
-parsed into specialized types (DMARC, SPF, etc.) when TypedRecords is
+            <maml:para>Gets or sets a value indicating whether TXT records should be&#xD;
+parsed into specialized types (DMARC, SPF, etc.) when TypedRecords is&#xD;
 specified. When false, returns simple TXT records.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
@@ -5447,6 +5600,15 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint[]</maml:name>
@@ -5813,8 +5975,8 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>Configuration</maml:name>
           <maml:description>
-            <maml:para>Complete resolver configuration, including an optional provider or verified DDR transport.
-Its endpoint, security policy and timeout are retained; explicitly specified query options can override query settings.
+            <maml:para>Complete resolver configuration, including an optional provider or verified DDR transport.&#xD;
+Its endpoint, security policy and timeout are retained; explicitly specified query options can override query settings.&#xD;
 The caller retains optional provider ownership.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="false">Configuration</command:parameterValue>
@@ -5827,7 +5989,7 @@ The caller retains optional provider ownership.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>DnsSecSignatureVerifier</maml:name>
           <maml:description>
-            <maml:para>Optional typed signature verifier for DNSSEC algorithms supplied by an installed provider.
+            <maml:para>Optional typed signature verifier for DNSSEC algorithms supplied by an installed provider.&#xD;
 Specify this object or DnsSecVerifierPath. The verifier remains caller-owned.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">IDnsSecSignatureVerifier</command:parameterValue>
@@ -5925,8 +6087,8 @@ Specify this object or DnsSecVerifierPath. The verifier remains caller-owned.</m
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>ParseTypedTxtRecords</maml:name>
           <maml:description>
-            <maml:para>Gets or sets a value indicating whether TXT records should be
-parsed into specialized types (DMARC, SPF, etc.) when TypedRecords is
+            <maml:para>Gets or sets a value indicating whether TXT records should be&#xD;
+parsed into specialized types (DMARC, SPF, etc.) when TypedRecords is&#xD;
 specified. When false, returns simple TXT records.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
@@ -6228,8 +6390,8 @@ specified. When false, returns simple TXT records.</maml:para>
       <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
         <maml:name>Configuration</maml:name>
         <maml:description>
-          <maml:para>Complete resolver configuration, including an optional provider or verified DDR transport.
-Its endpoint, security policy and timeout are retained; explicitly specified query options can override query settings.
+          <maml:para>Complete resolver configuration, including an optional provider or verified DDR transport.&#xD;
+Its endpoint, security policy and timeout are retained; explicitly specified query options can override query settings.&#xD;
 The caller retains optional provider ownership.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="false">Configuration</command:parameterValue>
@@ -6279,6 +6441,15 @@ The caller retains optional provider ownership.</maml:para>
           <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
         </command:parameterValueGroup>
         <dev:type>
           <maml:name>DnsEndpoint[]</maml:name>
@@ -6289,7 +6460,7 @@ The caller retains optional provider ownership.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
         <maml:name>DnsSecSignatureVerifier</maml:name>
         <maml:description>
-          <maml:para>Optional typed signature verifier for DNSSEC algorithms supplied by an installed provider.
+          <maml:para>Optional typed signature verifier for DNSSEC algorithms supplied by an installed provider.&#xD;
 Specify this object or DnsSecVerifierPath. The verifier remains caller-owned.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">IDnsSecSignatureVerifier</command:parameterValue>
@@ -6489,8 +6660,8 @@ Specify this object or DnsSecVerifierPath. The verifier remains caller-owned.</m
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
         <maml:name>ParseTypedTxtRecords</maml:name>
         <maml:description>
-          <maml:para>Gets or sets a value indicating whether TXT records should be
-parsed into specialized types (DMARC, SPF, etc.) when TypedRecords is
+          <maml:para>Gets or sets a value indicating whether TXT records should be&#xD;
+parsed into specialized types (DMARC, SPF, etc.) when TypedRecords is&#xD;
 specified. When false, returns simple TXT records.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
@@ -6653,6 +6824,15 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
         </command:parameterValueGroup>
         <dev:type>
           <maml:name>DnsEndpoint[]</maml:name>
@@ -7012,83 +7192,97 @@ specified. When false, returns simple TXT records.</maml:para>
       </command:example>
       <command:example>
         <maml:title>EXAMPLE 3</maml:title>
+        <dev:code>Resolve-Dns -Name 'example.com' -Type A -DnsProvider CleanBrowsingFamily</dev:code>
+        <dev:remarks>
+          <maml:para>Select CleanBrowsing's family filtering profile over DNS-over-HTTPS.</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 4</maml:title>
+        <dev:code>Resolve-Dns -Name 'example.com' -Type A -ResolverEndpoint 'doh@https://dns.nextdns.io/abc123'</dev:code>
+        <dev:remarks>
+          <maml:para>Use a personal NextDNS configuration. Replace abc123 with the configuration ID from your NextDNS setup page; the generic NextDNS preset does not select that profile.</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>EXAMPLE 5</maml:title>
         <dev:code>Resolve-Dns -Name "example.com" -Type A -DnsProvider Cloudflare,Google -ResolverStrategy FirstSuccess</dev:code>
         <dev:remarks>
           <maml:para>FirstSuccess across providers</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
-        <maml:title>EXAMPLE 4</maml:title>
+        <maml:title>EXAMPLE 6</maml:title>
         <dev:code>Resolve-Dns -Name "example.com" -Type A -DnsProvider Cloudflare,Google -ResolverStrategy FastestWins -FastestCacheMinutes 10 -ResponseCache</dev:code>
         <dev:remarks>
           <maml:para>FastestWins with cache</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
-        <maml:title>EXAMPLE 5</maml:title>
+        <maml:title>EXAMPLE 7</maml:title>
         <dev:code>Resolve-Dns -Name @('a.com','b.com') -Type A -DnsProvider System,Cloudflare,Quad9 -ResolverStrategy RoundRobin -MaxParallelism 16 -PerEndpointMaxInFlight 4</dev:code>
         <dev:remarks>
           <maml:para>RoundRobin with per-endpoint cap</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
-        <maml:title>EXAMPLE 6</maml:title>
+        <maml:title>EXAMPLE 8</maml:title>
         <dev:code>Resolve-Dns -Name 'example.com' -Type TXT -ResolverEndpoint '1.1.1.1:53','https://dns.google/dns-query' -ResolverStrategy FirstSuccess</dev:code>
         <dev:remarks>
           <maml:para>Mixed endpoints (UDP + DoH)</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
-        <maml:title>EXAMPLE 7</maml:title>
+        <maml:title>EXAMPLE 9</maml:title>
         <dev:code>Resolve-Dns -Name 'example.com' -Type A -ResolverEndpoint 'doq@dns.quad9.net:853','doh3@https://dns.quad9.net/dns-query' -ResolverStrategy FirstSuccess</dev:code>
         <dev:remarks>
           <maml:para>Modern endpoints (DoQ + DoH3) through the shared endpoint parser</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
-        <maml:title>EXAMPLE 8</maml:title>
+        <maml:title>EXAMPLE 10</maml:title>
         <dev:code>Resolve-Dns -Name 'example.com' -Type MX -DnsProvider Cloudflare,Google -ResponseCache -MaxCacheTtlSeconds 3600</dev:code>
         <dev:remarks>
           <maml:para>Enable TTL-based response cache with bounds</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
-        <maml:title>EXAMPLE 9</maml:title>
+        <maml:title>EXAMPLE 11</maml:title>
         <dev:code>Resolve-Dns -Name 'example.com' -Type A -Server 'dns.google' -RequestFormat DnsOverHttps -Port 443 -UserAgent 'DnsClientX/PowerShell' -HttpVersion 2.0</dev:code>
         <dev:remarks>
           <maml:para>Query a specific server over DoH with explicit transport settings</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
-        <maml:title>EXAMPLE 10</maml:title>
+        <maml:title>EXAMPLE 12</maml:title>
         <dev:code>Resolve-Dns -Name 'example.com' -Type A -DnsProvider Quad9ECS -EnableEdns -ClientSubnet '192.0.2.0/24' -RequestNsid -FullResponse</dev:code>
         <dev:remarks>
           <maml:para>Send EDNS client subnet and request NSID metadata</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
-        <maml:title>EXAMPLE 11</maml:title>
+        <maml:title>EXAMPLE 13</maml:title>
         <dev:code>Resolve-Dns -Name 'example.com' -Type A -ResolverSelectionPath '.\resolver-score.json'</dev:code>
         <dev:remarks>
           <maml:para>Reuse the recommended resolver from a saved selection snapshot</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
-        <maml:title>EXAMPLE 12</maml:title>
+        <maml:title>EXAMPLE 14</maml:title>
         <dev:code>'example.com','example.net' | Resolve-Dns -Type A | Where-Object Type -EQ A</dev:code>
         <dev:remarks>
           <maml:para>Resolve names from a pipeline and filter individual answers</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
-        <maml:title>EXAMPLE 13</maml:title>
+        <maml:title>EXAMPLE 15</maml:title>
         <dev:code>Resolve-Dns -Name 'example.com','example.net' -Type A,AAAA -Stream -CompletionOrder -MaxConcurrency 4</dev:code>
         <dev:remarks>
           <maml:para>Stream a bounded batch in completion order</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
-        <maml:title>EXAMPLE 14</maml:title>
+        <maml:title>EXAMPLE 16</maml:title>
         <dev:code>Resolve-Dns -Name 'example.com' -Type MX -TypedRecordMetadata | Select-Object Name,TTL,Value</dev:code>
         <dev:remarks>
           <maml:para>Keep typed payloads together with their owner and TTL</maml:para>
@@ -7197,6 +7391,15 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint[]</maml:name>
@@ -8166,6 +8369,15 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
         </command:parameterValueGroup>
         <dev:type>
           <maml:name>DnsEndpoint[]</maml:name>
@@ -8852,6 +9064,15 @@ specified. When false, returns simple TXT records.</maml:para>
             <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
             <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
           </command:parameterValueGroup>
           <dev:type>
             <maml:name>DnsEndpoint</maml:name>
@@ -9773,6 +9994,15 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">RootServer</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">CloudflareOdoh</command:parameterValue>
           <command:parameterValue required="false" variableLength="false">Custom</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingSecurity</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingAdult</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">CleanBrowsingFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlD</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDMalware</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDAds</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ControlDFamily</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ComodoSecureDns</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsWatch</command:parameterValue>
         </command:parameterValueGroup>
         <dev:type>
           <maml:name>DnsEndpoint</maml:name>
