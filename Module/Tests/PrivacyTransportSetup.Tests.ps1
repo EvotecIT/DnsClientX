@@ -1,6 +1,11 @@
 Import-Module "$PSScriptRoot/../DnsClientX.psd1" -Force
 
 Describe 'Explicit privacy provider setup and stamp inspection' {
+    It 'explains the local provider requirement when no DLL is supplied' {
+        { New-DnsPrivacyTransport -Resolver 'https://target.example/dns-query' -ErrorAction Stop } |
+            Should -Throw -ErrorId 'MissingDnsPrivacyProvider,DnsClientX.PowerShell.CmdletNewDnsPrivacyTransport' -ExpectedMessage '*Supply -ProviderPath*trusted local privacy provider DLL*'
+    }
+
     It 'loads a local factory and preserves caller ownership through a real configured query' {
         # Framework LoadFrom keeps its DLL open until the qualification process exits.
         $dll = Join-Path $PSScriptRoot ("Fixtures/privacy-provider-" + $PSVersionTable.PSEdition + '.dll')

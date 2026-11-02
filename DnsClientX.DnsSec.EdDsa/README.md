@@ -1,5 +1,7 @@
 # DnsClientX.DnsSec.EdDsa
 
+`DnsClientX.DnsSec.EdDsa` is not published on NuGet and is not included in the core 2.2.0 release. Build this project from the same source revision as the core and deploy its DLL with `BouncyCastle.Cryptography.dll` before using the examples below. The core's .NET 8/10 assets already support ECDSA P-256/P-384; this provider adds portable ECDSA and Ed25519/Ed448 support.
+
 Optional portable RFC 6605 ECDSA and RFC 8080 Ed25519/Ed448 DNSSEC signature verification for DnsClientX. The package uses `BouncyCastle.Cryptography`; the main `DnsClientX` package remains free of that dependency.
 
 ```csharp

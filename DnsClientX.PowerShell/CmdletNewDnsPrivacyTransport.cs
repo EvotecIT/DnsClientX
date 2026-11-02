@@ -17,7 +17,7 @@ namespace DnsClientX.PowerShell;
 [OutputType(typeof(IDnsWireTransportProvider))]
 public sealed class CmdletNewDnsPrivacyTransport : PSCmdlet {
     /// <summary><para type="description">Trusted local provider DLL path, with dependencies beside it.</para></summary>
-    [Parameter(Mandatory = true)]
+    [Parameter]
     [ValidateNotNullOrEmpty]
     public string ProviderPath { get; set; } = string.Empty;
     /// <summary><para type="description">Trusted DNSCrypt resolver stamp or ODoH target stamp/HTTPS endpoint.</para></summary>
@@ -30,6 +30,12 @@ public sealed class CmdletNewDnsPrivacyTransport : PSCmdlet {
     public string? Relay { get; set; }
     /// <inheritdoc />
     protected override void ProcessRecord() {
+        if (string.IsNullOrWhiteSpace(ProviderPath)) {
+            ThrowTerminatingError(new ErrorRecord(
+                new ArgumentException("Supply -ProviderPath with a trusted local privacy provider DLL and its dependencies. The core DnsClientX package does not include ODoH or DNSCrypt providers."),
+                "MissingDnsPrivacyProvider", ErrorCategory.InvalidArgument, null));
+            return;
+        }
         string path = SessionState.Path.GetUnresolvedProviderPathFromPSPath(ProviderPath, out ProviderInfo provider, out _);
         if (!string.Equals(provider.Name, "FileSystem", StringComparison.OrdinalIgnoreCase)) {
             throw new ArgumentException("The privacy provider must be a local filesystem DLL.");

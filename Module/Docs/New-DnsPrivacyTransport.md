@@ -15,7 +15,7 @@ Pass the transport's CreateConfiguration() result to Resolve-Dns -Configuration.
 ## SYNTAX
 ### __AllParameterSets
 ```powershell
-New-DnsPrivacyTransport -ProviderPath <string> -Resolver <string> [-Relay <string>] [<CommonParameters>]
+New-DnsPrivacyTransport -Resolver <string> [-ProviderPath <string>] [-Relay <string>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -46,7 +46,7 @@ Parameter Sets: __AllParameterSets
 Aliases: None
 Possible values:
 
-Required: True
+Required: False
 Position: named
 Default value: None
 Accept pipeline input: False

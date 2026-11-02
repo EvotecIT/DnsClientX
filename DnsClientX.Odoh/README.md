@@ -1,5 +1,7 @@
 # DnsClientX.Odoh
 
+`DnsClientX.Odoh` is not published on NuGet and is not included in the core 2.2.0 release. Build this project from the same source revision as the core and deploy its DLL and dependencies together before using the examples below.
+
 This optional package sends DNS queries through an HTTPS relay using Oblivious DNS over HTTPS (RFC 9230). It encrypts each query for the target with fresh HPKE key material and authenticates the encrypted response before the core DNS client matches and parses it. It supports the RFC's required X25519/HKDF-SHA256/AES-128-GCM suite on all DnsClientX targets.
 
 ```csharp

@@ -22,6 +22,8 @@ dotnet add package DnsClientX
 Install-Module DnsClientX -Scope CurrentUser
 ```
 
+The 2.2.0 release includes the core NuGet package, PowerShell module and CLI archives. `DnsClientX.Odoh`, `DnsClientX.DnsCrypt` and `DnsClientX.DnsSec.EdDsa` are **not published on NuGet** and are not included in these artifacts. Their examples require a provider built from the same source revision, with its dependencies deployed beside the provider DLL. Core DNS queries, DNSSEC algorithms supported by the running target, and the module work without these providers.
+
 ## Quick start
 
 ```csharp
@@ -120,7 +122,7 @@ Resolve-Dns example.com -DnsProvider Cloudflare -ProviderTransport DnsOverTLS
 DnsClientX --endpoint ControlDAds --provider-transport DnsOverQuic example.com
 ```
 
-Regenerate the table after a library build with `pwsh -File Build/Update-ProviderDocumentation.ps1`.
+Regenerate the table and the machine-readable [provider catalog](Assets/Data/provider-profiles.json) after a library build with `pwsh -File Build/Update-ProviderDocumentation.ps1`. The JSON uses schema 1, enum-ordered profiles and the same seven transport columns in the same order. Its `default` values are request-format enum names. Use `-Check` to verify both committed outputs against the library without writing files; packaged-module validation runs this check too.
 
 Selecting UDP or TCP for `System` preserves the operating system's resolver policy, including in probes and benchmarks. `RootServer` remains an iterative UDP profile and rejects a TCP override. Use an explicit TCP endpoint to query an individual root server directly.
 
@@ -1100,7 +1102,7 @@ Console.WriteLine(response.DnsSecValidationMessage);
 
 The resolver-provided `AuthenticData` flag and local validation are deliberately separate. `Secure` means DnsClientX built and verified a chain to a configured root trust anchor; `Insecure` means a secure parent authenticated an unsigned delegation; `Bogus` is a cryptographic or proof failure; and `Indeterminate` means the response, trust state, or supported algorithms were insufficient. The dependency-free validator supports RSA/SHA-1 (algorithms 5 and 7, for compatibility), RSA/SHA-256, and RSA/SHA-512 on every target. The .NET 8 and .NET 10 assets also support ECDSA P-256/SHA-256 and ECDSA P-384/SHA-384. Ed25519 and Ed448 are supplied by the optional package below rather than claimed by the core.
 
-Install `DnsClientX.DnsSec.EdDsa` for ECDSA P-256/P-384 on .NET Framework and .NET Standard, or for Ed25519/Ed448 on any supported target. The optional package uses `BouncyCastle.Cryptography`; the core package does not depend on it:
+The optional `DnsClientX.DnsSec.EdDsa` project supplies ECDSA P-256/P-384 on .NET Framework and .NET Standard, and Ed25519/Ed448 on any supported target. It is not published on NuGet; build it from source before using the example below. It uses `BouncyCastle.Cryptography`; the core package does not depend on it:
 
 ```csharp
 using DnsClientX.DnsSec.EdDsa;

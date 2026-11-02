@@ -2,7 +2,7 @@
 
 This optional package sends DNS queries using DNSCrypt v2. It verifies resolver certificates against an explicitly trusted Ed25519 provider key and authenticates each encrypted response before returning it to DnsClientX.
 
-Install `DnsClientX.DnsCrypt` alongside `DnsClientX`. Obtain the resolver IP address, port, provider name, and provider public key through a trusted source. The package includes its libsodium native dependency through NuGet.
+`DnsClientX.DnsCrypt` is not published on NuGet and is not included in the core 2.2.0 release. Build this project from the same source revision as the core, then deploy its DLL and runtime dependencies together. Its libsodium dependency is restored by the source build. Obtain the resolver IP address, port, provider name, and provider public key through a trusted source.
 
 ```csharp
 using DnsClientX;
