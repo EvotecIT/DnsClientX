@@ -51,12 +51,32 @@ namespace DnsClientX {
             ResolverExecutionClientOptions? clientOptions = null,
             CancellationToken cancellationToken = default) {
             await using ClientX client = ResolverExecutionClientFactory.CreateClient(target, clientOptions);
-            if (!DnsTransportCapabilities.Supports(client.EndpointConfiguration.RequestFormat)) {
+            return await QueryClientAsync(client, name, recordType, requestDnsSec || target.ExplicitEndpoint?.DnsSecOk == true, validateDnsSec, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>Executes one query using a defensive snapshot of a caller-owned configuration and optional provider.</summary>
+        /// <param name="configuration">Configuration borrowing an optional provider; the caller retains provider ownership.</param>
+        /// <param name="name">DNS name to query.</param>
+        /// <param name="recordType">Record type to query.</param>
+        /// <param name="requestDnsSec">Whether to request DNSSEC data.</param>
+        /// <param name="validateDnsSec">Whether to validate DNSSEC.</param>
+        /// <param name="clientOptions">Execution and audit settings.</param>
+        /// <param name="cancellationToken">Query cancellation.</param>
+        /// <returns>The response and execution evidence used by text and JSON adapters.</returns>
+        public static async Task<ResolverSingleOperationResult> QueryConfiguredAsync(Configuration configuration, string name, DnsRecordType recordType,
+            bool requestDnsSec = false, bool validateDnsSec = false, ResolverExecutionClientOptions? clientOptions = null, CancellationToken cancellationToken = default) {
+            await using ClientX client = ResolverExecutionClientFactory.CreateConfiguredClient(configuration, clientOptions);
+            return await QueryClientAsync(client, name, recordType, requestDnsSec, validateDnsSec, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task<ResolverSingleOperationResult> QueryClientAsync(ClientX client, string name, DnsRecordType recordType,
+            bool requestDnsSec, bool validateDnsSec, CancellationToken cancellationToken) {
+            if (client.EndpointConfiguration.WireTransport == null && !DnsTransportCapabilities.Supports(client.EndpointConfiguration.RequestFormat)) {
                 return CreateUnsupportedResult(client, name, recordType);
             }
 
             var stopwatch = Stopwatch.StartNew();
-            DnsResponse response = await client.Resolve(name, recordType, requestDnsSec || target.ExplicitEndpoint?.DnsSecOk == true, validateDnsSec, cancellationToken: cancellationToken).ConfigureAwait(false);
+            DnsResponse response = await client.Resolve(name, recordType, requestDnsSec, validateDnsSec, cancellationToken: cancellationToken).ConfigureAwait(false);
             stopwatch.Stop();
             return CreateResult(client, response, stopwatch.Elapsed);
         }

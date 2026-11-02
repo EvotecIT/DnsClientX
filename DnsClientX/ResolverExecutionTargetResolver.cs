@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -34,6 +35,14 @@ namespace DnsClientX {
 
             source.Validate();
 
+            if (source.ProviderRequestFormat.HasValue) {
+                var providers = source.ProbeProfile.HasValue ? new[] { source.ProbeProfile.Value } : source.BuiltInEndpoints;
+                return providers.Distinct().SelectMany(provider =>
+                    BuildProviderTargets(provider, source.ProviderRequestFormat.Value))
+                    .GroupBy(ResolverCandidateIdentity.ExecutionKey, StringComparer.Ordinal)
+                    .Select(group => group.First()).ToArray();
+            }
+
             if (!string.IsNullOrWhiteSpace(source.ResolverSelectionPath)) {
                 ResolverSelectionResult selection = LoadRecommendedSelection(source.ResolverSelectionPath!);
                 return new[] { ResolverExecutionPlanBuilder.BuildSelectionTarget(selection) };
@@ -57,6 +66,24 @@ namespace DnsClientX {
             }
 
             return ResolverExecutionPlanBuilder.BuildBuiltInTargets(source.BuiltInEndpoints);
+        }
+
+        private static ResolverExecutionTarget[] BuildProviderTargets(DnsEndpoint provider, DnsRequestFormat format) {
+            if (provider == DnsEndpoint.System || provider == DnsEndpoint.SystemTcp) {
+                if (format != DnsRequestFormat.DnsOverUDP && format != DnsRequestFormat.DnsOverTCP) {
+                    throw new NotSupportedException("System resolver profiles support only UDP and TCP.");
+                }
+                return ResolverExecutionPlanBuilder.BuildBuiltInTargets(new[] {
+                    format == DnsRequestFormat.DnsOverTCP ? DnsEndpoint.SystemTcp : DnsEndpoint.System
+                });
+            }
+            if (provider == DnsEndpoint.RootServer) {
+                if (format != DnsRequestFormat.DnsOverUDP) {
+                    throw new NotSupportedException("RootServer probe and benchmark targets use iterative UDP resolution; a transport override must be DnsOverUDP.");
+                }
+                return ResolverExecutionPlanBuilder.BuildBuiltInTargets(new[] { DnsEndpoint.RootServer });
+            }
+            return ResolverExecutionPlanBuilder.BuildExplicitTargets(DnsResolverEndpointFactory.From(provider, format));
         }
 
         /// <summary>

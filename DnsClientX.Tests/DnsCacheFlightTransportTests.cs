@@ -50,11 +50,12 @@ public class DnsCacheFlightTransportTests {
         Assert.Equal(0, bootstrap.Available);
     }
 
-    /// <summary>A canceled pooled TCP loser retains endpoint admission until its late response is drained.</summary>
+    /// <summary>A canceled pooled TCP loser retains admission until its response drains or its connection retires.</summary>
     [Fact]
-    public async Task PooledTcpLoserRetainsAdmissionUntilTransactionCleanup() {
+    public async Task PooledTcpLoserRetainsAdmissionUntilDrainedOrRetired() {
         var slow = new TcpListener(IPAddress.Loopback, 0);
         slow.Start();
+        TcpClient? replacement = null;
         using var fast = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         try {
@@ -75,15 +76,23 @@ public class DnsCacheFlightTransportTests {
             var secondFast = await Bounded(fast.ReceiveAsync());
             var nextSlow = ReadFrame(stream, deadline.Token);
             var observation = Task.Delay(100, deadline.Token);
-            Assert.Same(observation, await Task.WhenAny(nextSlow, observation));
-            var late = Answer(firstSlow, new byte[] { 192, 0, 2, 1 });
-            await WriteFrame(stream, late, deadline.Token);
-            await Bounded(nextSlow);
+            if (await Task.WhenAny(nextSlow, observation) == nextSlow) {
+                // Receiving the first frame does not guarantee the client's write continuation
+                // finished before the fast winner canceled it. Such writes retire the stream.
+                await Assert.ThrowsAsync<EndOfStreamException>(() => nextSlow);
+                replacement = await Bounded(slow.AcceptTcpClientAsync());
+                await Bounded(ReadFrame(replacement.GetStream(), deadline.Token));
+            } else {
+                var late = Answer(firstSlow, new byte[] { 192, 0, 2, 1 });
+                await WriteFrame(stream, late, deadline.Token);
+                await Bounded(nextSlow);
+            }
             var secondAnswer = Answer(secondFast.Buffer, new byte[] { 192, 0, 2, 1 });
             await fast.SendAsync(secondAnswer, secondAnswer.Length, secondFast.RemoteEndPoint);
             Assert.Equal(DnsResponseCode.NoError, (await second).Status);
         } finally {
             deadline.Cancel();
+            replacement?.Dispose();
             slow.Stop();
         }
     }

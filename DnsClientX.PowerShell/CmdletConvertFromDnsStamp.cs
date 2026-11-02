@@ -5,7 +5,7 @@ using DnsClientX;
 namespace DnsClientX.PowerShell {
     /// <summary>
     /// <para type="synopsis">Parses a DNS stamp into a resolver endpoint description.</para>
-    /// <para type="description">Converts a supported sdns:// DNS stamp into the same endpoint model used by DnsClientX resolver workflows. This command does not perform a DNS query.</para>
+    /// <para type="description">Converts a supported sdns:// DNS stamp into a resolver endpoint description or a role-specific DNSCrypt/ODoH identity. This command does not load a provider or perform a DNS query.</para>
     /// </summary>
     /// <example>
     ///   <para>Parse a DNS-over-HTTPS stamp</para>
@@ -13,6 +13,7 @@ namespace DnsClientX.PowerShell {
     /// </example>
     [Cmdlet(VerbsData.ConvertFrom, "DnsStamp")]
     [OutputType(typeof(DnsStampInfo))]
+    [OutputType(typeof(DnsPrivacyStamp))]
     public sealed class CmdletConvertFromDnsStamp : AsyncPSCmdlet {
         /// <summary>
         /// DNS stamp to parse.
@@ -23,7 +24,7 @@ namespace DnsClientX.PowerShell {
 
         /// <inheritdoc />
         protected override Task ProcessRecordAsync() {
-            WriteObject(DnsStamp.Describe(Stamp));
+            WriteObject(DnsStamp.IsPrivacyStamp(Stamp) ? (object)DnsStamp.ParsePrivacy(Stamp) : DnsStamp.Describe(Stamp));
             return Task.CompletedTask;
         }
     }

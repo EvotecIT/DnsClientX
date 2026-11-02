@@ -23,6 +23,21 @@ public enum DnsCryptNetworkTransport {
 
 /// <summary>Explicit trusted resolver identity and transport policy for a DNSCrypt provider.</summary>
 public sealed class DnsCryptOptions {
+    /// <summary>Creates options retaining the trusted resolver identity and optional relay encoded by DNS stamps.</summary>
+    /// <param name="resolverStamp">A DNSCrypt resolver stamp from a trusted source.</param>
+    /// <param name="relayStamp">An optional Anonymized DNSCrypt relay stamp.</param>
+    /// <returns>Options whose provider key and resolver destination remain independent of the relay.</returns>
+    public static DnsCryptOptions FromStamp(string resolverStamp, string? relayStamp = null) {
+        DnsPrivacyStamp resolver = DnsStamp.ParsePrivacy(resolverStamp);
+        if (resolver.Kind != DnsPrivacyStampKind.DnsCrypt) { throw new ArgumentException("A DNSCrypt resolver stamp is required.", nameof(resolverStamp)); }
+        var options = new DnsCryptOptions(resolver.Address!, resolver.ProviderName!, resolver.ProviderPublicKey);
+        if (relayStamp != null) {
+            DnsPrivacyStamp relay = DnsStamp.ParsePrivacy(relayStamp);
+            if (relay.Kind != DnsPrivacyStampKind.DnsCryptRelay) { throw new ArgumentException("An Anonymized DNSCrypt relay stamp is required.", nameof(relayStamp)); }
+            options.RelayEndpoint = relay.Address;
+        }
+        return options;
+    }
     /// <summary>Creates options with an IP endpoint, certificate question name, and trusted 32-byte Ed25519 public key.</summary>
     public DnsCryptOptions(IPEndPoint resolverEndpoint, string providerName, byte[] providerPublicKey) {
         ResolverEndpoint = resolverEndpoint ?? throw new ArgumentNullException(nameof(resolverEndpoint));

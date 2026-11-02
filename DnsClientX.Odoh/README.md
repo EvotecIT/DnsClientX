@@ -20,3 +20,32 @@ The provider owns its default `HttpClient`, disables cookies and automatic redir
 A supplied `HttpClient` remains caller-owned unless `disposeHttpClient` is true. Its handler must disable automatic redirects, cookies, and default credentials, and must not inject identifying headers or change destinations. The provider cannot inspect these handler settings. Use the default client when those settings cannot be guaranteed. Default request headers other than `Accept` are rejected.
 
 HTTPS authenticates key acquisition. HPKE authenticates the response under the acquired target key; it does not validate DNSSEC or protect against a colluding relay and target. Configuration discovery and traffic analysis policy are outside RFC 9230. This package uses BouncyCastle.Cryptography for portable X25519 and AES-GCM primitives; its public API exposes no Bouncy Castle types.
+
+## Stamps and explicit provider setup
+
+`OdohClientOptions.FromEndpoints(relay, target)` accepts HTTPS endpoints or role-specific ODoH stamps. A target stamp cannot be substituted for a relay stamp. The relay remains explicit; no default relay or direct-query fallback is selected.
+
+```csharp
+using var transport = new OdohTransportFactory().Create(targetStamp, relayStamp);
+using var client = new ClientX(transport.CreateConfiguration());
+var response = await client.Resolve("example.com", DnsRecordType.A);
+```
+
+The CLI loads a trusted deployed provider and uses the shared query, output and explanation workflow:
+
+```text
+DnsClientX --privacy-provider ./DnsClientX.Odoh.dll --privacy-resolver https://target.example/dns-query --privacy-relay https://relay.example/dns-query --explain example.com
+```
+
+Either endpoint can instead be its `sdns://` stamp. These are query options; they do not select probe, benchmark, update or zone-transfer modes. Dependencies must be deployed beside the selected DLL. Loading a DLL executes local code, so select only a trusted provider. The CLI disposes its provider after the query. PowerShell callers own the returned provider:
+
+```powershell
+$transport = New-DnsPrivacyTransport -ProviderPath ./DnsClientX.Odoh.dll -Resolver $targetStamp -Relay $relayStamp
+try {
+    Resolve-Dns example.com -Configuration $transport.CreateConfiguration() -FullResponse
+} finally {
+    $transport.Dispose()
+}
+```
+
+The stamp importer rejects nonempty relay certificate hashes and explicit IP/bootstrap routing because the HTTPS provider cannot enforce those stamp policies. It never silently drops certificate pins or changes the relay/target role. `ConvertFrom-DnsStamp` and CLI `--stamp-info` inspect supported privacy stamps without loading a provider or contacting a server.

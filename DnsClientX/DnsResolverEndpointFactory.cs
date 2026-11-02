@@ -2,141 +2,70 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace DnsClientX {
-    /// <summary>
-    /// Factory helpers to convert predefined <see cref="DnsEndpoint"/> values into <see cref="DnsResolverEndpoint"/> instances.
-    /// Built-in entries cover the core transport families supported by the shared resolver workflows.
-    /// </summary>
-    public static class DnsResolverEndpointFactory {
-        /// <summary>
-        /// Expands predefined providers into their concrete resolver endpoints and removes duplicates.
-        /// </summary>
-        public static DnsResolverEndpoint[] From(IEnumerable<DnsEndpoint> endpoints) {
-            if (endpoints == null) throw new ArgumentNullException(nameof(endpoints));
-            var expanded = new List<DnsResolverEndpoint>();
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (DnsEndpoint endpoint in endpoints) {
-                foreach (DnsResolverEndpoint candidate in From(endpoint)) {
-                    string key = $"{candidate.Transport}|{candidate.RequestFormat}|{candidate.DohUrl}|{candidate.Host}|{candidate.Port}|{candidate.Family}|{candidate.TlsServerName}";
-                    if (seen.Add(key)) expanded.Add(candidate);
-                }
-            }
-            return expanded.ToArray();
+namespace DnsClientX;
+
+/// <summary>Expands built-in provider profiles into concrete resolver endpoints.</summary>
+public static class DnsResolverEndpointFactory {
+    /// <summary>Expands providers using their existing defaults and removes duplicate endpoints.</summary>
+    public static DnsResolverEndpoint[] From(IEnumerable<DnsEndpoint> endpoints) {
+        if (endpoints == null) { throw new ArgumentNullException(nameof(endpoints)); }
+        return endpoints.SelectMany(From).GroupBy(candidate =>
+            $"{candidate.Transport}|{candidate.RequestFormat}|{candidate.DohUrl}|{candidate.Host}|{candidate.Port}|{candidate.Family}|{candidate.TlsServerName}",
+            StringComparer.OrdinalIgnoreCase).Select(group => group.First()).ToArray();
+    }
+
+    /// <summary>Expands one provider using its existing default transport.</summary>
+    public static DnsResolverEndpoint[] From(DnsEndpoint endpoint) {
+        if (endpoint == DnsEndpoint.Custom) { return Array.Empty<DnsResolverEndpoint>(); }
+        if (endpoint == DnsEndpoint.System || endpoint == DnsEndpoint.SystemTcp || endpoint == DnsEndpoint.RootServer) {
+            return From(endpoint, endpoint == DnsEndpoint.SystemTcp ? DnsRequestFormat.DnsOverTCP : DnsRequestFormat.DnsOverUDP);
         }
+        var profile = RequireProfile(endpoint);
+        return profile.Expand(profile.DefaultFormat);
+    }
 
-        /// <summary>
-        /// Creates one or more <see cref="DnsResolverEndpoint"/> entries for a predefined <see cref="DnsEndpoint"/>.
-        /// DNSCrypt variants are not included because <see cref="Transport"/> does not currently model them.
-        /// </summary>
-        public static DnsResolverEndpoint[] From(DnsEndpoint endpoint) {
-            var list = new List<DnsResolverEndpoint>();
-            void AddHost(string host, int port, Transport transport, DnsRequestFormat? requestFormat = null) =>
-                list.Add(new DnsResolverEndpoint { Host = host, Port = port, Transport = transport, RequestFormat = requestFormat });
-            void AddDoh(string host, string path, DnsRequestFormat requestFormat) =>
-                list.Add(new DnsResolverEndpoint {
-                    Transport = Transport.Doh,
-                    DohUrl = new Uri($"https://{host}{path}"),
-                    Host = host,
-                    Port = 443,
-                    RequestFormat = requestFormat
-                });
-
-            switch (endpoint) {
-                case DnsEndpoint.System:
-                    foreach (var host in SystemInformation.GetDnsFromActiveNetworkCard()) AddHost(host, 53, Transport.Udp);
-                    break;
-                case DnsEndpoint.SystemTcp:
-                    foreach (var host in SystemInformation.GetDnsFromActiveNetworkCard()) AddHost(host, 53, Transport.Tcp);
-                    break;
-                case DnsEndpoint.Cloudflare:
-                    AddDoh("1.1.1.1", "/dns-query", DnsRequestFormat.DnsOverHttpsJSON);
-                    AddDoh("1.0.0.1", "/dns-query", DnsRequestFormat.DnsOverHttpsJSON);
-                    break;
-                case DnsEndpoint.CloudflareWireFormat:
-                    AddDoh("1.1.1.1", "/dns-query", DnsRequestFormat.DnsOverHttps);
-                    AddDoh("1.0.0.1", "/dns-query", DnsRequestFormat.DnsOverHttps);
-                    break;
-                case DnsEndpoint.CloudflareWireFormatPost:
-                    AddDoh("1.1.1.1", "/dns-query", DnsRequestFormat.DnsOverHttpsWirePost);
-                    AddDoh("1.0.0.1", "/dns-query", DnsRequestFormat.DnsOverHttpsWirePost);
-                    break;
-                case DnsEndpoint.CloudflareJsonPost:
-                    throw new NotSupportedException("Cloudflare does not publish a JSON-over-POST DNS endpoint. Use CloudflareWireFormatPost for RFC 8484 POST.");
-                case DnsEndpoint.CloudflareSecurity:
-                    AddDoh("1.1.1.2", "/dns-query", DnsRequestFormat.DnsOverHttpsJSON);
-                    AddDoh("1.0.0.2", "/dns-query", DnsRequestFormat.DnsOverHttpsJSON);
-                    break;
-                case DnsEndpoint.CloudflareFamily:
-                    AddDoh("1.1.1.3", "/dns-query", DnsRequestFormat.DnsOverHttpsJSON);
-                    AddDoh("1.0.0.3", "/dns-query", DnsRequestFormat.DnsOverHttpsJSON);
-                    break;
-                case DnsEndpoint.Google:
-                    AddDoh("dns.google", "/dns-query", DnsRequestFormat.DnsOverHttps);
-                    break;
-                case DnsEndpoint.GoogleWireFormat:
-                    AddDoh("dns.google", "/dns-query", DnsRequestFormat.DnsOverHttps);
-                    break;
-                case DnsEndpoint.GoogleWireFormatPost:
-                    AddDoh("dns.google", "/dns-query", DnsRequestFormat.DnsOverHttpsWirePost);
-                    break;
-                case DnsEndpoint.GoogleJsonPost:
-                    throw new NotSupportedException("Google Public DNS does not publish a JSON-over-POST endpoint. Use GoogleWireFormatPost for RFC 8484 POST.");
-                case DnsEndpoint.Quad9:
-                    AddDoh("dns.quad9.net", "/dns-query", DnsRequestFormat.DnsOverHttps);
-                    break;
-                case DnsEndpoint.Quad9ECS:
-                    AddDoh("dns11.quad9.net", "/dns-query", DnsRequestFormat.DnsOverHttps);
-                    break;
-                case DnsEndpoint.Quad9Unsecure:
-                    AddDoh("dns10.quad9.net", "/dns-query", DnsRequestFormat.DnsOverHttps);
-                    break;
-                case DnsEndpoint.OpenDNS:
-                    AddDoh("208.67.222.222", "/dns-query", DnsRequestFormat.DnsOverHttps);
-                    AddDoh("208.67.220.220", "/dns-query", DnsRequestFormat.DnsOverHttps);
-                    break;
-                case DnsEndpoint.OpenDNSFamily:
-                    AddDoh("208.67.222.123", "/dns-query", DnsRequestFormat.DnsOverHttps);
-                    AddDoh("208.67.220.123", "/dns-query", DnsRequestFormat.DnsOverHttps);
-                    break;
-                case DnsEndpoint.NextDNS:
-                    AddDoh("dns.nextdns.io", "/dns-query", DnsRequestFormat.DnsOverHttpsJSON);
-                    break;
-                case DnsEndpoint.RootServer:
-                    foreach (var host in RootServers.Servers) AddHost(host, 53, Transport.Udp);
-                    break;
-                case DnsEndpoint.CloudflareQuic:
-                    throw new NotSupportedException("Cloudflare does not publish a DNS-over-QUIC resolver endpoint.");
-                case DnsEndpoint.Quad9Http3:
-                    AddDoh("dns.quad9.net", "/dns-query", DnsRequestFormat.DnsOverHttp3);
-                    break;
-                case DnsEndpoint.Quad9Quic:
-                    AddHost("dns.quad9.net", 853, Transport.Quic, DnsRequestFormat.DnsOverQuic);
-                    break;
-                case DnsEndpoint.GoogleQuic:
-                    throw new NotSupportedException("Google Public DNS does not publish a DNS-over-QUIC resolver endpoint.");
-                case DnsEndpoint.CloudflareOdoh:
-                    throw new NotSupportedException("ODoH is intentionally not implemented by the core package.");
-                case DnsEndpoint.DnsCryptCloudflare:
-                case DnsEndpoint.DnsCryptQuad9:
-                case DnsEndpoint.DnsCryptRelay:
-                    throw new NotSupportedException("DNSCrypt v2 is reserved for an optional protocol package.");
-                case DnsEndpoint.Custom:
-                    break;
-                default:
-                    var preset = DnsProviderPresets.Get(endpoint);
-                    if (preset.HasValue) {
-                        foreach (string host in preset.Value.Hosts) {
-                            if (preset.Value.DohPath == null) {
-                                AddHost(host, 53, Transport.Udp, DnsRequestFormat.DnsOverUDP);
-                            } else {
-                                AddDoh(host, preset.Value.DohPath, DnsRequestFormat.DnsOverHttps);
-                            }
-                        }
-                    }
-                    break;
+    /// <summary>Expands a provider using a published transport, preserving its filtering profile and TLS identity.</summary>
+    /// <param name="endpoint">The built-in provider profile.</param>
+    /// <param name="requestFormat">A format returned by GetSupportedRequestFormats.</param>
+    /// <returns>Fresh endpoint objects for all configured addresses.</returns>
+    public static DnsResolverEndpoint[] From(DnsEndpoint endpoint, DnsRequestFormat requestFormat) {
+        if (endpoint == DnsEndpoint.System || endpoint == DnsEndpoint.SystemTcp || endpoint == DnsEndpoint.RootServer) {
+            if (endpoint == DnsEndpoint.RootServer && requestFormat != DnsRequestFormat.DnsOverUDP) {
+                throw new NotSupportedException("The RootServer profile uses iterative UDP resolution. Use an explicit TCP endpoint to query a root server directly.");
             }
-
-            return list.ToArray();
+            if (requestFormat != DnsRequestFormat.DnsOverUDP && requestFormat != DnsRequestFormat.DnsOverTCP) {
+                throw new NotSupportedException("System and root profiles support only UDP and TCP.");
+            }
+            IEnumerable<string> hosts = endpoint == DnsEndpoint.RootServer ? RootServers.Servers : SystemInformation.GetDnsFromActiveNetworkCard();
+            return hosts.Select(host => new DnsResolverEndpoint {
+                Host = host, Port = 53, Transport = DnsRequestFormatMapper.ToTransport(requestFormat), RequestFormat = requestFormat
+            }).ToArray();
         }
+        return RequireProfile(endpoint).Expand(requestFormat);
+    }
+
+    /// <summary>Lists published formats for a profile, independently of the current runtime's transport capability.</summary>
+    /// <remarks>Reserved legacy identifiers and Custom have no built-in transports. Use explicit endpoints for custom services.</remarks>
+    public static DnsRequestFormat[] GetSupportedRequestFormats(DnsEndpoint endpoint) {
+        if (endpoint == DnsEndpoint.RootServer) { return new[] { DnsRequestFormat.DnsOverUDP }; }
+        if (endpoint == DnsEndpoint.System || endpoint == DnsEndpoint.SystemTcp) {
+            return new[] { DnsRequestFormat.DnsOverUDP, DnsRequestFormat.DnsOverTCP };
+        }
+        return DnsProviderPresets.Get(endpoint)?.Formats ?? Array.Empty<DnsRequestFormat>();
+    }
+
+    internal static DnsProviderPresets.Profile RequireProfile(DnsEndpoint endpoint) {
+        if (!Enum.IsDefined(typeof(DnsEndpoint), endpoint) || endpoint == DnsEndpoint.Custom) {
+            throw new ArgumentException("Invalid endpoint", nameof(endpoint));
+        }
+        return DnsProviderPresets.Get(endpoint) ?? throw new NotSupportedException(endpoint switch {
+            DnsEndpoint.CloudflareJsonPost => "Cloudflare does not publish a JSON-over-POST DNS endpoint. Use CloudflareWireFormatPost for RFC 8484 POST.",
+            DnsEndpoint.GoogleJsonPost => "Google Public DNS does not publish a JSON-over-POST endpoint. Use GoogleWireFormatPost for RFC 8484 POST.",
+            DnsEndpoint.CloudflareQuic => "Cloudflare does not publish a DNS-over-QUIC resolver endpoint.",
+            DnsEndpoint.GoogleQuic => "Google Public DNS does not publish a DNS-over-QUIC resolver endpoint.",
+            DnsEndpoint.CloudflareOdoh => "Use the optional ODoH provider with an explicit target and relay.",
+            DnsEndpoint.DnsCryptCloudflare or DnsEndpoint.DnsCryptQuad9 or DnsEndpoint.DnsCryptRelay => "Use the optional DNSCrypt provider with an explicit trusted resolver stamp and optional relay.",
+            _ => "Invalid endpoint."
+        });
     }
 }

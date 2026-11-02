@@ -401,7 +401,7 @@ namespace DnsClientX {
                 $"  Error code: {response.ErrorCode}"
             };
 
-            foreach (string diagnostic in DnsResponseTextFormatter.BuildDiagnosticLines(response)) lines.Add("  " + diagnostic);
+            foreach (string diagnostic in DnsResponseTextFormatter.BuildDiagnosticLines(response)) { lines.Add("  " + diagnostic); }
 
             foreach (DnsQuestion question in response.Questions ?? Array.Empty<DnsQuestion>()) {
                 lines.Add($"  Question: {question.Name} {question.Type} via {question.RequestFormat}");

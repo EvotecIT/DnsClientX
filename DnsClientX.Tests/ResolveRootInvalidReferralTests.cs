@@ -69,6 +69,8 @@ namespace DnsClientX.Tests {
                 }
             } catch (ObjectDisposedException) when (token.IsCancellationRequested) {
                 // ignore
+            } catch (SocketException) when (token.IsCancellationRequested) {
+                // Closing the UDP socket can interrupt a reply send as well as a receive.
             }
         }
 

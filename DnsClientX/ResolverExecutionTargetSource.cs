@@ -11,6 +11,9 @@ namespace DnsClientX {
         /// </summary>
         public DnsEndpoint[] BuiltInEndpoints { get; set; } = Array.Empty<DnsEndpoint>();
 
+        /// <summary>Gets or sets a published provider format overriding the selected built-in profiles' defaults.</summary>
+        public DnsRequestFormat? ProviderRequestFormat { get; set; }
+
         /// <summary>
         /// Gets or sets a built-in resolver profile that should be expanded for probing.
         /// </summary>
@@ -49,6 +52,9 @@ namespace DnsClientX {
             ResolverEndpointUrls.Length > 0;
 
         internal void Validate() {
+            if (ProviderRequestFormat.HasValue && BuiltInEndpoints.Length == 0 && !ProbeProfile.HasValue) {
+                throw new InvalidOperationException("ProviderRequestFormat requires a built-in provider source.");
+            }
             int configuredSources = 0;
             if (BuiltInEndpoints.Length > 0) {
                 configuredSources++;

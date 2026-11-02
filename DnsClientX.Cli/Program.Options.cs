@@ -26,6 +26,10 @@ namespace DnsClientX.Cli {
             public DnsRecordType RecordType { get; set; } = DnsRecordType.A;
             public bool RecordTypeSpecified { get; set; }
             public DnsEndpoint Endpoint { get; set; } = DnsEndpoint.System;
+            public DnsRequestFormat? ProviderTransport { get; set; }
+            public string? PrivacyProviderPath { get; set; }
+            public string? PrivacyResolver { get; set; }
+            public string? PrivacyRelay { get; set; }
             public QueryOutputFormat OutputFormat { get; set; } = QueryOutputFormat.Pretty;
             public bool ShortOutput { get; set; }
             public bool TxtConcatOutput { get; set; }

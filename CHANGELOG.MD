@@ -1,6 +1,10 @@
 ﻿## Unreleased
 
 - Normalize recognized JSON EDE comments into structured extended DNS errors without replacing provider comments or explicit error arrays.
+- Select published provider transports without changing existing preset defaults, with shared provider definitions for configuration, resolver expansion and generated documentation.
+- Configure DNSCrypt and ODoH providers from role-specific DNS stamps, inspect privacy stamps from CLI/PowerShell, and load trusted optional providers explicitly for queries without adding crypto dependencies to the core or CLI.
+- Add New-DnsPrivacyTransport for caller-owned PowerShell setup and CLI privacy query options using the shared response and explanation workflow.
+- Preserve completed TCP/DoT replies when a peer closes while the request write finishes, avoiding a false failure and duplicate retry.
 - Add `data_normalized` to record JSON while preserving the existing raw `data` field.
 - Show provider diagnostics in regular CLI text output and include DNS status in PowerShell warnings through shared display-safe formatting.
 - Give cooperative PowerShell query cleanup up to one second to finish when the pipeline is stopped, using the canonical async cmdlet implementation.

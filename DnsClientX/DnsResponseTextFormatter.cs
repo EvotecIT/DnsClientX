@@ -12,10 +12,10 @@ namespace DnsClientX {
         /// <param name="response">The response whose available diagnostics should be displayed.</param>
         /// <returns>Diagnostic lines with provider-controlled terminal characters escaped.</returns>
         public static string[] BuildDiagnosticLines(DnsResponse response) {
-            if (response == null) throw new ArgumentNullException(nameof(response));
+            if (response == null) { throw new ArgumentNullException(nameof(response)); }
 
             var lines = new List<string>();
-            if (!string.IsNullOrWhiteSpace(response.Error)) lines.Add($"Error: {DnsTerminalText.Escape(response.Error)}");
+            if (!string.IsNullOrWhiteSpace(response.Error)) { lines.Add($"Error: {DnsTerminalText.Escape(response.Error)}"); }
             ExtendedDnsError[] errors = response.ExtendedDnsErrors ?? Array.Empty<ExtendedDnsError>();
             string repeatedComment = string.Join("; ", Array.ConvertAll(errors, error => $"EDE({error.InfoCode}): {error.ExtraText}"));
             if (!string.IsNullOrWhiteSpace(response.Comments) && !string.Equals(response.Comments, repeatedComment, StringComparison.Ordinal)) {

@@ -242,6 +242,7 @@ namespace DnsClientX.Cli {
             }
 
             return new ResolverExecutionTargetSource {
+                ProviderRequestFormat = options.ProviderTransport,
                 BuiltInEndpoints = options.BenchmarkEndpoints.Distinct().ToArray()
             };
         }
@@ -279,6 +280,7 @@ namespace DnsClientX.Cli {
             }
 
             return new ResolverExecutionTargetSource {
+                ProviderRequestFormat = options.ProviderTransport,
                 ProbeProfile = options.Endpoint
             };
         }

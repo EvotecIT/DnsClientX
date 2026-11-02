@@ -73,11 +73,11 @@ DnsClientX is part of the Evotec open-source toolkit, alongside [DomainDetective
 DnsClientX gives you **two ways** to work with DNS query results, depending on your needs:
 
 ### 🔤 **Non-Typed Records (Default)**
-Returns DNS data as **raw strings** - simple and straightforward:
+Returns DNS data as normalized text. Use `DataRaw` when you need the provider's original presentation:
 ```csharp
 var response = await ClientX.QueryDns("google.com", DnsRecordType.MX, DnsEndpoint.Cloudflare);
 foreach (var answer in response.Answers) {
-    Console.WriteLine($"Raw data: {answer.Data}"); // "10 smtp.google.com"
+    Console.WriteLine($"Normalized data: {answer.Data}"); // "10 smtp.google.com"
 }
 ```
 
@@ -100,47 +100,67 @@ The main `Resolve` APIs accept `typedRecords: true`. Supported records are retur
 
 ## Supported DNS Providers
 
-Select a built-in resolver profile by name, or supply an explicit endpoint for another address, transport, or personal filtering configuration. The table describes the transport selected by each preset, rather than every protocol offered by that provider.
+Select a built-in provider profile and optionally choose a published transport. Existing preset values and default transports are preserved. `Configuration(provider, requestFormat)` and `DnsResolverEndpointFactory.From(provider, requestFormat)` select alternatives while retaining the provider's filtering profile and TLS identity.
 
-| Endpoint                 | DoH | DoQ | DoT | UDP | TCP | DnsCrypt | ODoH |
-| ------------------------ | --- | --- | --- | --- | --- | -------- | ---- |
-| System                   |     |     |     | ✓   |     |          |      |
-| SystemTcp                |     |     |     |     | ✓   |          |      |
-| Cloudflare               | ✓   |     |     |     |     |          |      |
-| CloudflareWireFormat     | ✓   |     |     |     |     |          |      |
-| CloudflareWireFormatPost | ✓   |     |     |     |     |          |      |
-| CloudflareSecurity       | ✓   |     |     |     |     |          |      |
-| CloudflareFamily         | ✓   |     |     |     |     |          |      |
-| CloudflareQuic           |     | ❌  |     |     |     |          |      |
-| CloudflareOdoh           |     |     |     |     |     |          | ❌    |
-| Google                   | ✓   |     |     |     |     |          |      |
-| GoogleWireFormat         | ✓   |     |     |     |     |          |      |
-| GoogleWireFormatPost     | ✓   |     |     |     |     |          |      |
-| GoogleQuic               |     | ❌  |     |     |     |          |      |
-| AdGuard                  | ✓   |     |     |     |     |          |      |
-| AdGuardFamily            | ✓   |     |     |     |     |          |      |
-| AdGuardNonFiltering      | ✓   |     |     |     |     |          |      |
-| Quad9                    | ✓   |     |     |     |     |          |      |
-| Quad9Http3               | ✓   |     |     |     |     |          |      |
-| Quad9Quic                |     | ✓   |     |     |     |          |      |
-| Quad9ECS                 | ✓   |     |     |     |     |          |      |
-| Quad9Unsecure            | ✓   |     |     |     |     |          |      |
-| OpenDNS                  | ✓   |     |     |     |     |          |      |
-| OpenDNSFamily            | ✓   |     |     |     |     |          |      |
-| NextDNS                  | ✓   |     |     |     |     |          |      |
-| CleanBrowsingSecurity    | ✓   |     |     |     |     |          |      |
-| CleanBrowsingAdult       | ✓   |     |     |     |     |          |      |
-| CleanBrowsingFamily      | ✓   |     |     |     |     |          |      |
-| ControlD                 | ✓   |     |     |     |     |          |      |
-| ControlDMalware          | ✓   |     |     |     |     |          |      |
-| ControlDAds              | ✓   |     |     |     |     |          |      |
-| ControlDFamily           | ✓   |     |     |     |     |          |      |
-| ComodoSecureDns          |     |     |     | ✓   |     |          |      |
-| DnsWatch                 |     |     |     | ✓   |     |          |      |
-| DnsCryptCloudflare       |     |     |     |     |     | ❌        |      |
-| DnsCryptQuad9            |     |     |     |     |     | ❌        |      |
-| DnsCryptRelay            |     |     |     |     |     | ❌        |      |
-| RootServer               |     |     |     | ✓   | ✓   |          |      |
+| Transport | Implementation | Runtime |
+| --- | --- | --- |
+| UDP, TCP, DoT, DoH wire/JSON | Core library | All supported targets |
+| DoH3, DoQ | Core library | .NET 8/10 with runtime QUIC support |
+| DNSCrypt v2, Anonymized DNSCrypt | Optional DNSCrypt provider | Provider dependencies deployed by the caller |
+| ODoH | Optional ODoH provider | Explicit HTTPS target and relay |
+
+The generated table lists published transport mappings available through the built-in profiles. A dash means the profile has no mapping for that transport. These are service definitions, not a live connectivity or filtering-policy test. DoH wire includes RFC 8484 GET and POST. Runtime capability is checked separately with `DnsTransportCapabilities`.
+
+```powershell
+Resolve-Dns example.com -DnsProvider AdGuardFamily -ProviderTransport DnsOverQuic
+Resolve-Dns example.com -DnsProvider Cloudflare -ProviderTransport DnsOverTLS
+```
+
+```text
+DnsClientX --endpoint ControlDAds --provider-transport DnsOverQuic example.com
+```
+
+Regenerate the table after a library build with `pwsh -File Build/Update-ProviderDocumentation.ps1`.
+
+Selecting UDP or TCP for `System` preserves the operating system's resolver policy, including in probes and benchmarks. `RootServer` remains an iterative UDP profile and rejects a TCP override. Use an explicit TCP endpoint to query an individual root server directly.
+
+For `Resolve-Dns`, transport overrides involving `System`, `SystemTcp`, or `RootServer` require a single-provider query. Multi-resolver comparisons use explicit endpoints and cannot retain those profiles' system-policy or iterative behavior.
+
+<!-- provider-profiles:start -->
+| Profile | Default | UDP | TCP | DoT | DoH wire | DoH JSON | DoH3 | DoQ |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| System | UDP | yes | yes | - | - | - | - | - |
+| SystemTcp | TCP | yes | yes | - | - | - | - | - |
+| Cloudflare | DoH JSON | yes | yes | yes | yes | yes | - | - |
+| CloudflareSecurity | DoH JSON | yes | yes | yes | yes | yes | - | - |
+| CloudflareFamily | DoH JSON | yes | yes | yes | yes | yes | - | - |
+| CloudflareWireFormat | DoH wire | yes | yes | yes | yes | yes | - | - |
+| CloudflareWireFormatPost | DoH POST | yes | yes | yes | yes | yes | - | - |
+| Google | DoH wire | yes | yes | yes | yes | yes | - | - |
+| GoogleWireFormat | DoH wire | yes | yes | yes | yes | yes | - | - |
+| GoogleWireFormatPost | DoH POST | yes | yes | yes | yes | yes | - | - |
+| Quad9 | DoH wire | yes | yes | yes | yes | - | yes | yes |
+| Quad9ECS | DoH wire | yes | yes | yes | yes | - | yes | yes |
+| Quad9Unsecure | DoH wire | yes | yes | yes | yes | - | yes | yes |
+| OpenDNS | DoH wire | yes | yes | - | yes | - | - | - |
+| OpenDNSFamily | DoH wire | yes | yes | - | yes | - | - | - |
+| Quad9Http3 | DoH3 | yes | yes | yes | yes | - | yes | yes |
+| Quad9Quic | DoQ | yes | yes | yes | yes | - | yes | yes |
+| AdGuard | DoH wire | yes | yes | yes | yes | - | - | yes |
+| AdGuardFamily | DoH wire | yes | yes | yes | yes | - | - | yes |
+| AdGuardNonFiltering | DoH wire | yes | yes | yes | yes | - | - | yes |
+| NextDNS | DoH JSON | yes | yes | - | yes | yes | - | - |
+| RootServer | UDP | yes | - | - | - | - | - | - |
+| CleanBrowsingSecurity | DoH wire | yes | yes | yes | yes | - | - | - |
+| CleanBrowsingAdult | DoH wire | yes | yes | yes | yes | - | - | - |
+| CleanBrowsingFamily | DoH wire | yes | yes | yes | yes | - | - | - |
+| ControlD | DoH wire | yes | yes | yes | yes | - | - | yes |
+| ControlDMalware | DoH wire | yes | yes | yes | yes | - | - | yes |
+| ControlDAds | DoH wire | yes | yes | yes | yes | - | - | yes |
+| ControlDFamily | DoH wire | yes | yes | yes | yes | - | - | yes |
+| ComodoSecureDns | UDP | yes | yes | - | - | - | - | - |
+| DnsWatch | UDP | yes | yes | - | - | - | - | - |
+<!-- provider-profiles:end -->
 
 `CloudflareQuic`, `GoogleQuic`, `CloudflareJsonPost`, `GoogleJsonPost`, `CloudflareOdoh`, and the DNSCrypt preset names are retained for source compatibility and always throw when passed to the built-in endpoint constructor. The core implements DoQ for published endpoints such as `Quad9Quic` without extra transport packages on modern .NET. Create explicit caller-owned configurations through [DnsClientX.Odoh](DnsClientX.Odoh/README.md) or [DnsClientX.DnsCrypt](DnsClientX.DnsCrypt/README.md) to use privacy transports.
 
@@ -374,7 +394,7 @@ The same syntax works in:
 - `Test-DnsBenchmark -ResolverEndpoint ...`
 - CLI probe and benchmark endpoint inputs
 
-DNS stamps currently map into the core endpoint model for plain DNS, DoH, DoT, and DoQ. DNSCrypt and ODoH stamp protocols are detected and rejected with clear unsupported-protocol errors.
+DNS stamps currently map into the core endpoint model for plain DNS, DoH, DoT, and DoQ. Privacy stamps are inspected with `DnsStamp.ParsePrivacy`, `ConvertFrom-DnsStamp`, or CLI `--stamp-info`. The optional provider factories consume DNSCrypt resolver/relay and ODoH target/relay identities; the core endpoint parser continues to reject privacy stamps where an explicit provider is required.
 
 ## CLI Diagnostics and Resolver Workflows
 

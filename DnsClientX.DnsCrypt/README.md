@@ -29,4 +29,33 @@ To use Anonymized DNSCrypt, set `RelayEndpoint` to the relay's IP endpoint befor
 
 Certificate discovery sends only the configured provider TXT question without application encryption. Returned certificates must have a valid signature and validity interval. Refresh happens periodically and during exchange recovery. Failure never enables cleartext application DNS.
 
-The dynamic native backend targets desktop Windows, Linux, and macOS architectures supplied by the libsodium package. .NET Framework consumers using either `PackageReference` or `packages.config` receive Windows native assets in `runtimes/win-*/native`. Legacy consumers use the libsodium version installed in their `packages.config`. The provider loads the asset matching the running process from the original provider assembly directory or the application's deployment directory, including when the managed assembly is shadow copied. Apple mobile static libraries, post-quantum DNSCrypt, DNS stamps, and DNSSEC validation are separate capabilities.
+The dynamic native backend targets desktop Windows, Linux, and macOS architectures supplied by the libsodium package. .NET Framework consumers using either `PackageReference` or `packages.config` receive Windows native assets in `runtimes/win-*/native`. Legacy consumers use the libsodium version installed in their `packages.config`. The provider loads the asset matching the running process from the original provider assembly directory or the application's deployment directory, including when the managed assembly is shadow copied. Apple mobile static libraries, post-quantum DNSCrypt, and DNSSEC validation are separate capabilities.
+
+## Trusted resolver stamps and command-line queries
+
+`DnsCryptOptions.FromStamp(resolverStamp, relayStamp)` retains the resolver IP, certificate provider name and trusted public key. The optional second stamp selects an Anonymized DNSCrypt relay without replacing the authenticated resolver identity. Obtain stamps from a trusted resolver directory or the provider's own documentation.
+
+```csharp
+using var transport = new DnsCryptTransportFactory().Create(resolverStamp, relayStamp);
+using var client = new ClientX(transport.CreateConfiguration());
+var response = await client.Resolve("example.com", DnsRecordType.A);
+```
+
+The CLI can load the deployed provider explicitly, with its managed and native dependencies beside it:
+
+```text
+DnsClientX --privacy-provider ./DnsClientX.DnsCrypt.dll --privacy-resolver sdns://... --format json example.com
+```
+
+Add `--privacy-relay sdns://...` for an anonymizing relay. Query output, `--short`, `--explain` and cancellation use the normal shared query workflow; these options do not select probe, benchmark, update or zone-transfer modes. Loading a provider DLL executes local code, so select only a trusted deployment. The CLI owns and disposes that provider after the query completes.
+
+```powershell
+$transport = New-DnsPrivacyTransport -ProviderPath ./DnsClientX.DnsCrypt.dll -Resolver $resolverStamp -Relay $relayStamp
+try {
+    Resolve-Dns example.com -Configuration $transport.CreateConfiguration() -FullResponse
+} finally {
+    $transport.Dispose()
+}
+```
+
+`ConvertFrom-DnsStamp` and CLI `--stamp-info` inspect privacy roles without loading a provider or contacting a server. Stamp property bits describe the directory's claims; they do not independently verify DNSSEC, logging or filtering behavior.

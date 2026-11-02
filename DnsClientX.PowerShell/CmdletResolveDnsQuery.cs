@@ -96,7 +96,7 @@ namespace DnsClientX.PowerShell {
         /// <para type="description">Pattern to expand into multiple DNS queries.</para>
         /// </summary>
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "Pattern")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternConfiguration")]
+        [Parameter(Mandatory = true, ParameterSetName = "PatternConfiguration")]
         public string? Pattern { get; set; }
         /// <summary><para type="description">Complete resolver configuration, including an optional provider or verified DDR transport.
         /// Its endpoint, security policy and timeout are retained; explicitly specified query options can override query settings.
@@ -105,6 +105,10 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = true, ParameterSetName = "PatternConfiguration")]
         [ValidateNotNull]
         public Configuration? Configuration { get; set; }
+
+        /// <summary><para type="description">Published provider transport overriding the selected DnsProvider or ResolverDnsProvider defaults, preserving filtering policy.</para></summary>
+        [Parameter]
+        public DnsRequestFormat? ProviderTransport { get; set; }
 
         /// <summary>
         /// <para type="description">The type of the record to query for. NXNAME is a denial bitmap signal and cannot be queried directly. If not specified, A record is queried.</para>
@@ -444,6 +448,7 @@ namespace DnsClientX.PowerShell {
                 Pattern = Pattern,
                 RecordTypes = Type,
                 DnsProviders = DnsProvider ?? Array.Empty<DnsEndpoint>(),
+                ProviderRequestFormat = ProviderTransport,
                 DnsSelectionStrategy = DnsSelectionStrategy,
                 Servers = Server?.ToArray() ?? Array.Empty<string>(),
                 ResolverEndpoints = ResolverEndpoint ?? Array.Empty<string>(),

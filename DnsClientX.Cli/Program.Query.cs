@@ -75,7 +75,14 @@ namespace DnsClientX.Cli {
                         ttl: options.Ttl);
                 }
             } else {
-                result = await ResolverSingleOperationWorkflow.QueryAsync(
+                using IDnsWireTransportProvider? privacyProvider = options.PrivacyProviderPath == null ? null :
+                    DnsWireTransportProviderLoader.Load(options.PrivacyProviderPath, options.PrivacyResolver!, options.PrivacyRelay);
+                Configuration? configured = privacyProvider != null ? privacyProvider.CreateConfiguration()
+                    ?? throw new InvalidOperationException("The privacy provider did not supply a configuration.") : options.ProviderTransport.HasValue
+                    ? new Configuration(options.Endpoint, options.ProviderTransport.Value) : null;
+                result = configured != null ? await ResolverSingleOperationWorkflow.QueryConfiguredAsync(
+                    configured, options.Domain!, options.RecordType, options.RequestDnsSec,
+                    options.ValidateDnsSec, clientOptions, cancellationToken).ConfigureAwait(false) : await ResolverSingleOperationWorkflow.QueryAsync(
                     targetSource,
                     options.Domain!,
                     options.RecordType,
@@ -163,6 +170,22 @@ namespace DnsClientX.Cli {
         }
 
         private static int WriteStampInfo(CliOptions options) {
+            if (DnsStamp.IsPrivacyStamp(options.StampInfo)) {
+                DnsPrivacyStamp privacy = DnsStamp.ParsePrivacy(options.StampInfo!);
+                var description = new {
+                    privacy.Kind, privacy.Properties, Address = privacy.Address?.ToString(), privacy.ProviderName,
+                    ProviderPublicKey = string.Concat(privacy.ProviderPublicKey.Select(value => value.ToString("X2", CultureInfo.InvariantCulture))), privacy.Endpoint
+                };
+                if (options.OutputFormat == QueryOutputFormat.Json) { Console.WriteLine(DnsClientXJsonSerializer.Serialize(description)); }
+                else {
+                    WriteHumanLine($"DNS privacy stamp: {description.Kind}");
+                    WriteHumanLine($"  Address: {description.Address}");
+                    WriteHumanLine($"  Provider: {description.ProviderName}");
+                    WriteHumanLine($"  Provider public key: {description.ProviderPublicKey}");
+                    WriteHumanLine($"  HTTPS endpoint: {description.Endpoint}");
+                }
+                return 0;
+            }
             DnsStampInfo info = DnsStamp.Describe(options.StampInfo!);
             if (options.OutputFormat == QueryOutputFormat.Json) {
                 Console.WriteLine(DnsClientXJsonSerializer.Serialize(info));

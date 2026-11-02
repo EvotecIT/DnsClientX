@@ -803,12 +803,12 @@
       <command:noun>DnsStamp</command:noun>
       <maml:description>
         <maml:para>Parses a DNS stamp into a resolver endpoint description.</maml:para>
-        <maml:para>Converts a supported sdns:// DNS stamp into the same endpoint model used by DnsClientX resolver workflows. This command does not perform a DNS query.</maml:para>
+        <maml:para>Converts a supported sdns:// DNS stamp into a resolver endpoint description or a role-specific DNSCrypt/ODoH identity. This command does not load a provider or perform a DNS query.</maml:para>
       </maml:description>
     </command:details>
     <maml:description>
       <maml:para>Parses a DNS stamp into a resolver endpoint description.</maml:para>
-      <maml:para>Converts a supported sdns:// DNS stamp into the same endpoint model used by DnsClientX resolver workflows. This command does not perform a DNS query.</maml:para>
+      <maml:para>Converts a supported sdns:// DNS stamp into a resolver endpoint description or a role-specific DNSCrypt/ODoH identity. This command does not load a provider or perform a DNS query.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem parameterSetName="__AllParameterSets">
@@ -852,6 +852,11 @@
       <command:returnValue>
         <dev:type>
           <maml:name>DnsClientX.DnsStampInfo</maml:name>
+        </dev:type>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>DnsClientX.DnsPrivacyStamp</maml:name>
         </dev:type>
       </command:returnValue>
     </command:returnValues>
@@ -3738,6 +3743,132 @@ Discovery does not switch resolvers. Only a verified, unexpired candidate can cr
   </command:command>
   <command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10">
     <command:details>
+      <command:name>New-DnsPrivacyTransport</command:name>
+      <command:verb>New</command:verb>
+      <command:noun>DnsPrivacyTransport</command:noun>
+      <maml:description>
+        <maml:para>Creates a caller-owned optional DNS privacy transport from a trusted local provider.</maml:para>
+        <maml:para>Loads the selected provider DLL and its dependencies, then creates a transport from a DNSCrypt resolver stamp or an ODoH target and relay. Loading a DLL executes trusted local code. Dispose clients before disposing the transport.</maml:para>
+        <maml:para>Pass the transport's CreateConfiguration() result to Resolve-Dns -Configuration. DNSCrypt accepts an optional anonymizing relay stamp; ODoH requires an explicit relay endpoint or stamp. This command does not publish or install packages.</maml:para>
+      </maml:description>
+    </command:details>
+    <maml:description>
+      <maml:para>Creates a caller-owned optional DNS privacy transport from a trusted local provider.</maml:para>
+      <maml:para>Loads the selected provider DLL and its dependencies, then creates a transport from a DNSCrypt resolver stamp or an ODoH target and relay. Loading a DLL executes trusted local code. Dispose clients before disposing the transport.</maml:para>
+      <maml:para>Pass the transport's CreateConfiguration() result to Resolve-Dns -Configuration. DNSCrypt accepts an optional anonymizing relay stamp; ODoH requires an explicit relay endpoint or stamp. This command does not publish or install packages.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem parameterSetName="__AllParameterSets">
+        <maml:name>New-DnsPrivacyTransport</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ProviderPath</maml:name>
+          <maml:description>
+            <maml:para>Trusted local provider DLL path, with dependencies beside it.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>Relay</maml:name>
+          <maml:description>
+            <maml:para>Optional DNSCrypt relay stamp; required ODoH relay stamp/HTTPS endpoint.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>Resolver</maml:name>
+          <maml:description>
+            <maml:para>Trusted DNSCrypt resolver stamp or ODoH target stamp/HTTPS endpoint.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>String</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>ProviderPath</maml:name>
+        <maml:description>
+          <maml:para>Trusted local provider DLL path, with dependencies beside it.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>Relay</maml:name>
+        <maml:description>
+          <maml:para>Optional DNSCrypt relay stamp; required ODoH relay stamp/HTTPS endpoint.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>Resolver</maml:name>
+        <maml:description>
+          <maml:para>Trusted DNSCrypt resolver stamp or ODoH target stamp/HTTPS endpoint.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>DnsClientX.IDnsWireTransportProvider</maml:name>
+        </dev:type>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para></maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>EXAMPLE 1</maml:title>
+        <dev:code>$transport = New-DnsPrivacyTransport -ProviderPath ./DnsClientX.Odoh.dll -Resolver https://target.example/dns-query -Relay https://relay.example/dns-query&#xD;
+            try { Resolve-Dns example.com -Configuration $transport.CreateConfiguration() -FullResponse } finally { $transport.Dispose() }</dev:code>
+        <dev:remarks>
+          <maml:para>Query through an explicitly selected ODoH relay and target</maml:para>
+        </dev:remarks>
+      </command:example>
+    </command:examples>
+    <command:relatedLinks />
+  </command:command>
+  <command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" xmlns:MSHelp="http://msdn.microsoft.com/mshelp" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10">
+    <command:details>
       <command:name>Receive-DnsService</command:name>
       <command:verb>Receive</command:verb>
       <command:noun>DnsService</command:noun>
@@ -4283,6 +4414,36 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">Int32</command:parameterValue>
           <dev:type>
             <maml:name>Int32</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ProviderTransport</maml:name>
+          <maml:description>
+            <maml:para>Published provider transport overriding the selected DnsProvider or ResolverDnsProvider defaults, preserving filtering policy.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">DnsRequestFormat</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttps</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttpsJSON</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttpsPOST</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttpsWirePost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttpsJSONPOST</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverUDP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverTCP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverTLS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverQuic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttp2</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttp3</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCrypt</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptRelay</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ObliviousDnsOverHttps</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverGrpc</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Multicast</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>DnsRequestFormat</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -4915,6 +5076,36 @@ specified. When false, returns simple TXT records.</maml:para>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ProviderTransport</maml:name>
+          <maml:description>
+            <maml:para>Published provider transport overriding the selected DnsProvider or ResolverDnsProvider defaults, preserving filtering policy.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">DnsRequestFormat</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttps</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttpsJSON</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttpsPOST</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttpsWirePost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttpsJSONPOST</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverUDP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverTCP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverTLS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverQuic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttp2</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttp3</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCrypt</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptRelay</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ObliviousDnsOverHttps</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverGrpc</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Multicast</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>DnsRequestFormat</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>RequestDnsSec</maml:name>
           <maml:description>
             <maml:para>Request DNSSEC data (sets the DO bit).</maml:para>
@@ -5481,6 +5672,36 @@ specified. When false, returns simple TXT records.</maml:para>
           <command:parameterValue required="false" variableLength="false">Int32</command:parameterValue>
           <dev:type>
             <maml:name>Int32</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ProviderTransport</maml:name>
+          <maml:description>
+            <maml:para>Published provider transport overriding the selected DnsProvider or ResolverDnsProvider defaults, preserving filtering policy.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">DnsRequestFormat</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttps</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttpsJSON</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttpsPOST</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttpsWirePost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttpsJSONPOST</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverUDP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverTCP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverTLS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverQuic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttp2</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttp3</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCrypt</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptRelay</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ObliviousDnsOverHttps</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverGrpc</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Multicast</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>DnsRequestFormat</maml:name>
             <maml:uri />
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
@@ -6113,6 +6334,36 @@ specified. When false, returns simple TXT records.</maml:para>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+          <maml:name>ProviderTransport</maml:name>
+          <maml:description>
+            <maml:para>Published provider transport overriding the selected DnsProvider or ResolverDnsProvider defaults, preserving filtering policy.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="false">DnsRequestFormat</command:parameterValue>
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttps</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttpsJSON</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttpsPOST</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttpsWirePost</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttpsJSONPOST</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverUDP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverTCP</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverTLS</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverQuic</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttp2</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverHttp3</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCrypt</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsCryptRelay</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">ObliviousDnsOverHttps</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">DnsOverGrpc</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Multicast</command:parameterValue>
+          </command:parameterValueGroup>
+          <dev:type>
+            <maml:name>DnsRequestFormat</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>None</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>RequestDnsSec</maml:name>
           <maml:description>
             <maml:para>Request DNSSEC data (sets the DO bit).</maml:para>
@@ -6705,6 +6956,36 @@ specified. When false, returns simple TXT records.</maml:para>
         <command:parameterValue required="false" variableLength="false">Int32</command:parameterValue>
         <dev:type>
           <maml:name>Int32</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>None</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <maml:name>ProviderTransport</maml:name>
+        <maml:description>
+          <maml:para>Published provider transport overriding the selected DnsProvider or ResolverDnsProvider defaults, preserving filtering policy.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">DnsRequestFormat</command:parameterValue>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">DnsOverHttps</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsOverHttpsJSON</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsOverHttpsPOST</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsOverHttpsWirePost</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsOverHttpsJSONPOST</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsOverUDP</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsOverTCP</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsOverTLS</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsOverQuic</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsOverHttp2</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsOverHttp3</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsCrypt</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsCryptRelay</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">ObliviousDnsOverHttps</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">DnsOverGrpc</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Multicast</command:parameterValue>
+        </command:parameterValueGroup>
+        <dev:type>
+          <maml:name>DnsRequestFormat</maml:name>
           <maml:uri />
         </dev:type>
         <dev:defaultValue>None</dev:defaultValue>

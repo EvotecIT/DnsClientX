@@ -231,6 +231,12 @@ namespace DnsClientX {
                         var failure = ToConnectionException(exception, "Writing the framed DNS query failed.");
                         pending.Completion.TrySetException(failure);
                         Fault(failure);
+                        // A peer may finish its reply and close while WriteAsync/FlushAsync
+                        // is unwinding. The reader already owns that complete response;
+                        // a late stream error must not replace it or trigger a duplicate query.
+                        if (pending.Completion.Task.Status == TaskStatus.RanToCompletion) {
+                            return await pending.Completion.Task.ConfigureAwait(false);
+                        }
                         throw failure;
                     }
 

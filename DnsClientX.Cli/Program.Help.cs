@@ -23,6 +23,10 @@ namespace DnsClientX.Cli {
             Console.WriteLine("Options:");
             Console.WriteLine("  -t, --type <record>      DNS record type (default A, comma-separated with --benchmark)");
             Console.WriteLine("  -e, --endpoint <name>    DNS endpoint name (default System, comma-separated with --benchmark)");
+            Console.WriteLine("      --provider-transport <format>  Published transport for built-in profiles, e.g. DnsOverTLS or DnsOverQuic");
+            Console.WriteLine("      --privacy-provider <dll>      Trusted local optional-provider DLL; query mode only");
+            Console.WriteLine("      --privacy-resolver <value>    DNSCrypt resolver stamp or ODoH target stamp/HTTPS endpoint");
+            Console.WriteLine("      --privacy-relay <value>       Optional DNSCrypt relay stamp; required ODoH relay stamp/HTTPS endpoint");
             Console.WriteLine("      --domain <name>      Domain name (comma-separated with --benchmark)");
             Console.WriteLine("      --dnssec             Request DNSSEC records");
             Console.WriteLine("      --validate-dnssec    Validate DNSSEC records");
