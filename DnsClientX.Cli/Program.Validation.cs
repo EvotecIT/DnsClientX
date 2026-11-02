@@ -11,6 +11,7 @@ namespace DnsClientX.Cli {
     internal static partial class Program {
         private static bool ValidateParsedOptions(CliOptions options, out string? errorMessage) {
             errorMessage = null;
+            if (!ValidateProviderOptions(options, out errorMessage)) { return false; }
             if (!ValidateOperationalMode(options, out errorMessage)) {
                 return false;
             }

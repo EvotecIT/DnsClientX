@@ -647,114 +647,11 @@ namespace DnsClientX {
             string? baseUriFormat;
             switch (endpoint) {
                 case DnsEndpoint.System:
-                    // Use the system's default DNS resolver
-                    SystemDnsConfiguration = SystemInformation.GetDnsConfiguration(fallback: systemDnsFallback);
-                    hostnames = new List<string>(SystemDnsConfiguration.DnsServers);
-                    RequestFormat = DnsRequestFormat.DnsOverUDP;
-                    baseUriFormat = null;
-                    break;
                 case DnsEndpoint.SystemTcp:
-                    // Use the system's default DNS resolver
                     SystemDnsConfiguration = SystemInformation.GetDnsConfiguration(fallback: systemDnsFallback);
                     hostnames = new List<string>(SystemDnsConfiguration.DnsServers);
-                    RequestFormat = DnsRequestFormat.DnsOverTCP;
+                    RequestFormat = endpoint == DnsEndpoint.System ? DnsRequestFormat.DnsOverUDP : DnsRequestFormat.DnsOverTCP;
                     baseUriFormat = null;
-                    break;
-                case DnsEndpoint.Cloudflare:
-                    hostnames = ["1.1.1.1", "1.0.0.1"];
-                    RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.CloudflareWireFormat:
-                    hostnames = new List<string> { "1.1.1.1", "1.0.0.1" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttps;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.CloudflareWireFormatPost:
-                    hostnames = new List<string> { "1.1.1.1", "1.0.0.1" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttpsWirePost;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.CloudflareJsonPost:
-                    throw new NotSupportedException("Cloudflare does not publish a JSON-over-POST DNS endpoint. Use CloudflareWireFormatPost for RFC 8484 POST.");
-                case DnsEndpoint.CloudflareSecurity:
-                    hostnames = new List<string> { "1.1.1.2", "1.0.0.2" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.CloudflareFamily:
-                    hostnames = new List<string> { "1.1.1.3", "1.0.0.3" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.CloudflareQuic:
-                    throw new NotSupportedException("Cloudflare does not publish a DNS-over-QUIC resolver endpoint. Use Cloudflare DoH, DoH3, or DoT.");
-                case DnsEndpoint.Quad9Http3:
-                    hostnames = new List<string> { "dns.quad9.net" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttp3;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.Quad9Quic:
-                    hostnames = new List<string> { "dns.quad9.net" };
-                    RequestFormat = DnsRequestFormat.DnsOverQuic;
-                    TlsServerName = "dns.quad9.net";
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.CloudflareOdoh:
-                    throw new NotSupportedException("ODoH requires HPKE encapsulation and relay/target handling. It is intentionally not implemented by the core package.");
-                case DnsEndpoint.Custom:
-                    hostnames = [];
-                    RequestFormat = DnsRequestFormat.DnsOverHttps;
-                    baseUriFormat = null;
-                    break;
-                case DnsEndpoint.Google:
-                    hostnames = new List<string> { "dns.google" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttps;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.GoogleWireFormat:
-                    hostnames = new List<string> { "dns.google" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttps;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.GoogleWireFormatPost:
-                    hostnames = new List<string> { "dns.google" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttpsWirePost;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.GoogleJsonPost:
-                    throw new NotSupportedException("Google Public DNS does not publish a JSON-over-POST endpoint. Use GoogleWireFormatPost for RFC 8484 POST.");
-                case DnsEndpoint.GoogleQuic:
-                    throw new NotSupportedException("Google Public DNS does not publish a DNS-over-QUIC resolver endpoint. Use Google DoH, DoH3, or DoT.");
-                case DnsEndpoint.NextDNS:
-                    hostnames = new List<string> { "dns.nextdns.io" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttpsJSON;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.Quad9:
-                    hostnames = new List<string> { "dns.quad9.net" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttps;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.Quad9ECS:
-                    hostnames = new List<string> { "dns11.quad9.net" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttps;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.Quad9Unsecure:
-                    hostnames = new List<string> { "dns10.quad9.net" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttps;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.OpenDNS:
-                    hostnames = new List<string> { "208.67.222.222", "208.67.220.220" };
-                    RequestFormat = DnsRequestFormat.DnsOverHttps;
-                    baseUriFormat = "https://{0}/dns-query";
-                    break;
-                case DnsEndpoint.OpenDNSFamily:
-                    hostnames = ["208.67.222.123", "208.67.220.123"];
-                    RequestFormat = DnsRequestFormat.DnsOverHttps;
-                    baseUriFormat = "https://{0}/dns-query";
                     break;
                 case DnsEndpoint.RootServer:
                     hostnames = new List<string>(RootServers.Servers);
@@ -762,21 +659,19 @@ namespace DnsClientX {
                     RecursionDesired = false;
                     baseUriFormat = null;
                     break;
-                case DnsEndpoint.DnsCryptCloudflare:
-                case DnsEndpoint.DnsCryptQuad9:
-                case DnsEndpoint.DnsCryptRelay:
-                    throw new NotSupportedException("DNSCrypt v2 is intentionally reserved for an optional protocol package; the core package does not implement its cryptography.");
+                case DnsEndpoint.Custom:
+                    hostnames = new List<string>();
+                    RequestFormat = DnsRequestFormat.DnsOverHttps;
+                    baseUriFormat = null;
+                    break;
                 default:
-                    var preset = DnsProviderPresets.Get(endpoint);
-                    if (!preset.HasValue) {
-                        throw new ArgumentException("Invalid endpoint", nameof(endpoint));
-                    }
-                    hostnames = new List<string>(preset.Value.Hosts);
-                    RequestFormat = preset.Value.DohPath == null ? DnsRequestFormat.DnsOverUDP : DnsRequestFormat.DnsOverHttps;
-                    baseUriFormat = preset.Value.DohPath == null ? null : "https://{0}" + preset.Value.DohPath;
+                    var preset = DnsResolverEndpointFactory.RequireProfile(endpoint);
+                    hostnames = new List<string>(preset.Hosts);
+                    RequestFormat = preset.DefaultFormat;
+                    TlsServerName = RequestFormat == DnsRequestFormat.DnsOverQuic ? preset.TlsName : null;
+                    baseUriFormat = preset.DohPath == null ? null : "https://{0}" + preset.DohPath;
                     break;
             }
-
             if (endpoint == DnsEndpoint.Custom && hostnames.Count == 0) {
                 throw new ArgumentException("At least one hostname must be specified for a custom endpoint.", nameof(endpoint));
             }

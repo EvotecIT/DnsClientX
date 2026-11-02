@@ -11,7 +11,7 @@ namespace DnsClientX.Odoh;
 /// <summary>Transports encrypted RFC 9230 DNS messages through an explicitly chosen HTTPS relay.</summary>
 /// <remarks>The caller owns this provider's lifetime. Each query uses a fresh ephemeral HPKE context.
 /// Configuration acquisition contacts the HTTPS target; DNS queries and replies travel through the relay only.</remarks>
-public sealed partial class OdohClient : IDnsWireTransport, IDisposable {
+public sealed partial class OdohClient : IDnsWireTransportProvider {
     private const string MessageMediaType = "application/oblivious-dns-message";
     private readonly HttpClient _httpClient;
     private readonly bool _disposeHttpClient;

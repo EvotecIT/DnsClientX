@@ -11,7 +11,7 @@ namespace DnsClientX {
     /// <summary>
     /// Parses and creates DNS stamps for endpoint formats supported by DnsClientX.
     /// </summary>
-    public static class DnsStamp {
+    public static partial class DnsStamp {
         private const string Scheme = "sdns://";
 
         /// <summary>
@@ -499,7 +499,7 @@ namespace DnsClientX {
                 }
             }
 
-            private byte[] ReadLengthPrefixed(string fieldName) {
+            internal byte[] ReadLengthPrefixed(string fieldName) {
                 int length = ReadByte();
                 EnsureRemaining(length, fieldName);
 

@@ -401,19 +401,7 @@ namespace DnsClientX {
                 $"  Error code: {response.ErrorCode}"
             };
 
-            if (!string.IsNullOrWhiteSpace(response.Error)) {
-                lines.Add($"  Error: {response.Error}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(response.Comments)) {
-                lines.Add($"  Comments: {response.Comments}");
-            }
-
-            if (response.ExtendedDnsErrorInfo.Length > 0) {
-                foreach (ExtendedDnsErrorInfo ede in response.ExtendedDnsErrorInfo) {
-                    lines.Add($"  Extended DNS error: {ede.Code} {ede.Text}");
-                }
-            }
+            foreach (string diagnostic in DnsResponseTextFormatter.BuildDiagnosticLines(response)) { lines.Add("  " + diagnostic); }
 
             foreach (DnsQuestion question in response.Questions ?? Array.Empty<DnsQuestion>()) {
                 lines.Add($"  Question: {question.Name} {question.Type} via {question.RequestFormat}");

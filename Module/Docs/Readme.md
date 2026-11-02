@@ -28,7 +28,7 @@ Reports candidate and answer changes, health regressions, and incompatible query
 ### [ConvertFrom-DnsStamp](ConvertFrom-DnsStamp.md)
 Parses a DNS stamp into a resolver endpoint description.
 
-Converts a supported sdns:// DNS stamp into the same endpoint model used by DnsClientX resolver workflows. This command does not perform a DNS query.
+Converts a supported sdns:// DNS stamp into a resolver endpoint description or a role-specific DNSCrypt/ODoH identity. This command does not load a provider or perform a DNS query.
 
 ### [Find-DnsService](Find-DnsService.md)
 Discovers services advertised via DNS Service Discovery.
@@ -78,6 +78,13 @@ Adds or removes records in a zone using RFC 2136 over TCP.
 
 Use WhatIf to preview an update without contacting the server, or Confirm to approve each change.
 
+### [New-DnsPrivacyTransport](New-DnsPrivacyTransport.md)
+Creates a caller-owned optional DNS privacy transport from a trusted local provider.
+
+Loads the selected provider DLL and its dependencies, then creates a transport from a DNSCrypt resolver stamp or an ODoH target and relay. Loading a DLL executes trusted local code. Dispose clients before disposing the transport.
+
+Pass the transport's CreateConfiguration() result to Resolve-Dns -Configuration. DNSCrypt accepts an optional anonymizing relay stamp; ODoH requires an explicit relay endpoint or stamp. This command does not publish or install packages.
+
 ### [Receive-DnsService](Receive-DnsService.md)
 Continuously reports additions, changes, goodbyes and expirations of multicast DNS services.
 
@@ -92,6 +99,8 @@ Supports single-provider queries, explicit servers with transport selection, mul
 Specify either Name or Pattern. When no resolver source is specified, the library's default resolver is used. Timeout, retry, response, typed-record, and DNSSEC options apply to every resolver source.
 
 Name accepts pipeline strings or objects with Name, Domain, or DnsName properties. By default each answer is an individual pipeline row. Use FullResponse for complete response objects, TypedRecords for typed values, or TypedRecordMetadata to keep typed values and record metadata together.
+
+Non-success DNS responses produce a warning with the DNS status and available provider diagnostics. FullResponse retains comments and structured extended DNS errors. NoError describes the DNS response code; a filtering resolver can still return a sinkhole address.
 
 ### [Test-DnsBenchmark](Test-DnsBenchmark.md)
 Benchmarks one or more DNS providers or explicit resolver endpoints across repeated queries.

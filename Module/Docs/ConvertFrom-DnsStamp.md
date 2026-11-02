@@ -8,7 +8,7 @@ schema: 2.0.0
 ## SYNOPSIS
 Parses a DNS stamp into a resolver endpoint description.
 
-Converts a supported sdns:// DNS stamp into the same endpoint model used by DnsClientX resolver workflows. This command does not perform a DNS query.
+Converts a supported sdns:// DNS stamp into a resolver endpoint description or a role-specific DNSCrypt/ODoH identity. This command does not load a provider or perform a DNS query.
 
 ## SYNTAX
 ### __AllParameterSets
@@ -19,7 +19,7 @@ ConvertFrom-DnsStamp [-Stamp] <string> [<CommonParameters>]
 ## DESCRIPTION
 Parses a DNS stamp into a resolver endpoint description.
 
-Converts a supported sdns:// DNS stamp into the same endpoint model used by DnsClientX resolver workflows. This command does not perform a DNS query.
+Converts a supported sdns:// DNS stamp into a resolver endpoint description or a role-specific DNSCrypt/ODoH identity. This command does not load a provider or perform a DNS query.
 
 ## EXAMPLES
 
@@ -58,6 +58,7 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ## OUTPUTS
 
 - `DnsClientX.DnsStampInfo`
+- `DnsClientX.DnsPrivacyStamp`
 
 ## RELATED LINKS
 

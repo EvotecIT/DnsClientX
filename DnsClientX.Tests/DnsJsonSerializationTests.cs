@@ -8,6 +8,20 @@ namespace DnsClientX.Tests {
     /// Tests for JSON serialization utilities.
     /// </summary>
     public class DnsJsonSerializationTests {
+        /// <summary>Machine output adds normalized values without replacing the original record presentation.</summary>
+        [Theory]
+        [InlineData(DnsRecordType.CNAME, "Target.Example.", "target.example")]
+        [InlineData(DnsRecordType.TXT, "\"one\" \" two\"", "one two")]
+        [InlineData((DnsRecordType)65280, "Opaque CASE", "Opaque CASE")]
+        public void Serialize_ResponseIncludesRawAndNormalizedData(DnsRecordType type, string raw, string normalized) {
+            var response = new DnsResponse { Answers = new[] { new DnsAnswer { Name = "example.com", Type = type, DataRaw = raw } } };
+            using var json = System.Text.Json.JsonDocument.Parse(DnsClientXJsonSerializer.Serialize(response));
+            var answer = json.RootElement.GetProperty("Answer")[0];
+
+            Assert.Equal(raw, answer.GetProperty("data").GetString());
+            Assert.Equal(normalized, answer.GetProperty("data_normalized").GetString());
+        }
+
         /// <summary>
         /// Verifies that serialized property names use camelCase.
         /// </summary>

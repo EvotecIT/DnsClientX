@@ -10,6 +10,101 @@ namespace DnsClientX.Tests {
     /// Tests for JSON deserialization helper methods.
     /// </summary>
     public class DnsJsonDeserializeTests {
+        /// <summary>Cloudflare JSON comments expose the same structured EDE evidence as wire/Google replies.</summary>
+        [Theory]
+        [InlineData("\"EDE(9): DNSKEY Missing no matching key\"", "EDE(9): DNSKEY Missing no matching key", 9, "DNSKEY Missing no matching key")]
+        [InlineData("[\"EDE(15): Blocked by policy\"]", "EDE(15): Blocked by policy", 15, "Blocked by policy")]
+        public async Task Deserialize_PromotesRecognizedEdeComments(string commentJson, string originalComment, int code, string text) {
+            using var message = new HttpResponseMessage(HttpStatusCode.OK) {
+                Content = new StringContent("{\"Status\":2,\"Comment\":" + commentJson + "}")
+            };
+            DnsResponse response = await message.DeserializeResponse();
+
+            ExtendedDnsError error = Assert.Single(response.ExtendedDnsErrors);
+            Assert.Equal(code, error.InfoCode);
+            Assert.Equal(text, error.ExtraText);
+            Assert.Equal(originalComment, response.Comments);
+            Assert.Equal(DnsResponseCode.ServerFailure, response.Status);
+        }
+
+        /// <summary>Multiple comment entries and reflection-based consumers retain each reported code.</summary>
+        [Fact]
+        public void Deserialize_MultipleEdeComments_PreservesEachError() {
+            var response = DnsClientXJsonSerializer.Deserialize<DnsResponse>(
+                "{\"Status\":0,\"Comment\":[\"EDE(3): Stale answer\",\"EDE(0): Additional context\"]}")!;
+
+            Assert.Equal(new[] { 3, 0 }, response.ExtendedDnsErrors.Select(error => error.InfoCode));
+            Assert.Equal(new[] { "Stale answer", "Additional context" }, response.ExtendedDnsErrors.Select(error => error.ExtraText));
+            Assert.Equal("EDE(3): Stale answer; EDE(0): Additional context", response.Comments);
+            Assert.Equal(DnsResponseCode.NoError, response.Status);
+        }
+
+        /// <summary>A malformed marker inside free-form EDE text is retained while later valid entries remain distinct.</summary>
+        [Fact]
+        public void Deserialize_MalformedMarkerWithinEdeTextPreservesContext() {
+            var response = DnsClientXJsonSerializer.Deserialize<DnsResponse>(
+                "{\"Comment\":[\"EDE(9): Missing key; EDE(note): resolver context\",\"EDE(0): Additional context\"]}")!;
+
+            Assert.Equal(new[] { 9, 0 }, response.ExtendedDnsErrors.Select(error => error.InfoCode));
+            Assert.Equal("Missing key; EDE(note): resolver context", response.ExtendedDnsErrors[0].ExtraText);
+            Assert.Equal("Additional context", response.ExtendedDnsErrors[1].ExtraText);
+            Assert.Equal("EDE(9): Missing key; EDE(note): resolver context; EDE(0): Additional context", response.Comments);
+        }
+
+        /// <summary>Numeric EDE mentions inside an entry remain text; only original entry headers become evidence.</summary>
+        [Theory]
+        [InlineData("\"EDE(9): Missing key; EDE(0): quoted text\"", "EDE(9): Missing key; EDE(0): quoted text")]
+        [InlineData("[\"Resolver note; EDE(15): quoted text\",\"EDE(9): Missing key; EDE(0): quoted text\"]", "Resolver note; EDE(15): quoted text; EDE(9): Missing key; EDE(0): quoted text")]
+        public async Task Deserialize_UsesOriginalCommentEntryBoundaries(string commentJson, string displayedComment) {
+            using var message = new HttpResponseMessage(HttpStatusCode.OK) {
+                Content = new StringContent("{\"Comment\":" + commentJson + "}")
+            };
+            DnsResponse response = await message.DeserializeResponse();
+            ExtendedDnsError error = Assert.Single(response.ExtendedDnsErrors);
+            Assert.Equal(9, error.InfoCode);
+            Assert.Equal("Missing key; EDE(0): quoted text", error.ExtraText);
+            Assert.Equal(displayedComment, response.Comments);
+            using var serialized = System.Text.Json.JsonDocument.Parse(DnsClientXJsonSerializer.Serialize(response));
+            Assert.Equal(displayedComment, serialized.RootElement.GetProperty("Comment").GetString());
+        }
+
+        /// <summary>Null comments retain the public serializer's null-omission contract.</summary>
+        [Fact]
+        public void Deserialize_NullCommentRetainsNullOmission() {
+            var response = DnsClientXJsonSerializer.Deserialize<DnsResponse>("{\"Comment\":null}")!;
+            Assert.Null(response.Comments);
+            Assert.Empty(response.ExtendedDnsErrors);
+            using var serialized = System.Text.Json.JsonDocument.Parse(DnsClientXJsonSerializer.Serialize(response));
+            Assert.False(serialized.RootElement.TryGetProperty("Comment", out _));
+        }
+
+        /// <summary>Structured provider data takes precedence, independent of JSON property order.</summary>
+        [Theory]
+        [InlineData("\"Comment\":\"EDE(9): comment text\",\"extended_dns_errors\":[{\"info_code\":6,\"extra_text\":\"authoritative detail\"}]")]
+        [InlineData("\"extended_dns_errors\":[{\"info_code\":6,\"extra_text\":\"authoritative detail\"}],\"Comment\":\"EDE(9): comment text\"")]
+        public void Deserialize_PreservesStructuredProviderErrors(string properties) {
+            var response = DnsClientXJsonSerializer.Deserialize<DnsResponse>("{" + properties + "}")!;
+
+            ExtendedDnsError error = Assert.Single(response.ExtendedDnsErrors);
+            Assert.Equal(6, error.InfoCode);
+            Assert.Equal("authoritative detail", error.ExtraText);
+            Assert.Equal("EDE(9): comment text", response.Comments);
+        }
+
+        /// <summary>Ordinary prose and malformed/out-of-range codes do not become invented structured errors.</summary>
+        [Theory]
+        [InlineData("Resolver mentions EDE(9): in prose")]
+        [InlineData("Resolver note; EDE(9): example text")]
+        [InlineData("EDE(-1): invalid")]
+        [InlineData("EDE(65536): invalid")]
+        [InlineData("EDE(9) missing colon")]
+        public void Deserialize_UnrecognizedComments_RemainText(string comment) {
+            string json = System.Text.Json.JsonSerializer.Serialize(new { Comment = comment });
+            var response = DnsClientXJsonSerializer.Deserialize<DnsResponse>(json)!;
+            Assert.Empty(response.ExtendedDnsErrors);
+            Assert.Equal(comment, response.Comments);
+        }
+
         /// <summary>
         /// Ensures an exception is thrown when the HTTP response has no content.
         /// </summary>

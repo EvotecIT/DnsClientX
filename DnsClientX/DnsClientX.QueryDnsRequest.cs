@@ -332,6 +332,17 @@ namespace DnsClientX {
         }
 
         private static ClientX CreateClientForProvider(ResolveDnsRequest request, DnsEndpoint provider, EdnsOptions? ednsOptions) {
+            if (request.ProviderRequestFormat.HasValue) {
+                var configuration = new Configuration(provider, request.ProviderRequestFormat.Value, request.DnsSelectionStrategy) {
+                    UseTcpFallback = request.UseTcpFallback, MaxConnectionsPerServer = request.EffectiveMaxConnectionsPerServer
+                };
+                if (request.UserAgent != null) { configuration.UserAgent = request.UserAgent; }
+                if (request.HttpVersion != null) { configuration.HttpVersion = request.HttpVersion; }
+                var configured = new ClientX(configuration,
+                    request.IgnoreCertificateErrors, request.ResponseCache, request.CreateWebProxy());
+                ApplyRequestConfiguration(configured, request, ednsOptions);
+                return configured;
+            }
             var client = new ClientX(
                 provider,
                 request.DnsSelectionStrategy,
@@ -406,13 +417,13 @@ namespace DnsClientX {
 
             if (request.ResolverDnsProviders.Length > 0) {
                 return request.ResolverDnsProviders
-                    .SelectMany(DnsResolverEndpointFactory.From)
+                    .SelectMany(provider => request.ProviderRequestFormat.HasValue ? DnsResolverEndpointFactory.From(provider, request.ProviderRequestFormat.Value) : DnsResolverEndpointFactory.From(provider))
                     .ToArray();
             }
 
             if (request.DnsProviders.Length > 1) {
                 return request.DnsProviders
-                    .SelectMany(DnsResolverEndpointFactory.From)
+                    .SelectMany(provider => request.ProviderRequestFormat.HasValue ? DnsResolverEndpointFactory.From(provider, request.ProviderRequestFormat.Value) : DnsResolverEndpointFactory.From(provider))
                     .ToArray();
             }
 

@@ -14,10 +14,12 @@ Specify either Name or Pattern. When no resolver source is specified, the librar
 
 Name accepts pipeline strings or objects with Name, Domain, or DnsName properties. By default each answer is an individual pipeline row. Use FullResponse for complete response objects, TypedRecords for typed values, or TypedRecordMetadata to keep typed values and record metadata together.
 
+Non-success DNS responses produce a warning with the DNS status and available provider diagnostics. FullResponse retains comments and structured extended DNS errors. NoError describes the DNS response code; a filtering resolver can still return a sinkhole address.
+
 ## SYNTAX
 ### Name (Default)
 ```powershell
-Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverDnsProvider <DnsEndpoint[]>] [-ResolverSelectionPath <string>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-Stream] [-CompletionOrder] [-TypedRecordMetadata] [-DnsSecVerifierPath <string>] [-DnsSecSignatureVerifier <IDnsSecSignatureVerifier>] [-DnsSecTrustAnchors <DnsSecZoneTrustAnchor[]>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-ProviderTransport <DnsRequestFormat>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverDnsProvider <DnsEndpoint[]>] [-ResolverSelectionPath <string>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-Stream] [-CompletionOrder] [-TypedRecordMetadata] [-DnsSecVerifierPath <string>] [-DnsSecSignatureVerifier <IDnsSecSignatureVerifier>] [-DnsSecTrustAnchors <DnsSecZoneTrustAnchor[]>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ### NameConfiguration
@@ -27,12 +29,12 @@ Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] -Configuration <Confi
 
 ### Pattern
 ```powershell
-Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverDnsProvider <DnsEndpoint[]>] [-ResolverSelectionPath <string>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-Stream] [-CompletionOrder] [-TypedRecordMetadata] [-DnsSecVerifierPath <string>] [-DnsSecSignatureVerifier <IDnsSecSignatureVerifier>] [-DnsSecTrustAnchors <DnsSecZoneTrustAnchor[]>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-ProviderTransport <DnsRequestFormat>] [-DnsProvider <DnsEndpoint[]>] [-DnsSelectionStrategy <DnsSelectionStrategy>] [-Server <List[string]>] [-ResolverEndpoint <string[]>] [-ResolverEndpointFile <string[]>] [-ResolverEndpointUrl <string[]>] [-ResolverDnsProvider <DnsEndpoint[]>] [-ResolverSelectionPath <string>] [-ResolverStrategy <MultiResolverStrategy>] [-MaxParallelism <int>] [-RespectEndpointTimeout] [-FastestCacheMinutes <int>] [-PerEndpointMaxInFlight <int>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-Stream] [-CompletionOrder] [-TypedRecordMetadata] [-DnsSecVerifierPath <string>] [-DnsSecSignatureVerifier <IDnsSecSignatureVerifier>] [-DnsSecTrustAnchors <DnsSecZoneTrustAnchor[]>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-RequestFormat <DnsRequestFormat>] [-Port <int>] [-UserAgent <string>] [-HttpVersion <version>] [-IgnoreCertificateErrors] [-UseTcpFallback <bool>] [-ProxyUri <uri>] [-MaxConnectionsPerServer <int>] [-MaxConcurrency <int>] [-AllServers] [-Fallback] [-RandomServer] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ### PatternConfiguration
 ```powershell
-Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] -Configuration <Configuration> [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-Stream] [-CompletionOrder] [-TypedRecordMetadata] [-DnsSecVerifierPath <string>] [-DnsSecSignatureVerifier <IDnsSecSignatureVerifier>] [-DnsSecTrustAnchors <DnsSecZoneTrustAnchor[]>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [[-Type] <DnsRecordType[]>] -Pattern <string> -Configuration <Configuration> [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-Stream] [-CompletionOrder] [-TypedRecordMetadata] [-DnsSecVerifierPath <string>] [-DnsSecSignatureVerifier <IDnsSecSignatureVerifier>] [-DnsSecTrustAnchors <DnsSecZoneTrustAnchor[]>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -43,6 +45,8 @@ Supports single-provider queries, explicit servers with transport selection, mul
 Specify either Name or Pattern. When no resolver source is specified, the library's default resolver is used. Timeout, retry, response, typed-record, and DNSSEC options apply to every resolver source.
 
 Name accepts pipeline strings or objects with Name, Domain, or DnsName properties. By default each answer is an individual pipeline row. Use FullResponse for complete response objects, TypedRecords for typed values, or TypedRecordMetadata to keep typed values and record metadata together.
+
+Non-success DNS responses produce a warning with the DNS status and available provider diagnostics. FullResponse retains comments and structured extended DNS errors. NoError describes the DNS response code; a filtering resolver can still return a sinkhole address.
 
 ## EXAMPLES
 
@@ -599,6 +603,22 @@ Type: Int32
 Parameter Sets: Name, Pattern
 Aliases: None
 Possible values:
+
+Required: False
+Position: named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ProviderTransport
+Published provider transport overriding the selected DnsProvider or ResolverDnsProvider defaults, preserving filtering policy.
+
+```yaml
+Type: DnsRequestFormat
+Parameter Sets: Name, Pattern
+Aliases: None
+Possible values: DnsOverHttps, DnsOverHttpsJSON, DnsOverHttpsPOST, DnsOverHttpsWirePost, DnsOverHttpsJSONPOST, DnsOverUDP, DnsOverTCP, DnsOverTLS, DnsOverQuic, DnsOverHttp2, DnsOverHttp3, DnsCrypt, DnsCryptRelay, ObliviousDnsOverHttps, DnsOverGrpc, Multicast
 
 Required: False
 Position: named

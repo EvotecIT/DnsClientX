@@ -10,7 +10,7 @@ namespace DnsClientX.DnsCrypt;
 /// <remarks>The caller owns this provider even when its configuration is used by a ClientX instance.
 /// Each query uses a fresh ephemeral key pair and owns its sockets. Disposal cancels active exchanges.
 /// The only unencrypted DNS message sent is the configured provider's certificate TXT query.</remarks>
-public sealed partial class DnsCryptClient : IDnsWireTransport, IDisposable {
+public sealed partial class DnsCryptClient : IDnsWireTransportProvider {
     private readonly DnsCryptOptions _options;
     private readonly SemaphoreSlim _refreshGate = new SemaphoreSlim(1, 1);
     private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();

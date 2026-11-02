@@ -62,6 +62,25 @@ namespace DnsClientX.Cli {
                         }
                         AddOptionValues(options.DomainInputs, domainValue);
                         break;
+                    case var opt when opt.Equals("--provider-transport", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, arg, out string? transport, out errorMessage) ||
+                            !Enum.TryParse(transport, true, out DnsRequestFormat parsedTransport) || !Enum.IsDefined(typeof(DnsRequestFormat), parsedTransport)) {
+                            errorMessage = "--provider-transport requires a DnsRequestFormat name, such as DnsOverTLS or DnsOverQuic.";
+                            invalidSwitches = null; options = null; return false;
+                        }
+                        options.ProviderTransport = parsedTransport;
+                        break;
+                    case var opt when opt.Equals("--privacy-provider", StringComparison.OrdinalIgnoreCase) ||
+                                       opt.Equals("--privacy-resolver", StringComparison.OrdinalIgnoreCase) ||
+                                       opt.Equals("--privacy-relay", StringComparison.OrdinalIgnoreCase):
+                        if (!TryReadNext(args, ref i, arg, out string? privacyValue, out errorMessage) || string.IsNullOrWhiteSpace(privacyValue)) {
+                            errorMessage = arg + " requires a nonblank value.";
+                            invalidSwitches = null; options = null; return false;
+                        }
+                        if (arg.Equals("--privacy-provider", StringComparison.OrdinalIgnoreCase)) { options.PrivacyProviderPath = privacyValue; }
+                        else if (arg.Equals("--privacy-resolver", StringComparison.OrdinalIgnoreCase)) { options.PrivacyResolver = privacyValue; }
+                        else { options.PrivacyRelay = privacyValue; }
+                        break;
                     case var opt when opt.Equals("--reverse", StringComparison.OrdinalIgnoreCase) ||
                                        opt.Equals("--ptr", StringComparison.OrdinalIgnoreCase):
                         options.ReverseLookup = true;

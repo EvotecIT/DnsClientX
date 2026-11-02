@@ -142,19 +142,19 @@ namespace DnsClientX {
         [Description("Generic NextDNS DNS-over-HTTPS endpoint; personal filtering requires an explicit profile URL.")]
         NextDNS,
         /// <summary>
-        /// Reserved for a future optional DNSCrypt v2 package.
+        /// Legacy preset identifier. Use DnsClientX.DnsCrypt with a trusted resolver stamp.
         /// </summary>
-        [Description("Unsupported in the core package; reserved for optional DNSCrypt v2 support.")]
+        [Description("Legacy preset; configure the optional DNSCrypt provider with a trusted resolver stamp.")]
         DnsCryptCloudflare,
         /// <summary>
-        /// Reserved for a future optional DNSCrypt v2 package.
+        /// Legacy preset identifier. Use DnsClientX.DnsCrypt with a trusted resolver stamp.
         /// </summary>
-        [Description("Unsupported in the core package; reserved for optional DNSCrypt v2 support.")]
+        [Description("Legacy preset; configure the optional DNSCrypt provider with a trusted resolver stamp.")]
         DnsCryptQuad9,
         /// <summary>
         /// DNSCrypt relay server option.
         /// </summary>
-        [Description("Unsupported in the core package; reserved for optional DNSCrypt v2 support.")]
+        [Description("Legacy preset; configure the optional DNSCrypt provider with a trusted resolver stamp.")]
         DnsCryptRelay,
         /// <summary>
         /// DNS root servers, queried iteratively starting from one of the
@@ -163,9 +163,9 @@ namespace DnsClientX {
         [Description("DNS root servers, queried iteratively starting from one of the well known A-M root server instances.")]
         RootServer,
         /// <summary>
-        /// Reserved for future ODoH support; not implemented by the core package.
+        /// Legacy preset identifier. Use DnsClientX.Odoh with an explicit target and relay.
         /// </summary>
-        [Description("Unsupported in the core package; ODoH requires HPKE relay and target handling.")]
+        [Description("Legacy preset; configure the optional ODoH provider with an explicit target and relay.")]
         CloudflareOdoh,
         /// <summary>
         /// Custom DNS endpoint configured via <see cref="Configuration"/>

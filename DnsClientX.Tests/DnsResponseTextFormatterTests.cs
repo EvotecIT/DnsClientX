@@ -9,6 +9,24 @@ namespace DnsClientX.Tests {
         private static readonly Func<TimeSpan, string> DurationFormatter =
             duration => $"{(int)Math.Round(duration.TotalMilliseconds, MidpointRounding.AwayFromZero)} ms";
 
+        /// <summary>Promoted EDE comments produce one readable diagnostic while preserving the original evidence.</summary>
+        [Theory]
+        [InlineData(DnsResponsePresentationMode.Pretty)]
+        [InlineData(DnsResponsePresentationMode.Raw)]
+        public void TextModesDisplayRepeatedEdeEvidenceOnce(DnsResponsePresentationMode mode) {
+            var response = new DnsResponse {
+                Status = DnsResponseCode.ServerFailure,
+                Comments = "EDE(9): no matching key",
+                ExtendedDnsErrors = new[] { new ExtendedDnsError { InfoCode = 9, ExtraText = "no matching key" } }
+            };
+            string[] lines = DnsResponseTextFormatter.BuildOutputLines(response,
+                new DnsResponsePresentationOptions { Mode = mode }, TimeSpan.Zero, DurationFormatter);
+
+            Assert.Contains(lines, line => line.Contains("Extended DNS error: 9 no matching key", StringComparison.Ordinal));
+            Assert.DoesNotContain(lines, line => line.Contains("Comments:", StringComparison.Ordinal));
+            Assert.Equal("EDE(9): no matching key", response.Comments);
+        }
+
         /// <summary>Supplementary format controls cannot hide terminal text while ordinary emoji remain intact.</summary>
         [Fact]
         public void TerminalTextEscapesSupplementaryFormatCharacters() {
@@ -51,6 +69,8 @@ namespace DnsClientX.Tests {
         public void TextModesEscapeUntrustedMetadata(DnsResponsePresentationMode mode) {
             DnsResponse response = new() {
                 Error = "resolver\u001b[2Jfailed\nnext",
+                Comments = "policy\u001b[2Jdetail\nnext",
+                ExtendedDnsErrors = new[] { new ExtendedDnsError { InfoCode = 15, ExtraText = "blocked\u202E\nreason" } },
                 Questions = new[] { new DnsQuestion { Name = "q\u202E.example", Type = DnsRecordType.A } },
                 Answers = new[] { new DnsAnswer { Name = "a\u001b[31m.example", DataRaw = "203.0.113.10" } }
             };
@@ -67,6 +87,8 @@ namespace DnsClientX.Tests {
             Assert.Contains(lines, line => line.Contains("resolver\\u001B[2Jfailed\\u000Anext", StringComparison.Ordinal));
             Assert.Contains(lines, line => line.Contains("q\\u202E.example", StringComparison.Ordinal));
             Assert.Contains(lines, line => line.Contains("a\\u001B[31m.example", StringComparison.Ordinal));
+            Assert.Contains(lines, line => line.Contains("Comments: policy\\u001B[2Jdetail\\u000Anext", StringComparison.Ordinal));
+            Assert.Contains(lines, line => line.Contains("Extended DNS error: 15 blocked\\u202E\\u000Areason", StringComparison.Ordinal));
         }
 
         /// <summary>

@@ -37,6 +37,9 @@ namespace DnsClientX {
         /// </summary>
         public DnsEndpoint[] DnsProviders { get; set; } = Array.Empty<DnsEndpoint>();
 
+        /// <summary>Gets or sets a published transport override for DnsProviders or ResolverDnsProviders.</summary>
+        public DnsRequestFormat? ProviderRequestFormat { get; set; }
+
         /// <summary>
         /// Gets or sets how a built-in provider chooses among its backing resolvers.
         /// </summary>
@@ -289,6 +292,14 @@ namespace DnsClientX {
         /// Validates the request before execution.
         /// </summary>
         public void Validate() {
+            if (ProviderRequestFormat.HasValue && (Configuration != null || Servers.Length > 0 || HasResolverEndpointInputs ||
+                !string.IsNullOrWhiteSpace(ResolverSelectionPath) || DnsProviders.Length == 0 && ResolverDnsProviders.Length == 0)) {
+                throw new InvalidOperationException("ProviderRequestFormat requires DnsProviders or ResolverDnsProviders as the exclusive resolver source.");
+            }
+            if (ProviderRequestFormat.HasValue && IsMultiResolverRequest && DnsProviders.Concat(ResolverDnsProviders)
+                .Any(provider => provider == DnsEndpoint.System || provider == DnsEndpoint.SystemTcp || provider == DnsEndpoint.RootServer)) {
+                throw new NotSupportedException("System and RootServer transport overrides require a single-provider query so resolver policy and iteration are preserved. Use explicit endpoints for direct multi-resolver comparisons.");
+            }
             if (BootstrapResolver != null) DnsBootstrapResolver.Validate(BootstrapResolver);
             bool hasPattern = !string.IsNullOrWhiteSpace(Pattern);
             bool hasNames = Names is { Length: > 0 };

@@ -12,6 +12,7 @@ namespace DnsClientX.PowerShell {
     /// <para type="description">Supports single-provider queries, explicit servers with transport selection, multiple providers with FirstSuccess/FastestWins/SequentialFallback/RoundRobin, direct resolver endpoints, DNSSEC, EDNS/ECS, concurrency control, and TTL-based response caching.</para>
     /// <para type="description">Specify either Name or Pattern. When no resolver source is specified, the library's default resolver is used. Timeout, retry, response, typed-record, and DNSSEC options apply to every resolver source.</para>
     /// <para type="description">Name accepts pipeline strings or objects with Name, Domain, or DnsName properties. By default each answer is an individual pipeline row. Use FullResponse for complete response objects, TypedRecords for typed values, or TypedRecordMetadata to keep typed values and record metadata together.</para>
+    /// <para type="description">Non-success DNS responses produce a warning with the DNS status and available provider diagnostics. FullResponse retains comments and structured extended DNS errors. NoError describes the DNS response code; a filtering resolver can still return a sinkhole address.</para>
     /// </summary>
     /// <example>
     ///  <para>Simple (system default)</para>
@@ -95,7 +96,7 @@ namespace DnsClientX.PowerShell {
         /// <para type="description">Pattern to expand into multiple DNS queries.</para>
         /// </summary>
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "Pattern")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PatternConfiguration")]
+        [Parameter(Mandatory = true, ParameterSetName = "PatternConfiguration")]
         public string? Pattern { get; set; }
         /// <summary><para type="description">Complete resolver configuration, including an optional provider or verified DDR transport.
         /// Its endpoint, security policy and timeout are retained; explicitly specified query options can override query settings.
@@ -104,6 +105,11 @@ namespace DnsClientX.PowerShell {
         [Parameter(Mandatory = true, ParameterSetName = "PatternConfiguration")]
         [ValidateNotNull]
         public Configuration? Configuration { get; set; }
+
+        /// <summary><para type="description">Published provider transport overriding the selected DnsProvider or ResolverDnsProvider defaults, preserving filtering policy.</para></summary>
+        [Parameter(ParameterSetName = "Name")]
+        [Parameter(ParameterSetName = "Pattern")]
+        public DnsRequestFormat? ProviderTransport { get; set; }
 
         /// <summary>
         /// <para type="description">The type of the record to query for. NXNAME is a denial bitmap signal and cannot be queried directly. If not specified, A record is queried.</para>
@@ -443,6 +449,7 @@ namespace DnsClientX.PowerShell {
                 Pattern = Pattern,
                 RecordTypes = Type,
                 DnsProviders = DnsProvider ?? Array.Empty<DnsEndpoint>(),
+                ProviderRequestFormat = ProviderTransport,
                 DnsSelectionStrategy = DnsSelectionStrategy,
                 Servers = Server?.ToArray() ?? Array.Empty<string>(),
                 ResolverEndpoints = ResolverEndpoint ?? Array.Empty<string>(),
@@ -530,7 +537,9 @@ namespace DnsClientX.PowerShell {
             if (record.Status == DnsResponseCode.NoError) {
                 WriteVerbose($"Query successful for {names} with type {types}, {source} (retries {record.RetryCount})");
             } else {
-                WriteWarning($"Query failed for {names} with type {types}, {source} and error: {record.Error}");
+                string[] diagnostics = DnsResponseTextFormatter.BuildDiagnosticLines(record);
+                string detail = diagnostics.Length == 0 ? string.Empty : ": " + string.Join("; ", diagnostics);
+                WriteWarning($"Query returned {record.Status} for {names} with type {types}, {source}{detail}");
             }
         }
 
