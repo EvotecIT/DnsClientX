@@ -38,7 +38,7 @@ Query through an explicitly selected ODoH relay and target
 ## PARAMETERS
 
 ### -ProviderPath
-Trusted local provider DLL path, with dependencies beside it.
+Trusted local provider DLL path, with dependencies beside it. A provider DLL is required to create a transport; omitting this parameter reports MissingDnsPrivacyProvider with setup guidance.
 
 ```yaml
 Type: String

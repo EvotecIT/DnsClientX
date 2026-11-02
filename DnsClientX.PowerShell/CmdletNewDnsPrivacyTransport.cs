@@ -16,7 +16,7 @@ namespace DnsClientX.PowerShell;
 [Cmdlet(VerbsCommon.New, "DnsPrivacyTransport")]
 [OutputType(typeof(IDnsWireTransportProvider))]
 public sealed class CmdletNewDnsPrivacyTransport : PSCmdlet {
-    /// <summary><para type="description">Trusted local provider DLL path, with dependencies beside it.</para></summary>
+    /// <summary><para type="description">Trusted local provider DLL path, with dependencies beside it. A provider DLL is required to create a transport; omitting this parameter reports MissingDnsPrivacyProvider with setup guidance.</para></summary>
     [Parameter]
     [ValidateNotNullOrEmpty]
     public string ProviderPath { get; set; } = string.Empty;

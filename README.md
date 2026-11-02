@@ -52,10 +52,10 @@ Resolve-Dns -Name evotec.pl -Type A -DnsProvider Cloudflare,Quad9 -ResolverStrat
 | Discovery | DNS-SD over unicast and multicast, continuous mDNS browsing and DDR discovery of verified encrypted resolvers | [Service discovery](https://domaindetective.dev/docs/dnsclientx/discovery/) |
 | Your network | System resolver discovery with Windows NRPT, resolv.conf search lists, EDNS client subnet, DNS stamps and source binding | [Transports and endpoints](https://domaindetective.dev/docs/dnsclientx/transports/) |
 | Browser | A caller-owned `HttpClient` DNS JSON client for Blazor WebAssembly and dependency-injected hosts | [Try it live](https://domaindetective.dev/dnsclientx/) |
-| Surfaces | The .NET library, a PowerShell module with 19 cmdlets for Windows PowerShell 5.1 and PowerShell 7.4+, and a CLI | [PowerShell guide](https://domaindetective.dev/docs/dnsclientx/powershell/) |
+| Surfaces | The .NET library, a PowerShell module with 20 cmdlets for Windows PowerShell 5.1 and PowerShell 7.4+, and a CLI | [PowerShell guide](https://domaindetective.dev/docs/dnsclientx/powershell/) |
 
 > [!NOTE]
-> NuGet and the PowerShell Gallery currently ship DnsClientX 2.1.2. This README documents the `main` branch: the optional `DnsClientX.Odoh`, `DnsClientX.DnsCrypt` and `DnsClientX.DnsSec.EdDsa` packages, the CLI, designated-resolver discovery and the newer cmdlets (`Test-DnsHealth`, `Get-DnsDesignatedResolver`, `Receive-DnsService`, `Get-DnsQueryExplanation`, `Compare-DnsResolverSnapshot`, `Get-DnsCache` and `Clear-DnsCache`) arrive with the next public release. See the [changelog](CHANGELOG.MD) for released versions.
+> Version 2.2.0 includes the CLI, designated-resolver discovery and the newer cmdlets (`Test-DnsHealth`, `Get-DnsDesignatedResolver`, `Receive-DnsService`, `Get-DnsQueryExplanation`, `Compare-DnsResolverSnapshot`, `Get-DnsCache` and `Clear-DnsCache`). The optional `DnsClientX.Odoh`, `DnsClientX.DnsCrypt` and `DnsClientX.DnsSec.EdDsa` projects remain source-only: they are not published on NuGet and are excluded from the 2.2.0 artifacts. See the [changelog](CHANGELOG.MD) for released versions.
 
 ## Used by
 
