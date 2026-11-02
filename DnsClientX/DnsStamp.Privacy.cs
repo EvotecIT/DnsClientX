@@ -11,7 +11,9 @@ public static partial class DnsStamp {
     public static bool IsPrivacyStamp(string? stamp) {
         if (!IsStamp(stamp)) { return false; }
         if (stamp!.Length > 8192) { throw new FormatException("DNS stamp exceeds the 8192 character limit."); }
-        byte[] bytes = DecodeBase64Url(stamp.Substring(Scheme.Length));
+        byte[] bytes;
+        try { bytes = DecodeBase64Url(stamp.Substring(Scheme.Length)); }
+        catch (FormatException) { return false; }
         return bytes.Length != 0 && (bytes[0] == 1 || bytes[0] == 5 || bytes[0] == 0x81 || bytes[0] == 0x85);
     }
     /// <summary>Parses a DNSCrypt resolver/relay or ODoH target/relay stamp without enabling a transport.</summary>

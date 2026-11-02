@@ -84,15 +84,15 @@ public sealed class ProviderTransportProfilesTests {
     public async Task SpecialProfileTargetsPreservePolicyAndIteration(DnsEndpoint provider, DnsRequestFormat format,
         bool probe, DnsEndpoint expected) {
         var source = new ResolverExecutionTargetSource { ProviderRequestFormat = format };
-        if (probe) source.ProbeProfile = provider;
-        else source.BuiltInEndpoints = new[] { provider };
+        if (probe) { source.ProbeProfile = provider; }
+        else { source.BuiltInEndpoints = new[] { provider }; }
         ResolverExecutionTarget target = Assert.Single(await ResolverExecutionTargetResolver.ResolveAsync(source));
         Assert.Equal(expected, target.BuiltInEndpoint);
         Assert.Null(target.ExplicitEndpoint);
         using var client = ResolverExecutionClientFactory.CreateClient(target);
         Assert.Equal(expected, client.EndpointConfiguration.BuiltInEndpoint);
         Assert.Equal(format, client.EndpointConfiguration.RequestFormat);
-        if (provider != DnsEndpoint.RootServer) Assert.NotNull(client.EndpointConfiguration.SystemDnsConfiguration);
+        if (provider != DnsEndpoint.RootServer) { Assert.NotNull(client.EndpointConfiguration.SystemDnsConfiguration); }
     }
 
     /// <summary>The UDP iterative engine cannot silently claim a TCP-only root benchmark.</summary>
@@ -113,8 +113,8 @@ public sealed class ProviderTransportProfilesTests {
         var request = new ResolveDnsRequest {
             Names = new[] { "example.com" }, ProviderRequestFormat = DnsRequestFormat.DnsOverUDP
         };
-        if (resolverList) request.ResolverDnsProviders = new[] { provider };
-        else request.DnsProviders = new[] { provider, DnsEndpoint.Cloudflare };
+        if (resolverList) { request.ResolverDnsProviders = new[] { provider }; }
+        else { request.DnsProviders = new[] { provider, DnsEndpoint.Cloudflare }; }
         Assert.Throws<NotSupportedException>(() => request.Validate());
     }
 }

@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 namespace DnsClientX {
     [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
     [JsonSerializable(typeof(DnsResponse))]
+    [JsonSerializable(typeof(string))]
     [JsonSerializable(typeof(ResolveRequest))]
     [JsonSerializable(typeof(UpdateRequest))]
     [JsonSerializable(typeof(DnsAnswerMinimal))]

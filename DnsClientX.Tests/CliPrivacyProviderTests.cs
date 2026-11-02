@@ -48,6 +48,21 @@ public sealed class CliPrivacyProviderTests {
         } finally { Console.SetError(originalError); Console.SetOut(originalOutput); }
     }
 
+    /// <summary>Omitting --endpoint still validates the effective System profile before constructing a client.</summary>
+    [Fact]
+    public async Task ProviderTransportValidatesTheDefaultSystemProfile() {
+        using var errors = new StringWriter();
+        using var output = new StringWriter();
+        TextWriter originalError = Console.Error;
+        TextWriter originalOutput = Console.Out;
+        try {
+            Console.SetError(errors);
+            Console.SetOut(output);
+            Assert.Equal(1, await InvokeCli("--provider-transport", "DnsOverTLS", "example.com"));
+            Assert.Contains("The selected provider does not publish DnsOverTLS: System", errors.ToString());
+        } finally { Console.SetError(originalError); Console.SetOut(originalOutput); }
+    }
+
     private static Task<int> InvokeCli(params string[] args) => (Task<int>)Assembly.Load("DnsClientX.Cli")
         .GetType("DnsClientX.Cli.Program")!.GetMethod("Main", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, new object[] { args })!;
 

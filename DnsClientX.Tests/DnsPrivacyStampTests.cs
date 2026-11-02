@@ -67,6 +67,14 @@ public sealed class DnsPrivacyStampTests {
         Assert.ThrowsAny<FormatException>(() => DnsStamp.ParsePrivacy(stamp));
     }
 
+    /// <summary>Classification leaves malformed payloads to the descriptive stamp parser.</summary>
+    [Fact]
+    public void PrivacyStampClassificationPreservesDetailedPayloadErrors() {
+        Assert.False(DnsStamp.IsPrivacyStamp("sdns://*"));
+        FormatException error = Assert.Throws<FormatException>(() => DnsStamp.Describe("sdns://*"));
+        Assert.Contains("not valid base64url", error.Message);
+    }
+
     /// <summary>Verifies OdohEndpointOptionsRejectInsecureOrAmbiguousRoutes.</summary>
     [Theory]
     [InlineData("http://relay.example/dns-query")]

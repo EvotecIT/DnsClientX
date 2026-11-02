@@ -107,7 +107,8 @@ namespace DnsClientX.PowerShell {
         public Configuration? Configuration { get; set; }
 
         /// <summary><para type="description">Published provider transport overriding the selected DnsProvider or ResolverDnsProvider defaults, preserving filtering policy.</para></summary>
-        [Parameter]
+        [Parameter(ParameterSetName = "Name")]
+        [Parameter(ParameterSetName = "Pattern")]
         public DnsRequestFormat? ProviderTransport { get; set; }
 
         /// <summary>

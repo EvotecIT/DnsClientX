@@ -169,10 +169,14 @@ Describe 'PowerShell DNS workflows against a loopback peer' {
         $runner = [powershell]::Create()
         try {
             $module = (Resolve-Path "$PSScriptRoot/../DnsClientX.psd1").Path
-            $null = $runner.AddScript('param($module,$endpoint) Import-Module $module -Force; Find-DnsService cancel.test -ResolverEndpoint $endpoint -TimeOut 30000').AddArgument($module).AddArgument($dnsPeer.Endpoint)
+            $null = $runner.AddCommand('Import-Module').AddParameter('Name', $module).AddParameter('Force').AddParameter('ErrorAction', 'Stop').Invoke()
+            $runner.HadErrors | Should -BeFalse -Because ($runner.Streams.Error | Out-String)
+            $runner.Commands.Clear()
+            $null = $runner.AddCommand('Find-DnsService').AddArgument('cancel.test').AddParameter('ResolverEndpoint', $dnsPeer.Endpoint).AddParameter('TimeOut', 30000)
             $invocation = $runner.BeginInvoke()
             $deadline = [DateTime]::UtcNow.AddSeconds(5)
-            while ($dnsPeer.Queries.Count -lt 2 -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 20 }
+            while ($dnsPeer.Queries.Count -lt 2 -and -not $invocation.IsCompleted -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 20 }
+            if ($invocation.IsCompleted) { $null = $runner.EndInvoke($invocation) }
             $dnsPeer.Queries.Count | Should -Be 2
             $watch = [System.Diagnostics.Stopwatch]::StartNew()
             $runner.Stop()

@@ -20,8 +20,8 @@ internal static partial class Program {
             error = "--provider-transport applies to built-in provider queries, probes and benchmarks only.";
             return false;
         }
-        if (options.ProviderTransport.HasValue && options.EndpointInputs.Count != 0) {
-            foreach (string name in options.EndpointInputs) {
+        if (options.ProviderTransport.HasValue) {
+            foreach (string name in options.EndpointInputs.DefaultIfEmpty(options.Endpoint.ToString())) {
                 if (!Enum.TryParse(name, true, out DnsEndpoint endpoint) ||
                     !DnsResolverEndpointFactory.GetSupportedRequestFormats(endpoint).Contains(options.ProviderTransport.Value)) {
                     error = "The selected provider does not publish " + options.ProviderTransport.Value + ": " + name;

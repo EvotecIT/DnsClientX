@@ -24,7 +24,7 @@ Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] [-ProviderTransport <
 
 ### NameConfiguration
 ```powershell
-Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] -Configuration <Configuration> [-ProviderTransport <DnsRequestFormat>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-Stream] [-CompletionOrder] [-TypedRecordMetadata] [-DnsSecVerifierPath <string>] [-DnsSecSignatureVerifier <IDnsSecSignatureVerifier>] [-DnsSecTrustAnchors <DnsSecZoneTrustAnchor[]>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [-Name] <string[]> [[-Type] <DnsRecordType[]>] -Configuration <Configuration> [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-Stream] [-CompletionOrder] [-TypedRecordMetadata] [-DnsSecVerifierPath <string>] [-DnsSecSignatureVerifier <IDnsSecSignatureVerifier>] [-DnsSecTrustAnchors <DnsSecZoneTrustAnchor[]>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ### Pattern
@@ -34,7 +34,7 @@ Resolve-Dns [-Pattern] <string> [[-Type] <DnsRecordType[]>] [-ProviderTransport 
 
 ### PatternConfiguration
 ```powershell
-Resolve-Dns [[-Type] <DnsRecordType[]>] -Pattern <string> -Configuration <Configuration> [-ProviderTransport <DnsRequestFormat>] [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-Stream] [-CompletionOrder] [-TypedRecordMetadata] [-DnsSecVerifierPath <string>] [-DnsSecSignatureVerifier <IDnsSecSignatureVerifier>] [-DnsSecTrustAnchors <DnsSecZoneTrustAnchor[]>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
+Resolve-Dns [[-Type] <DnsRecordType[]>] -Pattern <string> -Configuration <Configuration> [-ResponseCache] [-MaxCacheTtlSeconds <int>] [-Stream] [-CompletionOrder] [-TypedRecordMetadata] [-DnsSecVerifierPath <string>] [-DnsSecSignatureVerifier <IDnsSecSignatureVerifier>] [-DnsSecTrustAnchors <DnsSecZoneTrustAnchor[]>] [-EdnsBufferSize <int>] [-ClientSubnet <string>] [-BootstrapResolver <string>] [-MaxConcurrency <int>] [-FullResponse] [-TypedRecords] [-ParseTypedTxtRecords] [-TimeOut <int>] [-RetryCount <int>] [-RetryDelayMs <int>] [-RequestDnsSec] [-ValidateDnsSec] [-EnableEdns] [-CheckingDisabled] [-RequestNsid] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -616,7 +616,7 @@ Published provider transport overriding the selected DnsProvider or ResolverDnsP
 
 ```yaml
 Type: DnsRequestFormat
-Parameter Sets: Name, NameConfiguration, Pattern, PatternConfiguration
+Parameter Sets: Name, Pattern
 Aliases: None
 Possible values: DnsOverHttps, DnsOverHttpsJSON, DnsOverHttpsPOST, DnsOverHttpsWirePost, DnsOverHttpsJSONPOST, DnsOverUDP, DnsOverTCP, DnsOverTLS, DnsOverQuic, DnsOverHttp2, DnsOverHttp3, DnsCrypt, DnsCryptRelay, ObliviousDnsOverHttps, DnsOverGrpc, Multicast
 

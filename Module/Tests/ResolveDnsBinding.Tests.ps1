@@ -14,6 +14,12 @@ Describe 'Resolve-Dns binding' {
         { Resolve-Dns -Name 'example.com' -Server $null -ErrorAction Stop } | Should -Throw -ExceptionType ([System.Management.Automation.ParameterBindingException])
     }
 
+    It 'rejects provider transport overrides with an explicit configuration during binding' {
+        $configuration = [DnsClientX.Configuration]::new('127.0.0.1', [DnsClientX.DnsRequestFormat]::DnsOverUDP)
+        { Resolve-Dns example.test -Configuration $configuration -ProviderTransport DnsOverUDP -ErrorAction Stop } |
+            Should -Throw -ExceptionType ([System.Management.Automation.ParameterBindingException])
+    }
+
     It 'exposes parity-focused advanced query parameters' {
         $cmd = Get-Command Resolve-Dns
 

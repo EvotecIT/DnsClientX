@@ -290,8 +290,7 @@ namespace DnsClientX {
         /// <summary>
         /// An extended DNS error code message. For more information, see the <a href="https://developers.cloudflare.com/1.1.1.1/infrastructure/extended-dns-error-codes/">Cloudflare documentation</a>.
         /// </summary>
-        [JsonPropertyName("Comment")]
-        [JsonConverter(typeof(CommentConverter))]
+        [JsonIgnore]
         public string Comments { get; set; } = string.Empty;
 
         /// <summary>
