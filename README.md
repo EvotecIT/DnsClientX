@@ -207,6 +207,31 @@ Supported wire record types also accept generic hexadecimal RDATA (`\# <length> 
 
 For name, mail, routing, and authority records such as NS, CNAME, MX, SOA, and SRV, `Data` normalizes DNS name fields to lowercase without a trailing root dot, retaining `.` for the root itself. Normalized records use one space between parsed fields and preserve spaces inside quoted payloads. DNSKEY public keys retain their case and all encoded fragments; DS, TLSA, SMIMEA, and SSHFP hexadecimal payloads use uppercase without presentation whitespace. LOC text accepts omitted minutes, seconds, and precision fields with their standard defaults. `DataRaw` always retains the provider's original representation, including NSEC type spellings. Record types without a semantic normalizer retain their presentation text; callers can use `DataRaw` for the original evidence on every record type.
 
+### Response data and diagnostics
+
+Every supported transport returns the same `DnsResponse` and record model. `DnsAnswer.Data` contains normalized record data, while `DataRaw` retains the provider's original presentation. CLI JSON includes both: the existing `data` field stays raw, and `data_normalized` contains the normalized value. TXT character-string boundaries and original spelling remain available in the raw field.
+
+```json
+{
+  "name": "www.example.com",
+  "type": "CNAME",
+  "data": "Target.Example.",
+  "data_normalized": "target.example"
+}
+```
+
+`ExtendedDnsErrors` provides structured EDE codes and text from wire responses and JSON providers. When JSON supplies only recognized `EDE(code): text` comments, those comments also populate `ExtendedDnsErrors`. Explicit structured errors take precedence, and `Comments` retains its original text. Plain prose and malformed codes are not interpreted as error evidence.
+
+Normal CLI text output includes available comments and extended DNS errors, showing exact repetitions once. `--short` remains answer-only output. Use `--explain` for resolver and execution details, or PowerShell's `-FullResponse` to inspect the complete response:
+
+```powershell
+$response = Resolve-Dns -Name example.com -Type A -DnsProvider Cloudflare -FullResponse
+$response | Select-Object Status, Error, Comments, ExtendedDnsErrorInfo
+$response.Answers | Select-Object Name, Type, Data, DataRaw
+```
+
+PowerShell warnings include the DNS status and available diagnostics for non-success replies. Provider policy remains visible: `NoError` with a zero address, `NXDOMAIN`, and `REFUSED` can represent different filtering choices. DnsClientX preserves those response codes and records; it does not infer that every `NXDOMAIN` is a block or that every `NoError` answer is allowed.
+
 ## Supported .NET Versions and Dependencies
 
 ### Core Library (DnsClientX)

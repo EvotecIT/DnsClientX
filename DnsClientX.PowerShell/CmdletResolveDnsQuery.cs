@@ -12,6 +12,7 @@ namespace DnsClientX.PowerShell {
     /// <para type="description">Supports single-provider queries, explicit servers with transport selection, multiple providers with FirstSuccess/FastestWins/SequentialFallback/RoundRobin, direct resolver endpoints, DNSSEC, EDNS/ECS, concurrency control, and TTL-based response caching.</para>
     /// <para type="description">Specify either Name or Pattern. When no resolver source is specified, the library's default resolver is used. Timeout, retry, response, typed-record, and DNSSEC options apply to every resolver source.</para>
     /// <para type="description">Name accepts pipeline strings or objects with Name, Domain, or DnsName properties. By default each answer is an individual pipeline row. Use FullResponse for complete response objects, TypedRecords for typed values, or TypedRecordMetadata to keep typed values and record metadata together.</para>
+    /// <para type="description">Non-success DNS responses produce a warning with the DNS status and available provider diagnostics. FullResponse retains comments and structured extended DNS errors. NoError describes the DNS response code; a filtering resolver can still return a sinkhole address.</para>
     /// </summary>
     /// <example>
     ///  <para>Simple (system default)</para>
@@ -530,7 +531,9 @@ namespace DnsClientX.PowerShell {
             if (record.Status == DnsResponseCode.NoError) {
                 WriteVerbose($"Query successful for {names} with type {types}, {source} (retries {record.RetryCount})");
             } else {
-                WriteWarning($"Query failed for {names} with type {types}, {source} and error: {record.Error}");
+                string[] diagnostics = DnsResponseTextFormatter.BuildDiagnosticLines(record);
+                string detail = diagnostics.Length == 0 ? string.Empty : ": " + string.Join("; ", diagnostics);
+                WriteWarning($"Query returned {record.Status} for {names} with type {types}, {source}{detail}");
             }
         }
 

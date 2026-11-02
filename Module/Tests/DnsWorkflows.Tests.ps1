@@ -9,6 +9,14 @@ Describe 'PowerShell DNS workflows against a loopback peer' {
     BeforeEach { $script:dnsPeer = [DnsWorkflowServer]::new() }
     AfterEach { $script:dnsPeer.Dispose() }
 
+    It 'includes the DNS status in a warning even when a server failure has no error text' {
+        $diagnosticWarnings = @()
+        $response = Resolve-Dns fail.test -Server 127.0.0.1 -Port $dnsPeer.Port -FullResponse -RetryCount 1 -WarningVariable diagnosticWarnings -WarningAction SilentlyContinue
+        $response.Status | Should -Be ([DnsClientX.DnsResponseCode]::ServerFailure)
+        $response.Error | Should -BeNullOrEmpty
+        ($diagnosticWarnings | Out-String) | Should -Match 'Query returned ServerFailure for fail.test'
+    }
+
     It 'binds names by pipeline value and property and emits individual answer rows' {
         $rows = @('rows.test' | Resolve-Dns -Server 127.0.0.1 -Port $dnsPeer.Port -RetryCount 1)
         $rows.Count | Should -Be 2

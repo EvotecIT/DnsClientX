@@ -93,6 +93,8 @@ Specify either Name or Pattern. When no resolver source is specified, the librar
 
 Name accepts pipeline strings or objects with Name, Domain, or DnsName properties. By default each answer is an individual pipeline row. Use FullResponse for complete response objects, TypedRecords for typed values, or TypedRecordMetadata to keep typed values and record metadata together.
 
+Non-success DNS responses produce a warning with the DNS status and available provider diagnostics. FullResponse retains comments and structured extended DNS errors. NoError describes the DNS response code; a filtering resolver can still return a sinkhole address.
+
 ### [Test-DnsBenchmark](Test-DnsBenchmark.md)
 Benchmarks one or more DNS providers or explicit resolver endpoints across repeated queries.
 

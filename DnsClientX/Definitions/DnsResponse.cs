@@ -296,6 +296,7 @@ namespace DnsClientX {
 
         /// <summary>
         /// Extended DNS error information provided by the DNS server.
+        /// JSON deserialization also recognizes EDE(code): text comments when no structured errors were supplied.
         /// </summary>
         [JsonPropertyName("extended_dns_errors")]
         public ExtendedDnsError[] ExtendedDnsErrors { get; set; } = Array.Empty<ExtendedDnsError>();

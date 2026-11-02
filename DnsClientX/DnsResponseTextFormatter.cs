@@ -3,9 +3,30 @@ using System.Collections.Generic;
 
 namespace DnsClientX {
     /// <summary>
-    /// Formats DNS responses into human-readable CLI-friendly text lines.
+    /// Formats DNS response records and diagnostics for human-readable output.
     /// </summary>
     public static class DnsResponseTextFormatter {
+        /// <summary>
+        /// Builds display-safe error, comment and extended DNS error lines without inferring filtering policy.
+        /// </summary>
+        /// <param name="response">The response whose available diagnostics should be displayed.</param>
+        /// <returns>Diagnostic lines with provider-controlled terminal characters escaped.</returns>
+        public static string[] BuildDiagnosticLines(DnsResponse response) {
+            if (response == null) throw new ArgumentNullException(nameof(response));
+
+            var lines = new List<string>();
+            if (!string.IsNullOrWhiteSpace(response.Error)) lines.Add($"Error: {DnsTerminalText.Escape(response.Error)}");
+            ExtendedDnsError[] errors = response.ExtendedDnsErrors ?? Array.Empty<ExtendedDnsError>();
+            string repeatedComment = string.Join("; ", Array.ConvertAll(errors, error => $"EDE({error.InfoCode}): {error.ExtraText}"));
+            if (!string.IsNullOrWhiteSpace(response.Comments) && !string.Equals(response.Comments, repeatedComment, StringComparison.Ordinal)) {
+                lines.Add($"Comments: {DnsTerminalText.Escape(response.Comments)}");
+            }
+            foreach (ExtendedDnsError error in errors) {
+                lines.Add($"Extended DNS error: {error.InfoCode} {DnsTerminalText.Escape(error.ExtraText)}");
+            }
+            return lines.ToArray();
+        }
+
         /// <summary>
         /// Builds output lines for a response using the requested presentation mode.
         /// </summary>
@@ -82,7 +103,7 @@ namespace DnsClientX {
             var lines = new List<string> {
                 $"Status: {response.Status} (retries {response.RetryCount})"
             };
-            if (!string.IsNullOrWhiteSpace(response.Error)) lines.Add($"Error: {DnsTerminalText.Escape(response.Error)}");
+            lines.AddRange(BuildDiagnosticLines(response));
 
             if (showQuestions) {
                 lines.AddRange(BuildQuestionSectionLines("Questions", response.Questions ?? Array.Empty<DnsQuestion>()));
@@ -134,7 +155,12 @@ namespace DnsClientX {
                 $";; query time: {durationFormatter(response.RoundTripTime > TimeSpan.Zero ? response.RoundTripTime : elapsed)}",
                 $";; sections: question {questions.Length}, answer {answers.Length}, authority {authorities.Length}, additional {additional.Length}"
             };
-            if (!string.IsNullOrWhiteSpace(response.Error)) lines.Add($";; error: {DnsTerminalText.Escape(response.Error)}");
+            foreach (string diagnostic in BuildDiagnosticLines(response)) {
+                // Preserve the existing dig-style error header for raw-output consumers.
+                string rawDiagnostic = diagnostic.StartsWith("Error:", StringComparison.Ordinal)
+                    ? "error:" + diagnostic.Substring(6) : diagnostic;
+                lines.Add(";; " + rawDiagnostic);
+            }
 
             if (showQuestions) {
                 lines.Add(string.Empty);

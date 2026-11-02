@@ -109,8 +109,9 @@ namespace DnsClientX {
         /// record without trimming whitespace or changing payload line endings. Recognized DNS name
         /// fields are lowercase without a trailing root dot; the root itself remains a single dot.
         /// Structured field separators and encoded payload whitespace are normalized without changing DataRaw.
+        /// JSON exposes this value as data_normalized alongside the original data field.
         /// </summary>
-        [JsonIgnore]
+        [JsonPropertyName("data_normalized")]
         public string Data => ConvertData();
 
         /// <summary>

@@ -1,5 +1,9 @@
 ﻿## Unreleased
 
+- Normalize recognized JSON EDE comments into structured extended DNS errors without replacing provider comments or explicit error arrays.
+- Add `data_normalized` to record JSON while preserving the existing raw `data` field.
+- Show provider diagnostics in regular CLI text output and include DNS status in PowerShell warnings through shared display-safe formatting.
+- Give cooperative PowerShell query cleanup up to one second to finish when the pipeline is stopped, using the canonical async cmdlet implementation.
 - Add CleanBrowsing Security, Adult, and Family DoH presets, and Control D Unfiltered, Malware, Ads & Tracking, and Family DoH presets.
 - Add Comodo Secure DNS and DNS.WATCH plain-DNS presets, including DNS.WATCH's IPv6 resolvers.
 - Refresh AdGuard presets to the current `adguard-dns.com` hostnames and share their endpoint definitions with multi-resolver queries.
