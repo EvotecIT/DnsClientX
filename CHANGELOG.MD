@@ -1,4 +1,9 @@
-﻿## Unreleased
+## 2.2.0 - 2026-11-02
+
+- Publish the core NuGet package, PowerShell module and CLI archives without optional provider dependencies. `DnsClientX.Odoh`, `DnsClientX.DnsCrypt` and `DnsClientX.DnsSec.EdDsa` are not published on NuGet and are excluded from this release; their examples require source-built providers.
+- Include the DNS correctness, configuration, DNSSEC, cache and cross-platform workflow fixes from #581, authenticated DNS administration and discovery workflows from #582, and stable resolver-candidate identity and reporting from #583.
+- Add a deterministic provider-by-transport JSON catalog at `Assets/Data/provider-profiles.json`, generated with the README from the library's supported formats and default configurations. Packaged-module validation checks both outputs against the library.
+- Refresh dependencies and improve regression coverage across the supported .NET and PowerShell targets.
 
 - Normalize recognized JSON EDE comments into structured extended DNS errors without replacing provider comments or explicit error arrays.
 - Select published provider transports without changing existing preset defaults, with shared provider definitions for configuration, resolver expansion and generated documentation.

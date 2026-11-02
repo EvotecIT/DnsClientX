@@ -15,7 +15,7 @@ Pass the transport's CreateConfiguration() result to Resolve-Dns -Configuration.
 ## SYNTAX
 ### __AllParameterSets
 ```powershell
-New-DnsPrivacyTransport -ProviderPath <string> -Resolver <string> [-Relay <string>] [<CommonParameters>]
+New-DnsPrivacyTransport -Resolver <string> [-ProviderPath <string>] [-Relay <string>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -38,7 +38,7 @@ Query through an explicitly selected ODoH relay and target
 ## PARAMETERS
 
 ### -ProviderPath
-Trusted local provider DLL path, with dependencies beside it.
+Trusted local provider DLL path, with dependencies beside it. A provider DLL is required to create a transport; omitting this parameter reports MissingDnsPrivacyProvider with setup guidance.
 
 ```yaml
 Type: String
@@ -46,7 +46,7 @@ Parameter Sets: __AllParameterSets
 Aliases: None
 Possible values:
 
-Required: True
+Required: False
 Position: named
 Default value: None
 Accept pipeline input: False

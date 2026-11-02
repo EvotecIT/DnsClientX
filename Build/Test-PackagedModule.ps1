@@ -39,6 +39,7 @@ function Assert-PackagedAssemblies {
     }
 }
 Assert-PackagedAssemblies
+& (Join-Path $PSScriptRoot 'Update-ProviderDocumentation.ps1') -AssemblyPath ([DnsClientX.ClientX].Assembly.Location) -Check
 Write-Host "PowerShell $($PSVersionTable.PSVersion) ($($PSVersionTable.PSEdition))"
 $data = Import-PowerShellDataFile -LiteralPath $manifest.FullName
 foreach ($asset in @($data.FormatsToProcess) + @($data.TypesToProcess)) {

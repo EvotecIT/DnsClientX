@@ -22,6 +22,8 @@ dotnet add package DnsClientX
 Install-Module DnsClientX -Scope CurrentUser
 ```
 
+The 2.2.0 release includes the core NuGet package, PowerShell module and CLI archives. `DnsClientX.Odoh`, `DnsClientX.DnsCrypt` and `DnsClientX.DnsSec.EdDsa` are **not published on NuGet** and are not included in these artifacts. Their examples require a provider built from the same source revision, with its dependencies deployed beside the provider DLL. Core DNS queries, DNSSEC algorithms supported by the running target, and the module work without these providers.
+
 ## Quick start
 
 ```csharp
@@ -50,10 +52,10 @@ Resolve-Dns -Name evotec.pl -Type A -DnsProvider Cloudflare,Quad9 -ResolverStrat
 | Discovery | DNS-SD over unicast and multicast, continuous mDNS browsing and DDR discovery of verified encrypted resolvers | [Service discovery](https://domaindetective.dev/docs/dnsclientx/discovery/) |
 | Your network | System resolver discovery with Windows NRPT, resolv.conf search lists, EDNS client subnet, DNS stamps and source binding | [Transports and endpoints](https://domaindetective.dev/docs/dnsclientx/transports/) |
 | Browser | A caller-owned `HttpClient` DNS JSON client for Blazor WebAssembly and dependency-injected hosts | [Try it live](https://domaindetective.dev/dnsclientx/) |
-| Surfaces | The .NET library, a PowerShell module with 19 cmdlets for Windows PowerShell 5.1 and PowerShell 7.4+, and a CLI | [PowerShell guide](https://domaindetective.dev/docs/dnsclientx/powershell/) |
+| Surfaces | The .NET library, a PowerShell module with 20 cmdlets for Windows PowerShell 5.1 and PowerShell 7.4+, and a CLI | [PowerShell guide](https://domaindetective.dev/docs/dnsclientx/powershell/) |
 
 > [!NOTE]
-> NuGet and the PowerShell Gallery currently ship DnsClientX 2.1.2. This README documents the `main` branch: the optional `DnsClientX.Odoh`, `DnsClientX.DnsCrypt` and `DnsClientX.DnsSec.EdDsa` packages, the CLI, designated-resolver discovery and the newer cmdlets (`Test-DnsHealth`, `Get-DnsDesignatedResolver`, `Receive-DnsService`, `Get-DnsQueryExplanation`, `Compare-DnsResolverSnapshot`, `Get-DnsCache` and `Clear-DnsCache`) arrive with the next public release. See the [changelog](CHANGELOG.MD) for released versions.
+> Version 2.2.0 includes the CLI, designated-resolver discovery and the newer cmdlets (`Test-DnsHealth`, `Get-DnsDesignatedResolver`, `Receive-DnsService`, `Get-DnsQueryExplanation`, `Compare-DnsResolverSnapshot`, `Get-DnsCache` and `Clear-DnsCache`). The optional `DnsClientX.Odoh`, `DnsClientX.DnsCrypt` and `DnsClientX.DnsSec.EdDsa` projects remain source-only: they are not published on NuGet and are excluded from the 2.2.0 artifacts. See the [changelog](CHANGELOG.MD) for released versions.
 
 ## Used by
 
@@ -120,7 +122,7 @@ Resolve-Dns example.com -DnsProvider Cloudflare -ProviderTransport DnsOverTLS
 DnsClientX --endpoint ControlDAds --provider-transport DnsOverQuic example.com
 ```
 
-Regenerate the table after a library build with `pwsh -File Build/Update-ProviderDocumentation.ps1`.
+Regenerate the table and the machine-readable [provider catalog](Assets/Data/provider-profiles.json) after a library build with `pwsh -File Build/Update-ProviderDocumentation.ps1`. The JSON uses schema 1, enum-ordered profiles and the same seven transport columns in the same order. Its `default` values are request-format enum names. Use `-Check` to verify both committed outputs against the library without writing files; packaged-module validation runs this check too.
 
 Selecting UDP or TCP for `System` preserves the operating system's resolver policy, including in probes and benchmarks. `RootServer` remains an iterative UDP profile and rejects a TCP override. Use an explicit TCP endpoint to query an individual root server directly.
 
@@ -1100,7 +1102,7 @@ Console.WriteLine(response.DnsSecValidationMessage);
 
 The resolver-provided `AuthenticData` flag and local validation are deliberately separate. `Secure` means DnsClientX built and verified a chain to a configured root trust anchor; `Insecure` means a secure parent authenticated an unsigned delegation; `Bogus` is a cryptographic or proof failure; and `Indeterminate` means the response, trust state, or supported algorithms were insufficient. The dependency-free validator supports RSA/SHA-1 (algorithms 5 and 7, for compatibility), RSA/SHA-256, and RSA/SHA-512 on every target. The .NET 8 and .NET 10 assets also support ECDSA P-256/SHA-256 and ECDSA P-384/SHA-384. Ed25519 and Ed448 are supplied by the optional package below rather than claimed by the core.
 
-Install `DnsClientX.DnsSec.EdDsa` for ECDSA P-256/P-384 on .NET Framework and .NET Standard, or for Ed25519/Ed448 on any supported target. The optional package uses `BouncyCastle.Cryptography`; the core package does not depend on it:
+The optional `DnsClientX.DnsSec.EdDsa` project supplies ECDSA P-256/P-384 on .NET Framework and .NET Standard, and Ed25519/Ed448 on any supported target. It is not published on NuGet; build it from source before using the example below. It uses `BouncyCastle.Cryptography`; the core package does not depend on it:
 
 ```csharp
 using DnsClientX.DnsSec.EdDsa;

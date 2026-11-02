@@ -3760,12 +3760,12 @@ Discovery does not switch resolvers. Only a verified, unexpired candidate can cr
     <command:syntax>
       <command:syntaxItem parameterSetName="__AllParameterSets">
         <maml:name>New-DnsPrivacyTransport</maml:name>
-        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>ProviderPath</maml:name>
           <maml:description>
-            <maml:para>Trusted local provider DLL path, with dependencies beside it.</maml:para>
+            <maml:para>Trusted local provider DLL path, with dependencies beside it. A provider DLL is required to create a transport; omitting this parameter reports MissingDnsPrivacyProvider with setup guidance.</maml:para>
           </maml:description>
-          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
           <dev:type>
             <maml:name>String</maml:name>
             <maml:uri />
@@ -3799,12 +3799,12 @@ Discovery does not switch resolvers. Only a verified, unexpired candidate can cr
       </command:syntaxItem>
     </command:syntax>
     <command:parameters>
-      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
         <maml:name>ProviderPath</maml:name>
         <maml:description>
-          <maml:para>Trusted local provider DLL path, with dependencies beside it.</maml:para>
+          <maml:para>Trusted local provider DLL path, with dependencies beside it. A provider DLL is required to create a transport; omitting this parameter reports MissingDnsPrivacyProvider with setup guidance.</maml:para>
         </maml:description>
-        <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+        <command:parameterValue required="false" variableLength="false">String</command:parameterValue>
         <dev:type>
           <maml:name>String</maml:name>
           <maml:uri />
