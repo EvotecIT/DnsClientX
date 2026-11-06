@@ -48,7 +48,7 @@ internal sealed class DnsCryptTestServer : IDisposable {
         Certificate = SignedCertificate(system);
         (_udp, _tcp) = TestUtilities.BindUdpAndTcp();
         Endpoint = (IPEndPoint)_tcp.LocalEndpoint;
-        _udpLoop = ServeUdp(); _tcpLoop = ServeTcp();
+        _udpLoop = ServeUdp(_udp.Client); _tcpLoop = ServeTcp();
     }
 
     internal static byte[] SignedCertificate(ushort system, uint serial = 1, byte[]? resolverKey = null, int validSeconds = 3600) {
@@ -63,10 +63,10 @@ internal sealed class DnsCryptTestServer : IDisposable {
         Buffer.BlockCopy(signature, 0, result, 8, 64); return result;
     }
 
-    private async Task ServeUdp() {
+    private async Task ServeUdp(Socket socket) {
         try {
             while (!_stop.IsCancellationRequested) {
-                UdpReceiveResult incoming = await _udp.ReceiveAsync();
+                UdpReceiveResult incoming = await TestUtilities.ReceiveUdpAsync(socket);
                 byte[] inner = Unwrap(incoming.Buffer);
                 bool application = !DnsWireMessageParser.TryParseHeader(inner, out var header) || !DnsWireMessageParser.TryParseQuestion(inner, 0, out var question) || question.Type != 16;
                 if (application) {
@@ -79,11 +79,11 @@ internal sealed class DnsCryptTestServer : IDisposable {
                 byte[] reply = Reply(inner, application, false);
                 if (application && SendInvalidUdpFirst) {
                     byte[] damaged = (byte[])reply.Clone(); damaged[8] ^= 1;
-                    await _udp.SendAsync(damaged, damaged.Length, incoming.RemoteEndPoint);
+                    await socket.SendToAsync(new ArraySegment<byte>(damaged), SocketFlags.None, incoming.RemoteEndPoint);
                     damaged = (byte[])reply.Clone(); damaged[32] ^= 1;
-                    await _udp.SendAsync(damaged, damaged.Length, incoming.RemoteEndPoint);
+                    await socket.SendToAsync(new ArraySegment<byte>(damaged), SocketFlags.None, incoming.RemoteEndPoint);
                 }
-                await _udp.SendAsync(reply, reply.Length, incoming.RemoteEndPoint);
+                await socket.SendToAsync(new ArraySegment<byte>(reply), SocketFlags.None, incoming.RemoteEndPoint);
             }
         } catch (Exception exception) when (_stop.IsCancellationRequested && (exception is SocketException || exception is ObjectDisposedException)) { }
     }

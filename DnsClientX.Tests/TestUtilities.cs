@@ -12,6 +12,21 @@ using System.Runtime.InteropServices;
 
 namespace DnsClientX.Tests {
     internal static class TestUtilities {
+        /// <summary>Receives from the captured socket so legacy UdpClient disposal cannot clear the async completion target.</summary>
+        internal static async Task<UdpReceiveResult> ReceiveUdpAsync(Socket? socket) {
+            if (socket == null) {
+                throw new ObjectDisposedException(nameof(UdpClient));
+            }
+            byte[] buffer = new byte[ushort.MaxValue];
+            EndPoint remote = new IPEndPoint(socket.AddressFamily == AddressFamily.InterNetworkV6
+                ? IPAddress.IPv6Any : IPAddress.Any, 0);
+            SocketReceiveFromResult received = await socket.ReceiveFromAsync(
+                new ArraySegment<byte>(buffer), SocketFlags.None, remote);
+            byte[] packet = new byte[received.ReceivedBytes];
+            Buffer.BlockCopy(buffer, 0, packet, 0, packet.Length);
+            return new UdpReceiveResult(packet, (IPEndPoint)received.RemoteEndPoint);
+        }
+
         /// <summary>Creates an untrusted TLS fixture certificate with a private key usable by Windows SChannel.</summary>
         internal static X509Certificate2 CreateTlsCertificate(CertificateRequest request) {
             using X509Certificate2 temporary = request.CreateSelfSigned(

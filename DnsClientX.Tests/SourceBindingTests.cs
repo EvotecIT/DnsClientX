@@ -23,7 +23,7 @@ namespace DnsClientX.Tests {
 #if NET5_0_OR_GREATER
                 UdpReceiveResult request = await server.ReceiveAsync(cts.Token);
 #else
-                Task<UdpReceiveResult> receiveTask = server.ReceiveAsync();
+                Task<UdpReceiveResult> receiveTask = TestUtilities.ReceiveUdpAsync(server.Client);
                 Task completed = await Task.WhenAny(receiveTask, Task.Delay(Timeout.Infinite, cts.Token));
                 if (completed != receiveTask) {
                     throw new OperationCanceledException(cts.Token);

@@ -34,7 +34,7 @@ namespace DnsClientX.Tests {
             response[1] = result.Buffer[1];
             await udp.SendAsync(response, result.RemoteEndPoint, token);
 #else
-            var receiveTask = udp.ReceiveAsync();
+            var receiveTask = TestUtilities.ReceiveUdpAsync(udp.Client);
             var completed = await Task.WhenAny(receiveTask, Task.Delay(Timeout.Infinite, token));
             if (completed != receiveTask) {
                 throw new OperationCanceledException(token);
@@ -93,7 +93,7 @@ namespace DnsClientX.Tests {
 #if NET5_0_OR_GREATER
             UdpReceiveResult result = await udp.ReceiveAsync(token);
 #else
-            var receiveTask = udp.ReceiveAsync();
+            var receiveTask = TestUtilities.ReceiveUdpAsync(udp.Client);
             var completed = await Task.WhenAny(receiveTask, Task.Delay(Timeout.Infinite, token));
             if (completed != receiveTask) {
                 throw new OperationCanceledException(token);

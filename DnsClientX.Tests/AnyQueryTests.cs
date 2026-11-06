@@ -15,7 +15,7 @@ namespace DnsClientX.Tests {
             int port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
             using var cts = new CancellationTokenSource(System.TimeSpan.FromSeconds(5));
             Task responder = Task.Run(async () => {
-                UdpReceiveResult request = await server.ReceiveAsync();
+                UdpReceiveResult request = await TestUtilities.ReceiveUdpAsync(server.Client);
                 byte[] question = TestUtilities.CreateResponseFromQuery(request.Buffer);
                 question[6] = 0;
                 question[7] = 1;

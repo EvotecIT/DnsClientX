@@ -167,7 +167,7 @@ namespace DnsClientX.Tests {
             byte[] response = buildResponse(result.Buffer);
             await udp.SendAsync(response, result.RemoteEndPoint, token);
 #else
-            var receiveTask = udp.ReceiveAsync();
+            var receiveTask = TestUtilities.ReceiveUdpAsync(udp.Client);
             var completed = await Task.WhenAny(receiveTask, Task.Delay(Timeout.Infinite, token));
             if (completed != receiveTask) {
                 throw new OperationCanceledException(token);

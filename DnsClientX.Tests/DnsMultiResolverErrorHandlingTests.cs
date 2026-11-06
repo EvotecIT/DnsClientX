@@ -25,7 +25,7 @@ namespace DnsClientX.Tests {
             }, new MultiResolverOptions { Strategy = strategy, DefaultTimeout = TimeSpan.FromSeconds(3), EnableFastestCache = false });
             using var cancel = new CancellationTokenSource();
             Task<DnsResponse> query = resolver.QueryAsync("cancel.example", DnsRecordType.A, cancel.Token);
-            await socket.ReceiveAsync();
+            await TestUtilities.ReceiveUdpAsync(socket.Client);
             cancel.Cancel();
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => query);
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => resolver.QueryAllAsync("cancel.example", DnsRecordType.A, cancel.Token));
@@ -117,7 +117,7 @@ namespace DnsClientX.Tests {
             using var cancel = new CancellationTokenSource();
             Task<ResolverQueryAttemptResult[]> query = ResolverProbeRunner.RunAsync(new[] { target }, "cancel.example",
                 DnsRecordType.A, new ResolverQueryRunOptions { TimeoutMs = 3000 }, cancellationToken: cancel.Token);
-            await socket.ReceiveAsync();
+            await TestUtilities.ReceiveUdpAsync(socket.Client);
             cancel.Cancel();
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => query);
         }

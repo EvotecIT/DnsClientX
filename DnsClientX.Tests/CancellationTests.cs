@@ -99,7 +99,7 @@ namespace DnsClientX.Tests {
             };
             Task<DnsResponse[]> query = ClientX.QueryDns(request, cts.Token);
             try {
-                Task<UdpReceiveResult> receive = server.ReceiveAsync();
+                Task<UdpReceiveResult> receive = TestUtilities.ReceiveUdpAsync(server.Client);
                 Assert.Same(receive, await Task.WhenAny(receive, Task.Delay(TimeSpan.FromSeconds(3))));
                 UdpReceiveResult packet = await receive;
                 cts.Cancel();

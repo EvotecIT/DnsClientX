@@ -232,7 +232,7 @@ public class DnsSecZoneTrustAnchorTests {
         async Task Serve() {
             try {
                 while (!deadline.IsCancellationRequested) {
-                    UdpReceiveResult incoming = await udp.ReceiveAsync();
+                    UdpReceiveResult incoming = await TestUtilities.ReceiveUdpAsync(udp.Client);
                     var reader = new DnsWireReader(incoming.Buffer, 12);
                     string name = DnsWireNameCodec.Canonical(reader.ReadName());
                     var type = (DnsRecordType)reader.ReadUInt16(); reader.ReadUInt16();

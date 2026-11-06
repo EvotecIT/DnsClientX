@@ -13,7 +13,7 @@ namespace DnsClientX.Tests {
     public class DnsMultiResolverResourceTests {
         private static async Task<byte[]> RunUdpServerAsync(int port, CancellationToken token) {
             using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
-            UdpReceiveResult result = await udp.ReceiveAsync();
+            UdpReceiveResult result = await TestUtilities.ReceiveUdpAsync(udp.Client);
             token.ThrowIfCancellationRequested();
             byte[] response = TestUtilities.CreateResponseFromQuery(result.Buffer);
             await udp.SendAsync(response, response.Length, result.RemoteEndPoint);

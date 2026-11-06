@@ -23,7 +23,7 @@ namespace DnsClientX.Tests {
             using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             using var registration = stop.Token.Register(server.Dispose);
             async Task<byte[]> ReplyAsync() {
-                UdpReceiveResult packet = await server.ReceiveAsync();
+                UdpReceiveResult packet = await TestUtilities.ReceiveUdpAsync(server.Client);
                 byte[] response = DnsDiscoveryTestWire.Response(packet.Buffer,
                     DnsDiscoveryTestWire.Address("example.local", "192.0.2.1"));
                 await server.SendAsync(response, response.Length, packet.RemoteEndPoint);

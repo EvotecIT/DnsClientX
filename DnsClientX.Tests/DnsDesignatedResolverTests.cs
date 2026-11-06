@@ -22,7 +22,7 @@ public class DnsDesignatedResolverTests {
         var names = new List<string>();
         Task responder = Task.Run(async () => {
             for (int index = 0; index < 2; index++) {
-                UdpReceiveResult query = await server.ReceiveAsync();
+                UdpReceiveResult query = await TestUtilities.ReceiveUdpAsync(server.Client);
                 Assert.True(DnsWireMessageParser.TryParseQuestion(query.Buffer, 0, out DnsWireQuestionInfo question));
                 names.Add(question.Name.TrimEnd('.'));
                 Assert.Equal((ushort)DnsRecordType.SVCB, question.Type);
@@ -53,7 +53,7 @@ public class DnsDesignatedResolverTests {
         using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         using var registration = stop.Token.Register(server.Dispose);
         Task reply = Task.Run(async () => {
-            UdpReceiveResult query = await server.ReceiveAsync();
+            UdpReceiveResult query = await TestUtilities.ReceiveUdpAsync(server.Client);
             byte[] response = DnsDiscoveryTestWire.Response(query.Buffer, DnsDiscoveryTestWire.Svcb("_dns.resolver.arpa", 0, "_dns.resolver.arpa"));
             await server.SendAsync(response, response.Length, query.RemoteEndPoint);
         });
@@ -72,7 +72,7 @@ public class DnsDesignatedResolverTests {
         using var queryStop = new CancellationTokenSource();
         using var client = new ClientX(new Configuration("127.0.0.1", DnsRequestFormat.DnsOverUDP) { Port = ((IPEndPoint)server.Client.LocalEndPoint!).Port, TimeOut = 10000, UseTcpFallback = false });
         Task<DnsDesignatedResolver[]> discovery = client.DiscoverDesignatedResolversAsync(new DnsDesignatedResolverDiscoveryOptions { Verify = false }, queryStop.Token);
-        UdpReceiveResult query = await server.ReceiveAsync();
+        UdpReceiveResult query = await TestUtilities.ReceiveUdpAsync(server.Client);
         queryStop.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await discovery);
         using var releasedPort = new UdpClient();
@@ -185,7 +185,7 @@ public class DnsDesignatedResolverTests {
         using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         using var cancelDns = stop.Token.Register(dns.Dispose);
         Task dnsReply = Task.Run(async () => {
-            UdpReceiveResult query = await dns.ReceiveAsync();
+            UdpReceiveResult query = await TestUtilities.ReceiveUdpAsync(dns.Client);
             byte[] response = DnsDiscoveryTestWire.Response(query.Buffer, DnsDiscoveryTestWire.Svcb("_dns.resolver.arpa", 1, "resolver.example", "dot", encryptedPort, hint: IPAddress.Loopback));
             await dns.SendAsync(response, query.RemoteEndPoint, stop.Token);
         });
