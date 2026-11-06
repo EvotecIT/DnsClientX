@@ -46,7 +46,7 @@ jobs:
           [xml] $core = Get-Content ./DnsClientX/DnsClientX.csproj
           $version = @($core.Project.PropertyGroup.VersionPrefix | Where-Object { $_ })[0]
           foreach ($project in 'DnsClientX', 'DnsClientX.Odoh', 'DnsClientX.DnsCrypt') {
-            dotnet pack "$project/$project.csproj" -c Release --artifacts-path $artifacts -o $feed
+            dotnet pack "$project/$project.csproj" -c Release --artifacts-path $artifacts -o $feed -p:PackageVersion=$version
             if ($LASTEXITCODE) { throw "Packing $project failed." }
           }
           $config = Join-Path $taskRoot 'NuGet.Config'
