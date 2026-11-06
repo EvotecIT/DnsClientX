@@ -199,7 +199,7 @@ namespace DnsClientX.Tests {
 #if NET5_0_OR_GREATER
                             UdpReceiveResult result = await udp.ReceiveAsync(token);
 #else
-                            UdpReceiveResult result = await udp.ReceiveAsync();
+                            UdpReceiveResult result = await TestUtilities.ReceiveUdpAsync(udp.Client);
 #endif
                             if (responseDelayMs > 0 && ParseQuestion(result.Buffer).QuestionType == DnsRecordType.NS) {
                                 await Task.Delay(responseDelayMs, token);

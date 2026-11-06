@@ -310,7 +310,7 @@ namespace DnsClientX.Tests {
 #if NET8_0_OR_GREATER
             return await server.ReceiveAsync(cancellationToken);
 #else
-            Task<UdpReceiveResult> receive = server.ReceiveAsync();
+            Task<UdpReceiveResult> receive = TestUtilities.ReceiveUdpAsync(server.Client);
             Task completed = await Task.WhenAny(receive, Task.Delay(Timeout.Infinite, cancellationToken));
             if (completed != receive) throw new OperationCanceledException(cancellationToken);
             return await receive;

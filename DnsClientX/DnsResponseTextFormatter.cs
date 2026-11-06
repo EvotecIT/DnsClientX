@@ -58,7 +58,7 @@ namespace DnsClientX {
                     options.ShowAdditional,
                     options.TxtConcat,
                     durationFormatter),
-                DnsResponsePresentationMode.Json => new[] { DnsClientXJsonSerializer.Serialize(response) },
+                DnsResponsePresentationMode.Json => new[] { DnsClientXJsonSerializer.Serialize(response, DnsClientXJsonContext.Default.DnsResponse) },
                 _ => BuildPrettyLines(
                     response,
                     options.ShowQuestions,

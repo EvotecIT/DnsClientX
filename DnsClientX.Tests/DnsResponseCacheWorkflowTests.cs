@@ -131,7 +131,7 @@ public class DnsResponseCacheWorkflowTests {
     private static async Task<DnsResponse> QueryNetwork(ClientX client, UdpClient server, string name,
         DnsRecordType type, Func<byte[], byte[]> answer, bool typedRecords = false) {
         var operation = client.Resolve(name, type, typedRecords: typedRecords, retryOnTransient: false);
-        var receiving = server.ReceiveAsync();
+        var receiving = TestUtilities.ReceiveUdpAsync(server.Client);
         Assert.Same(receiving, await Task.WhenAny(receiving, Task.Delay(4000)));
         var packet = await receiving;
         byte[] bytes = answer(packet.Buffer);

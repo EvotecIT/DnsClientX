@@ -126,7 +126,7 @@ public class ResolveAsyncEnumerableLifetimeTests {
         client.EndpointConfiguration.MaxConcurrency = 2;
         return client;
     }
-    private static Task<UdpReceiveResult> Receive(UdpClient server) => Bounded(server.ReceiveAsync());
+    private static Task<UdpReceiveResult> Receive(UdpClient server) => Bounded(TestUtilities.ReceiveUdpAsync(server.Client));
     private static async Task<T> Bounded<T>(Task<T> task) {
         Assert.Same(task, await Task.WhenAny(task, Task.Delay(4000)));
         return await task;

@@ -342,7 +342,7 @@ public class DnsServiceBrowseMulticastTests {
         internal async Task<IPEndPoint> ReadQuery(CancellationToken token) {
             using CancellationTokenRegistration cancel = token.Register(_socket.Dispose);
             while (true) {
-                UdpReceiveResult received = await _socket.ReceiveAsync();
+                UdpReceiveResult received = await TestUtilities.ReceiveUdpAsync(_socket.Client);
                 if (received.Buffer.Length >= 12 && (received.Buffer[2] & 0x80) == 0) {
                     return received.RemoteEndPoint;
                 }

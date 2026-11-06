@@ -17,7 +17,7 @@ namespace DnsClientX.Tests {
 #if NET5_0_OR_GREATER
                 UdpReceiveResult result = await udp.ReceiveAsync(token).AsTask();
 #else
-                UdpReceiveResult result = await udp.ReceiveAsync();
+                UdpReceiveResult result = await TestUtilities.ReceiveUdpAsync(udp.Client);
 #endif
                 byte[] response = TestUtilities.CreateResponseFromQuery(result.Buffer, truncated ? (ushort)0x8380 : (ushort)0x8180);
                 await udp.SendAsync(response, response.Length, result.RemoteEndPoint);

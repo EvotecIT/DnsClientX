@@ -17,7 +17,7 @@ namespace DnsClientX.Tests {
             byte[]? firstQuery = null;
             try {
                 while (true) {
-                    UdpReceiveResult result = await udp.ReceiveAsync();
+                    UdpReceiveResult result = await TestUtilities.ReceiveUdpAsync(udp.Client);
                     firstQuery ??= result.Buffer;
                     byte[] response;
                     if (signedResponses == null) {

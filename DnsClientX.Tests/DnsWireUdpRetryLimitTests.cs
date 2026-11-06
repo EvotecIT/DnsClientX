@@ -19,7 +19,7 @@ namespace DnsClientX.Tests {
                 var ports = new List<int>();
                 try {
                     while (true) {
-                        var packet = await server.ReceiveAsync();
+                        var packet = await TestUtilities.ReceiveUdpAsync(server.Client);
                         ports.Add(packet.RemoteEndPoint.Port);
                     }
                 } catch (Exception exception) when (stop.IsCancellationRequested

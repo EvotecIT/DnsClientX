@@ -75,7 +75,7 @@ public class DnsSecCompactRootTests {
         async Task Serve() {
             try {
                 while (!deadline.IsCancellationRequested) {
-                    var query = await udp.ReceiveAsync();
+                    var query = await TestUtilities.ReceiveUdpAsync(udp.Client);
                     var reader = new DnsWireReader(query.Buffer, 12);
                     string owner = DnsWireNameCodec.TrimTrailingRootDot(reader.ReadName());
                     var type = (DnsRecordType)reader.ReadUInt16();

@@ -23,7 +23,7 @@ public sealed class CliWorkflowJsonTests {
         int port = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         Task server = Task.Run(async () => {
-            Task<UdpReceiveResult> receive = udp.ReceiveAsync();
+            Task<UdpReceiveResult> receive = TestUtilities.ReceiveUdpAsync(udp.Client);
             Assert.Same(receive, await Task.WhenAny(receive, Task.Delay(5000, timeout.Token)));
             UdpReceiveResult query = await receive;
             byte[] response = TestUtilities.CreateResponseFromQuery(query.Buffer);

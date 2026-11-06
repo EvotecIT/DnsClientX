@@ -15,7 +15,7 @@ public class DnsWireQueryClientTests {
         using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         int port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
         Task<byte[]> serverTask = Task.Run(async () => {
-            UdpReceiveResult request = await server.ReceiveAsync();
+            UdpReceiveResult request = await TestUtilities.ReceiveUdpAsync(server.Client);
             byte[] response = TestUtilities.CreateResponseFromQuery(request.Buffer, flags: 0x8000);
             await server.SendAsync(response, response.Length, request.RemoteEndPoint);
             return request.Buffer;

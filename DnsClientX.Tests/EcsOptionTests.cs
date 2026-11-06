@@ -12,7 +12,7 @@ namespace DnsClientX.Tests {
     public class EcsOptionTests {
         private static async Task<byte[]> RunUdpServerAsync(UdpClient udp, CancellationToken token) {
             using var stop = token.Register(udp.Dispose);
-            UdpReceiveResult result = await udp.ReceiveAsync();
+            UdpReceiveResult result = await TestUtilities.ReceiveUdpAsync(udp.Client);
             byte[] response = TestUtilities.CreateResponseFromQuery(result.Buffer);
             await udp.SendAsync(response, response.Length, result.RemoteEndPoint);
             return result.Buffer;

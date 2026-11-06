@@ -32,7 +32,7 @@ public class DnsDesignatedResolverCapabilityTests {
         using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         using var registration = stop.Token.Register(server.Dispose);
         Task reply = Task.Run(async () => {
-            UdpReceiveResult query = await server.ReceiveAsync();
+            UdpReceiveResult query = await TestUtilities.ReceiveUdpAsync(server.Client);
             Assert.True(DnsWireMessageParser.TryParseQuestion(query.Buffer, 0, out DnsWireQuestionInfo question));
             Assert.Equal("_dns.resolver.arpa", question.Name.TrimEnd('.'));
             byte[] response = DnsDiscoveryTestWire.Response(query.Buffer,

@@ -209,7 +209,7 @@ namespace DnsClientX.Tests {
             int port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
             Task responder = ReplyOnceAsync();
             async Task ReplyOnceAsync() {
-                UdpReceiveResult packet = await server.ReceiveAsync();
+                UdpReceiveResult packet = await TestUtilities.ReceiveUdpAsync(server.Client);
                 byte[] reply = TestUtilities.CreateResponseFromQuery(packet.Buffer);
                 reply[7] = 1;
                 byte[] answer = { 0xc0, 0x0c, 0, 1, 0, 1, 0, 0, 0, 30, 0, 4, 127, 0, 0, 1 };

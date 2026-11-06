@@ -145,7 +145,7 @@ public class DnsCacheFlightLifetimeTests {
     }
 
     private static async Task<UdpReceiveResult> ReceiveAsync(UdpClient server) {
-        var receive = server.ReceiveAsync();
+        var receive = TestUtilities.ReceiveUdpAsync(server.Client);
         Assert.Same(receive, await Task.WhenAny(receive, Task.Delay(TimeSpan.FromSeconds(3))));
         return await receive;
     }

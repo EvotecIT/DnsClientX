@@ -58,7 +58,7 @@ namespace DnsClientX.Tests {
                 while (!token.IsCancellationRequested) {
                     UdpReceiveResult result;
                     try {
-                        result = await udp.ReceiveAsync();
+                        result = await TestUtilities.ReceiveUdpAsync(udp.Client);
                     } catch (ObjectDisposedException) when (token.IsCancellationRequested) {
                         break;
                     } catch (SocketException) when (token.IsCancellationRequested) {

@@ -19,7 +19,7 @@ public class DnsCacheFlightTransportTests {
         using var client = CreateClient(bootstrap, 53);
         using var caller = new CancellationTokenSource();
         var run = client.Resolve("answer.example", retryOnTransient: false, cancellationToken: caller.Token);
-        var packet = await Bounded(bootstrap.ReceiveAsync());
+        var packet = await Bounded(TestUtilities.ReceiveUdpAsync(bootstrap.Client));
         caller.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
         using var replacement = new UdpClient(AddressFamily.InterNetwork);
@@ -36,14 +36,14 @@ public class DnsCacheFlightTransportTests {
         using var secondClient = new ClientX(firstClient.EndpointConfiguration, enableCache: true);
         using var caller = new CancellationTokenSource();
         var first = firstClient.Resolve("first.example", retryOnTransient: false, cancellationToken: caller.Token);
-        var bootstrapPacket = await Bounded(bootstrap.ReceiveAsync());
+        var bootstrapPacket = await Bounded(TestUtilities.ReceiveUdpAsync(bootstrap.Client));
         var second = secondClient.Resolve("second.example", retryOnTransient: false);
         caller.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
         Assert.False(second.IsCompleted);
         var addresses = Answer(bootstrapPacket.Buffer, new byte[] { 127, 0, 0, 1 });
         await bootstrap.SendAsync(addresses, addresses.Length, bootstrapPacket.RemoteEndPoint);
-        var targetPacket = await Bounded(target.ReceiveAsync());
+        var targetPacket = await Bounded(TestUtilities.ReceiveUdpAsync(target.Client));
         var response = Answer(targetPacket.Buffer, new byte[] { 192, 0, 2, 1 });
         await target.SendAsync(response, response.Length, targetPacket.RemoteEndPoint);
         Assert.Equal(DnsResponseCode.NoError, (await second).Status);
@@ -67,13 +67,13 @@ public class DnsCacheFlightTransportTests {
             using var peer = await Bounded(slow.AcceptTcpClientAsync());
             using var stream = peer.GetStream();
             var firstSlow = await ReadFrame(stream, deadline.Token);
-            var firstFast = await Bounded(fast.ReceiveAsync());
+            var firstFast = await Bounded(TestUtilities.ReceiveUdpAsync(fast.Client));
             var firstAnswer = Answer(firstFast.Buffer, new byte[] { 192, 0, 2, 1 });
             await fast.SendAsync(firstAnswer, firstAnswer.Length, firstFast.RemoteEndPoint);
             Assert.Equal(DnsResponseCode.NoError, (await first).Status);
 
             var second = resolver.QueryAsync(Guid.NewGuid().ToString("N") + ".example", DnsRecordType.A, deadline.Token);
-            var secondFast = await Bounded(fast.ReceiveAsync());
+            var secondFast = await Bounded(TestUtilities.ReceiveUdpAsync(fast.Client));
             var nextSlow = ReadFrame(stream, deadline.Token);
             var observation = Task.Delay(100, deadline.Token);
             if (await Task.WhenAny(nextSlow, observation) == nextSlow) {

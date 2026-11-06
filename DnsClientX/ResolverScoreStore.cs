@@ -20,7 +20,7 @@ namespace DnsClientX {
             }
 
             string content = File.ReadAllText(fullPath);
-            ResolverScoreSnapshot? snapshot = DnsClientXJsonSerializer.Deserialize<ResolverScoreSnapshot>(content);
+            ResolverScoreSnapshot? snapshot = DnsClientXJsonSerializer.Deserialize(content, DnsClientXJsonContext.Default.ResolverScoreSnapshot);
             if (snapshot == null) {
                 throw new InvalidOperationException($"Resolver score snapshot could not be read: {path}");
             }
@@ -54,7 +54,7 @@ namespace DnsClientX {
                 Directory.CreateDirectory(directory);
             }
 
-            File.WriteAllText(fullPath, DnsClientXJsonSerializer.Serialize(snapshot));
+            File.WriteAllText(fullPath, DnsClientXJsonSerializer.Serialize(snapshot, DnsClientXJsonContext.Default.ResolverScoreSnapshot));
         }
     }
 }

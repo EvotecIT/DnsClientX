@@ -40,7 +40,7 @@ public class DnsQueryWorkflowTests {
         client.EndpointConfiguration.MaxConcurrency = 2;
         var peer = Task.Run(async () => {
             for (int index = 0; index < 2; index++) {
-                var receive = server.ReceiveAsync();
+                var receive = TestUtilities.ReceiveUdpAsync(server.Client);
                 Assert.Same(receive, await Task.WhenAny(receive, Task.Delay(5000)));
                 var query = await receive;
                 int questionEnd = 12;
