@@ -40,7 +40,7 @@ jobs:
                       10.x
             - name: Install shared publish engine
               shell: pwsh
-              run: Install-Module PSPublishModule -MinimumVersion 3.0.151 -Force -Scope CurrentUser -AllowClobber
+              run: Install-PSResource -Name PSPublishModule -Version '[3.0.151,)' -Repository PSGallery -TrustRepository -Reinstall -Scope CurrentUser -ErrorAction Stop
             - name: Publish platform CLI candidates
               shell: pwsh
               run: |

@@ -27,7 +27,7 @@ jobs:
                       10.x
             - name: Install shared builder
               shell: pwsh
-              run: Install-Module PSPublishModule -MinimumVersion 3.0.151 -Force -Scope CurrentUser -AllowClobber
+              run: Install-PSResource -Name PSPublishModule -Version '[3.0.151,)' -Repository PSGallery -TrustRepository -Reinstall -Scope CurrentUser -ErrorAction Stop
             - name: Build through native module entrypoint
               shell: pwsh
               run: |
@@ -84,15 +84,14 @@ jobs:
             - name: Install Pester
               shell: pwsh
               run: |
-                  $install = {
-                      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-                      Install-Module Pester -MinimumVersion 5.7.1 -Force -Scope CurrentUser -SkipPublisherCheck -AllowClobber -ErrorAction Stop
-                  }
                   if ('${{ matrix.shell }}' -eq 'powershell') {
-                      & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command $install
-                      if ($LASTEXITCODE) { throw 'Windows PowerShell Pester installation failed.' }
+                      $moduleRoot = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'WindowsPowerShell/Modules'
+                      New-Item -ItemType Directory -Path $moduleRoot -Force | Out-Null
+                      Save-PSResource -Name Pester -Version '[5.7.1,)' -Path $moduleRoot `
+                          -Repository PSGallery -TrustRepository -ErrorAction Stop
                   } else {
-                      & $install
+                      Install-PSResource -Name Pester -Version '[5.7.1,)' -Repository PSGallery `
+                          -TrustRepository -Reinstall -Scope CurrentUser -ErrorAction Stop
                   }
             - name: Import packaged module and run contracts
               shell: pwsh
@@ -140,7 +139,7 @@ jobs:
                   if ($LASTEXITCODE) { throw 'PowerShell extraction failed.' }
                   chmod +x "$root/pwsh"
                   if ($LASTEXITCODE) { throw 'PowerShell executable setup failed.' }
-                  Install-Module Pester -MinimumVersion 5.7.1 -Force -Scope CurrentUser -AllowClobber
+                  Install-PSResource -Name Pester -Version '[5.7.1,)' -Repository PSGallery -TrustRepository -Reinstall -Scope CurrentUser -ErrorAction Stop
             - name: Import package on minimum host and run contracts
               shell: pwsh
               run: |

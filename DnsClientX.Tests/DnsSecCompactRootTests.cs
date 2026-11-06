@@ -39,7 +39,8 @@ public class DnsSecCompactRootTests {
         alias.Status = aliasStatus;
         denial.Status = finalStatus;
         var response = await Resolve(fixture, Alias, true, (name, _) => name == Alias ? alias : denial, new());
-        Assert.Equal(DnsSecValidationStatus.Secure, response.DnsSecValidationStatus);
+        Assert.True(response.DnsSecValidationStatus == DnsSecValidationStatus.Secure,
+            $"{response.DnsSecValidationStatus}: {response.DnsSecValidationMessage}; {response.Error}");
         Assert.True(response.DnsSecCompactDenial);
         Assert.Equal(finalStatus, response.Status);
         Assert.Equal(DnsResponseCode.NXDomain, response.EffectiveStatus);

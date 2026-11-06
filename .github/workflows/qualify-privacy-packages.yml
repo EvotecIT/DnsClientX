@@ -43,10 +43,11 @@ jobs:
           $cache = Join-Path $taskRoot 'private-cache'
           $artifacts = Join-Path $taskRoot 'artifacts'
           New-Item -ItemType Directory -Path $feed -Force | Out-Null
-          [xml] $core = Get-Content ./DnsClientX/DnsClientX.csproj
-          $version = @($core.Project.PropertyGroup.VersionPrefix | Where-Object { $_ })[0]
+          $version = dotnet msbuild ./DnsClientX/DnsClientX.csproj -nologo -getProperty:PackageVersion
+          if ($LASTEXITCODE) { throw 'Evaluating the core candidate version failed.' }
+          $version = $version.Trim()
           foreach ($project in 'DnsClientX', 'DnsClientX.Odoh', 'DnsClientX.DnsCrypt') {
-            dotnet pack "$project/$project.csproj" -c Release --artifacts-path $artifacts -o $feed
+            dotnet pack "$project/$project.csproj" -c Release --artifacts-path $artifacts -o $feed -p:PackageVersion=$version
             if ($LASTEXITCODE) { throw "Packing $project failed." }
           }
           $config = Join-Path $taskRoot 'NuGet.Config'
