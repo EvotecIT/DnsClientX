@@ -33,6 +33,8 @@ jobs:
               run: |
                   $ErrorActionPreference = 'Stop'
                   $config = Get-Content ./Build/project.build.json -Raw | ConvertFrom-Json -AsHashtable
+                  # The provider is a private qualification candidate, outside the release package set.
+                  $config.ExpectedVersionMap['DnsClientX.DnsSec.EdDsa'] = $null
                   $versions = [ordered] @{}
                   foreach ($name in $config.ExpectedVersionMap.Keys) {
                       [xml] $project = Get-Content "$name/$name.csproj" -Raw
