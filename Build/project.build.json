@@ -2,10 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/EvotecIT/PSPublishModule/main/Schemas/project.build.schema.json",
   "RootPath": "..",
   "ExpectedVersionMap": {
-    "DnsClientX": "2.1.X",
-    "DnsClientX.DnsSec.EdDsa": "2.1.X",
-    "DnsClientX.DnsCrypt": "2.1.X",
-    "DnsClientX.Odoh": "2.1.X"
+    "DnsClientX": "2.3.X"
   },
   "ExpectedVersionMapAsInclude": true,
   "ExpectedVersionMapUseWildcards": false,
@@ -31,6 +28,7 @@
     }
   ],
   "ExcludeProjects": [
+    "DnsClientX.AotSmoke",
     "DnsClientX.Benchmarks",
     "DnsClientX.Cli",
     "DnsClientX.Examples",

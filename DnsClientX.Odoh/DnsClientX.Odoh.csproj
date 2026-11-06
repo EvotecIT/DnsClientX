@@ -29,6 +29,12 @@
   <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
     <Reference Include="System.Net.Http" />
   </ItemGroup>
+    <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0' Or '$(TargetFramework)' == 'net10.0'">
+        <IsAotCompatible>true</IsAotCompatible>
+        <ILLinkTreatWarningsAsErrors>true</ILLinkTreatWarningsAsErrors>
+        <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\DnsClientX\DnsClientX.csproj" />
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />

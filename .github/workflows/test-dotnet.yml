@@ -70,6 +70,24 @@ jobs:
               env:
                   DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
 
+            - name: Publish and run Native AOT consumer
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              shell: pwsh
+              run: |
+                  $output = Join-Path $env:RUNNER_TEMP 'dnsclientx-aot-smoke'
+                  foreach ($framework in @('net8.0', 'net10.0')) {
+                      $frameworkOutput = Join-Path $output $framework
+                      dotnet publish DnsClientX.AotSmoke/DnsClientX.AotSmoke.csproj --configuration Release --framework $framework --output $frameworkOutput
+                      if ($LASTEXITCODE -ne 0) {
+                          exit $LASTEXITCODE
+                      }
+                      $executable = if ($IsWindows) { 'DnsClientX.AotSmoke.exe' } else { 'DnsClientX.AotSmoke' }
+                      & (Join-Path $frameworkOutput $executable)
+                      if ($LASTEXITCODE -ne 0) {
+                          exit $LASTEXITCODE
+                      }
+                  }
+
             - name: Summarize failing tests
               if: failure() && env.SUMMARIZE_FAILURES == 'true'
               shell: pwsh
@@ -143,6 +161,24 @@ jobs:
               env:
                   DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
 
+            - name: Publish and run Native AOT consumer
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              shell: pwsh
+              run: |
+                  $output = Join-Path $env:RUNNER_TEMP 'dnsclientx-aot-smoke'
+                  foreach ($framework in @('net8.0', 'net10.0')) {
+                      $frameworkOutput = Join-Path $output $framework
+                      dotnet publish DnsClientX.AotSmoke/DnsClientX.AotSmoke.csproj --configuration Release --framework $framework --output $frameworkOutput
+                      if ($LASTEXITCODE -ne 0) {
+                          exit $LASTEXITCODE
+                      }
+                      $executable = if ($IsWindows) { 'DnsClientX.AotSmoke.exe' } else { 'DnsClientX.AotSmoke' }
+                      & (Join-Path $frameworkOutput $executable)
+                      if ($LASTEXITCODE -ne 0) {
+                          exit $LASTEXITCODE
+                      }
+                  }
+
             - name: Summarize failing tests
               if: failure() && env.SUMMARIZE_FAILURES == 'true'
               shell: pwsh
@@ -215,6 +251,24 @@ jobs:
               run: dotnet test DnsClientX.Tests/DnsClientX.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --framework net10.0 --no-build --verbosity ${{ env.TEST_VERBOSITY }} --logger "console;verbosity=${{ env.TEST_VERBOSITY }}" --logger trx --blame-hang --blame-hang-timeout 60s --blame-hang-dump-type none
               env:
                   DNSCLIENTX_DEBUG_SYSTEMDNS: '1'
+
+            - name: Publish and run Native AOT consumer
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              shell: pwsh
+              run: |
+                  $output = Join-Path $env:RUNNER_TEMP 'dnsclientx-aot-smoke'
+                  foreach ($framework in @('net8.0', 'net10.0')) {
+                      $frameworkOutput = Join-Path $output $framework
+                      dotnet publish DnsClientX.AotSmoke/DnsClientX.AotSmoke.csproj --configuration Release --framework $framework --output $frameworkOutput
+                      if ($LASTEXITCODE -ne 0) {
+                          exit $LASTEXITCODE
+                      }
+                      $executable = if ($IsWindows) { 'DnsClientX.AotSmoke.exe' } else { 'DnsClientX.AotSmoke' }
+                      & (Join-Path $frameworkOutput $executable)
+                      if ($LASTEXITCODE -ne 0) {
+                          exit $LASTEXITCODE
+                      }
+                  }
 
             - name: Summarize failing tests
               if: failure() && env.SUMMARIZE_FAILURES == 'true'

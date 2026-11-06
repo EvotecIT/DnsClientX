@@ -18,7 +18,7 @@ namespace DnsClientX {
                 if (buffer.Length + read > MaximumProfileBytes) throw new InvalidOperationException("Resolver health profile exceeds the 256 KiB limit.");
                 buffer.Write(block, 0, read);
             }
-            ResolverHealthProfile profile = DnsClientXJsonSerializer.Deserialize<ResolverHealthProfile>(new UTF8Encoding(false, true).GetString(buffer.ToArray())) ?? throw new InvalidOperationException("Resolver health profile is empty.");
+            ResolverHealthProfile profile = DnsClientXJsonSerializer.Deserialize(new UTF8Encoding(false, true).GetString(buffer.ToArray()), DnsClientXJsonContext.Default.ResolverHealthProfile) ?? throw new InvalidOperationException("Resolver health profile is empty.");
             profile.Validate();
             return profile;
         }
@@ -27,7 +27,7 @@ namespace DnsClientX {
             if (string.IsNullOrWhiteSpace(path)) throw new ArgumentNullException(nameof(path));
             if (profile == null) throw new ArgumentNullException(nameof(profile));
             profile.Validate();
-            string json = DnsClientXJsonSerializer.Serialize(profile);
+            string json = DnsClientXJsonSerializer.Serialize(profile, DnsClientXJsonContext.Default.ResolverHealthProfile);
             if (Encoding.UTF8.GetByteCount(json) > MaximumProfileBytes) throw new InvalidOperationException("Resolver health profile exceeds the 256 KiB limit.");
             File.WriteAllText(Path.GetFullPath(path), json, new UTF8Encoding(false));
         }

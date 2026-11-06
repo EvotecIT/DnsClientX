@@ -10,6 +10,10 @@ public static class DnsWireTransportProviderLoader {
     /// <param name="relay">Optional DNSCrypt relay stamp; required ODoH relay stamp/HTTPS endpoint.</param>
     /// <returns>A provider the caller must dispose after its clients finish.</returns>
     /// <remarks>Loading a local assembly executes code. Only load providers trusted by the application.</remarks>
+#if NET8_0_OR_GREATER
+    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Provider assembly discovery requires preserved provider types. Register a provider instance directly in trimmed applications.")]
+    [System.Diagnostics.CodeAnalysis.RequiresDynamicCode("Loading external managed provider assemblies is unavailable to Native AOT. Register a statically referenced provider instance directly.")]
+#endif
     public static IDnsWireTransportProvider Load(string assemblyPath, string resolver, string? relay = null) {
         return OptionalDnsProviderLoader.Load<IDnsWireTransportFactory>(assemblyPath, "wire transport").Create(resolver, relay)
             ?? throw new InvalidOperationException("The selected privacy provider did not create a transport.");

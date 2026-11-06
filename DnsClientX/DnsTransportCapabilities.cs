@@ -13,7 +13,11 @@ namespace DnsClientX {
     /// </remarks>
     public static class DnsTransportCapabilities {
         private static readonly DnsRequestFormat[] DefaultReportFormats =
+#if NET8_0_OR_GREATER
+            Enum.GetValues<DnsRequestFormat>();
+#else
             Enum.GetValues(typeof(DnsRequestFormat)).Cast<DnsRequestFormat>().ToArray();
+#endif
 
         /// <summary>
         /// Gets a value indicating whether DNS over HTTP/3 is supported by the current target/runtime combination.

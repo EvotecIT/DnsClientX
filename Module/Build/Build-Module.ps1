@@ -7,7 +7,7 @@ param(
 
     [bool] $UpdateVersions = $true,
 
-    [string] $ModuleVersion = '2.1.X',
+    [string] $ModuleVersion = '2.3.X',
 
     [switch] $SkipInstall,
 

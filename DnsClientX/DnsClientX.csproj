@@ -50,6 +50,12 @@
         <NeutralLanguage>en</NeutralLanguage>
     </PropertyGroup>
 
+    <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0' Or '$(TargetFramework)' == 'net10.0'">
+        <IsAotCompatible>true</IsAotCompatible>
+        <ILLinkTreatWarningsAsErrors>true</ILLinkTreatWarningsAsErrors>
+        <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    </PropertyGroup>
+
     <ItemGroup>
         <Content Include="DnsClientX.ico" Pack="false" />
     </ItemGroup>

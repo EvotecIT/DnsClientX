@@ -207,7 +207,7 @@ internal sealed class Rfc5011Store {
         string content = File.ReadAllText(path);
         Rfc5011StateFile? state;
         try {
-            state = DnsClientXJsonSerializer.Deserialize<Rfc5011StateFile>(content);
+            state = DnsClientXJsonSerializer.Deserialize(content, DnsClientXJsonContext.Default.Rfc5011StateFile);
         } catch (Exception ex) when (ex is System.Text.Json.JsonException || ex is NotSupportedException) {
             throw new InvalidDataException("RFC 5011 trust-anchor state is malformed; it was not reset automatically.", ex);
         }
@@ -262,7 +262,7 @@ internal sealed class Rfc5011Store {
         if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
         string temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try {
-            File.WriteAllText(temporary, DnsClientXJsonSerializer.Serialize(state));
+            File.WriteAllText(temporary, DnsClientXJsonSerializer.Serialize(state, DnsClientXJsonContext.Default.Rfc5011StateFile));
             if (File.Exists(path)) {
                 File.Replace(temporary, path, null);
             } else {

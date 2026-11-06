@@ -22,6 +22,12 @@
     <Company>Evotec</Company>
   </PropertyGroup>
   <Import Project="buildTransitive/DnsClientX.DnsCrypt.targets" />
+    <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0' Or '$(TargetFramework)' == 'net10.0'">
+        <IsAotCompatible>true</IsAotCompatible>
+        <ILLinkTreatWarningsAsErrors>true</ILLinkTreatWarningsAsErrors>
+        <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="../DnsClientX/DnsClientX.csproj" />
     <PackageReference Include="libsodium" Version="$(DnsClientXSodiumVersion)" GeneratePathProperty="true" />

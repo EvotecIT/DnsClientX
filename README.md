@@ -24,6 +24,14 @@ Install-Module DnsClientX -Scope CurrentUser
 
 The 2.2.0 release includes the core NuGet package, PowerShell module and CLI archives. `DnsClientX.Odoh`, `DnsClientX.DnsCrypt` and `DnsClientX.DnsSec.EdDsa` are **not published on NuGet** and are not included in these artifacts. Their examples require a provider built from the same source revision, with its dependencies deployed beside the provider DLL. Core DNS queries, DNSSEC algorithms supported by the running target, and the module work without these providers.
 
+## Native AOT
+
+The .NET 8 and .NET 10 libraries are trim and Native AOT compatible. Their builds enable the trim, single-file and AOT analyzers and treat warnings as errors. CI publishes and runs a native consumer on Windows, Linux and macOS for both frameworks. It checks loopback DNS queries, typed answers, caching, JSON output, resolver profile and score persistence, and the source-only providers' static entry points.
+
+Library-owned JSON documents use source-generated contracts. For caller-owned payloads, pass a generated `JsonTypeInfo<T>` to `DnsClientXJsonSerializer.Serialize` or `Deserialize`. The original generic helpers retain reflection-based serialization and carry trim/AOT annotations. `CreateSerializerOptions` retains its general enum converter and carries an AOT annotation.
+
+Reference optional providers directly and assign their transport or verifier instance in native applications. `DnsWireTransportProviderLoader.Load` and `DnsSecSignatureVerifierLoader.Load` load assemblies dynamically and carry trim/AOT annotations. The optional providers remain source-only.
+
 ## Quick start
 
 ```csharp

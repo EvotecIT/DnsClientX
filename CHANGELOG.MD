@@ -1,3 +1,11 @@
+## 2.3.0 - 2026-11-06
+
+- Make the .NET 8 and .NET 10 libraries trim and Native AOT compatible, with strict analyzers on the core and source-only provider projects.
+- Use generated JSON metadata for response output, resolver profiles and scores, and managed trust-anchor persistence. Add metadata-based JSON overloads for caller-owned payloads.
+- Preserve the general reflection-based JSON helpers and dynamic provider loaders with explicit trim/AOT annotations. Static provider construction remains available to native consumers.
+- Publish and run a deterministic native consumer on Windows, Linux and macOS for both modern targets, covering loopback queries, typed answers, cache hits, JSON and persistence, plus source-only provider validation.
+- Align the maintained release configuration with the core package, PowerShell module and CLI boundary. Optional providers remain source-only.
+
 ## 2.2.0 - 2026-11-02
 
 - Publish the core NuGet package, PowerShell module and CLI archives without optional provider dependencies. `DnsClientX.Odoh`, `DnsClientX.DnsCrypt` and `DnsClientX.DnsSec.EdDsa` are not published on NuGet and are excluded from this release; their examples require source-built providers.
