@@ -1,3 +1,8 @@
+## 2.3.1 - 2026-11-06
+
+- Preserve signatures on manifest-loaded format and type XML in the PowerShell Gallery package through the shared publisher fix in PSPublishModule #1233.
+- Include the Native AOT and trim compatibility changes from 2.3.0 across the modern library targets.
+
 ## 2.3.0 - 2026-11-06
 
 - Make the .NET 8 and .NET 10 libraries trim and Native AOT compatible, with strict analyzers on the core and source-only provider projects.

@@ -6291,7 +6291,7 @@ specified. When false, returns simple TXT records.</maml:para>
           </dev:type>
           <dev:defaultValue>None</dev:defaultValue>
         </command:parameter>
-        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="0" aliases="None">
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="False" position="named" aliases="None">
           <maml:name>Pattern</maml:name>
           <maml:description>
             <maml:para>Pattern to expand into multiple DNS queries.</maml:para>
